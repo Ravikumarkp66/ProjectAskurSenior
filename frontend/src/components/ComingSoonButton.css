@@ -1,0 +1,58 @@
+.coming-soon-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    background: linear-gradient(180deg, #fff7d6, #ffd88a);
+    color: #0f172a;
+    font-weight: 700;
+    border: none;
+    cursor: not-allowed;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.6), inset 0 -2px 6px rgba(0, 0, 0, 0.06);
+    font-size: 0.95rem;
+}
+
+.coming-soon-btn:disabled {
+    pointer-events: none;
+}
+
+.coming-soon-btn .pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffb84d 0%, #ff7a18 60%, #ff5a00 100%);
+    box-shadow: 0 0 8px rgba(255, 122, 24, 0.45), 0 0 0 6px rgba(255, 122, 24, 0.12);
+    display: inline-block;
+    transform-origin: center;
+    animation: pulse 2000ms infinite ease-out;
+}
+
+/* Generic dot class so other components (like SubjectCard) can reuse it */
+.coming-soon-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 40%;
+    background: radial-gradient(circle at 30% 30%, #ffb84d 0%, #ff7a18 60%, #ff5a00 100%);
+    box-shadow: 0 0 8px rgba(255, 122, 24, 0.45), 0 0 0 6px rgba(255, 122, 24, 0.12);
+    display: inline-block;
+    transform-origin: center;
+    animation: pulse 2000ms infinite ease-out;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 8px rgba(255, 122, 24, 0.45), 0 0 0 6px rgba(255, 122, 24, 0.12);
+    }
+
+    60% {
+        transform: scale(1.25);
+        box-shadow: 0 0 30px rgba(255, 122, 24, 0.0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 8px rgba(255, 122, 24, 0.45), 0 0 0 6px rgba(255, 122, 24, 0.12);
+    }
+}
