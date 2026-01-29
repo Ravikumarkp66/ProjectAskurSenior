@@ -236,18 +236,28 @@ GET /api/progress/branch/:branch
 
 ## 🚀 Deployment
 
-### Frontend Deployment
+### Production Ready
+This project is fully configured for production deployment:
+- **Frontend**: Vercel
+- **Backend**: Render
+- **Database**: MongoDB Atlas
+
+### Deployment Guide
+For complete step-by-step instructions:
+- 📖 **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Complete production deployment
+- 🔍 **[DEPLOYMENT_AUDIT.md](./DEPLOYMENT_AUDIT.md)** - Security & readiness audit
+
+### Quick Deploy
 ```bash
-npm run build
-# Deploy 'dist' folder to Vercel, Netlify, or GitHub Pages
+# Frontend (Vercel)
+npm run build  # Creates 'dist' folder
+# Set VITE_API_BASE_URL env var in Vercel
+
+# Backend (Render)
+# Set MONGODB_URI, JWT_SECRET, FRONTEND_URL env vars in Render
 ```
 
-### Backend Deployment
-- Deploy to Heroku, Railway, or custom server
-- Update environment variables
-- Ensure MongoDB accessibility
-
-See [SETUP.md](./SETUP.md) for detailed deployment guide
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed instructions
 
 ## 📖 Documentation
 
