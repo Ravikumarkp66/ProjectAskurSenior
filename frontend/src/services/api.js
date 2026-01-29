@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Use Vite environment variable in production; fallback to `/api` so Vite dev proxy works.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Use VITE_API_URL in production (e.g., https://backend.onrender.com)
+// Fallback to '/api' for dev proxy
+const API_BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL

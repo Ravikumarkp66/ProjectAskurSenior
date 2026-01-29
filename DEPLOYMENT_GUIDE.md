@@ -57,12 +57,13 @@
 2. **Set Environment Variables**
    In Vercel project settings → "Environment Variables", add:
    ```
-   VITE_API_BASE_URL=https://your-backend-render-url.onrender.com/api
+   VITE_API_URL=https://your-backend-render-url.onrender.com
    ```
    Example:
    ```
-   VITE_API_BASE_URL=https://askursenior-api.onrender.com/api
+   VITE_API_URL=https://askursenior-api.onrender.com
    ```
+   (Note: Do NOT include `/api` in the URL)
 
 3. **Configure Build Settings**
    - Framework Preset: Other (since it's Vite, not Next.js)
@@ -114,7 +115,7 @@
 ## Troubleshooting
 
 ### 404 on API Calls
-- **Check:** Is `VITE_API_BASE_URL` set in Vercel?
+- **Check:** Is `VITE_API_URL` set in Vercel?
 - **Check:** Is backend URL correct and reachable?
 - **Check:** Render backend running? (free tier spins down after 15 min inactivity)
 
