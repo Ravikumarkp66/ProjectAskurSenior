@@ -10,8 +10,8 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
     // Show "Coming Soon" for all subjects except the explicitly allowed list
     const _code = (subject?.code ?? '').toString().toUpperCase().trim();
     const alwaysAvailable = new Set([
-        'APC','APS','ACE','ACM','ETC13','PLC5','ESCO6','ESCO7','ESCO9',
-        'PSC1','PSC5','PSC6','CC03','CC04','CC08'
+        'APC', 'APS', 'ACE', 'ACM', 'ETC13', 'PLC5', 'ESCO6', 'ESCO7', 'ESCO9',
+        'PSC1', 'PSC5', 'PSC6', 'CC03', 'CC04', 'CC08'
     ]);
     const isComingSoon = !_code || !alwaysAvailable.has(_code);
     const [revisionIds, setRevisionIds] = useState(() => {
@@ -120,12 +120,12 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
                                         type="button"
                                         onClick={() => setView('all')}
                                         className={`px-3 py-1 text-xs font-semibold rounded-md transition ${view === 'all'
-                                                ? isLightMode
-                                                    ? 'bg-white text-gray-700'
-                                                    : 'bg-white text-slate-900'
-                                                : isLightMode
-                                                    ? 'text-gray-700 hover:text-gray-900'
-                                                    : 'text-slate-200 hover:text-white'
+                                            ? isLightMode
+                                                ? 'bg-white text-gray-700'
+                                                : 'bg-white text-slate-900'
+                                            : isLightMode
+                                                ? 'text-gray-700 hover:text-gray-900'
+                                                : 'text-slate-200 hover:text-white'
                                             }`}
                                     >
                                         All Qns
@@ -134,12 +134,12 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
                                         type="button"
                                         onClick={() => setView('revision')}
                                         className={`px-3 py-1 text-xs font-semibold rounded-md transition ${view === 'revision'
-                                                ? isLightMode
-                                                    ? 'bg-white text-gray-700'
-                                                    : 'bg-white text-slate-900'
-                                                : isLightMode
-                                                    ? 'text-gray-700 hover:text-gray-900'
-                                                    : 'text-slate-200 hover:text-white'
+                                            ? isLightMode
+                                                ? 'bg-white text-gray-700'
+                                                : 'bg-white text-slate-900'
+                                            : isLightMode
+                                                ? 'text-gray-700 hover:text-gray-900'
+                                                : 'text-slate-200 hover:text-white'
                                             }`}
                                     >
                                         Revision
@@ -154,8 +154,8 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
                             {modulesToShow.length === 0 ? (
                                 <div
                                     className={`rounded-lg border px-4 py-3 ${isLightMode
-                                            ? 'border-slate-200 bg-slate-50'
-                                            : 'border-white/10 bg-slate-900/30'
+                                        ? 'border-slate-200 bg-slate-50'
+                                        : 'border-white/10 bg-slate-900/30'
                                         }`}
                                 >
                                     <p className={`text-sm ${isLightMode ? 'text-slate-600' : 'text-secondary-300'}`}>
