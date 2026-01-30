@@ -19,6 +19,14 @@ const LoginPage = ({ initialMode = 'login' }) => {
     const [showReset, setShowReset] = useState(false);
     const [resetEmail, setResetEmail] = useState('');
 
+    // Clear form when mode changes
+    const handleModeChange = (newMode) => {
+        setMode(newMode);
+        setFormData({ usn: '', password: '', email: '' });
+        setError('');
+        setShowReset(false);
+    };
+
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({
@@ -157,7 +165,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
             <div className="mt-6 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-1">
                 <button
                     type="button"
-                    onClick={() => setMode('login')}
+                    onClick={() => handleModeChange('login')}
                     className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${
                         isLogin
                             ? 'bg-white/15 text-white'
@@ -168,7 +176,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 </button>
                 <button
                     type="button"
-                    onClick={() => setMode('register')}
+                    onClick={() => handleModeChange('register')}
                     className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${
                         mode === 'register'
                             ? 'bg-white/15 text-white'
@@ -272,7 +280,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
 
                             <button
                                 type="button"
-                                onClick={() => setMode('register')}
+                                onClick={() => handleModeChange('register')}
                                 className="text-sm font-semibold text-sky-200 hover:text-sky-100 transition"
                             >
                                 Create an account
@@ -323,7 +331,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 {isAdmin ? (
                     <button
                         type="button"
-                        onClick={() => setMode('login')}
+                        onClick={() => handleModeChange('login')}
                         className="font-semibold text-sky-200 hover:text-sky-100 transition"
                     >
                         ← Back to User Login
@@ -331,7 +339,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 ) : isLogin ? (
                     <button
                         type="button"
-                        onClick={() => setMode('register')}
+                        onClick={() => handleModeChange('register')}
                         className="font-semibold text-sky-200 hover:text-sky-100 transition"
                     >
                         Don't have an account? Sign up
@@ -339,7 +347,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 ) : (
                     <button
                         type="button"
-                        onClick={() => setMode('login')}
+                        onClick={() => handleModeChange('login')}
                         className="font-semibold text-sky-200 hover:text-sky-100 transition"
                     >
                         Already have an account? Sign in
@@ -351,7 +359,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 <div className="mt-6 pt-6 border-t border-white/10 text-center">
                     <button
                         type="button"
-                        onClick={() => setMode('admin')}
+                        onClick={() => handleModeChange('admin')}
                         className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300/80 hover:text-amber-200 transition"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
