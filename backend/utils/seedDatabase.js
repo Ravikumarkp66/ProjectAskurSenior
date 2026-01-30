@@ -380,16 +380,19 @@ const seedDatabase = async () => {
                         });
                     }
 
-                    const newSubject = new Subject({
-                        name: subject.name,
-                        code: subject.code,
-                        credits: subject.credits,
-                        cycle,
-                        branch,
-                        modules: modules
-                    });
-
-                    await newSubject.save();
+                    // Use findOneAndUpdate with upsert to handle duplicates gracefully
+                    await Subject.findOneAndUpdate(
+                        { code: subject.code, branch, cycle },
+                        {
+                            name: subject.name,
+                            code: subject.code,
+                            credits: subject.credits,
+                            cycle,
+                            branch,
+                            modules: modules
+                        },
+                        { upsert: true, new: true }
+                    );
                 }
             }
         }

@@ -1,10 +1,22 @@
 const Subject = require('../models/Subject');
 const Progress = require('../models/Progress');
+const { getCache, setCache, deleteCache, cacheKeys, CACHE_TTL } = require('../utils/redisClient');
 
 const getSubjectsByBranch = async (req, res) => {
     try {
         const { branch } = req.params;
         const { cycle } = req.query;
+
+        // Try to get from cache first
+        const cacheKey = cacheKeys.subjectsByBranch(branch, cycle);
+        const cachedData = await getCache(cacheKey);
+        
+        if (cachedData) {
+            console.log(`Cache HIT: ${cacheKey}`);
+            return res.json(cachedData);
+        }
+        
+        console.log(`Cache MISS: ${cacheKey}`);
 
         const query = { branch };
         if (cycle === 'P' || cycle === 'C') query.cycle = cycle;
@@ -12,6 +24,10 @@ const getSubjectsByBranch = async (req, res) => {
         const subjects = await Subject.find(query)
             .sort({ credits: -1, code: 1 })
             .select('-__v');
+        
+        // Cache the result
+        await setCache(cacheKey, subjects, CACHE_TTL.SUBJECTS_BY_BRANCH);
+        
         res.json(subjects);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -22,10 +38,24 @@ const getSubjectById = async (req, res) => {
     try {
         const { subjectId } = req.params;
 
+        // Try to get from cache first
+        const cacheKey = cacheKeys.subjectDetail(subjectId);
+        const cachedData = await getCache(cacheKey);
+        
+        if (cachedData) {
+            console.log(`Cache HIT: ${cacheKey}`);
+            return res.json(cachedData);
+        }
+        
+        console.log(`Cache MISS: ${cacheKey}`);
+
         const subject = await Subject.findById(subjectId);
         if (!subject) {
             return res.status(404).json({ error: 'Subject not found' });
         }
+
+        // Cache the result
+        await setCache(cacheKey, subject, CACHE_TTL.SUBJECT_DETAIL);
 
         res.json(subject);
     } catch (error) {

@@ -9,6 +9,7 @@ const progressRoutes = require('./routes/progressRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const bugRoutes = require('./routes/bugRoutes');
 const seedDatabase = require('./utils/seedDatabase');
+const { connectRedis } = require('./utils/redisClient');
 
 const app = express();
 
@@ -27,8 +28,12 @@ mongoose
         useNewUrlParser: true,
         useUnifiedTopology: true
     })
-    .then(() => {
+    .then(async () => {
         console.log('MongoDB connected successfully');
+        
+        // Connect to Redis
+        await connectRedis();
+        
         // Seed database on startup only in non-production environments
         if (process.env.NODE_ENV !== 'production') {
             seedDatabase().catch((error) => {
