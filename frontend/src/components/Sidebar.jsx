@@ -179,9 +179,8 @@ const Sidebar = ({
                 <div>
                     <button
                         type="button"
-                        className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition ${
-                            isCollapsed ? '' : 'text-left'
-                        }`}
+                        className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition ${isCollapsed ? '' : 'text-left'
+                            }`}
                         title="Coming soon"
                     >
                         <div className={`flex ${isCollapsed ? 'items-center justify-center' : 'items-start'} gap-3`}>
@@ -203,10 +202,10 @@ const Sidebar = ({
 
                     <button
                         type="button"
-                        className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition mt-3 ${
-                            isCollapsed ? '' : 'text-left'
-                        }`}
-                        title="Coming soon"
+                        onClick={() => navigate('/calculator')}
+                        className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition mt-3 ${isCollapsed ? '' : 'text-left'
+                            }`}
+                        title="CGPA / SGPA Calculator"
                     >
                         <div className={`flex ${isCollapsed ? 'items-center justify-center' : 'items-start'} gap-3`}>
                             <div className={isCollapsed ? '' : 'mt-0.5'}>
@@ -217,8 +216,8 @@ const Sidebar = ({
                             {!isCollapsed && (
                                 <div className="min-w-0">
                                     <p className={`text-sm font-semibold ${sidebarClasses.title}`}>CGPA / SGPA Calculator</p>
-                                    <span className="mt-1 inline-flex items-center rounded-full bg-emerald-500/15 text-emerald-300 px-2 py-0.5 border border-emerald-400/20 text-[11px]">
-                                        Coming soon
+                                    <span className="mt-1 inline-flex items-center rounded-full bg-purple-500/15 text-purple-300 px-2 py-0.5 border border-purple-400/20 text-[11px]">
+                                        New
                                     </span>
                                 </div>
                             )}
@@ -435,15 +434,14 @@ const Sidebar = ({
                                         key={v}
                                         type="button"
                                         onClick={() => setFeedbackRating(v)}
-                                        className={`h-10 w-10 rounded-xl border text-lg font-extrabold transition ${
-                                            feedbackRating >= v
+                                        className={`h-10 w-10 rounded-xl border text-lg font-extrabold transition ${feedbackRating >= v
                                                 ? isLightMode
                                                     ? 'bg-amber-50 border-amber-200 text-amber-600'
                                                     : 'bg-amber-500/10 border-amber-400/20 text-amber-300'
                                                 : isLightMode
                                                     ? 'bg-white border-slate-200 text-slate-300 hover:bg-slate-50'
                                                     : 'bg-white/5 border-white/10 text-secondary-500 hover:bg-white/10'
-                                        }`}
+                                            }`}
                                         aria-label={`Rate ${v} star`}
                                     >
                                         ★
@@ -463,11 +461,10 @@ const Sidebar = ({
                                 value={feedbackMessage}
                                 onChange={(e) => setFeedbackMessage(e.target.value)}
                                 rows={4}
-                                className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
-                                    isLightMode
+                                className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
                                         ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
                                         : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                }`}
+                                    }`}
                                 placeholder="Tell us what you liked, what to improve, or any suggestions..."
                             />
                         </div>
@@ -482,9 +479,8 @@ const Sidebar = ({
                             <button
                                 type="button"
                                 onClick={() => closeFeedbackModal()}
-                                className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${
-                                    isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'
-                                }`}
+                                className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'
+                                    }`}
                                 disabled={feedbackSubmitting}
                             >
                                 Cancel
@@ -492,9 +488,8 @@ const Sidebar = ({
                             <button
                                 type="button"
                                 onClick={submitFeedback}
-                                className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${
-                                    feedbackRating && !feedbackSubmitting ? 'bg-purple-600 hover:bg-purple-500' : 'bg-purple-600/40 cursor-not-allowed'
-                                }`}
+                                className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${feedbackRating && !feedbackSubmitting ? 'bg-purple-600 hover:bg-purple-500' : 'bg-purple-600/40 cursor-not-allowed'
+                                    }`}
                                 disabled={!feedbackRating || feedbackSubmitting}
                             >
                                 {feedbackSubmitting ? 'Submitting...' : 'Submit'}
@@ -518,11 +513,10 @@ const Sidebar = ({
                             <input
                                 value={bugTitle}
                                 onChange={(e) => setBugTitle(e.target.value)}
-                                className={`mt-2 h-10 w-full rounded-xl border px-3 text-sm outline-none ${
-                                    isLightMode
+                                className={`mt-2 h-10 w-full rounded-xl border px-3 text-sm outline-none ${isLightMode
                                         ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
                                         : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                }`}
+                                    }`}
                                 placeholder="Short summary (e.g., Subject list not loading)"
                             />
                         </div>
@@ -535,11 +529,10 @@ const Sidebar = ({
                                 value={bugDescription}
                                 onChange={(e) => setBugDescription(e.target.value)}
                                 rows={5}
-                                className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
-                                    isLightMode
+                                className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
                                         ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
                                         : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                }`}
+                                    }`}
                                 placeholder="What happened? What did you expect? Steps to reproduce..."
                             />
                         </div>
@@ -559,9 +552,8 @@ const Sidebar = ({
                             <button
                                 type="button"
                                 onClick={() => closeBugModal()}
-                                className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${
-                                    isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'
-                                }`}
+                                className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'
+                                    }`}
                                 disabled={bugSubmitting}
                             >
                                 Cancel
@@ -569,11 +561,10 @@ const Sidebar = ({
                             <button
                                 type="button"
                                 onClick={submitBug}
-                                className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${
-                                    bugTitle.trim() && bugDescription.trim() && !bugSubmitting
+                                className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${bugTitle.trim() && bugDescription.trim() && !bugSubmitting
                                         ? 'bg-purple-600 hover:bg-purple-500'
                                         : 'bg-purple-600/40 cursor-not-allowed'
-                                }`}
+                                    }`}
                                 disabled={!bugTitle.trim() || !bugDescription.trim() || bugSubmitting}
                             >
                                 {bugSubmitting ? 'Submitting...' : 'Submit'}
@@ -598,11 +589,10 @@ const ModalShell = ({ isLightMode, title, onClose, children }) => {
                 aria-label="Close modal"
             />
             <div
-                className={`relative w-full max-w-lg rounded-2xl border shadow-xl ${
-                    isLightMode
+                className={`relative w-full max-w-lg rounded-2xl border shadow-xl ${isLightMode
                         ? 'border-slate-200 bg-white text-slate-900'
                         : 'border-white/10 bg-primary-900 text-secondary-100'
-                }`}
+                    }`}
             >
                 <div className={`flex items-center justify-between px-5 py-4 border-b ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
                     <h2 className="text-base font-extrabold">{title}</h2>

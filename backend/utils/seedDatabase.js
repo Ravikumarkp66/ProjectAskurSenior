@@ -315,6 +315,7 @@ const CYCLE_SUBJECTS = {
         { code: 'PLC6', name: 'Python Programming', credits: 4, branches: ['CS', 'IS', 'CI', 'BT'] },
 
         { code: 'ESCO11', name: 'Applied Mechanics', credits: 3, branches: ['CV', 'ME'] },
+        { code: 'ESCO6', name: 'Introduction to Electrical Engineering', credits: 3, branches: ['IS'] },
         { code: 'ESCO9', name: 'Essentials of Information Technology', credits: 3, branches: ['IM', 'EE', 'EC', 'ET', 'EI'] },
 
         { code: 'PSC3', name: 'Basics of Electrical Engineering', credits: 3, branches: ['EE'] },

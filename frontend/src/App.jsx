@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import AdminReviewsPage from './pages/AdminReviewsPage';
+import CGPACalculatorPage from './pages/CGPACalculatorPage';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -66,6 +67,14 @@ function AppContent() {
                     <AdminRoute>
                         <AdminReviewsPage />
                     </AdminRoute>
+                }
+            />
+            <Route
+                path="/calculator"
+                element={
+                    <ProtectedRoute>
+                        <CGPACalculatorPage />
+                    </ProtectedRoute>
                 }
             />
             <Route path="/" element={<HomePage />} />
