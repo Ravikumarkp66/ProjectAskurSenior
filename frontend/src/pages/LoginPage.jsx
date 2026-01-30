@@ -166,22 +166,20 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 <button
                     type="button"
                     onClick={() => handleModeChange('login')}
-                    className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${
-                        isLogin
+                    className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${isLogin
                             ? 'bg-white/15 text-white'
                             : 'text-white/70 hover:text-white hover:bg-white/10'
-                    }`}
+                        }`}
                 >
                     Sign in
                 </button>
                 <button
                     type="button"
                     onClick={() => handleModeChange('register')}
-                    className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${
-                        mode === 'register'
+                    className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${mode === 'register'
                             ? 'bg-white/15 text-white'
                             : 'text-white/70 hover:text-white hover:bg-white/10'
-                    }`}
+                        }`}
                 >
                     Sign up
                 </button>
@@ -193,13 +191,14 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4" autoComplete="off">
                 {!isAdmin && (
                     <div>
                         <label className="block text-sm font-semibold text-white/80 mb-2">USN</label>
                         <input
                             type="text"
                             name="usn"
+                            autoComplete="off"
                             placeholder="USN"
                             value={formData.usn}
                             onChange={handleInputChange}
@@ -219,6 +218,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                         <input
                             type="email"
                             name="email"
+                            autoComplete="off"
                             placeholder="usn@sit.ac.in"
                             value={formData.email}
                             onChange={handleInputChange}
@@ -235,6 +235,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                         <input
                             type="text"
                             name="email"
+                            autoComplete="off"
                             placeholder="admin@example.com"
                             value={formData.email}
                             onChange={handleInputChange}
@@ -261,6 +262,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                     <input
                         type="password"
                         name="password"
+                        autoComplete="new-password"
                         placeholder=""
                         value={formData.password}
                         onChange={handleInputChange}
@@ -290,9 +292,8 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 </div>
 
                 <div
-                    className={`grid transition-all duration-300 ease-out ${
-                        isLogin && showReset ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-                    }`}
+                    className={`grid transition-all duration-300 ease-out ${isLogin && showReset ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                        }`}
                 >
                     <div className="overflow-hidden">
                         <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -317,11 +318,10 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 <button
                     type="submit"
                     disabled={loading}
-                    className={`w-full min-h-11 rounded-full px-4 text-sm font-bold text-white shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed ${
-                        isAdmin
+                    className={`w-full min-h-11 rounded-full px-4 text-sm font-bold text-white shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed ${isAdmin
                             ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500'
                             : 'bg-gradient-to-r from-sky-500 to-purple-600 hover:from-sky-400 hover:to-purple-500'
-                    }`}
+                        }`}
                 >
                     {loading ? 'Processing...' : isAdmin ? 'Sign in as Admin' : isLogin ? 'Sign in' : 'Create account'}
                 </button>

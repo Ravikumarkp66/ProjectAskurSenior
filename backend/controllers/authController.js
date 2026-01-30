@@ -136,7 +136,7 @@ const getAllUsers = async (req, res) => {
         const users = await User.find()
             .select('-password')
             .sort({ createdAt: -1 });
-        
+
         res.json({
             items: users,
             total: users.length

@@ -132,33 +132,30 @@ const AdminReviewsPage = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab('feedback')}
-                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${
-                                activeTab === 'feedback'
+                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${activeTab === 'feedback'
                                     ? 'bg-purple-600 text-white'
                                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Feedback
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('bugs')}
-                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${
-                                activeTab === 'bugs'
+                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${activeTab === 'bugs'
                                     ? 'bg-purple-600 text-white'
                                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Bugs
                         </button>
                         <button
                             type="button"
                             onClick={() => setActiveTab('users')}
-                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${
-                                activeTab === 'users'
+                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${activeTab === 'users'
                                     ? 'bg-purple-600 text-white'
                                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                            }`}
+                                }`}
                         >
                             Users ({userItems.length})
                         </button>
@@ -242,11 +239,10 @@ const AdminReviewsPage = () => {
                                                             {new Date(b.createdAt).toLocaleString()}
                                                         </div>
                                                     </div>
-                                                    <div className={`text-xs font-bold px-2 py-1 rounded-full border ${
-                                                        isResolved
+                                                    <div className={`text-xs font-bold px-2 py-1 rounded-full border ${isResolved
                                                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                                             : 'border-amber-200 bg-amber-50 text-amber-700'
-                                                    }`}>
+                                                        }`}>
                                                         {isResolved ? 'Resolved' : 'Open'}
                                                     </div>
                                                 </div>

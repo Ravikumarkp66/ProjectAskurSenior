@@ -198,11 +198,10 @@ const DashboardPage = () => {
 
             {/* Main Content */}
             <div
-                className={`transition-all duration-300 ml-0 w-full ${
-                    sidebarCollapsed
+                className={`transition-all duration-300 ml-0 w-full ${sidebarCollapsed
                         ? 'sm:ml-20 sm:w-[calc(100%-5rem)]'
                         : 'sm:ml-64 sm:w-[calc(100%-16rem)]'
-                }`}
+                    }`}
             >
                 {/* Top Bar */}
                 <TopBar progress={overallProgress} branch={currentBranch} sidebarCollapsed={sidebarCollapsed} theme={theme} />
@@ -213,39 +212,36 @@ const DashboardPage = () => {
                         <div className="mb-4 flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2">
                                 <div
-                                    className={`flex rounded-lg p-1 border ${
-                                        isLightMode
+                                    className={`flex rounded-lg p-1 border ${isLightMode
                                             ? 'bg-slate-100 border-slate-200'
                                             : 'bg-slate-800/40 border-white/10'
-                                    }`}
+                                        }`}
                                 >
                                     <button
                                         type="button"
                                         onClick={() => setCycle('P')}
-                                        className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-md transition ${
-                                            cycle === 'P'
+                                        className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-md transition ${cycle === 'P'
                                                 ? isLightMode
                                                     ? 'bg-white text-slate-900'
                                                     : 'bg-white text-slate-900'
                                                 : isLightMode
                                                     ? 'text-slate-600 hover:text-slate-900'
                                                     : 'text-slate-200 hover:text-white'
-                                        }`}
+                                            }`}
                                     >
                                         P Cycle
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setCycle('C')}
-                                        className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-md transition ${
-                                            cycle === 'C'
+                                        className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-md transition ${cycle === 'C'
                                                 ? isLightMode
                                                     ? 'bg-white text-slate-900'
                                                     : 'bg-white text-slate-900'
                                                 : isLightMode
                                                     ? 'text-slate-600 hover:text-slate-900'
                                                     : 'text-slate-200 hover:text-white'
-                                        }`}
+                                            }`}
                                     >
                                         C Cycle
                                     </button>
@@ -259,11 +255,10 @@ const DashboardPage = () => {
                                 <button
                                     type="button"
                                     onClick={() => setShowBranchPicker((v) => !v)}
-                                    className={`min-h-11 px-3 rounded-full border text-xs font-semibold flex items-center gap-2 transition ${
-                                        isLightMode
+                                    className={`min-h-11 px-3 rounded-full border text-xs font-semibold flex items-center gap-2 transition ${isLightMode
                                             ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                                             : 'border-white/10 bg-slate-900/30 text-secondary-200 hover:bg-slate-900/50'
-                                    }`}
+                                        }`}
                                 >
                                     <span className="truncate">
                                         {branchOverride
@@ -282,11 +277,10 @@ const DashboardPage = () => {
 
                                 {showBranchPicker && (
                                     <div
-                                        className={`absolute right-0 z-20 mt-2 w-72 rounded-xl border shadow-xl overflow-hidden ${
-                                            isLightMode
+                                        className={`absolute right-0 z-20 mt-2 w-72 rounded-xl border shadow-xl overflow-hidden ${isLightMode
                                                 ? 'border-slate-200 bg-white'
                                                 : 'border-white/10 bg-dark-100'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="max-h-64 overflow-y-auto">
                                             <button
@@ -295,13 +289,12 @@ const DashboardPage = () => {
                                                     handleBranchOverrideChange('');
                                                     setShowBranchPicker(false);
                                                 }}
-                                                className={`w-full text-left px-3 py-2 text-sm transition ${
-                                                    !branchOverride
+                                                className={`w-full text-left px-3 py-2 text-sm transition ${!branchOverride
                                                         ? 'font-semibold text-purple-700'
                                                         : isLightMode
                                                             ? 'text-slate-800'
                                                             : 'text-secondary-200'
-                                                } ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/10'}`}
+                                                    } ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/10'}`}
                                             >
                                                 Auto (from USN)
                                             </button>
@@ -313,13 +306,12 @@ const DashboardPage = () => {
                                                         handleBranchOverrideChange(b.code);
                                                         setShowBranchPicker(false);
                                                     }}
-                                                    className={`w-full text-left px-3 py-2 text-sm transition ${
-                                                        branchOverride === b.code
+                                                    className={`w-full text-left px-3 py-2 text-sm transition ${branchOverride === b.code
                                                             ? 'font-semibold text-purple-700'
                                                             : isLightMode
                                                                 ? 'text-slate-800'
                                                                 : 'text-secondary-200'
-                                                    } ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/10'}`}
+                                                        } ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/10'}`}
                                                 >
                                                     {b.code} - {b.name}
                                                 </button>
@@ -371,42 +363,42 @@ const DashboardPage = () => {
                     <div className={`${isLightMode ? 'bg-white' : 'bg-dark-100'} rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col`}>
                         <div className={`p-6 md:p-8 border-b ${isLightMode ? 'border-gray-100' : 'border-white/10'}`}>
                             <div className="flex items-center justify-between">
-                            <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-secondary-100'}`}>Profile & Progress</h2>
-                            <button
-                                onClick={() => setShowProfileModal(false)}
-                                className={isLightMode ? 'text-gray-500 hover:text-gray-700' : 'text-secondary-400 hover:text-secondary-200'}
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
+                                <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-secondary-100'}`}>Profile & Progress</h2>
+                                <button
+                                    onClick={() => setShowProfileModal(false)}
+                                    className={isLightMode ? 'text-gray-500 hover:text-gray-700' : 'text-secondary-400 hover:text-secondary-200'}
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
                             </div>
                         </div>
 
                         <div className="p-6 md:p-8 overflow-y-auto">
                             <div className="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.8fr)]">
-                            {/* Left: basic profile info */}
-                            <div className="space-y-4">
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-600 mb-1">USN</p>
-                                    <p className="font-bold text-gray-900">{user?.usn}</p>
+                                {/* Left: basic profile info */}
+                                <div className="space-y-4">
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <p className="text-xs text-gray-600 mb-1">USN</p>
+                                        <p className="font-bold text-gray-900">{user?.usn}</p>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <p className="text-xs text-gray-600 mb-1">Email</p>
+                                        <p className="font-bold text-gray-900">{user?.email}</p>
+                                    </div>
+
+                                    <div className="bg-gray-50 rounded-lg p-4">
+                                        <p className="text-xs text-gray-600 mb-1">Current Branch</p>
+                                        <p className="font-bold text-gray-900">{currentBranch}</p>
+                                    </div>
                                 </div>
 
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-600 mb-1">Email</p>
-                                    <p className="font-bold text-gray-900">{user?.email}</p>
+                                {/* Right: stats + heatmap previously on dashboard */}
+                                <div className="space-y-4">
+                                    <StatsCards subjects={subjects} progress={overallProgress} />
                                 </div>
-
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <p className="text-xs text-gray-600 mb-1">Current Branch</p>
-                                    <p className="font-bold text-gray-900">{currentBranch}</p>
-                                </div>
-                            </div>
-
-                            {/* Right: stats + heatmap previously on dashboard */}
-                            <div className="space-y-4">
-                                <StatsCards subjects={subjects} progress={overallProgress} />
-                            </div>
                             </div>
 
                             <button
