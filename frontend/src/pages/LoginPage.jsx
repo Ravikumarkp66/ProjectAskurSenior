@@ -209,7 +209,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                             {isAdmin ? 'Admin Email' : 'College Email'}
                         </label>
                         <input
-                            type="email"
+                            type={isAdmin ? 'text' : 'email'}
                             name="email"
                             placeholder={isAdmin ? 'admin@example.com' : 'usn@sit.ac.in'}
                             value={formData.email}
