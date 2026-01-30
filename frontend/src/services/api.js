@@ -17,10 +17,28 @@ apiClient.interceptors.request.use((config) => {
     return config;
 });
 
+// Handle 401 responses - clear invalid tokens
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Clear invalid/expired token
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            // Redirect to login if not already there
+            if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Auth API
 export const authAPI = {
     register: (data) => apiClient.post('/auth/register', data),
     login: (data) => apiClient.post('/auth/login', data),
+    adminLogin: (data) => apiClient.post('/auth/admin-login', data),
     getProfile: () => apiClient.get('/auth/profile'),
     switchBranch: (data) => apiClient.post('/auth/switch-branch', data)
 };

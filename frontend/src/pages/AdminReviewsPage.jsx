@@ -14,6 +14,10 @@ const AdminReviewsPage = () => {
     const [bugLoading, setBugLoading] = useState(false);
     const [bugError, setBugError] = useState('');
 
+    const [userItems, setUserItems] = useState([]);
+    const [usersLoading, setUsersLoading] = useState(false);
+    const [usersError, setUsersError] = useState('');
+
     const [resolvingId, setResolvingId] = useState('');
 
     const isAdmin = !!user?.isAdmin;
@@ -44,10 +48,24 @@ const AdminReviewsPage = () => {
         }
     };
 
+    const loadUsers = async () => {
+        setUsersLoading(true);
+        setUsersError('');
+        try {
+            const res = await apiClient.get('/auth/users');
+            setUserItems(res?.data?.items || []);
+        } catch (e) {
+            setUsersError(e?.response?.data?.error || 'Failed to load users');
+        } finally {
+            setUsersLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (!isAdmin) return;
         loadFeedback();
         loadBugs();
+        loadUsers();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAdmin]);
 
@@ -100,6 +118,7 @@ const AdminReviewsPage = () => {
                             onClick={() => {
                                 loadFeedback();
                                 loadBugs();
+                                loadUsers();
                             }}
                             className="h-10 rounded-xl bg-purple-600 px-4 text-sm font-semibold text-white hover:bg-purple-500 transition"
                         >
@@ -131,6 +150,17 @@ const AdminReviewsPage = () => {
                             }`}
                         >
                             Bugs
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('users')}
+                            className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${
+                                activeTab === 'users'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                            }`}
+                        >
+                            Users ({userItems.length})
                         </button>
 
                         <div className="sm:ml-auto text-xs text-slate-600 px-3">
@@ -253,6 +283,59 @@ const AdminReviewsPage = () => {
                                             </div>
                                         );
                                     })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab === 'users' && (
+                        <div className="p-4">
+                            {usersLoading ? (
+                                <div className="text-sm text-slate-600">Loading users...</div>
+                            ) : usersError ? (
+                                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                    {usersError}
+                                </div>
+                            ) : userItems.length === 0 ? (
+                                <div className="text-sm text-slate-600">No users found.</div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-slate-200 text-left">
+                                                <th className="pb-3 font-semibold text-slate-700">USN</th>
+                                                <th className="pb-3 font-semibold text-slate-700">Email</th>
+                                                <th className="pb-3 font-semibold text-slate-700">Branch</th>
+                                                <th className="pb-3 font-semibold text-slate-700">Role</th>
+                                                <th className="pb-3 font-semibold text-slate-700">Joined</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {userItems.map((u) => (
+                                                <tr key={u._id} className="hover:bg-slate-50">
+                                                    <td className="py-3 font-mono font-semibold text-slate-900">
+                                                        {u.usn}
+                                                    </td>
+                                                    <td className="py-3 text-slate-700">{u.email}</td>
+                                                    <td className="py-3 text-slate-700">{u.branch}</td>
+                                                    <td className="py-3">
+                                                        {u.isAdmin ? (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                                                Admin
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                                                User
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 text-slate-500 text-xs">
+                                                        {new Date(u.createdAt).toLocaleDateString()}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
                         </div>

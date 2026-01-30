@@ -84,7 +84,11 @@ const DashboardPage = () => {
     // Load subjects
     useEffect(() => {
         const loadData = async () => {
-            if (!currentBranch) return;
+            // Don't load data if not authenticated
+            if (!isAuthenticated || !currentBranch) {
+                setPageLoading(false);
+                return;
+            }
 
             try {
                 const cacheKey = `${currentBranch}_${cycle}`;
@@ -109,7 +113,7 @@ const DashboardPage = () => {
         };
 
         loadData();
-    }, [currentBranch, cycle]);
+    }, [isAuthenticated, currentBranch, cycle]);
 
     useEffect(() => {
         const derived = deriveBranchFromUSN(user?.usn) || toUiBranch(user?.currentBranch) || '';

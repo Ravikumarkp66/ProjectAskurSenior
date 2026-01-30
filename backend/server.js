@@ -30,10 +30,10 @@ mongoose
     })
     .then(async () => {
         console.log('MongoDB connected successfully');
-        
+
         // Connect to Redis
         await connectRedis();
-        
+
         // Seed database on startup only in non-production environments
         if (process.env.NODE_ENV !== 'production') {
             seedDatabase().catch((error) => {
