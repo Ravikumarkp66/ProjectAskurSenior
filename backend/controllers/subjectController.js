@@ -9,6 +9,7 @@ const getSubjectsByBranch = async (req, res) => {
 
         // Try to get from cache first
         const cacheKey = cacheKeys.subjectsByBranch(branch, cycle);
+        console.log("Caching subjects with key:", cacheKey);
         const cachedData = await getCache(cacheKey);
         
         if (cachedData) {
