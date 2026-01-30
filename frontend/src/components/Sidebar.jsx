@@ -29,6 +29,33 @@ const Sidebar = ({
     const [bugDescription, setBugDescription] = useState('');
     const [bugSubmitting, setBugSubmitting] = useState(false);
     const [bugError, setBugError] = useState('');
+    const [showNotificationModal, setShowNotificationModal] = useState(false);
+    const [notifications] = useState([
+        {
+            id: 1,
+            title: '🎉 CGPA/SGPA Calculator Added!',
+            message: 'Calculate your SGPA by entering CIE and SEE marks. Supports VTU grading rules including minimum passing marks (CIE ≥ 18, SEE ≥ 36).',
+            date: '2026-01-30',
+            type: 'feature',
+            isNew: true
+        },
+        {
+            id: 2,
+            title: '📚 New Subject Added',
+            message: 'Introduction to Electrical Engineering (ESCO6) has been added to C Cycle for IS branch.',
+            date: '2026-01-30',
+            type: 'update',
+            isNew: true
+        }
+    ]);
+    const [readNotifications, setReadNotifications] = useState(() => {
+        try {
+            const saved = localStorage.getItem('readNotifications');
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem('uiTheme');
@@ -356,14 +383,22 @@ const Sidebar = ({
 
                             <button
                                 type="button"
+                                onClick={() => setShowNotificationModal(true)}
                                 className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold ${sidebarClasses.itemHover} transition`}
-                                title="Coming soon"
+                                title="Notifications"
                             >
                                 <span className="flex items-center gap-3">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
-                                    </svg>
-                                    <span>Notification</span>
+                                    <span className="relative">
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
+                                        </svg>
+                                        {notifications.filter(n => !readNotifications.includes(n.id)).length > 0 && (
+                                            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
+                                                {notifications.filter(n => !readNotifications.includes(n.id)).length}
+                                            </span>
+                                        )}
+                                    </span>
+                                    <span>Notifications</span>
                                 </span>
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -570,6 +605,83 @@ const Sidebar = ({
                                 {bugSubmitting ? 'Submitting...' : 'Submit'}
                             </button>
                         </div>
+                    </div>
+                </ModalShell>
+            )}
+
+            {showNotificationModal && (
+                <ModalShell
+                    isLightMode={isLightMode}
+                    title="Notifications"
+                    onClose={() => {
+                        setShowNotificationModal(false);
+                        // Mark all as read when closing
+                        const allIds = notifications.map(n => n.id);
+                        setReadNotifications(allIds);
+                        try {
+                            localStorage.setItem('readNotifications', JSON.stringify(allIds));
+                        } catch {
+                            // ignore
+                        }
+                    }}
+                >
+                    <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                        {notifications.length === 0 ? (
+                            <div className={`text-center py-8 ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
+                                </svg>
+                                <p className="text-sm">No notifications yet</p>
+                            </div>
+                        ) : (
+                            notifications.map((notification) => {
+                                const isUnread = !readNotifications.includes(notification.id);
+                                return (
+                                    <div
+                                        key={notification.id}
+                                        className={`rounded-xl border p-4 transition ${
+                                            isLightMode
+                                                ? isUnread
+                                                    ? 'border-purple-200 bg-purple-50'
+                                                    : 'border-slate-200 bg-slate-50'
+                                                : isUnread
+                                                    ? 'border-purple-500/30 bg-purple-500/10'
+                                                    : 'border-white/10 bg-white/5'
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className={`text-sm font-bold ${isLightMode ? 'text-slate-900' : 'text-secondary-100'}`}>
+                                                        {notification.title}
+                                                    </h3>
+                                                    {isUnread && (
+                                                        <span className="inline-flex items-center rounded-full bg-purple-500 text-white px-2 py-0.5 text-[10px] font-semibold">
+                                                            NEW
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className={`mt-1 text-sm ${isLightMode ? 'text-slate-600' : 'text-secondary-300'}`}>
+                                                    {notification.message}
+                                                </p>
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <span className={`text-xs ${isLightMode ? 'text-slate-400' : 'text-secondary-500'}`}>
+                                                        {notification.date}
+                                                    </span>
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                                        notification.type === 'feature'
+                                                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-400/20'
+                                                            : 'bg-blue-500/15 text-blue-400 border border-blue-400/20'
+                                                    }`}>
+                                                        {notification.type === 'feature' ? 'New Feature' : 'Update'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </ModalShell>
             )}
