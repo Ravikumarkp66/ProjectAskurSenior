@@ -145,8 +145,8 @@ const AdminReviewsPage = () => {
                             type="button"
                             onClick={() => setActiveTab('feedback')}
                             className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${activeTab === 'feedback'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                                 }`}
                         >
                             Feedback
@@ -155,8 +155,8 @@ const AdminReviewsPage = () => {
                             type="button"
                             onClick={() => setActiveTab('bugs')}
                             className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${activeTab === 'bugs'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                                 }`}
                         >
                             Bugs
@@ -165,8 +165,8 @@ const AdminReviewsPage = () => {
                             type="button"
                             onClick={() => setActiveTab('users')}
                             className={`h-10 px-4 rounded-xl text-sm font-semibold transition ${activeTab === 'users'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                                 }`}
                         >
                             Users ({userItems.length})
@@ -258,8 +258,8 @@ const AdminReviewsPage = () => {
                                                         </div>
                                                     </div>
                                                     <div className={`text-xs font-bold px-2 py-1 rounded-full border ${isResolved
-                                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                            : 'border-amber-200 bg-amber-50 text-amber-700'
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                                        : 'border-amber-200 bg-amber-50 text-amber-700'
                                                         }`}>
                                                         {isResolved ? 'Resolved' : 'Open'}
                                                     </div>
@@ -329,44 +329,43 @@ const AdminReviewsPage = () => {
                                             {userItems.map((u) => {
                                                 const active = isUserActive(u.lastActive);
                                                 return (
-                                                <tr key={u._id} className="hover:bg-slate-50">
-                                                    <td className="py-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <span 
-                                                                className={`w-2.5 h-2.5 rounded-full ${
-                                                                    active 
-                                                                        ? 'bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50' 
-                                                                        : 'bg-slate-300'
-                                                                }`}
-                                                                title={active ? 'Online' : 'Offline'}
-                                                            />
-                                                            <span className={`text-xs font-medium ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                                                {active ? 'Online' : 'Offline'}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="py-3 font-mono font-semibold text-slate-900">
-                                                        {u.usn}
-                                                    </td>
-                                                    <td className="py-3 text-slate-700">{u.email}</td>
-                                                    <td className="py-3 text-slate-700">{u.branch}</td>
-                                                    <td className="py-3">
-                                                        {u.isAdmin ? (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
-                                                                Admin
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                                                                User
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="py-3 text-slate-500 text-xs">
-                                                        {u.lastActive 
-                                                            ? new Date(u.lastActive).toLocaleString() 
-                                                            : 'Never'}
-                                                    </td>
-                                                </tr>
+                                                    <tr key={u._id} className="hover:bg-slate-50">
+                                                        <td className="py-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <span
+                                                                    className={`w-2.5 h-2.5 rounded-full ${active
+                                                                            ? 'bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50'
+                                                                            : 'bg-slate-300'
+                                                                        }`}
+                                                                    title={active ? 'Online' : 'Offline'}
+                                                                />
+                                                                <span className={`text-xs font-medium ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                    {active ? 'Online' : 'Offline'}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3 font-mono font-semibold text-slate-900">
+                                                            {u.usn}
+                                                        </td>
+                                                        <td className="py-3 text-slate-700">{u.email}</td>
+                                                        <td className="py-3 text-slate-700">{u.branch}</td>
+                                                        <td className="py-3">
+                                                            {u.isAdmin ? (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                                                    Admin
+                                                                </span>
+                                                            ) : (
+                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                                                    User
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 text-slate-500 text-xs">
+                                                            {u.lastActive
+                                                                ? new Date(u.lastActive).toLocaleString()
+                                                                : 'Never'}
+                                                        </td>
+                                                    </tr>
                                                 );
                                             })}
                                         </tbody>

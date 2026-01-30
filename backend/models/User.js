@@ -38,7 +38,7 @@ const userSchema = new mongoose.Schema(
         },
         lastActive: {
             type: Date,
-            default: Date.now
+            default: null
         },
         progress: {
             type: mongoose.Schema.Types.ObjectId,
