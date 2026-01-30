@@ -203,15 +203,31 @@ const LoginPage = ({ initialMode = 'login' }) => {
                     </div>
                 )}
 
-                {(mode === 'register' || isAdmin) && (
+                {mode === 'register' && (
                     <div>
                         <label className="block text-sm font-semibold text-white/80 mb-2">
-                            {isAdmin ? 'Admin Email' : 'College Email'}
+                            College Email
                         </label>
                         <input
-                            type={isAdmin ? 'text' : 'email'}
+                            type="email"
                             name="email"
-                            placeholder={isAdmin ? 'admin@example.com' : 'usn@sit.ac.in'}
+                            placeholder="usn@sit.ac.in"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            className="w-full min-h-11 rounded-2xl px-4 bg-white/10 border border-white/15 text-white placeholder-white/40 outline-none transition focus:border-white/30 focus:ring-2 focus:ring-white/20"
+                        />
+                    </div>
+                )}
+
+                {isAdmin && (
+                    <div>
+                        <label className="block text-sm font-semibold text-white/80 mb-2">
+                            Admin Email
+                        </label>
+                        <input
+                            type="text"
+                            name="email"
+                            placeholder="admin@example.com"
                             value={formData.email}
                             onChange={handleInputChange}
                             className="w-full min-h-11 rounded-2xl px-4 bg-white/10 border border-white/15 text-white placeholder-white/40 outline-none transition focus:border-white/30 focus:ring-2 focus:ring-white/20"
