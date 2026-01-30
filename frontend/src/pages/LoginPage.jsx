@@ -167,8 +167,8 @@ const LoginPage = ({ initialMode = 'login' }) => {
                     type="button"
                     onClick={() => handleModeChange('login')}
                     className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${isLogin
-                            ? 'bg-white/15 text-white'
-                            : 'text-white/70 hover:text-white hover:bg-white/10'
+                        ? 'bg-white/15 text-white'
+                        : 'text-white/70 hover:text-white hover:bg-white/10'
                         }`}
                 >
                     Sign in
@@ -177,8 +177,8 @@ const LoginPage = ({ initialMode = 'login' }) => {
                     type="button"
                     onClick={() => handleModeChange('register')}
                     className={`min-h-11 flex-1 rounded-xl px-4 text-sm font-semibold transition ${mode === 'register'
-                            ? 'bg-white/15 text-white'
-                            : 'text-white/70 hover:text-white hover:bg-white/10'
+                        ? 'bg-white/15 text-white'
+                        : 'text-white/70 hover:text-white hover:bg-white/10'
                         }`}
                 >
                     Sign up
@@ -319,8 +319,8 @@ const LoginPage = ({ initialMode = 'login' }) => {
                     type="submit"
                     disabled={loading}
                     className={`w-full min-h-11 rounded-full px-4 text-sm font-bold text-white shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed ${isAdmin
-                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500'
-                            : 'bg-gradient-to-r from-sky-500 to-purple-600 hover:from-sky-400 hover:to-purple-500'
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500'
+                        : 'bg-gradient-to-r from-sky-500 to-purple-600 hover:from-sky-400 hover:to-purple-500'
                         }`}
                 >
                     {loading ? 'Processing...' : isAdmin ? 'Sign in as Admin' : isLogin ? 'Sign in' : 'Create account'}

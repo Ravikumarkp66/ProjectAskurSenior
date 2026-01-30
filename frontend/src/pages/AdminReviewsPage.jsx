@@ -75,6 +75,18 @@ const AdminReviewsPage = () => {
         return { open, resolved, total: bugItems.length };
     }, [bugItems]);
 
+    // Check if user is active (was active in last 5 minutes)
+    const isUserActive = (lastActive) => {
+        if (!lastActive) return false;
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        return new Date(lastActive) > fiveMinutesAgo;
+    };
+
+    // Count active users
+    const activeUsersCount = useMemo(() => {
+        return userItems.filter((u) => isUserActive(u.lastActive)).length;
+    }, [userItems]);
+
     const resolveBug = async (id, nextStatus) => {
         if (!id || resolvingId) return;
         setResolvingId(id);
@@ -160,9 +172,15 @@ const AdminReviewsPage = () => {
                             Users ({userItems.length})
                         </button>
 
-                        <div className="sm:ml-auto text-xs text-slate-600 px-3">
-                            Bugs: <span className="font-semibold">{bugStats.open}</span> open,{' '}
-                            <span className="font-semibold">{bugStats.resolved}</span> resolved
+                        <div className="sm:ml-auto flex items-center gap-4 text-xs text-slate-600 px-3">
+                            <span>
+                                <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1 animate-pulse"></span>
+                                <span className="font-semibold">{activeUsersCount}</span> online
+                            </span>
+                            <span>
+                                Bugs: <span className="font-semibold">{bugStats.open}</span> open,{' '}
+                                <span className="font-semibold">{bugStats.resolved}</span> resolved
+                            </span>
                         </div>
                     </div>
 
@@ -299,16 +317,34 @@ const AdminReviewsPage = () => {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="border-b border-slate-200 text-left">
+                                                <th className="pb-3 font-semibold text-slate-700">Status</th>
                                                 <th className="pb-3 font-semibold text-slate-700">USN</th>
                                                 <th className="pb-3 font-semibold text-slate-700">Email</th>
                                                 <th className="pb-3 font-semibold text-slate-700">Branch</th>
                                                 <th className="pb-3 font-semibold text-slate-700">Role</th>
-                                                <th className="pb-3 font-semibold text-slate-700">Joined</th>
+                                                <th className="pb-3 font-semibold text-slate-700">Last Active</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
-                                            {userItems.map((u) => (
+                                            {userItems.map((u) => {
+                                                const active = isUserActive(u.lastActive);
+                                                return (
                                                 <tr key={u._id} className="hover:bg-slate-50">
+                                                    <td className="py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span 
+                                                                className={`w-2.5 h-2.5 rounded-full ${
+                                                                    active 
+                                                                        ? 'bg-emerald-500 animate-pulse shadow-sm shadow-emerald-500/50' 
+                                                                        : 'bg-slate-300'
+                                                                }`}
+                                                                title={active ? 'Online' : 'Offline'}
+                                                            />
+                                                            <span className={`text-xs font-medium ${active ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                {active ? 'Online' : 'Offline'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
                                                     <td className="py-3 font-mono font-semibold text-slate-900">
                                                         {u.usn}
                                                     </td>
@@ -326,10 +362,13 @@ const AdminReviewsPage = () => {
                                                         )}
                                                     </td>
                                                     <td className="py-3 text-slate-500 text-xs">
-                                                        {new Date(u.createdAt).toLocaleDateString()}
+                                                        {u.lastActive 
+                                                            ? new Date(u.lastActive).toLocaleString() 
+                                                            : 'Never'}
                                                     </td>
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

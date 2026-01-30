@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
+        lastActive: {
+            type: Date,
+            default: Date.now
+        },
         progress: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Progress'
