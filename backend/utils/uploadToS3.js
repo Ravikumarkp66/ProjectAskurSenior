@@ -9,21 +9,38 @@ const { s3 } = require("./s3Client");
  * @returns {Promise<string>} - The S3 key of the uploaded file
  */
 const uploadToS3 = async (file, folder = "notes") => {
+  if (!process.env.AWS_BUCKET_NAME) {
+    throw new Error("AWS_BUCKET_NAME environment variable is not set");
+  }
+
   const key = `${folder}/${Date.now()}-${file.originalname}`;
 
-  const command = new PutObjectCommand({
-    Bucket: process.env.AWS_BUCKET_NAME,
-    Key: key,
-    Body: fs.createReadStream(file.path),
-    ContentType: file.mimetype
-  });
+  try {
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key,
+      Body: fs.createReadStream(file.path),
+      ContentType: file.mimetype
+    });
 
-  await s3.send(command);
+    await s3.send(command);
+    console.log(`Successfully uploaded file to S3: ${key}`);
 
-  // Cleanup local file after upload
-  fs.unlinkSync(file.path);
+    // Cleanup local file after successful upload
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
 
-  return key; // Return only the S3 key
+    return key; // Return only the S3 key
+  } catch (error) {
+    // Cleanup local file even if upload fails
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+    
+    console.error("Error uploading to S3:", error.message);
+    throw new Error(`S3 upload failed: ${error.message}`);
+  }
 };
 
 module.exports = { uploadToS3 };

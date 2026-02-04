@@ -12,7 +12,17 @@ const CONTENT_TYPES = {
 
 // Map frontend content types to backend expected values
 const getBackendContentType = (frontendType) => {
-    return frontendType === 'syllabus' ? 'syllabus' : 'resources';
+    // For module-level endpoints, use exact content type names
+    // For subject-level endpoints, map to 'resources' except syllabus
+    if (frontendType === 'syllabus') {
+        return 'syllabus';
+    }
+    // For module-level content, return exact type for validation
+    if (['notes', 'pyqs', 'questionBanks'].includes(frontendType)) {
+        return frontendType;
+    }
+    // Fallback for subject-level content
+    return 'resources';
 };
 
 const AdminStudyMaterialsPage = () => {
