@@ -9,15 +9,11 @@ const { s3 } = require("./s3Client");
  * @returns {Promise<string>} - The S3 key of the uploaded file
  */
 const uploadToS3 = async (file, folder = "notes") => {
-  if (!process.env.AWS_BUCKET_NAME) {
-    throw new Error("AWS_BUCKET_NAME environment variable is not set");
-  }
-
   const key = `${folder}/${Date.now()}-${file.originalname}`;
 
   try {
     const command = new PutObjectCommand({
-      Bucket: process.env.AWS_BUCKET_NAME,
+      Bucket: process.env.AWS_BUCKET_NAME || 'askursenior-notes-storage',
       Key: key,
       Body: fs.createReadStream(file.path),
       ContentType: file.mimetype
