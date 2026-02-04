@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import SubjectCard from '../components/SubjectCard';
 import StatsCards from '../components/StatsCards';
+import GameifiedLoader from '../components/GameifiedLoader';
 import { subjectAPI } from '../services/api';
 import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../utils/constants';
 
@@ -177,12 +178,18 @@ const DashboardPage = () => {
 
     if (pageLoading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-primary-950">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary-700 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-secondary-400 font-semibold">Loading your dashboard...</p>
-                </div>
-            </div>
+            <GameifiedLoader 
+                isLoading={true} 
+                loadingText="Loading Dashboard" 
+                variant="data"
+                tips={[
+                    "🎯 Your personalized dashboard is loading...",
+                    "📊 Fetching your academic progress data",
+                    "📚 Preparing your subject overview",
+                    "🚀 Almost ready! Setting up your study environment",
+                    "⭐ Tip: Use the search bar to quickly find subjects"
+                ]}
+            />
         );
     }
 

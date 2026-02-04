@@ -129,7 +129,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
             const { token, user } = response.data;
 
             login(user, token);
-            navigate('/admin/reviews');
+            navigate('/admin');
         } catch (err) {
             setError(err.response?.data?.error || 'Admin login failed. Please try again.');
         } finally {
@@ -323,7 +323,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                         : 'bg-gradient-to-r from-sky-500 to-purple-600 hover:from-sky-400 hover:to-purple-500'
                         }`}
                 >
-                    {loading ? 'Processing...' : isAdmin ? 'Sign in as Admin' : isLogin ? 'Sign in' : 'Create account'}
+                    {loading ? 'Authenticating...' : isAdmin ? 'Sign in as Admin' : isLogin ? 'Sign in' : 'Create account'}
                 </button>
             </form>
 

@@ -5,22 +5,21 @@ import { useAuth } from './utils/hooks';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
-import AdminReviewsPage from './pages/AdminReviewsPage';
-import AdminStudyMaterialsPage from './pages/AdminStudyMaterialsPage';
+import AdminPanel from './pages/AdminPanel';
 import CGPACalculatorPage from './pages/CGPACalculatorPage';
 import SubjectContentPage from './pages/SubjectContentPage';
+import GameifiedLoader from './components/GameifiedLoader';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-gray-50">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-700 font-semibold">Loading...</p>
-                </div>
-            </div>
+            <GameifiedLoader 
+                isLoading={true} 
+                loadingText="Authenticating" 
+                variant="auth"
+            />
         );
     }
 
@@ -32,12 +31,11 @@ const AdminRoute = ({ children }) => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-gray-50">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-gray-700 font-semibold">Loading...</p>
-                </div>
-            </div>
+            <GameifiedLoader 
+                isLoading={true} 
+                loadingText="Preparing Admin Panel" 
+                variant="auth"
+            />
         );
     }
 
@@ -61,10 +59,18 @@ function AppContent() {
             />
 
             <Route
+                path="/admin"
+                element={
+                    <AdminRoute>
+                        <AdminPanel />
+                    </AdminRoute>
+                }
+            />
+            <Route
                 path="/admin/reviews"
                 element={
                     <AdminRoute>
-                        <AdminReviewsPage />
+                        <AdminPanel />
                     </AdminRoute>
                 }
             />
@@ -72,7 +78,7 @@ function AppContent() {
                 path="/admin/study-materials"
                 element={
                     <AdminRoute>
-                        <AdminStudyMaterialsPage />
+                        <AdminPanel />
                     </AdminRoute>
                 }
             />

@@ -119,15 +119,18 @@ const getUserProfile = async (req, res) => {
 };
 const getAllUsers = async (req, res) => {
     try {
+        console.log('Getting all users for admin...');
         const users = await User.find()
             .select('-password')
             .sort({ createdAt: -1 });
 
+        console.log(`Found ${users.length} users`);
         res.json({
-            items: users,
+            users: users,
             total: users.length
         });
     } catch (error) {
+        console.error('Error getting all users:', error);
         res.status(500).json({ error: error.message });
     }
 };
