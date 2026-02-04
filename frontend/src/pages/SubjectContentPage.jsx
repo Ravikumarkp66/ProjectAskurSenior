@@ -50,6 +50,7 @@ const SubjectContentPage = () => {
     const [subject, setSubject] = useState(null);
     const [content, setContent] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [activeTab, setActiveTab] = useState('notes');
     const [pdfUrl, setPdfUrl] = useState(null);
     const [pdfTitle, setPdfTitle] = useState('');
@@ -71,8 +72,15 @@ const SubjectContentPage = () => {
     const loadContent = async () => {
         try {
             setLoading(true);
+            setError(null);
             const response = await subjectAPI.getSubjectContent(subjectId);
             const data = response.data;
+            
+            if (!data) {
+                setError('Subject not found');
+                return;
+            }
+            
             setSubject(data);
             
             // Flatten all content - remove module organization
@@ -111,6 +119,11 @@ const SubjectContentPage = () => {
             setContent(flattenedContent);
         } catch (error) {
             console.error('Error loading content:', error);
+            if (error.response?.status === 404) {
+                setError('Subject not found');
+            } else {
+                setError('Failed to load content. Please try again.');
+            }
             setContent({ notes: [], pyqs: [], questionBanks: [], syllabus: [] });
         } finally {
             setLoading(false);
@@ -203,6 +216,32 @@ const SubjectContentPage = () => {
                 <div className="text-center">
                     <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
                     <p className={`${isLightMode ? 'text-gray-700' : 'text-gray-300'} font-semibold`}>Loading content...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className={`min-h-screen ${isLightMode ? 'bg-gray-50' : 'bg-gray-900'} flex items-center justify-center`}>
+                <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                    </div>
+                    <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'} mb-2`}>
+                        {error}
+                    </h2>
+                    <p className={`${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-6`}>
+                        The content you're looking for might have been moved or doesn't exist.
+                    </p>
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    >
+                        Go to Dashboard
+                    </button>
                 </div>
             </div>
         );

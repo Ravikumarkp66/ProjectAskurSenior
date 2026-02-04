@@ -93,6 +93,8 @@ function AppContent() {
                 }
             />
             <Route path="/" element={<HomePage />} />
+            {/* Catch-all route for unmatched paths */}
+            <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );
 }
