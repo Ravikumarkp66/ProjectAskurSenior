@@ -9,7 +9,7 @@ import { BRANCHES, deriveBranchFromUSN } from '../utils/constants';
 const getGradeFromTotal = (total, seeMarks) => {
     // If SEE < 36 (out of 100), automatically fail regardless of CIE
     if (seeMarks < 36) return { grade: 'F', points: 0, color: 'text-red-500', seeFail: true };
-    
+
     if (total >= 90) return { grade: 'O', points: 10, color: 'text-emerald-400' };
     if (total >= 80) return { grade: 'A+', points: 9, color: 'text-green-400' };
     if (total >= 70) return { grade: 'A', points: 8, color: 'text-blue-400' };
@@ -31,7 +31,7 @@ const CGPACalculatorPage = () => {
     const [semesters, setSemesters] = useState([
         { id: 1, sem: 1, sgpa: '', credits: '' }
     ]);
-    
+
     // Branch and Cycle selection
     const [selectedBranch, setSelectedBranch] = useState('');
     const [selectedCycle, setSelectedCycle] = useState('P');
@@ -59,14 +59,14 @@ const CGPACalculatorPage = () => {
     useEffect(() => {
         const loadSubjects = async () => {
             if (!selectedBranch) return;
-            
+
             setLoadingSubjects(true);
             setSubjectsError('');
-            
+
             try {
                 const response = await subjectAPI.getSubjectsByBranch(selectedBranch, selectedCycle);
                 const fetchedSubjects = response.data || [];
-                
+
                 if (fetchedSubjects.length > 0) {
                     setSubjects(fetchedSubjects.map((s, index) => ({
                         id: index + 1,
@@ -93,7 +93,7 @@ const CGPACalculatorPage = () => {
     }, [selectedBranch, selectedCycle]);
 
     const updateSubject = (id, field, value) => {
-        setSubjects(prev => prev.map(s => 
+        setSubjects(prev => prev.map(s =>
             s.id === id ? { ...s, [field]: value } : s
         ));
     };
@@ -125,7 +125,7 @@ const CGPACalculatorPage = () => {
     };
 
     const updateSemester = (id, field, value) => {
-        setSemesters(prev => prev.map(s => 
+        setSemesters(prev => prev.map(s =>
             s.id === id ? { ...s, [field]: value } : s
         ));
     };
@@ -146,25 +146,25 @@ const CGPACalculatorPage = () => {
             const credits = parseFloat(subject.credits) || 0;
             const cie = parseFloat(subject.cie) || 0;
             const see = parseFloat(subject.see) || 0;
-            
+
             // CIE is out of 50, SEE is entered out of 100 and converted to 50
             const seeConverted = see / 2;
             const total = cie + seeConverted;
-            
+
             // Validate inputs
             const cieValid = subject.cie !== '' && cie >= 0 && cie <= 50;
             const seeValid = subject.see !== '' && see >= 0 && see <= 100;
-            
+
             if (!cieValid || !seeValid || credits <= 0) {
                 return { ...subject, total: null, grade: null, points: null, seeConverted: null, isValid: false, seeFail: false };
             }
 
             // Pass SEE marks (out of 100) to check minimum requirement
             const gradeInfo = getGradeFromTotal(total, see);
-            
+
             if (gradeInfo.points === 0) hasFail = true;
             if (gradeInfo.seeFail) hasSeeFail = true;
-            
+
             totalCredits += credits;
             weightedSum += credits * gradeInfo.points;
             validSubjects++;
@@ -203,11 +203,11 @@ const CGPACalculatorPage = () => {
         for (const sem of semesters) {
             const sgpa = parseFloat(sem.sgpa);
             const credits = parseFloat(sem.credits) || 0;
-            
+
             if (isNaN(sgpa) || sgpa < 0 || sgpa > 10) continue;
-            
+
             validSemesters++;
-            
+
             if (credits > 0) {
                 totalCredits += credits;
                 weightedSum += sgpa * credits;
@@ -216,7 +216,7 @@ const CGPACalculatorPage = () => {
                 weightedSum += sgpa;
             }
         }
-        
+
         const cgpa = totalCredits > 0 ? (weightedSum / totalCredits).toFixed(2) : 0;
         return { cgpa: parseFloat(cgpa), semestersCount: validSemesters, totalCredits, weightedSum };
     }, [semesters]);
@@ -251,21 +251,19 @@ const CGPACalculatorPage = () => {
                         <div className="flex items-center gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 mb-6">
                             <button
                                 onClick={() => setActiveTab('sgpa')}
-                                className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${
-                                    activeTab === 'sgpa'
+                                className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${activeTab === 'sgpa'
                                         ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
                                         : 'text-white/70 hover:text-white hover:bg-white/10'
-                                }`}
+                                    }`}
                             >
                                 SGPA Calculator
                             </button>
                             <button
                                 onClick={() => setActiveTab('cgpa')}
-                                className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${
-                                    activeTab === 'cgpa'
+                                className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${activeTab === 'cgpa'
                                         ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
                                         : 'text-white/70 hover:text-white hover:bg-white/10'
-                                }`}
+                                    }`}
                             >
                                 CGPA Calculator
                             </button>
@@ -298,21 +296,19 @@ const CGPACalculatorPage = () => {
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => setSelectedCycle('P')}
-                                                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${
-                                                        selectedCycle === 'P'
+                                                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${selectedCycle === 'P'
                                                             ? 'bg-purple-600 text-white'
                                                             : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     P Cycle
                                                 </button>
                                                 <button
                                                     onClick={() => setSelectedCycle('C')}
-                                                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${
-                                                        selectedCycle === 'C'
+                                                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${selectedCycle === 'C'
                                                             ? 'bg-purple-600 text-white'
                                                             : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     C Cycle
                                                 </button>
@@ -375,8 +371,8 @@ const CGPACalculatorPage = () => {
                                         </div>
 
                                         {sgpaResult.subjects.map((subject) => (
-                                            <div 
-                                                key={subject.id} 
+                                            <div
+                                                key={subject.id}
                                                 className="grid grid-cols-12 gap-2 items-center p-2 rounded-xl bg-white/5 hover:bg-white/10 transition"
                                             >
                                                 {/* Subject Name */}
@@ -398,7 +394,7 @@ const CGPACalculatorPage = () => {
                                                         />
                                                     )}
                                                 </div>
-                                                
+
                                                 {/* Credits */}
                                                 <div className="col-span-3 sm:col-span-1">
                                                     {subject.code ? (
@@ -415,7 +411,7 @@ const CGPACalculatorPage = () => {
                                                         />
                                                     )}
                                                 </div>
-                                                
+
                                                 {/* CIE (out of 50) */}
                                                 <div className="col-span-3 sm:col-span-2">
                                                     <input
@@ -428,7 +424,7 @@ const CGPACalculatorPage = () => {
                                                         placeholder="0-50"
                                                     />
                                                 </div>
-                                                
+
                                                 {/* SEE (out of 100) */}
                                                 <div className="col-span-3 sm:col-span-2">
                                                     <input
@@ -441,28 +437,28 @@ const CGPACalculatorPage = () => {
                                                         placeholder="0-100"
                                                     />
                                                 </div>
-                                                
+
                                                 {/* Total */}
                                                 <div className="col-span-2 sm:col-span-1 text-center">
                                                     <span className="text-white font-semibold text-sm">
                                                         {subject.total !== null ? subject.total : '-'}
                                                     </span>
                                                 </div>
-                                                
+
                                                 {/* Grade */}
                                                 <div className="col-span-2 sm:col-span-1 text-center">
                                                     <span className={`font-bold text-sm ${subject.color || 'text-white/50'}`}>
                                                         {subject.grade || '-'}
                                                     </span>
                                                 </div>
-                                                
+
                                                 {/* Points */}
                                                 <div className="col-span-2 sm:col-span-1 text-center">
                                                     <span className="text-purple-400 font-semibold text-sm">
                                                         {subject.points !== null ? subject.points : '-'}
                                                     </span>
                                                 </div>
-                                                
+
                                                 {/* Remove Button */}
                                                 <div className="col-span-2 sm:col-span-1 text-center">
                                                     <button
@@ -615,7 +611,7 @@ const CGPACalculatorPage = () => {
                                         <h3 className="text-sm font-semibold text-white mb-3">Percentage Equivalent</h3>
                                         <div className="flex items-center gap-4">
                                             <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden">
-                                                <div 
+                                                <div
                                                     className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
                                                     style={{ width: `${Math.min(100, ((cgpaResult.cgpa - 4) / 6) * 100)}%` }}
                                                 />
@@ -685,7 +681,7 @@ const CGPACalculatorPage = () => {
                                     {subjects.length > 0 && (
                                         <div className="rounded-xl bg-white/5 p-4 mb-5">
                                             <div className="text-sm text-white/70 mb-3 font-semibold">📊 Your Calculation</div>
-                                            
+
                                             <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
                                                 {sgpaResult.subjects.map((sub, idx) => {
                                                     const cie = parseFloat(sub.cie) || 0;
@@ -693,7 +689,7 @@ const CGPACalculatorPage = () => {
                                                     const seeConverted = see / 2;
                                                     const total = cie + seeConverted;
                                                     const credits = parseFloat(sub.credits) || 0;
-                                                    
+
                                                     return (
                                                         <div key={idx} className="text-xs p-2 bg-black/20 rounded-lg">
                                                             <div className="font-semibold text-white/90 truncate">
@@ -753,19 +749,19 @@ const CGPACalculatorPage = () => {
                                     {semesters.length > 0 && (
                                         <div className="rounded-xl bg-white/5 p-4 mb-5">
                                             <div className="text-sm text-white/70 mb-3 font-semibold">📊 Your Calculation</div>
-                                            
+
                                             <div className="space-y-2 mb-4 max-h-48 overflow-y-auto">
                                                 {semesters.map((sem, idx) => {
                                                     const sgpa = parseFloat(sem.sgpa) || 0;
                                                     const credits = parseFloat(sem.credits) || 0;
-                                                    
+
                                                     return (
                                                         <div key={idx} className="text-xs p-2 bg-black/20 rounded-lg">
                                                             <div className="font-semibold text-white/90">
                                                                 Semester {sem.sem || idx + 1}
                                                             </div>
                                                             <div className="text-white/50 mt-1">
-                                                                {credits > 0 
+                                                                {credits > 0
                                                                     ? `${sgpa} × ${credits} = ${(sgpa * credits).toFixed(2)}`
                                                                     : `SGPA: ${sgpa}`
                                                                 }
@@ -801,7 +797,7 @@ const CGPACalculatorPage = () => {
                                     💡 Pro Tip
                                 </div>
                                 <div className="text-xs text-emerald-200/80 leading-relaxed">
-                                    {activeTab === 'sgpa' 
+                                    {activeTab === 'sgpa'
                                         ? 'SEE marks are entered out of 100 and automatically converted to 50. Focus on both CIE and SEE for better grades!'
                                         : 'Your CGPA is the weighted average of all your semester SGPAs. Consistent performance across semesters is key!'}
                                 </div>

@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
-import { apiClient } from '../services/api';
+import { apiClient, notificationAPI } from '../services/api';
 
 const Sidebar = ({
     currentBranch,
+    cycle,
     showProfile,
     onProfileClick,
     subjectSearch,
@@ -30,32 +31,45 @@ const Sidebar = ({
     const [bugSubmitting, setBugSubmitting] = useState(false);
     const [bugError, setBugError] = useState('');
     const [showNotificationModal, setShowNotificationModal] = useState(false);
-    const [notifications] = useState([
-        {
-            id: 1,
-            title: '🎉 CGPA/SGPA Calculator Added!',
-            message: 'Calculate your SGPA by entering CIE and SEE marks. Supports VTU grading rules including minimum passing marks (CIE ≥ 18, SEE ≥ 36).',
-            date: '2026-01-30',
-            type: 'feature',
-            isNew: true
-        },
-        {
-            id: 2,
-            title: '📚 New Subject Added',
-            message: 'Introduction to Electrical Engineering (ESCO6) has been added to C Cycle for IS branch.',
-            date: '2026-01-30',
-            type: 'update',
-            isNew: true
-        }
-    ]);
-    const [readNotifications, setReadNotifications] = useState(() => {
+    const [notifications, setNotifications] = useState([]);
+    const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    // Fetch notifications from backend
+    const fetchNotifications = useCallback(async () => {
         try {
-            const saved = localStorage.getItem('readNotifications');
-            return saved ? JSON.parse(saved) : [];
-        } catch {
-            return [];
+            setNotificationsLoading(true);
+            const response = await notificationAPI.getNotifications(currentBranch, cycle, 30);
+            setNotifications(response.data.notifications || []);
+            setUnreadCount(response.data.unreadCount || 0);
+        } catch (error) {
+            console.error('Error fetching notifications:', error);
+            // Fallback to empty array on error
+            setNotifications([]);
+            setUnreadCount(0);
+        } finally {
+            setNotificationsLoading(false);
         }
-    });
+    }, [currentBranch, cycle]);
+
+    // Fetch notifications on mount and when branch/cycle changes
+    useEffect(() => {
+        fetchNotifications();
+        // Set up polling for new notifications every 2 minutes
+        const interval = setInterval(fetchNotifications, 120000);
+        return () => clearInterval(interval);
+    }, [fetchNotifications]);
+
+    const handleMarkAllAsRead = async () => {
+        try {
+            await notificationAPI.markAllAsRead(currentBranch, cycle);
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+            setUnreadCount(0);
+        } catch (error) {
+            console.error('Error marking notifications as read:', error);
+        }
+    };
+
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem('uiTheme');
@@ -333,6 +347,23 @@ const Sidebar = ({
                                 </button>
                             )}
 
+                            {user?.isAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowProfileMenu(false);
+                                        navigate('/admin/study-materials');
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold ${sidebarClasses.itemHover} transition`}
+                                    title="Study Materials Management"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                    <span>Study Materials</span>
+                                </button>
+                            )}
+
                             <button
                                 type="button"
                                 onClick={() => {
@@ -392,9 +423,9 @@ const Sidebar = ({
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
                                         </svg>
-                                        {notifications.filter(n => !readNotifications.includes(n.id)).length > 0 && (
+                                        {unreadCount > 0 && (
                                             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center">
-                                                {notifications.filter(n => !readNotifications.includes(n.id)).length}
+                                                {unreadCount > 9 ? '9+' : unreadCount}
                                             </span>
                                         )}
                                     </span>
@@ -409,7 +440,10 @@ const Sidebar = ({
 
                             <button
                                 type="button"
-                                onClick={logout}
+                                onClick={() => {
+                                    logout();
+                                    navigate('/');
+                                }}
                                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/10 transition"
                                 title="Logout"
                             >
@@ -470,12 +504,12 @@ const Sidebar = ({
                                         type="button"
                                         onClick={() => setFeedbackRating(v)}
                                         className={`h-10 w-10 rounded-xl border text-lg font-extrabold transition ${feedbackRating >= v
-                                                ? isLightMode
-                                                    ? 'bg-amber-50 border-amber-200 text-amber-600'
-                                                    : 'bg-amber-500/10 border-amber-400/20 text-amber-300'
-                                                : isLightMode
-                                                    ? 'bg-white border-slate-200 text-slate-300 hover:bg-slate-50'
-                                                    : 'bg-white/5 border-white/10 text-secondary-500 hover:bg-white/10'
+                                            ? isLightMode
+                                                ? 'bg-amber-50 border-amber-200 text-amber-600'
+                                                : 'bg-amber-500/10 border-amber-400/20 text-amber-300'
+                                            : isLightMode
+                                                ? 'bg-white border-slate-200 text-slate-300 hover:bg-slate-50'
+                                                : 'bg-white/5 border-white/10 text-secondary-500 hover:bg-white/10'
                                             }`}
                                         aria-label={`Rate ${v} star`}
                                     >
@@ -497,8 +531,8 @@ const Sidebar = ({
                                 onChange={(e) => setFeedbackMessage(e.target.value)}
                                 rows={4}
                                 className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                        : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
+                                    ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                    : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
                                     }`}
                                 placeholder="Tell us what you liked, what to improve, or any suggestions..."
                             />
@@ -549,8 +583,8 @@ const Sidebar = ({
                                 value={bugTitle}
                                 onChange={(e) => setBugTitle(e.target.value)}
                                 className={`mt-2 h-10 w-full rounded-xl border px-3 text-sm outline-none ${isLightMode
-                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                        : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
+                                    ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                    : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
                                     }`}
                                 placeholder="Short summary (e.g., Subject list not loading)"
                             />
@@ -565,8 +599,8 @@ const Sidebar = ({
                                 onChange={(e) => setBugDescription(e.target.value)}
                                 rows={5}
                                 className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                        : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
+                                    ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                    : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
                                     }`}
                                 placeholder="What happened? What did you expect? Steps to reproduce..."
                             />
@@ -597,8 +631,8 @@ const Sidebar = ({
                                 type="button"
                                 onClick={submitBug}
                                 className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${bugTitle.trim() && bugDescription.trim() && !bugSubmitting
-                                        ? 'bg-purple-600 hover:bg-purple-500'
-                                        : 'bg-purple-600/40 cursor-not-allowed'
+                                    ? 'bg-purple-600 hover:bg-purple-500'
+                                    : 'bg-purple-600/40 cursor-not-allowed'
                                     }`}
                                 disabled={!bugTitle.trim() || !bugDescription.trim() || bugSubmitting}
                             >
@@ -616,42 +650,59 @@ const Sidebar = ({
                     onClose={() => {
                         setShowNotificationModal(false);
                         // Mark all as read when closing
-                        const allIds = notifications.map(n => n.id);
-                        setReadNotifications(allIds);
-                        try {
-                            localStorage.setItem('readNotifications', JSON.stringify(allIds));
-                        } catch {
-                            // ignore
-                        }
+                        handleMarkAllAsRead();
                     }}
                 >
                     <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                        {notifications.length === 0 ? (
+                        {notificationsLoading ? (
+                            <div className={`text-center py-8 ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                <div className="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                                <p className="text-sm">Loading notifications...</p>
+                            </div>
+                        ) : notifications.length === 0 ? (
                             <div className={`text-center py-8 ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
                                 <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9" />
                                 </svg>
                                 <p className="text-sm">No notifications yet</p>
+                                <p className="text-xs mt-1 opacity-70">New content uploads will appear here</p>
                             </div>
                         ) : (
                             notifications.map((notification) => {
-                                const isUnread = !readNotifications.includes(notification.id);
+                                const isUnread = !notification.isRead;
+                                const typeColors = {
+                                    notes: 'bg-green-500/15 text-green-400 border-green-400/20',
+                                    pyqs: 'bg-purple-500/15 text-purple-400 border-purple-400/20',
+                                    questionBanks: 'bg-blue-500/15 text-blue-400 border-blue-400/20',
+                                    syllabus: 'bg-orange-500/15 text-orange-400 border-orange-400/20',
+                                    feature: 'bg-emerald-500/15 text-emerald-400 border-emerald-400/20',
+                                    update: 'bg-blue-500/15 text-blue-400 border-blue-400/20',
+                                    announcement: 'bg-amber-500/15 text-amber-400 border-amber-400/20'
+                                };
+                                const typeLabels = {
+                                    notes: 'Notes',
+                                    pyqs: 'PYQs',
+                                    questionBanks: 'Q-Bank',
+                                    syllabus: 'Syllabus',
+                                    feature: 'New Feature',
+                                    update: 'Update',
+                                    announcement: 'Announcement'
+                                };
                                 return (
                                     <div
-                                        key={notification.id}
-                                        className={`rounded-xl border p-4 transition ${
-                                            isLightMode
+                                        key={notification._id}
+                                        className={`rounded-xl border p-4 transition ${isLightMode
                                                 ? isUnread
                                                     ? 'border-purple-200 bg-purple-50'
                                                     : 'border-slate-200 bg-slate-50'
                                                 : isUnread
                                                     ? 'border-purple-500/30 bg-purple-500/10'
                                                     : 'border-white/10 bg-white/5'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex-1">
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-2 flex-wrap">
                                                     <h3 className={`text-sm font-bold ${isLightMode ? 'text-slate-900' : 'text-secondary-100'}`}>
                                                         {notification.title}
                                                     </h3>
@@ -664,16 +715,26 @@ const Sidebar = ({
                                                 <p className={`mt-1 text-sm ${isLightMode ? 'text-slate-600' : 'text-secondary-300'}`}>
                                                     {notification.message}
                                                 </p>
-                                                <div className="mt-2 flex items-center gap-2">
+                                                {notification.subjectCode && (
+                                                    <div className={`mt-2 text-xs ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                                        📍 {notification.subjectCode}
+                                                        {notification.moduleName && ` → ${notification.moduleName}`}
+                                                    </div>
+                                                )}
+                                                <div className="mt-2 flex items-center gap-2 flex-wrap">
                                                     <span className={`text-xs ${isLightMode ? 'text-slate-400' : 'text-secondary-500'}`}>
-                                                        {notification.date}
+                                                        {notification.createdAt ? new Date(notification.createdAt).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        }) : ''}
                                                     </span>
-                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                                        notification.type === 'feature'
-                                                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-400/20'
-                                                            : 'bg-blue-500/15 text-blue-400 border border-blue-400/20'
+                                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                                                        typeColors[notification.type] || typeColors.update
                                                     }`}>
-                                                        {notification.type === 'feature' ? 'New Feature' : 'Update'}
+                                                        {typeLabels[notification.type] || 'Update'}
                                                     </span>
                                                 </div>
                                             </div>
@@ -702,8 +763,8 @@ const ModalShell = ({ isLightMode, title, onClose, children }) => {
             />
             <div
                 className={`relative w-full max-w-lg rounded-2xl border shadow-xl ${isLightMode
-                        ? 'border-slate-200 bg-white text-slate-900'
-                        : 'border-white/10 bg-primary-900 text-secondary-100'
+                    ? 'border-slate-200 bg-white text-slate-900'
+                    : 'border-white/10 bg-primary-900 text-secondary-100'
                     }`}
             >
                 <div className={`flex items-center justify-between px-5 py-4 border-b ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>

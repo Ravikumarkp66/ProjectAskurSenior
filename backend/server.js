@@ -5,11 +5,13 @@ require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
-const progressRoutes = require('./routes/progressRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const bugRoutes = require('./routes/bugRoutes');
+const downloadRoutes = require('./routes/downloadRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const seedDatabase = require('./utils/seedDatabase');
-const { connectRedis } = require('./utils/redisClient');
+const { connectRedis, flushAllCache } = require('./utils/redisClient');
 
 const app = express();
 
@@ -31,10 +33,17 @@ mongoose
     .then(async () => {
         console.log('MongoDB connected successfully');
 
-        // Connect to Redis
-        await connectRedis();
+        // Connect to Redis - TEMPORARILY DISABLED
+        // await connectRedis();
+
+        // Clear Redis cache on startup to ensure fresh data
+        // This prevents stale cache issues with subject IDs
+        // if (process.env.NODE_ENV !== 'production') {
+        //     await flushAllCache();
+        // }
 
         // Seed database on startup only in non-production environments
+        // Note: Seeding now preserves existing notesKey values
         if (process.env.NODE_ENV !== 'production') {
             seedDatabase().catch((error) => {
                 console.error('Error seeding database:', error);
@@ -49,9 +58,11 @@ mongoose
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/subjects', subjectRoutes);
-app.use('/api/progress', progressRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/bugs', bugRoutes);
+app.use('/api/download', downloadRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

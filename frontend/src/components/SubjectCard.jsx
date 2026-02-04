@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ModuleAccordion from './ModuleAccordion';
 import './ComingSoonButton.css';
 import ProgressBar from './ProgressBar';
 import { calculateSubjectProgress } from '../utils/constants';
 
-const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'light' }) => {
+const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionToggle, theme = 'light' }) => {
+    const navigate = useNavigate();
+    const [subject, setSubject] = useState(initialSubject);
     const [view, setView] = useState('all');
     const isLightMode = theme === 'light';
     // Show "Coming Soon" for all subjects except the explicitly allowed list
@@ -30,6 +33,23 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
         0
     );
 
+    // Update subject when prop changes
+    useEffect(() => {
+        setSubject(initialSubject);
+    }, [initialSubject]);
+
+    // Handle notes upload - update module's notesKey locally
+    const handleNotesUploaded = (moduleNumber, s3Key) => {
+        setSubject(prev => ({
+            ...prev,
+            modules: prev.modules.map(m => 
+                m.moduleNumber === moduleNumber 
+                    ? { ...m, notesKey: s3Key }
+                    : m
+            )
+        }));
+    };
+
     useEffect(() => {
         try {
             localStorage.setItem('revisionQuestionIds', JSON.stringify(revisionIds));
@@ -54,6 +74,11 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
             if (prev.includes(questionId)) return prev.filter((id) => id !== questionId);
             return [...prev, questionId];
         });
+    };
+
+    const handleViewContent = (e) => {
+        e.stopPropagation();
+        navigate(`/subject/${subject._id}/content`);
     };
 
     return (
@@ -108,6 +133,52 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
                     className={`p-6 border-t ${isLightMode ? 'border-slate-200 bg-white' : 'border-primary-700 bg-dark-200'
                         }`}
                 >
+                    {/* Content Sections Button */}
+                    <div className="mb-6">
+                        <button
+                            onClick={handleViewContent}
+                            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${
+                                isLightMode 
+                                    ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-400 hover:shadow-md' 
+                                    : 'bg-gradient-to-r from-purple-600/10 to-blue-600/10 border-purple-500/30 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/10'
+                            }`}
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className={`p-3 rounded-lg ${
+                                    isLightMode ? 'bg-purple-100' : 'bg-purple-600/20'
+                                }`}>
+                                    <svg className={`w-6 h-6 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                </div>
+                                <div className="text-left">
+                                    <h4 className={`font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                        Study Materials
+                                    </h4>
+                                    <p className={`text-sm ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                        Notes, PYQs, Question Banks & Syllabus
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                                    isLightMode ? 'bg-white/80' : 'bg-white/5'
+                                }`}>
+                                    <span className={`text-xs font-medium ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>Notes</span>
+                                    <span className={`text-xs ${isLightMode ? 'text-slate-300' : 'text-secondary-600'}`}>•</span>
+                                    <span className={`text-xs font-medium ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>PYQs</span>
+                                    <span className={`text-xs ${isLightMode ? 'text-slate-300' : 'text-secondary-600'}`}>•</span>
+                                    <span className={`text-xs font-medium ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>Q-Banks</span>
+                                    <span className={`text-xs ${isLightMode ? 'text-slate-300' : 'text-secondary-600'}`}>•</span>
+                                    <span className={`text-xs font-medium ${isLightMode ? 'text-orange-600' : 'text-orange-400'}`}>Syllabus</span>
+                                </div>
+                                <svg className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </div>
+                        </button>
+                    </div>
+
                     <div className="mb-4">
                         <div className="flex items-center justify-between gap-4 mb-4">
                             <h4 className={`text-sm font-semibold ${isLightMode ? 'text-gray-700' : 'text-secondary-300'}`}>Modules</h4>
@@ -173,6 +244,7 @@ const SubjectCard = ({ subject, expanded, onToggle, onQuestionToggle, theme = 'l
                                         revisionIds={revisionIds}
                                         onToggleRevision={toggleRevision}
                                         theme={theme}
+                                        onNotesUploaded={handleNotesUploaded}
                                     />
                                 ))
                             )}

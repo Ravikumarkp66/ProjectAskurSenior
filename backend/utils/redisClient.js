@@ -124,6 +124,24 @@ const deleteCacheByPattern = async (pattern) => {
     }
 };
 
+/**
+ * Clear ALL cache - use sparingly, only on startup or when needed
+ * @returns {Promise<boolean>} - Success status
+ */
+const flushAllCache = async () => {
+    const client = getRedisClient();
+    if (!client) return false;
+
+    try {
+        await client.flushAll();
+        console.log('Redis cache cleared');
+        return true;
+    } catch (error) {
+        console.error('Redis FLUSHALL error:', error.message);
+        return false;
+    }
+};
+
 // Cache key generators
 const cacheKeys = {
     subjectsByBranch: (branch, cycle) => `subjects:${branch}:${cycle || 'all'}`,
@@ -139,6 +157,7 @@ module.exports = {
     setCache,
     deleteCache,
     deleteCacheByPattern,
+    flushAllCache,
     cacheKeys,
     CACHE_TTL
 };

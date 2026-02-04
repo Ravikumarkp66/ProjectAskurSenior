@@ -10,7 +10,7 @@ import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../u
 
 const DashboardPage = () => {
     const navigate = useNavigate();
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem('uiTheme');
@@ -74,16 +74,21 @@ const DashboardPage = () => {
         return totalQuestions === 0 ? 0 : Math.round((completedQuestions / totalQuestions) * 100);
     }, [subjects]);
 
-    // Redirect to login if not authenticated
+    // Redirect to login if not authenticated (wait for auth to finish loading first)
     useEffect(() => {
-        if (!isAuthenticated) {
+        if (!authLoading && !isAuthenticated) {
             navigate('/login');
         }
-    }, [isAuthenticated, navigate]);
+    }, [authLoading, isAuthenticated, navigate]);
 
     // Load subjects
     useEffect(() => {
         const loadData = async () => {
+            // Wait for auth to finish loading
+            if (authLoading) {
+                return;
+            }
+
             // Don't load data if not authenticated
             if (!isAuthenticated || !currentBranch) {
                 setPageLoading(false);
@@ -113,7 +118,7 @@ const DashboardPage = () => {
         };
 
         loadData();
-    }, [isAuthenticated, currentBranch, cycle]);
+    }, [authLoading, isAuthenticated, currentBranch, cycle]);
 
     useEffect(() => {
         const derived = deriveBranchFromUSN(user?.usn) || toUiBranch(user?.currentBranch) || '';
@@ -186,6 +191,7 @@ const DashboardPage = () => {
             {/* Sidebar */}
             <Sidebar
                 currentBranch={currentBranch}
+                cycle={cycle}
                 branchOverride={branchOverride}
                 onBranchOverrideChange={handleBranchOverrideChange}
                 showProfile={showProfileModal}

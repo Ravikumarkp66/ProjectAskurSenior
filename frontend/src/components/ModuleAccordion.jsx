@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useContext, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import QuestionCard from './QuestionCard';
 import { calculateModuleProgress } from '../utils/constants';
+import { subjectAPI, uploadAPI } from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
 const ModuleAccordion = ({
     module,
@@ -10,9 +12,17 @@ const ModuleAccordion = ({
     view = 'all',
     revisionIds = [],
     onToggleRevision,
-    theme = 'light'
+    theme = 'light',
+    onNotesUploaded
 }) => {
+    const { user } = useContext(AuthContext);
+    const isAdmin = user?.isAdmin;
+    const fileInputRef = useRef(null);
     const [expanded, setExpanded] = useState(false);
+    const [notesLoading, setNotesLoading] = useState(false);
+    const [uploadLoading, setUploadLoading] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState(null);
+    const [showPdfModal, setShowPdfModal] = useState(false);
     const isLightMode = theme === 'light';
     const progress = calculateModuleProgress(module.questions);
     const completed = module.questions.filter((q) => q.completed).length;
@@ -23,6 +33,65 @@ const ModuleAccordion = ({
         const set = new Set(revisionIds);
         return module.questions.filter((q) => set.has(q._id));
     }, [module.questions, revisionIds, view]);
+
+    const handleNotesClick = async (e) => {
+        e.stopPropagation();
+        if (!module.notesKey) {
+            alert('No notes available for this module yet.');
+            return;
+        }
+        setNotesLoading(true);
+        try {
+            const response = await subjectAPI.getModuleNotes(subject._id, module.moduleNumber);
+            setPdfUrl(response.data.url);
+            setShowPdfModal(true);
+        } catch (error) {
+            console.error('Error fetching notes:', error);
+            alert(error.response?.data?.error || 'Failed to load notes');
+        } finally {
+            setNotesLoading(false);
+        }
+    };
+
+    const handleUploadClick = (e) => {
+        e.stopPropagation();
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== 'application/pdf') {
+            // Show error with a better UI instead of alert
+            console.error('Invalid file type. Please upload a PDF file only.');
+            return;
+        }
+
+        setUploadLoading(true);
+        try {
+            console.log('Uploading to:', subject._id, module.moduleNumber, file.name);
+            const response = await uploadAPI.uploadNotes(subject._id, module.moduleNumber, file);
+            console.log('Upload response:', response.data);
+            
+            // Update the module's notesKey locally
+            if (onNotesUploaded) {
+                onNotesUploaded(module.moduleNumber, response.data.s3Key);
+            }
+        } catch (error) {
+            console.error('Error uploading notes:', error);
+            console.error('Request URL:', error.config?.url);
+            console.error('Response:', error.response?.data);
+        } finally {
+            setUploadLoading(false);
+            e.target.value = ''; // Reset file input
+        }
+    };
+
+    const closePdfModal = () => {
+        setShowPdfModal(false);
+        setPdfUrl(null);
+    };
 
     return (
         <div
@@ -80,20 +149,66 @@ const ModuleAccordion = ({
 
                         <button
                             type="button"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={handleNotesClick}
+                            disabled={notesLoading}
                             className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-                                isLightMode
-                                    ? 'border-slate-200 bg-white text-slate-500 hover:text-purple-700 hover:border-purple-300'
-                                    : 'border-white/10 bg-white/5 text-secondary-300 hover:text-purple-200 hover:border-purple-400/40'
+                                module.notesKey
+                                    ? isLightMode
+                                        ? 'border-green-300 bg-green-50 text-green-600 hover:bg-green-100'
+                                        : 'border-green-400/40 bg-green-600/20 text-green-300 hover:bg-green-600/30'
+                                    : isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-400 cursor-not-allowed'
+                                        : 'border-white/10 bg-white/5 text-secondary-500 cursor-not-allowed'
                             }`}
-                            title="Notes: coming soon"
+                            title={module.notesKey ? 'View Notes' : 'Notes not available'}
                         >
-                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M6 3.5H14C14.5523 3.5 15 3.94772 15 4.5V16.5L12.5 15L10 16.5L7.5 15L5 16.5V4.5C5 3.94772 5.44772 3.5 6 3.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                                <path d="M7 7H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                                <path d="M7 10H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
+                            {notesLoading ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeLinecap="round" />
+                                </svg>
+                            ) : (
+                                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M6 3.5H14C14.5523 3.5 15 3.94772 15 4.5V16.5L12.5 15L10 16.5L7.5 15L5 16.5V4.5C5 3.94772 5.44772 3.5 6 3.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                                    <path d="M7 7H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                    <path d="M7 10H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                            )}
                         </button>
+
+                        {/* Admin Upload Button */}
+                        {isAdmin && (
+                            <>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileChange}
+                                    accept=".pdf"
+                                    className="hidden"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleUploadClick}
+                                    disabled={uploadLoading}
+                                    className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
+                                        isLightMode
+                                            ? 'border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100'
+                                            : 'border-blue-400/40 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30'
+                                    }`}
+                                    title="Upload Notes (Admin)"
+                                >
+                                    {uploadLoading ? (
+                                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeLinecap="round" />
+                                        </svg>
+                                    ) : (
+                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 16V4M12 4L8 8M12 4L16 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                            <path d="M4 17V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                        </svg>
+                                    )}
+                                </button>
+                            </>
+                        )}
 
                         <button
                             type="button"
@@ -156,6 +271,62 @@ const ModuleAccordion = ({
                                 theme={theme}
                             />
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* PDF Preview Modal */}
+            {showPdfModal && pdfUrl && (
+                <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+                    onClick={closePdfModal}
+                >
+                    <div 
+                        className={`relative w-full max-w-5xl h-[90vh] rounded-lg overflow-hidden ${
+                            isLightMode ? 'bg-white' : 'bg-dark-100'
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal Header */}
+                        <div className={`flex items-center justify-between px-4 py-3 border-b ${
+                            isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-dark-50 border-white/10'
+                        }`}>
+                            <h3 className={`font-semibold ${isLightMode ? 'text-slate-800' : 'text-white'}`}>
+                                {module.title} - Notes
+                            </h3>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href={pdfUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${
+                                        isLightMode
+                                            ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                            : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'
+                                    }`}
+                                >
+                                    Open in New Tab
+                                </a>
+                                <button
+                                    onClick={closePdfModal}
+                                    className={`p-2 rounded-lg transition ${
+                                        isLightMode
+                                            ? 'hover:bg-slate-200 text-slate-600'
+                                            : 'hover:bg-white/10 text-white'
+                                    }`}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        {/* PDF Embed */}
+                        <iframe
+                            src={pdfUrl}
+                            className="w-full h-[calc(90vh-60px)]"
+                            title={`${module.title} Notes`}
+                        />
                     </div>
                 </div>
             )}

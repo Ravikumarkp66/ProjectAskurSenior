@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import './Hero.css';
 
-const ArrowRightIcon = ({ size = 20 }) => (
+const ArrowRightIcon = ({ size = 18 }) => (
     <svg
         width={size}
         height={size}
@@ -11,10 +11,9 @@ const ArrowRightIcon = ({ size = 20 }) => (
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden="true"
-        className="hero-button-icon"
     >
         <path
-            d="M5 12h12m0 0-5-5m5 5-5 5"
+            d="M5 12h14m0 0l-6-6m6 6l-6 6"
             stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
@@ -23,114 +22,94 @@ const ArrowRightIcon = ({ size = 20 }) => (
     </svg>
 );
 
-const FeatureIcon = ({ children }) => (
-    <div className="feature-icon-container">
-        <div className="feature-icon">{children}</div>
-    </div>
-);
-
 const features = [
     {
-        title: 'Notes',
-        description: 'Clean, structured notes for every module—fast to find, easy to revise.',
+        title: 'Study Notes',
+        description: 'Comprehensive, well-organized notes for every subject. Find what you need instantly.',
         icon: (
-            <FeatureIcon>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M7 3h7l3 3v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinejoin="round"
-                    />
-                    <path d="M14 3v3h3" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                    <path d="M8 12h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M8 16h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-            </FeatureIcon>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M9 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2v0z" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
         )
     },
     {
-        title: 'PYQs',
-        description: 'Previous year questions with smart practice to boost exam confidence.',
+        title: 'Previous Year Questions',
+        description: 'Practice with curated PYQs to boost your exam confidence and performance.',
         icon: (
-            <FeatureIcon>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M6.5 4H18a2 2 0 0 1 2 2v12.5a1.5 1.5 0 0 1-1.5 1.5H6.5A2.5 2.5 0 0 1 4 17.5V6.5A2.5 2.5 0 0 1 6.5 4Z"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinejoin="round"
-                    />
-                    <path d="M8 9h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M8 13h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M8 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-            </FeatureIcon>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M8 7h8M8 11h6M8 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
         )
     },
     {
-        title: 'CGPA / SGPA Calculator',
-        description: 'Instantly calculate SGPA/CGPA and plan your targets semester-wise.',
+        title: 'CGPA Calculator',
+        description: 'Calculate your SGPA and CGPA instantly. Plan your academic targets with precision.',
         icon: (
-            <FeatureIcon>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                    />
-                    <path d="M8 8h8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M8 12h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M13 12h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M8 16h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M13 16h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-            </FeatureIcon>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M8 6h8M8 10h4M14 10h2M8 14h2M14 14h2M8 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
         )
     },
     {
-        title: 'College Interview Experiences',
-        description: 'Real interview experiences and tips shared by students and seniors.',
+        title: 'Progress Tracking',
+        description: 'Monitor your study progress across modules with detailed analytics and insights.',
         icon: (
-            <FeatureIcon>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path
-                        d="M7 7a4 4 0 1 1 8 0"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                    />
-                    <path
-                        d="M4 20a8 8 0 0 1 16 0"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                    />
-                    <path
-                        d="M18 11h2v4h-2"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-                </svg>
-            </FeatureIcon>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M7 12l3-3 4 4 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="7" cy="12" r="1" fill="currentColor"/>
+                <circle cx="10" cy="9" r="1" fill="currentColor"/>
+                <circle cx="14" cy="13" r="1" fill="currentColor"/>
+                <circle cx="19" cy="8" r="1" fill="currentColor"/>
+            </svg>
+        )
+    },
+    {
+        title: 'Smart Notifications',
+        description: 'Stay updated with exam schedules, assignment deadlines, and important announcements.',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+        )
+    },
+    {
+        title: 'Interview Experiences',
+        description: 'Real insights from seniors who cracked top companies. Learn from their journey.',
+        icon: (
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/>
+                <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M21 21v-2a4 4 0 00-3-3.87" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
         )
     }
 ];
 
-const featuresContainerVariants = {
+const stats = [
+    { value: '2,000+', label: 'Active Students' },
+    { value: '500+', label: 'Study Materials' },
+    { value: '50+', label: 'Subjects Covered' },
+    { value: '4.9', label: 'User Rating' }
+];
+
+const containerVariants = {
     hidden: {},
     visible: {
-        transition: {
-            staggerChildren: 0.15
-        }
+        transition: { staggerChildren: 0.1 }
     }
 };
 
-const featureCardVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0 }
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }
 };
 
 export default function Hero() {
@@ -152,202 +131,361 @@ export default function Hero() {
     };
 
     return (
-        <div className="hero-container">
-            <section className="hero-section">
-                <div className="hero-gradient-orb" />
+        <div className="landing-page">
+            {/* Background Elements */}
+            <div className="bg-gradient-layer" />
+            <div className="bg-grid-pattern" />
+            <div className="bg-glow bg-glow-1" />
+            <div className="bg-glow bg-glow-2" />
 
-                <motion.div
-                    className="hero-dots"
-                    initial={{ y: 0 }}
-                    whileInView={{ y: -30 }}
-                    viewport={{ once: true, amount: 0.6 }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                >
-                    <img src="/dots.png" alt="" className="hero-dots-img" />
-                </motion.div>
-
-                <div className="hero-content animate-fade-up">
-                    <div className="hero-badge">
-                        <span className="hero-badge-dot animate-pulse" />
-                        <span className="hero-badge-text">Trusted by 2000+ Students</span>
+            {/* Navigation */}
+            <nav className="landing-nav">
+                <div className="nav-container">
+                    <Link to="/" className="nav-logo">
+                        <span className="logo-icon">A</span>
+                        <span className="logo-text">ASK<span className="logo-plus">+</span></span>
+                    </Link>
+                    <div className="nav-links">
+                        <a href="#features" onClick={handleExploreFeatures} className="nav-link">Features</a>
+                        <a href="#about" className="nav-link">About</a>
+                        {user ? (
+                            <Link to="/dashboard" className="nav-btn nav-btn-primary">Dashboard</Link>
+                        ) : (
+                            <>
+                                <Link to="/login" className="nav-link">Sign In</Link>
+                                <Link to="/signup" className="nav-btn nav-btn-primary">Get Started</Link>
+                            </>
+                        )}
                     </div>
+                </div>
+            </nav>
 
-                    <h1 className="hero-heading">
+            {/* Hero Section */}
+            <section className="hero-section">
+                <motion.div 
+                    className="hero-content"
+                    initial="hidden"
+                    animate="visible"
+                    variants={containerVariants}
+                >
+                    <motion.div className="hero-badge" variants={itemVariants}>
+                        <span className="badge-pulse" />
+                        <span>Trusted by 2,000+ Students</span>
+                    </motion.div>
+
+                    <motion.h1 className="hero-title" variants={itemVariants}>
                         Your Complete
                         <br />
-                        <span className="hero-heading-gradient">Academic Companion</span>
-                    </h1>
+                        <span className="gradient-text">Academic Companion</span>
+                    </motion.h1>
 
-                    <p className="hero-subheading">
-                        Master your studies with AI-powered notes, expert-curated PYQs, real-time attendance tracking, and a
-                        supportive community. Everything you need to ace your semesters—all in one powerful platform.
-                    </p>
+                    <motion.p className="hero-description" variants={itemVariants}>
+                        Master your studies with comprehensive notes, curated PYQs, smart CGPA tracking, 
+                        and real interview experiences. Everything you need to excel—built for students, by students.
+                    </motion.p>
 
-                    <div className="hero-buttons">
+                    <motion.div className="availability-banner" variants={itemVariants}>
+                        <div className="availability-item available">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            <span>1st Year Materials Available Now</span>
+                        </div>
+                        <div className="availability-item coming-soon">
+                            <svg viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+                                <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                            <span>Higher Semesters Coming Soon</span>
+                        </div>
+                    </motion.div>
+
+                    <motion.div className="hero-actions" variants={itemVariants}>
                         {user ? (
-                            <Link to="/dashboard" className="hero-button hero-button-primary">
+                            <Link to="/dashboard" className="btn btn-primary">
                                 Go to Dashboard
-                                <ArrowRightIcon size={20} />
+                                <ArrowRightIcon />
                             </Link>
                         ) : (
                             <>
-                                <Link to="/signup" className="hero-button hero-button-primary">
-                                    Get Started Free
-                                    <ArrowRightIcon size={20} />
+                                <Link to="/signup" className="btn btn-primary">
+                                    Start Learning Free
+                                    <ArrowRightIcon />
                                 </Link>
-                                <a href="#features" onClick={handleExploreFeatures} className="hero-button hero-button-link">
+                                <a href="#features" onClick={handleExploreFeatures} className="btn btn-ghost">
                                     Explore Features
                                 </a>
                             </>
                         )}
-                    </div>
+                    </motion.div>
 
-                    <p className="hero-trust">
-                        {user ? (
-                            <>Welcome back! Start exploring your resources</>
-                        ) : (
-                            <>
-                                Join <span className="hero-trust-highlight">1,000+</span> students already using ASK+
-                            </>
-                        )}
-                    </p>
-                </div>
+                    <motion.div className="hero-stats" variants={itemVariants}>
+                        {stats.map((stat, i) => (
+                            <div key={i} className="stat-item">
+                                <span className="stat-value">{stat.value}</span>
+                                <span className="stat-label">{stat.label}</span>
+                            </div>
+                        ))}
+                    </motion.div>
+                </motion.div>
             </section>
 
+            {/* Features Section */}
             <section className="features-section" id="features">
-                <div className="features-container">
-                    <div className="features-header">
-                        <h2 className="features-title">
-                            Everything You Need to{' '}
-                            <span className="hero-heading-gradient" style={{ display: 'inline' }}>
-                                Excel
-                            </span>
+                <div className="section-container">
+                    <motion.div 
+                        className="section-header"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        <span className="section-tag">Features</span>
+                        <h2 className="section-title">
+                            Everything you need to <span className="gradient-text">excel</span>
                         </h2>
-                        <p className="features-description">
-                            A complete suite of tools designed to help you succeed in your academic journey.
+                        <p className="section-description">
+                            A comprehensive toolkit designed to simplify your academic journey and maximize your success.
                         </p>
-                    </div>
+                    </motion.div>
 
-                    <motion.div
+                    <motion.div 
+                        className="features-grid"
                         initial="hidden"
                         whileInView="visible"
                         viewport={{ once: true }}
-                        variants={featuresContainerVariants}
-                        className="features-grid"
+                        variants={containerVariants}
                     >
-                        {features.map((item, i) => (
-                            <motion.div
-                                key={i}
-                                variants={featureCardVariants}
-                                transition={{ duration: 0.5, ease: 'easeOut' }}
-                                whileHover={{ y: -8, scale: 1.02 }}
-                                className="feature-card"
+                        {features.map((feature, i) => (
+                            <motion.div 
+                                key={i} 
+                                className="feature-card glass-card"
+                                variants={itemVariants}
+                                whileHover={{ y: -4, transition: { duration: 0.2 } }}
                             >
-                                {item.icon}
-                                <h3 className="feature-title">{item.title}</h3>
-                                <p className="feature-description">{item.description}</p>
+                                <div className="feature-icon">
+                                    {feature.icon}
+                                </div>
+                                <h3 className="feature-title">{feature.title}</h3>
+                                <p className="feature-description">{feature.description}</p>
+                                <div className="feature-glow" />
                             </motion.div>
                         ))}
                     </motion.div>
                 </div>
             </section>
 
-            <section className="about-section">
-                <div className="about-container">
-                    <div className="about-header">
-                        <h2 className="about-title">
-                            Why{' '}
-                            <span className="hero-heading-gradient" style={{ display: 'inline' }}>
-                                ASK+
-                            </span>{' '}
-                            Stands Out
-                        </h2>
-                        <p className="about-subtitle">Built by students, for students—simplifying your academic journey</p>
-                    </div>
-
-                    <div className="about-grid">
-                        <div className="about-card">
-                            <div className="about-icon-container">
-                                <div className="about-icon">
-                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path
-                                            d="M12 2l2.2 6.7H21l-5.4 3.9 2.1 6.7L12 15.6 6.3 19.3l2.1-6.7L3 8.7h6.8L12 2Z"
-                                            stroke="currentColor"
-                                            strokeWidth="1.8"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
+            {/* About Section */}
+            <section className="about-section" id="about">
+                <div className="section-container">
+                    <motion.div 
+                        className="about-content"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        <div className="about-text">
+                            <span className="section-tag">Why ASK+</span>
+                            <h2 className="section-title">
+                                Built by students, <span className="gradient-text">for students</span>
+                            </h2>
+                            <p className="section-description">
+                                We understand the challenges of academic life because we've lived them. 
+                                ASK+ brings together everything you need in one seamless platform—no more 
+                                switching between apps or searching through scattered resources.
+                            </p>
+                            <div className="about-features">
+                                <div className="about-feature">
+                                    <div className="about-feature-icon">
+                                        <svg viewBox="0 0 24 24" fill="none">
+                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </div>
+                                    <span>Curated study materials</span>
+                                </div>
+                                <div className="about-feature">
+                                    <div className="about-feature-icon">
+                                        <svg viewBox="0 0 24 24" fill="none">
+                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </div>
+                                    <span>Track your progress</span>
+                                </div>
+                                <div className="about-feature">
+                                    <div className="about-feature-icon">
+                                        <svg viewBox="0 0 24 24" fill="none">
+                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </div>
+                                    <span>100% free to use</span>
                                 </div>
                             </div>
-                            <h3 className="about-card-title">Student-Centric Design</h3>
-                            <p className="about-card-text">
-                                Created by students who understand the real struggles of college life. We built ASK+ to solve the
-                                exact problems we faced—managing notes, attendance, exams, and mental health all at once.
-                            </p>
                         </div>
-
-                        <div className="about-card">
-                            <div className="about-icon-container">
-                                <div className="about-icon blue">
-                                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path
-                                            d="M12 21s-7-4.6-7-11a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 6.4-7 11-7 11Z"
-                                            stroke="currentColor"
-                                            strokeWidth="1.8"
-                                            strokeLinejoin="round"
-                                        />
-                                    </svg>
+                        <div className="about-visual glass-card">
+                            <div className="visual-content">
+                                <div className="visual-stat">
+                                    <span className="visual-number gradient-text">98%</span>
+                                    <span className="visual-label">Student Satisfaction</span>
+                                </div>
+                                <div className="visual-bar-group">
+                                    <div className="visual-bar">
+                                        <span>Notes Quality</span>
+                                        <div className="bar-track"><div className="bar-fill" style={{width: '95%'}}></div></div>
+                                    </div>
+                                    <div className="visual-bar">
+                                        <span>Ease of Use</span>
+                                        <div className="bar-track"><div className="bar-fill" style={{width: '92%'}}></div></div>
+                                    </div>
+                                    <div className="visual-bar">
+                                        <span>Exam Readiness</span>
+                                        <div className="bar-track"><div className="bar-fill" style={{width: '88%'}}></div></div>
+                                    </div>
                                 </div>
                             </div>
-                            <h3 className="about-card-title">Holistic Academic Support</h3>
-                            <p className="about-card-text">
-                                From study materials to community support, we've got everything under one roof. Less switching
-                                between apps, more focus on what matters—your success and well-being.
-                            </p>
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
-            <section className="cta-section">
-                <div className="cta-container">
-                    <div className="cta-card">
-                        <div className="cta-glow" />
+            {/* Platform Features Section */}
+            <section className="platform-section">
+                <div className="section-container">
+                    <motion.div 
+                        className="section-header"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        <span className="section-tag">Platform</span>
+                        <h2 className="section-title">
+                            Advanced features that <span className="gradient-text">set us apart</span>
+                        </h2>
+                        <p className="section-description">
+                            Beyond basic study materials, we provide intelligent tools that adapt to your learning journey.
+                        </p>
+                    </motion.div>
 
+                    <motion.div 
+                        className="platform-features"
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={containerVariants}
+                    >
+                        <motion.div className="platform-feature glass-card" variants={itemVariants}>
+                            <div className="platform-feature-header">
+                                <div className="platform-icon">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5"/>
+                                        <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
+                                        <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
+                                    </svg>
+                                </div>
+                                <h3>Smart Organization</h3>
+                            </div>
+                            <p>AI-powered content organization that learns from your study patterns and preferences.</p>
+                            <ul className="feature-benefits">
+                                <li>Auto-categorized materials</li>
+                                <li>Personalized recommendations</li>
+                                <li>Quick search & filtering</li>
+                            </ul>
+                        </motion.div>
+
+                        <motion.div className="platform-feature glass-card" variants={itemVariants}>
+                            <div className="platform-feature-header">
+                                <div className="platform-icon">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
+                                        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                        <circle cx="12" cy="17" r="0.5" fill="currentColor"/>
+                                    </svg>
+                                </div>
+                                <h3>Community Support</h3>
+                            </div>
+                            <p>Connect with peers, get help from seniors, and contribute to a collaborative learning environment.</p>
+                            <ul className="feature-benefits">
+                                <li>Peer feedback system</li>
+                                <li>Quality content reviews</li>
+                                <li>Bug reporting & fixes</li>
+                            </ul>
+                        </motion.div>
+
+                        <motion.div className="platform-feature glass-card" variants={itemVariants}>
+                            <div className="platform-feature-header">
+                                <div className="platform-icon">
+                                    <svg viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 20h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                        <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </div>
+                                <h3>Admin Moderation</h3>
+                            </div>
+                            <p>Quality-controlled content with admin oversight ensures reliable, accurate study materials.</p>
+                            <ul className="feature-benefits">
+                                <li>Verified study materials</li>
+                                <li>Content quality assurance</li>
+                                <li>Regular updates & maintenance</li>
+                            </ul>
+                        </motion.div>
+                    </motion.div>
+                </div>
+            </section>
+
+            {/* CTA Section */}
+            <section className="cta-section">
+                <div className="section-container">
+                    <motion.div 
+                        className="cta-card glass-card"
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5 }}
+                    >
+                        <div className="cta-glow" />
                         <div className="cta-content">
                             <h2 className="cta-title">
-                                Ready to Ace Your
-                                <br />
-                                <span className="hero-heading-gradient">Academic Goals?</span>
+                                Ready to ace your <span className="gradient-text">academics?</span>
                             </h2>
                             <p className="cta-description">
-                                Stop struggling with scattered resources. Join 1000+ successful students using ASK+ to excel in their
-                                studies, stay organized, and achieve their dreams.
+                                Join thousands of students who are already using ASK+ to achieve their academic goals. 
+                                Start your journey today—completely free.
                             </p>
                             {!user && (
-                                <Link to="/signup" className="cta-button">
-                                    Start Learning Today
-                                    <ArrowRightIcon size={20} />
+                                <Link to="/signup" className="btn btn-primary btn-lg">
+                                    Get Started Now
+                                    <ArrowRightIcon />
+                                </Link>
+                            )}
+                            {user && (
+                                <Link to="/dashboard" className="btn btn-primary btn-lg">
+                                    Continue Learning
+                                    <ArrowRightIcon />
                                 </Link>
                             )}
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </section>
 
-            <footer className="hero-footer">
-                <div className="hero-footer-inner">Secure • Privacy-first • Built for students</div>
+            {/* Footer */}
+            <footer className="landing-footer">
+                <div className="footer-container">
+                    <div className="footer-brand">
+                        <span className="logo-icon">A</span>
+                        <span className="logo-text">ASK<span className="logo-plus">+</span></span>
+                    </div>
+                    <p className="footer-text">Built with ❤️ for students everywhere</p>
+                    <div className="footer-links">
+                        <span>Privacy</span>
+                        <span>•</span>
+                        <span>Terms</span>
+                        <span>•</span>
+                        <span>Contact</span>
+                    </div>
+                </div>
             </footer>
-        </div>
-    );
-}
-
-function FeatureCard({ icon, title, description }) {
-    return (
-        <div className="feature-card">
-            {icon}
-            <h3 className="feature-title">{title}</h3>
-            <p className="feature-description">{description}</p>
         </div>
     );
 }

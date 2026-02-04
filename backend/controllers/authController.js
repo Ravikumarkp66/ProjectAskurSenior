@@ -1,5 +1,4 @@
 const User = require('../models/User');
-const Progress = require('../models/Progress');
 const jwt = require('jsonwebtoken');
 
 // Admin emails that should automatically get admin access
@@ -39,19 +38,6 @@ const registerUser = async (req, res) => {
             isAdmin: isAdminEmail
         });
 
-        await user.save();
-
-        // Create progress record
-        const progress = new Progress({
-            userId: user._id,
-            branch: user.currentBranch,
-            subjectProgress: []
-        });
-
-        await progress.save();
-
-        // Update user with progress reference
-        user.progress = progress._id;
         await user.save();
 
         const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);

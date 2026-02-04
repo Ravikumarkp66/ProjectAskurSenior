@@ -344,9 +344,9 @@ const seedDatabase = async () => {
             // ignore if index doesn't exist
         }
 
-        // Clear existing subjects
-        await Subject.deleteMany({});
-
+        // DO NOT delete subjects - preserve notesKey and other user data
+        // Only create subjects that don't exist yet
+        
         const cycles = ['P', 'C'];
         for (const cycle of cycles) {
             for (const branch of BRANCHES) {
@@ -361,7 +361,14 @@ const seedDatabase = async () => {
                     .sort((a, b) => (a.credits - b.credits) || a.code.localeCompare(b.code));
 
                 for (const subject of branchSubjects) {
-                    // Create 5 modules with 5 questions each
+                    // Check if subject already exists - if so, skip to preserve notesKey
+                    const existingSubject = await Subject.findOne({ code: subject.code, branch, cycle });
+                    if (existingSubject) {
+                        // Subject exists, skip to preserve notesKey values
+                        continue;
+                    }
+                    
+                    // Create 5 modules with 5 questions each for NEW subjects only
                     const modules = [];
                     const moduleTitles = MATH_MODULE_TITLES_BY_CODE[subject.code];
                     for (let moduleNum = 1; moduleNum <= 5; moduleNum++) {
@@ -377,23 +384,20 @@ const seedDatabase = async () => {
                         modules.push({
                             moduleNumber: moduleNum,
                             title: moduleTitles?.[moduleNum - 1] || `Module ${moduleNum}`,
+                            notesKey: null, // Initialize notesKey
                             questions: questions
                         });
                     }
 
-                    // Use findOneAndUpdate with upsert to handle duplicates gracefully
-                    await Subject.findOneAndUpdate(
-                        { code: subject.code, branch, cycle },
-                        {
-                            name: subject.name,
-                            code: subject.code,
-                            credits: subject.credits,
-                            cycle,
-                            branch,
-                            modules: modules
-                        },
-                        { upsert: true, new: true }
-                    );
+                    // Create new subject (only for subjects that don't exist)
+                    await Subject.create({
+                        name: subject.name,
+                        code: subject.code,
+                        credits: subject.credits,
+                        cycle,
+                        branch,
+                        modules: modules
+                    });
                 }
             }
         }

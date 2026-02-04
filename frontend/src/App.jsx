@@ -1,13 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { DashboardProvider } from './context/DashboardContext';
 import { useAuth } from './utils/hooks';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import AdminReviewsPage from './pages/AdminReviewsPage';
+import AdminStudyMaterialsPage from './pages/AdminStudyMaterialsPage';
 import CGPACalculatorPage from './pages/CGPACalculatorPage';
+import SubjectContentPage from './pages/SubjectContentPage';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -54,9 +55,7 @@ function AppContent() {
                 path="/dashboard"
                 element={
                     <ProtectedRoute>
-                        <DashboardProvider>
-                            <DashboardPage />
-                        </DashboardProvider>
+                        <DashboardPage />
                     </ProtectedRoute>
                 }
             />
@@ -70,10 +69,26 @@ function AppContent() {
                 }
             />
             <Route
+                path="/admin/study-materials"
+                element={
+                    <AdminRoute>
+                        <AdminStudyMaterialsPage />
+                    </AdminRoute>
+                }
+            />
+            <Route
                 path="/calculator"
                 element={
                     <ProtectedRoute>
                         <CGPACalculatorPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/subject/:subjectId/content"
+                element={
+                    <ProtectedRoute>
+                        <SubjectContentPage />
                     </ProtectedRoute>
                 }
             />

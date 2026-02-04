@@ -11,8 +11,8 @@
 html,
 body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: #0a0e27;
-    color: #e0e7ff;
+    background-color: #030712;
+    color: #f8fafc;
     overflow-x: hidden;
     font-size: 16px;
 }
@@ -24,16 +24,16 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-    background: #1a1a2e;
+    background: #030712;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #ff8c00;
+    background: rgba(148, 163, 184, 0.15);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #ff7700;
+    background: rgba(148, 163, 184, 0.25);
 }
 
 /* Animations */
