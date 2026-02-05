@@ -9,7 +9,7 @@ import { useAuth } from '../utils/hooks';
 const CONTENT_TYPES = {
     notes: { label: 'Notes', hasModules: true },
     pyqs: { label: 'PYQs', hasModules: false },
-    questionBanks: { label: 'Question Banks', hasModules: false },
+    questionBanks: { label: 'Question Banks', hasModules: true },
     syllabus: { label: 'Syllabus', hasModules: false }
 };
 
@@ -17,7 +17,10 @@ const getBackendContentType = (frontendType) => {
     if (frontendType === 'syllabus') {
         return 'syllabus';
     }
-    if (['notes', 'pyqs', 'questionBanks'].includes(frontendType)) {
+    if (frontendType === 'pyqs') {
+        return 'resources'; // PYQs go to subject-level resources
+    }
+    if (['notes', 'questionBanks'].includes(frontendType)) {
         return frontendType;
     }
     return 'resources';
@@ -132,37 +135,60 @@ const AdminPanel = () => {
     // Study materials functions
     const loadSubjects = async () => {
         try {
-            // Only try the branches that actually work (from your logs)
-            const workingBranches = ['CS', 'IS', 'EC', 'EE', 'ME'];
+            // Load from ALL branches and cycles - admin should see EVERYTHING
+            const allBranches = ['CS', 'IS', 'EC', 'EE', 'ME', 'CV', 'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT', 'CI', 'BT', 'IM', 'CH', 'ET', 'EI'];
+            const cycles = ['P', 'C'];
             let allSubjects = [];
             
-            // Load subjects from all working branches in parallel for speed
-            const promises = workingBranches.map(async (branch) => {
-                try {
-                    const response = await subjectAPI.getSubjectsByBranch(branch);
-                    return response.data || [];
-                } catch {
-                    return []; // Silent fail, return empty array
+            console.log('Loading subjects from all branches for admin panel...');
+            
+            // Load subjects from all branches and cycles
+            const promises = [];
+            for (const branch of allBranches) {
+                for (const cycle of cycles) {
+                    promises.push(
+                        subjectAPI.getSubjectsByBranch(branch, cycle)
+                            .then(response => ({ branch, cycle, subjects: response.data || [] }))
+                            .catch(() => ({ branch, cycle, subjects: [] })) // Silent fail
+                    );
                 }
-            });
+            }
             
             const results = await Promise.all(promises);
             
-            // Combine all results and remove duplicates by subject code
-            results.forEach(subjects => {
+            // Combine all results and track all branches for each subject code
+            results.forEach(({ branch, cycle, subjects }) => {
                 subjects.forEach(subject => {
-                    if (!allSubjects.find(s => s.code === subject.code)) {
-                        allSubjects.push(subject);
+                    const existingSubject = allSubjects.find(s => s.code === subject.code);
+                    if (!existingSubject) {
+                        allSubjects.push({
+                            code: subject.code,
+                            name: subject.name,
+                            credits: subject.credits,
+                            modules: subject.modules || [],
+                            branches: [`${branch}(${cycle})`] // Track branch and cycle
+                        });
+                    } else {
+                        // Add branch-cycle combination to existing subject
+                        const branchCycle = `${branch}(${cycle})`;
+                        if (!existingSubject.branches.includes(branchCycle)) {
+                            existingSubject.branches.push(branchCycle);
+                        }
+                        // Update modules if this version has more modules
+                        if (subject.modules && subject.modules.length > existingSubject.modules.length) {
+                            existingSubject.modules = subject.modules;
+                        }
                     }
                 });
             });
             
+            // Sort by subject name for better UX
+            allSubjects.sort((a, b) => a.name.localeCompare(b.name));
+            
             setSubjects(allSubjects);
             
-            // Only log if there's an issue
-            if (allSubjects.length === 0) {
-                console.warn('No subjects found. Check if backend is running.');
-            }
+            console.log(`Loaded ${allSubjects.length} unique subjects across all branches:`, 
+                allSubjects.map(s => `${s.code}: ${s.branches.join(', ')}`));
             
         } catch (error) {
             console.error('Error loading subjects:', error);
@@ -205,20 +231,53 @@ const AdminPanel = () => {
             let uploadResponse;
             
             if (contentTypeConfig.hasModules) {
-                // Module-level content (notes) - use legacy notes upload endpoint
-                uploadResponse = await uploadAPI.uploadNotes(selectedSubject, selectedModule, file);
-            } else {
-                // Subject-level content (syllabus, resources) - use content endpoint
-                uploadResponse = await uploadAPI.uploadSubjectContent(
-                    selectedSubject, 
+                // Module-level content (notes, pyqs, questionBanks) - use BULK upload to all branches
+                console.log('🚀 BULK MODULE UPLOAD:', {
+                    subjectCode: selectedSubject,
+                    subjectName: selectedSubjectData?.name,
+                    moduleNumber: selectedModule,
+                    contentType: getBackendContentType(selectedContentType),
+                    fileName: file.name,
+                    title: title.trim(),
+                    targetBranches: selectedSubjectData?.branches || [],
+                    totalBranches: selectedSubjectData?.branches?.length || 0
+                });
+                
+                uploadResponse = await uploadAPI.bulkUploadModuleContent(
+                    selectedSubject, // Subject CODE for bulk upload
+                    parseInt(selectedModule),
                     getBackendContentType(selectedContentType), 
                     file, 
                     title.trim(), 
                     description.trim()
                 );
+                
+                console.log('✅ Upload successful!', uploadResponse.data);
+            } else {
+                // Subject-level content (syllabus) - use BULK upload to all branches
+                console.log('🚀 BULK SUBJECT UPLOAD:', {
+                    subjectCode: selectedSubject,
+                    subjectName: selectedSubjectData?.name,
+                    contentType: getBackendContentType(selectedContentType),
+                    fileName: file.name,
+                    title: title.trim(),
+                    targetBranches: selectedSubjectData?.branches || [],
+                    totalBranches: selectedSubjectData?.branches?.length || 0
+                });
+                
+                uploadResponse = await uploadAPI.bulkUploadSubjectContent(
+                    selectedSubject, // Subject CODE for bulk upload
+                    getBackendContentType(selectedContentType), 
+                    file, 
+                    title.trim(), 
+                    description.trim()
+                );
+                
+                console.log('✅ Upload successful!', uploadResponse.data);
             }
             
-            alert('File uploaded successfully!');
+            const branchCount = selectedSubjectData?.branches?.length || 0;
+            alert(`🎉 File uploaded successfully to ${branchCount} branches!\n\nBranches: ${selectedSubjectData?.branches?.join(', ') || 'N/A'}\n\nStudents in ALL these branches will now see this content.`);
             
             // Reset form
             setFile(null);
@@ -271,7 +330,7 @@ const AdminPanel = () => {
         }
     }, []);
 
-    const selectedSubjectData = subjects.find(s => s._id === selectedSubject);
+    const selectedSubjectData = subjects.find(s => s.code === selectedSubject);
     const contentTypeConfig = selectedContentType ? CONTENT_TYPES[selectedContentType] : null;
 
     if (!isAdmin) {
@@ -529,6 +588,9 @@ const AdminPanel = () => {
                             <div className={`p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
                                 <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
                                     Upload Study Material
+                                    <span className={`block text-sm font-normal mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                        Content will be shared across all branches
+                                    </span>
                                 </h3>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -551,7 +613,7 @@ const AdminPanel = () => {
                                                 <option disabled>No subjects found - check console</option>
                                             ) : (
                                                 subjects.map((subject) => (
-                                                    <option key={subject._id} value={subject._id}>
+                                                    <option key={subject.code} value={subject.code}>
                                                         {subject.name}
                                                     </option>
                                                 ))
@@ -612,8 +674,8 @@ const AdminPanel = () => {
                                             >
                                                 <option value="">Select a module</option>
                                                 {selectedSubjectData.modules?.map((module) => (
-                                                    <option key={module._id} value={module._id}>
-                                                        Module {module.number}: {module.title}
+                                                    <option key={module._id} value={module.moduleNumber}>
+                                                        Module {module.moduleNumber}: {module.title}
                                                     </option>
                                                 ))}
                                             </select>

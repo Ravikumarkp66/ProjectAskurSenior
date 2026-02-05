@@ -78,6 +78,7 @@ const AdminStudyMaterialsPage = () => {
                             const code = subject.code?.toUpperCase();
                             if (code && !allSubjectsMap.has(code)) {
                                 allSubjectsMap.set(code, {
+                                    _id: subject._id,
                                     code,
                                     name: subject.name,
                                     credits: subject.credits,
@@ -142,27 +143,34 @@ const AdminStudyMaterialsPage = () => {
             const contentType = CONTENT_TYPES[selectedContentType];
             const backendContentType = getBackendContentType(selectedContentType);
             
+            // Get the subject data to find the subject ID
+            const selectedSubjectData = getSelectedSubjectData();
+            if (!selectedSubjectData) {
+                alert('Selected subject not found');
+                return;
+            }
+            
             if (contentType.hasModules && selectedModule && selectedModule !== 'all') {
-                // Upload to specific module
-                await uploadAPI.bulkUploadModuleContent(
-                    selectedSubject, 
+                // Upload to specific module using subject ID
+                await uploadAPI.uploadModuleContent(
+                    selectedSubjectData._id, 
                     parseInt(selectedModule), 
                     backendContentType, 
                     file, 
                     title, 
                     description
                 );
-                alert(`${contentType.label} uploaded successfully to Module ${selectedModule} for all branches!`);
+                alert(`${contentType.label} uploaded successfully to Module ${selectedModule}!`);
             } else {
-                // Upload to subject level (or all modules)
-                await uploadAPI.bulkUploadSubjectContent(
-                    selectedSubject, 
+                // Upload to subject level using subject ID
+                await uploadAPI.uploadSubjectContent(
+                    selectedSubjectData._id, 
                     backendContentType, 
                     file, 
                     title, 
                     description
                 );
-                alert(`${contentType.label} uploaded successfully to all branches!`);
+                alert(`${contentType.label} uploaded successfully!`);
             }
 
             // Reset form

@@ -180,10 +180,26 @@ const createContentNotification = async ({
             message = `"${contentTitle}" has been added to ${subjectName} (${subjectCode})`;
         }
 
+        // Map backend content types to valid notification types
+        const getNotificationType = (contentType) => {
+            switch (contentType) {
+                case 'resources':
+                    return 'pyqs'; // Resources containing PYQs should show as PYQ notifications
+                case 'notes':
+                    return 'notes';
+                case 'questionBanks':
+                    return 'questionBanks';
+                case 'syllabus':
+                    return 'syllabus';
+                default:
+                    return 'update'; // Fallback to generic update
+            }
+        };
+
         const notification = new Notification({
             title,
             message,
-            type: contentType,
+            type: getNotificationType(contentType), // Use mapped type instead of raw contentType
             subjectId,
             subjectName,
             subjectCode,

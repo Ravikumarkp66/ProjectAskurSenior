@@ -83,36 +83,35 @@ const SubjectContentPage = () => {
             
             setSubject(data);
             
-            // Flatten all content - remove module organization
+            // Simplified content loading - just use current subject's content for now
             const flattenedContent = {
                 notes: [],
-                pyqs: [],
+                pyqs: [], // PYQs from subject-level resources
                 questionBanks: [],
                 syllabus: data.syllabus || []
             };
 
-            // Flatten module content into single arrays
-            if (data.modules) {
-                data.modules.forEach(module => {
-                    if (module.notes) flattenedContent.notes.push(...module.notes);
-                    // Handle resources as different content types
-                    if (module.resources) {
-                        module.resources.forEach(resource => {
-                            flattenedContent.pyqs.push(resource);
-                            flattenedContent.questionBanks.push(resource);
-                        });
-                    }
-                    // Legacy support for old structure
-                    if (module.pyqs) flattenedContent.pyqs.push(...module.pyqs);
-                    if (module.questionBanks) flattenedContent.questionBanks.push(...module.questionBanks);
-                });
-            }
-
-            // Handle subject-level resources
+            // Add subject-level PYQs from resources
             if (data.resources) {
                 data.resources.forEach(resource => {
                     flattenedContent.pyqs.push(resource);
-                    flattenedContent.questionBanks.push(resource);
+                });
+            }
+
+            // Flatten module content into single arrays with module info
+            if (data.modules) {
+                data.modules.forEach(module => {
+                    // Add module number to each content item for proper API calls
+                    if (module.notes) {
+                        module.notes.forEach(note => {
+                            flattenedContent.notes.push({...note, moduleNumber: module.moduleNumber});
+                        });
+                    }
+                    if (module.questionBanks) {
+                        module.questionBanks.forEach(qbank => {
+                            flattenedContent.questionBanks.push({...qbank, moduleNumber: module.moduleNumber});
+                        });
+                    }
                 });
             }
 
@@ -130,15 +129,24 @@ const SubjectContentPage = () => {
         }
     };
 
-    // Map frontend content types to backend expected values for API calls
-    const getBackendContentType = (frontendType) => {
-        return frontendType === 'syllabus' ? 'syllabus' : 'resources';
-    };
-
     const handleViewContent = async (contentType, contentId) => {
         try {
-            const backendContentType = getBackendContentType(contentType);
-            const response = await subjectAPI.getContentUrl(subjectId, backendContentType, contentId);
+            let response;
+            
+            // Find the content item to get module number
+            const contentItem = content[contentType]?.find(item => item._id === contentId);
+            
+            if (['notes', 'questionBanks'].includes(contentType) && contentItem?.moduleNumber) {
+                // Module-level content - use module API
+                response = await subjectAPI.getModuleContentUrl(subjectId, contentItem.moduleNumber, contentType, contentId);
+            } else if (['syllabus', 'pyqs'].includes(contentType)) {
+                // Subject-level content - use subject API
+                const backendType = contentType === 'pyqs' ? 'resources' : contentType;
+                response = await subjectAPI.getContentUrl(subjectId, backendType, contentId);
+            } else {
+                throw new Error(`Invalid content type: ${contentType}`);
+            }
+            
             setPdfUrl(response.data.url);
             setPdfTitle(response.data.title);
             setShowPdfModal(true);
@@ -189,6 +197,11 @@ const SubjectContentPage = () => {
                                 <div className="flex-1">
                                     <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'} text-lg mb-1`}>
                                         {item.title}
+                                        {item.moduleNumber && contentType !== 'pyqs' && (
+                                            <span className={`ml-2 text-sm px-2 py-1 rounded ${isLightMode ? 'bg-gray-100 text-gray-600' : 'bg-gray-700 text-gray-300'}`}>
+                                                Module {item.moduleNumber}
+                                            </span>
+                                        )}
                                     </h4>
                                     {item.description && (
                                         <p className={`text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -263,7 +276,7 @@ const SubjectContentPage = () => {
                         </button>
                         <div>
                             <h1 className={`text-3xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'} mb-2`}>
-                                {subject?.name || ''}
+                                {subject?.subjectInfo?.name || subject?.name || ''}
                             </h1>
                             <p className={`${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
                                 Access comprehensive study materials, previous year questions, and resources.
