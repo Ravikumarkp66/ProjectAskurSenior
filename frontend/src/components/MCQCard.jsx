@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const MCQCard = ({ number, question, options, correctAnswer }) => {
   const [selectedOption, setSelectedOption] = useState(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleOptionClick = (option) => {
     if (!selectedOption) {
@@ -79,10 +88,10 @@ const MCQCard = ({ number, question, options, correctAnswer }) => {
         </p>
       </div>
 
-      {/* 2x2 Grid for options */}
+      {/* 2x2 Grid for options - Stacks on mobile, 2-column grid on larger screens */}
       <div style={{ 
         display: "grid", 
-        gridTemplateColumns: "repeat(2, 1fr)", 
+        gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", 
         gap: "16px"
       }}>
         {options.map((option, idx) => (
@@ -91,10 +100,10 @@ const MCQCard = ({ number, question, options, correctAnswer }) => {
             onClick={() => handleOptionClick(option)}
             style={{
               ...getOptionStyle(option),
-              padding: "20px 16px",
+              padding: isMobile ? "16px 12px" : "20px 16px",
               borderRadius: "12px",
               textAlign: "center",
-              fontSize: "16px",
+              fontSize: isMobile ? "14px" : "16px",
               fontWeight: "700",
               transition: "all 0.3s",
               position: "relative",

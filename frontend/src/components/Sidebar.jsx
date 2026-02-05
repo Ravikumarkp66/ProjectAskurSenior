@@ -34,6 +34,7 @@ const Sidebar = ({
     const [notifications, setNotifications] = useState([]);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     // Fetch notifications from backend
     const fetchNotifications = useCallback(async () => {
@@ -184,9 +185,39 @@ const Sidebar = ({
     };
 
     return (
-        <div
-            className={`${isCollapsed ? 'w-20' : 'w-64'} ${sidebarClasses.shell} h-screen fixed left-0 top-0 shadow-lg flex flex-col transition-all duration-300 z-20 overflow-hidden`}
-        >
+        <>
+            {/* Mobile Menu Button - Fixed top left on mobile only */}
+            <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className={`sm:hidden fixed top-4 left-4 z-50 h-10 w-10 rounded-lg flex items-center justify-center shadow-lg ${
+                    isLightMode ? 'bg-white border border-slate-200' : 'bg-primary-900 border border-primary-700'
+                }`}
+            >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {mobileMenuOpen ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    )}
+                </svg>
+            </button>
+
+            {/* Mobile Overlay */}
+            {mobileMenuOpen && (
+                <div 
+                    className="sm:hidden fixed inset-0 bg-black/60 z-40"
+                    onClick={() => setMobileMenuOpen(false)}
+                />
+            )}
+
+            {/* Sidebar - Responsive */}
+            <div
+                className={`${sidebarClasses.shell} h-screen fixed left-0 top-0 shadow-lg flex flex-col transition-all duration-300 z-40 overflow-hidden
+                    ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
+                    sm:translate-x-0 w-64
+                    sm:${isCollapsed ? 'w-20' : 'w-64'}
+                `}
+            >
             {/* Header with Collapse Button */}
             <div className={`p-4 border-b ${sidebarClasses.border} flex items-center justify-between`}>
                 {!isCollapsed && (
@@ -206,7 +237,7 @@ const Sidebar = ({
                 )}
                 <button
                     onClick={() => onCollapsedChange?.(!isCollapsed)}
-                    className={`${sidebarClasses.accent} ${sidebarClasses.accentHover} transition ml-auto h-11 w-11 flex items-center justify-center`}
+                    className={`hidden sm:flex ${sidebarClasses.accent} ${sidebarClasses.accentHover} transition ml-auto h-11 w-11 items-center justify-center`}
                     title={isCollapsed ? "Expand" : "Collapse"}
                 >
                     <svg className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -732,6 +763,7 @@ const Sidebar = ({
 
             {/* Footer */}
         </div>
+        </>
     );
 };
 

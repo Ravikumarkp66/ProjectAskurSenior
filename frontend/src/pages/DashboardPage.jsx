@@ -209,21 +209,22 @@ const DashboardPage = () => {
                 onCollapsedChange={setSidebarCollapsed}
             />
 
-            {/* Main Content */}
+            {/* Main Content - No margin on mobile, left margin on desktop */}
             <div
-                className={`transition-all duration-300 ml-0 w-full ${sidebarCollapsed
-                        ? 'sm:ml-20 sm:w-[calc(100%-5rem)]'
-                        : 'sm:ml-64 sm:w-[calc(100%-16rem)]'
+                className={`transition-all duration-300 w-full
+                    sm:${sidebarCollapsed
+                        ? 'ml-20 w-[calc(100%-5rem)]'
+                        : 'ml-64 w-[calc(100%-16rem)]'
                     }`}
             >
                 {/* Top Bar */}
                 <TopBar progress={overallProgress} branch={currentBranch} sidebarCollapsed={sidebarCollapsed} theme={theme} />
 
-                {/* Content Area */}
+                {/* Content Area - Add top padding on mobile for hamburger button */}
                 <div className={`mt-24 p-4 sm:p-6 lg:p-8 ${isLightMode ? 'bg-white' : 'bg-primary-950'}`}>
                     <div className="w-full">
-                        <div className="mb-4 flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2">
+                        <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+                            <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <div
                                     className={`flex rounded-lg p-1 border ${isLightMode
                                             ? 'bg-slate-100 border-slate-200'
@@ -233,7 +234,7 @@ const DashboardPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setCycle('P')}
-                                        className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-md transition ${cycle === 'P'
+                                        className={`min-h-11 px-4 py-2 text-xs font-semibold rounded-md transition flex-1 sm:flex-none ${cycle === 'P'
                                                 ? isLightMode
                                                     ? 'bg-white text-slate-900'
                                                     : 'bg-white text-slate-900'
@@ -247,7 +248,7 @@ const DashboardPage = () => {
                                     <button
                                         type="button"
                                         onClick={() => setCycle('C')}
-                                        className={`min-h-11 px-3 py-2 text-xs font-semibold rounded-md transition ${cycle === 'C'
+                                        className={`min-h-11 px-4 py-2 text-xs font-semibold rounded-md transition flex-1 sm:flex-none ${cycle === 'C'
                                                 ? isLightMode
                                                     ? 'bg-white text-slate-900'
                                                     : 'bg-white text-slate-900'
@@ -264,11 +265,11 @@ const DashboardPage = () => {
                                 )}
                             </div>
 
-                            <div className="relative">
+                            <div className="relative w-full sm:w-auto">
                                 <button
                                     type="button"
                                     onClick={() => setShowBranchPicker((v) => !v)}
-                                    className={`min-h-11 px-3 rounded-full border text-xs font-semibold flex items-center gap-2 transition ${isLightMode
+                                    className={`w-full min-h-11 px-4 rounded-full border text-xs font-semibold flex items-center justify-between gap-2 transition ${isLightMode
                                             ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                                             : 'border-white/10 bg-slate-900/30 text-secondary-200 hover:bg-slate-900/50'
                                         }`}
@@ -279,7 +280,7 @@ const DashboardPage = () => {
                                             : `${deriveBranchFromUSN(user?.usn) || currentBranch || ''}`}
                                     </span>
                                     <svg
-                                        className={`w-4 h-4 transition-transform ${showBranchPicker ? 'rotate-180' : ''}`}
+                                        className={`w-4 h-4 transition-transform flex-shrink-0 ${showBranchPicker ? 'rotate-180' : ''}`}
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -290,7 +291,7 @@ const DashboardPage = () => {
 
                                 {showBranchPicker && (
                                     <div
-                                        className={`absolute right-0 z-20 mt-2 w-72 rounded-xl border shadow-xl overflow-hidden ${isLightMode
+                                        className={`absolute right-0 left-0 sm:left-auto z-20 mt-2 sm:w-72 rounded-xl border shadow-xl overflow-hidden ${isLightMode
                                                 ? 'border-slate-200 bg-white'
                                                 : 'border-white/10 bg-dark-100'
                                             }`}

@@ -5,15 +5,15 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) 
     const isLightMode = theme === 'light';
     return (
         <div
-            className={`fixed top-0 right-0 left-0 sm:right-0 shadow-lg z-10 transition-all duration-300 ${
-                sidebarCollapsed ? 'sm:left-20' : 'sm:left-64'
-            } ${isLightMode ? 'bg-white border-b border-slate-200' : 'bg-[#0F172A] border-b border-[#1E293B]'}`}
+            className={`fixed top-0 right-0 shadow-lg z-10 transition-all duration-300 
+                left-0 sm:${sidebarCollapsed ? 'left-20' : 'left-64'}
+                ${isLightMode ? 'bg-white border-b border-slate-200' : 'bg-[#0F172A] border-b border-[#1E293B]'}`}
         >
-            <div className="px-4 sm:px-6 py-4">
+            <div className="px-4 sm:px-6 py-4 pl-16 sm:pl-6">
                 <div className="flex items-center justify-between gap-4">
                     <div>
-                        <h2 className={`text-lg sm:text-xl font-bold ${isLightMode ? 'text-slate-900' : 'text-[#E5E7EB]'}`}>ASK+ A2Z Sheet</h2>
-                        <p className={`${isLightMode ? 'text-slate-500' : 'text-[#94A3B8]'} text-sm sm:text-xs mt-0.5`}>Overall Progress</p>
+                        <h2 className={`text-base sm:text-xl font-bold ${isLightMode ? 'text-slate-900' : 'text-[#E5E7EB]'}`}>ASK+ A2Z Sheet</h2>
+                        <p className={`${isLightMode ? 'text-slate-500' : 'text-[#94A3B8]'} text-xs mt-0.5`}>Overall Progress</p>
                     </div>
                 </div>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import MCQCard from "../components/MCQCard";
 import balakeKannadaMcqs from "../data/balakeKannadaMcqs";
@@ -18,6 +18,15 @@ const QuizPage = () => {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const [allCardsKey, setAllCardsKey] = useState(0);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const quiz = quizData[quizId];
 
@@ -64,7 +73,7 @@ const QuizPage = () => {
     <main style={{ 
       minHeight: "100vh", 
       backgroundColor: "#0a0a0a", 
-      padding: "32px 24px", 
+      padding: "16px 8px", // Reduced padding for mobile
       color: "white",
       overflowX: "hidden",
       width: "100%"
@@ -79,21 +88,42 @@ const QuizPage = () => {
         <section style={{
           width: "100%",
           maxWidth: "1200px",
-          borderRadius: "24px",
+          borderRadius: "16px", // Reduced border radius for mobile
           border: "1px solid #1a1a1a",
           background: "linear-gradient(to bottom, #0b0b0b, #050505)",
-          padding: "24px",
+          padding: "16px", // Reduced padding for mobile
           boxShadow: "0 40px 140px rgba(0,0,0,0.65)",
           boxSizing: "border-box",
           flex: "1",
           display: "flex",
           flexDirection: "column"
         }}>
-          <header style={{ marginBottom: "40px", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" }}>
-            <p style={{ fontSize: "12px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.35em", color: "#34d399" }}>MCQ Series</p>
+          <header style={{ 
+            marginBottom: "24px", // Reduced margin for mobile
+            display: "flex", 
+            flexDirection: "column", 
+            gap: "12px", // Reduced gap for mobile
+            alignItems: "center", 
+            textAlign: "center" 
+          }}>
+            <p style={{ 
+              fontSize: "10px", // Smaller on mobile
+              fontWeight: "600", 
+              textTransform: "uppercase", 
+              letterSpacing: "0.35em", 
+              color: "#34d399" 
+            }}>MCQ Series</p>
             <div>
-              <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "white", marginBottom: "12px" }}>{quiz.title}</h1>
-              <p style={{ fontSize: "16px", color: "#9ca3af" }}>
+              <h1 style={{ 
+                fontSize: isMobile ? "24px" : "32px", // Responsive font size
+                fontWeight: "bold", 
+                color: "white", 
+                marginBottom: "12px" 
+              }}>{quiz.title}</h1>
+              <p style={{ 
+                fontSize: isMobile ? "14px" : "16px", // Responsive font size
+                color: "#9ca3af" 
+              }}>
                 {quiz.description}
               </p>
             </div>
