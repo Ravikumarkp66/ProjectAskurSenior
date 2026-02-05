@@ -81,6 +81,22 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
         navigate(`/subject/${subject._id}/content`);
     };
 
+    const handleTakeQuiz = (e) => {
+        e.stopPropagation();
+        // Map subject codes to quiz IDs
+        const quizMap = {
+            'CC03_CC04': 'balake-kannada',
+            // Add more subject code to quiz mappings here
+        };
+        const quizId = quizMap[_code];
+        if (quizId) {
+            navigate(`/quiz/${quizId}`);
+        }
+    };
+
+    // Check if quiz is available for this subject
+    const hasQuiz = ['CC03_CC04'].includes(_code);
+
     return (
         <div
             className={`${isLightMode ? 'bg-white border-slate-200' : 'bg-dark-100 border-white/10'
@@ -133,8 +149,9 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                     className={`p-6 border-t ${isLightMode ? 'border-slate-200 bg-white' : 'border-primary-700 bg-dark-200'
                         }`}
                 >
-                    {/* Content Sections Button */}
-                    <div className="mb-6">
+                    {/* Action Buttons */}
+                    <div className="mb-6 space-y-3">
+                        {/* Study Materials Button */}
                         <button
                             onClick={handleViewContent}
                             className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${
@@ -177,6 +194,46 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                                 </svg>
                             </div>
                         </button>
+
+                        {/* Take Quiz Button */}
+                        {hasQuiz && (
+                            <button
+                                onClick={handleTakeQuiz}
+                                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${
+                                    isLightMode 
+                                        ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:border-emerald-400 hover:shadow-md' 
+                                        : 'bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border-emerald-500/30 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10'
+                                }`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-lg ${
+                                        isLightMode ? 'bg-emerald-100' : 'bg-emerald-600/20'
+                                    }`}>
+                                        <svg className={`w-6 h-6 ${isLightMode ? 'text-emerald-600' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </div>
+                                    <div className="text-left">
+                                        <h4 className={`font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                            Take Quiz
+                                        </h4>
+                                        <p className={`text-sm ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                            Test your knowledge with MCQs
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+                                        isLightMode ? 'bg-white/80' : 'bg-white/5'
+                                    }`}>
+                                        <span className={`text-xs font-medium ${isLightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>100 Questions</span>
+                                    </div>
+                                    <svg className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${isLightMode ? 'text-emerald-600' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </button>
+                        )}
                     </div>
 
                     <div className="mb-4">

@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -11,18 +13,46 @@ const downloadRoutes = require('./routes/downloadRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const seedDatabase = require('./utils/seedDatabase');
-const { connectRedis, flushAllCache } = require('./utils/redisClient');
 
 const app = express();
 
-// Middleware
-// CORS: allow only configured frontend origin in production. In development allow all for convenience.
-const corsOptions =
-    process.env.NODE_ENV === 'production'
-        ? { origin: process.env.FRONTEND_URL } // set FRONTEND_URL in Render / production env
-        : undefined;
+// Security middleware
+app.use(helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: false // Disabled for PDF viewing
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000, // Limit each IP to 1000 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.',
+    standardHeaders: true,
+    legacyHeaders: false
+});
+app.use('/api/', limiter);
+
+// Stricter rate limiting for uploads
+const uploadLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes  
+    max: 20, // Only 20 uploads per 15 minutes
+    message: 'Too many uploads, please try again later.',
+});
+app.use('/api/upload', uploadLimiter);
+
+// Body parsing middleware with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// CORS: allow only configured frontend origin in production
+const corsOptions = {
+    origin: process.env.NODE_ENV === 'production' 
+        ? [process.env.FRONTEND_URL, 'https://askursenior.vercel.app'] 
+        : true,
+    credentials: true,
+    optionsSuccessStatus: 200
+};
 app.use(cors(corsOptions));
-app.use(express.json());
 
 // MongoDB Connection
 mongoose
@@ -33,21 +63,16 @@ mongoose
     .then(async () => {
         console.log('MongoDB connected successfully');
 
-        // Connect to Redis - TEMPORARILY DISABLED
-        // await connectRedis();
+        // Redis is disabled - continuing without cache
+        console.log('Running without Redis cache');
 
-        // Clear Redis cache on startup to ensure fresh data
-        // This prevents stale cache issues with subject IDs
-        // if (process.env.NODE_ENV !== 'production') {
-        //     await flushAllCache();
-        // }
-
-        // Seed database on startup only in non-production environments
-        // Note: Seeding now preserves existing notesKey values
+        // Seed database only in development
         if (process.env.NODE_ENV !== 'production') {
-            seedDatabase().catch((error) => {
-                console.error('Error seeding database:', error);
-            });
+            try {
+                await seedDatabase();
+            } catch (error) {
+                console.error('Error seeding database:', error.message);
+            }
         }
     })
     .catch((err) => {
@@ -71,12 +96,44 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
+    console.error('Error:', err.message);
+    
+    // Don't leak error details in production
+    if (process.env.NODE_ENV === 'production') {
+        res.status(err.status || 500).json({ 
+            error: 'Something went wrong!',
+            timestamp: new Date().toISOString()
+        });
+    } else {
+        res.status(err.status || 500).json({ 
+            error: err.message,
+            stack: err.stack,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+    res.status(404).json({ 
+        error: 'Route not found',
+        path: req.originalUrl 
+    });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+    console.log(`⏰ Started at: ${new Date().toISOString()}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+        console.log('Process terminated');
+        mongoose.connection.close();
+    });
 });

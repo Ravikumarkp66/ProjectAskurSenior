@@ -11,5 +11,16 @@ export default defineConfig({
                 changeOrigin: true
             }
         }
+    },
+    build: {
+        sourcemap: false, // Disable sourcemaps in production
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    vendor: ['react', 'react-dom', 'react-router-dom'],
+                    ui: ['axios']
+                }
+            }
+        }
     }
 });

@@ -468,24 +468,6 @@ export default function Hero() {
                     </motion.div>
                 </div>
             </section>
-
-            {/* Footer */}
-            <footer className="landing-footer">
-                <div className="footer-container">
-                    <div className="footer-brand">
-                        <span className="logo-icon">A</span>
-                        <span className="logo-text">ASK<span className="logo-plus">+</span></span>
-                    </div>
-                    <p className="footer-text">Built with ❤️ for students everywhere</p>
-                    <div className="footer-links">
-                        <span>Privacy</span>
-                        <span>•</span>
-                        <span>Terms</span>
-                        <span>•</span>
-                        <span>Contact</span>
-                    </div>
-                </div>
-            </footer>
         </div>
     );
 }

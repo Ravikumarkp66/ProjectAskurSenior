@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import AdminPanel from './pages/AdminPanel';
 import CGPACalculatorPage from './pages/CGPACalculatorPage';
 import SubjectContentPage from './pages/SubjectContentPage';
+import QuizPage from './pages/QuizPage';
 import GameifiedLoader from './components/GameifiedLoader';
 
 const ProtectedRoute = ({ children }) => {
@@ -95,6 +96,14 @@ function AppContent() {
                 element={
                     <ProtectedRoute>
                         <SubjectContentPage />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/quiz/:quizId"
+                element={
+                    <ProtectedRoute>
+                        <QuizPage />
                     </ProtectedRoute>
                 }
             />

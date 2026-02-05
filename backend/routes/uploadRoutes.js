@@ -4,7 +4,6 @@ const { uploadToS3 } = require("../utils/uploadToS3");
 const authMiddleware = require("../middleware/auth");
 const adminMiddleware = require("../middleware/admin");
 const Subject = require("../models/Subject");
-const { deleteCache, cacheKeys } = require("../utils/redisClient");
 const { createContentNotification } = require("../controllers/notificationController");
 
 const router = express.Router();
@@ -84,8 +83,8 @@ router.post(
       console.log("MongoDB update result:", JSON.stringify(result));
 
       // Invalidate cache so fresh data is fetched
-      await deleteCache(cacheKeys.subjectDetail(subjectId));
-      await deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle));
+      
+      
 
       res.json({
         success: true,
@@ -152,8 +151,8 @@ router.post(
       await subject.save();
 
       // Invalidate cache
-      await deleteCache(cacheKeys.subjectDetail(subjectId));
-      await deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle));
+      
+      
 
       // Create notification for this upload
       await createContentNotification({
@@ -238,8 +237,8 @@ router.post(
       await subject.save();
 
       // Invalidate cache
-      await deleteCache(cacheKeys.subjectDetail(subjectId));
-      await deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle));
+      
+      
 
       // Create notification for this upload
       await createContentNotification({
@@ -301,8 +300,8 @@ router.delete(
       await subject.save();
 
       // Invalidate cache
-      await deleteCache(cacheKeys.subjectDetail(subjectId));
-      await deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle));
+      
+      
 
       res.json({ success: true, message: "Content deleted successfully" });
     } catch (err) {
@@ -351,8 +350,8 @@ router.delete(
       await subject.save();
 
       // Invalidate cache
-      await deleteCache(cacheKeys.subjectDetail(subjectId));
-      await deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle));
+      
+      
 
       res.json({ success: true, message: "Content deleted successfully" });
     } catch (err) {
@@ -416,15 +415,6 @@ router.post(
         return subject.save();
       });
       await Promise.all(updatePromises);
-
-      // Invalidate cache for all affected subjects
-      const cachePromises = subjects.map(subject => 
-        Promise.all([
-          deleteCache(cacheKeys.subjectDetail(subject._id.toString())),
-          deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle))
-        ])
-      );
-      await Promise.all(cachePromises);
 
       // Create notification (one notification for all branches)
       await createContentNotification({
@@ -525,15 +515,6 @@ router.post(
       });
       await Promise.all(updatePromises);
 
-      // Invalidate cache for all affected subjects
-      const cachePromises = subjects.map(subject =>
-        Promise.all([
-          deleteCache(cacheKeys.subjectDetail(subject._id.toString())),
-          deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle))
-        ])
-      );
-      await Promise.all(cachePromises);
-
       // Create notification
       await createContentNotification({
         contentType,
@@ -601,15 +582,6 @@ router.delete(
       });
       await Promise.all(updatePromises);
 
-      // Invalidate cache
-      const cachePromises = subjects.map(subject =>
-        Promise.all([
-          deleteCache(cacheKeys.subjectDetail(subject._id.toString())),
-          deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle))
-        ])
-      );
-      await Promise.all(cachePromises);
-
       res.json({ 
         success: true, 
         message: `Content deleted from ${deletedCount} subjects successfully` 
@@ -662,15 +634,6 @@ router.delete(
         }
       });
       await Promise.all(updatePromises);
-
-      // Invalidate cache
-      const cachePromises = subjects.map(subject =>
-        Promise.all([
-          deleteCache(cacheKeys.subjectDetail(subject._id.toString())),
-          deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle))
-        ])
-      );
-      await Promise.all(cachePromises);
 
       res.json({ 
         success: true, 

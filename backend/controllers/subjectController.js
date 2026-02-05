@@ -1,19 +1,11 @@
 const Subject = require('../models/Subject');
 const Progress = require('../models/Progress');
 const { generateSignedUrl } = require('../utils/getSignedUrl');
-const { getCache, setCache, cacheKeys, CACHE_TTL } = require('../utils/redisClient');
 
 const getSubjectsByBranch = async (req, res) => {
     try {
         const { branch } = req.params;
         const { cycle } = req.query;
-
-        // Check cache first
-        const cacheKey = cacheKeys.subjectsByBranch(branch, cycle);
-        const cachedData = await getCache(cacheKey);
-        if (cachedData) {
-            return res.json(cachedData);
-        }
 
         const query = { branch };
         if (cycle === 'P' || cycle === 'C') query.cycle = cycle;
@@ -22,9 +14,6 @@ const getSubjectsByBranch = async (req, res) => {
             .sort({ credits: -1, code: 1 })
             .select('-__v')
             .lean(); // Use lean() for faster queries
-
-        // Cache the result
-        await setCache(cacheKey, subjects, CACHE_TTL.SUBJECTS_BY_BRANCH);
 
         res.json(subjects);
     } catch (error) {
@@ -36,20 +25,10 @@ const getSubjectById = async (req, res) => {
     try {
         const { subjectId } = req.params;
 
-        // Check cache first
-        const cacheKey = cacheKeys.subjectDetail(subjectId);
-        const cachedData = await getCache(cacheKey);
-        if (cachedData) {
-            return res.json(cachedData);
-        }
-
         const subject = await Subject.findById(subjectId).lean();
         if (!subject) {
             return res.status(404).json({ error: 'Subject not found' });
         }
-
-        // Cache the result
-        await setCache(cacheKey, subject, CACHE_TTL.SUBJECT_DETAIL);
 
         res.json(subject);
     } catch (error) {
@@ -80,11 +59,6 @@ const markQuestionCompleted = async (req, res) => {
         // Toggle completion status
         question.completed = !question.completed;
         await subject.save();
-
-        // Invalidate cache for this subject
-        const { deleteCache, cacheKeys } = require('../utils/redisClient');
-        await deleteCache(cacheKeys.subjectDetail(subjectId));
-        await deleteCache(cacheKeys.subjectsByBranch(subject.branch, subject.cycle));
 
         // Update progress
         const progress = await Progress.findOne({ userId: req.userId });

@@ -290,25 +290,25 @@ const AdminPanel = () => {
             if (fileInput) fileInput.value = '';
             
         } catch (error) {
-            console.error('Upload failed:', error);
+            setUploadLoading(false);
             
             let errorMessage = 'Upload failed. ';
             
             if (error.response?.status === 404) {
-                errorMessage += 'Backend server is not running or API endpoint not found.';
+                errorMessage += 'Backend server not found.';
             } else if (error.response?.status === 401) {
-                errorMessage += 'You need to be logged in as admin.';
+                errorMessage += 'Authentication required.';
             } else if (error.response?.status === 413) {
-                errorMessage += 'File is too large.';
+                errorMessage += 'File too large.';
+            } else if (error.response?.status === 400) {
+                errorMessage += error.response?.data?.error || 'Invalid request.';
             } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-                errorMessage += 'Cannot connect to server. Make sure backend is running on port 5000.';
+                errorMessage += 'Cannot connect to server.';
             } else {
                 errorMessage += error.response?.data?.error || error.message || 'Please try again.';
             }
             
             alert(errorMessage);
-        } finally {
-            setUploadLoading(false);
         }
     };
 

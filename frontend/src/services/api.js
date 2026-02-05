@@ -16,6 +16,8 @@ apiClient.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add timeout for all requests
+    config.timeout = 30000; // 30 second timeout
     return config;
 });
 
@@ -32,6 +34,17 @@ apiClient.interceptors.response.use(
                 window.location.href = '/login';
             }
         }
+        
+        // Log error details for debugging (only in development)
+        if (process.env.NODE_ENV === 'development') {
+            console.error('API Error:', {
+                url: error.config?.url,
+                method: error.config?.method,
+                status: error.response?.status,
+                data: error.response?.data
+            });
+        }
+        
         return Promise.reject(error);
     }
 );
