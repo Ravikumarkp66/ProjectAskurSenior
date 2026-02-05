@@ -132,10 +132,41 @@ const AdminPanel = () => {
     // Study materials functions
     const loadSubjects = async () => {
         try {
-            const response = await subjectAPI.getAll();
-            setSubjects(response.data.subjects || []);
+            // Only try the branches that actually work (from your logs)
+            const workingBranches = ['CS', 'IS', 'EC', 'EE', 'ME'];
+            let allSubjects = [];
+            
+            // Load subjects from all working branches in parallel for speed
+            const promises = workingBranches.map(async (branch) => {
+                try {
+                    const response = await subjectAPI.getSubjectsByBranch(branch);
+                    return response.data || [];
+                } catch {
+                    return []; // Silent fail, return empty array
+                }
+            });
+            
+            const results = await Promise.all(promises);
+            
+            // Combine all results and remove duplicates by subject code
+            results.forEach(subjects => {
+                subjects.forEach(subject => {
+                    if (!allSubjects.find(s => s.code === subject.code)) {
+                        allSubjects.push(subject);
+                    }
+                });
+            });
+            
+            setSubjects(allSubjects);
+            
+            // Only log if there's an issue
+            if (allSubjects.length === 0) {
+                console.warn('No subjects found. Check if backend is running.');
+            }
+            
         } catch (error) {
             console.error('Error loading subjects:', error);
+            setSubjects([]);
         } finally {
             setLoading(false);
         }
@@ -143,32 +174,51 @@ const AdminPanel = () => {
 
     const handleUpload = async (e) => {
         e.preventDefault();
-        if (!file || !selectedSubject || !selectedContentType || !title.trim()) {
+        
+        // Validation
+        if (!file) {
+            alert('Please select a file to upload');
+            return;
+        }
+        if (!selectedSubject) {
+            alert('Please select a subject');
+            return;
+        }
+        if (!selectedContentType) {
+            alert('Please select a content type');
+            return;
+        }
+        if (!title.trim()) {
+            alert('Please enter a title');
             return;
         }
 
         const contentTypeConfig = CONTENT_TYPES[selectedContentType];
         if (contentTypeConfig.hasModules && !selectedModule) {
+            alert('Please select a module for this content type');
             return;
         }
 
         setUploadLoading(true);
 
         try {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', title.trim());
-            formData.append('description', description.trim());
-            formData.append('contentType', getBackendContentType(selectedContentType));
-
-            let url;
+            let uploadResponse;
+            
             if (contentTypeConfig.hasModules) {
-                url = `/subjects/${selectedSubject}/modules/${selectedModule}/content`;
+                // Module-level content (notes) - use legacy notes upload endpoint
+                uploadResponse = await uploadAPI.uploadNotes(selectedSubject, selectedModule, file);
             } else {
-                url = `/subjects/${selectedSubject}/content`;
+                // Subject-level content (syllabus, resources) - use content endpoint
+                uploadResponse = await uploadAPI.uploadSubjectContent(
+                    selectedSubject, 
+                    getBackendContentType(selectedContentType), 
+                    file, 
+                    title.trim(), 
+                    description.trim()
+                );
             }
-
-            await uploadAPI.uploadContent(url, formData);
+            
+            alert('File uploaded successfully!');
             
             // Reset form
             setFile(null);
@@ -182,6 +232,22 @@ const AdminPanel = () => {
             
         } catch (error) {
             console.error('Upload failed:', error);
+            
+            let errorMessage = 'Upload failed. ';
+            
+            if (error.response?.status === 404) {
+                errorMessage += 'Backend server is not running or API endpoint not found.';
+            } else if (error.response?.status === 401) {
+                errorMessage += 'You need to be logged in as admin.';
+            } else if (error.response?.status === 413) {
+                errorMessage += 'File is too large.';
+            } else if (error.code === 'NETWORK_ERROR' || !error.response) {
+                errorMessage += 'Cannot connect to server. Make sure backend is running on port 5000.';
+            } else {
+                errorMessage += error.response?.data?.error || error.message || 'Please try again.';
+            }
+            
+            alert(errorMessage);
         } finally {
             setUploadLoading(false);
         }
@@ -197,6 +263,13 @@ const AdminPanel = () => {
             loadSubjects();
         }
     }, [activeTab, reviewsActiveTab]);
+
+    // Initial load on component mount
+    useEffect(() => {
+        if (activeTab === 'materials') {
+            loadSubjects();
+        }
+    }, []);
 
     const selectedSubjectData = subjects.find(s => s._id === selectedSubject);
     const contentTypeConfig = selectedContentType ? CONTENT_TYPES[selectedContentType] : null;
@@ -474,12 +547,26 @@ const AdminPanel = () => {
                                             required
                                         >
                                             <option value="">Select a subject</option>
-                                            {subjects.map((subject) => (
-                                                <option key={subject._id} value={subject._id}>
-                                                    {subject.name}
-                                                </option>
-                                            ))}
+                                            {subjects.length === 0 && !loading ? (
+                                                <option disabled>No subjects found - check console</option>
+                                            ) : (
+                                                subjects.map((subject) => (
+                                                    <option key={subject._id} value={subject._id}>
+                                                        {subject.name}
+                                                    </option>
+                                                ))
+                                            )}
                                         </select>
+                                        {subjects.length === 0 && !loading && (
+                                            <p className={`text-xs mt-1 ${isLightMode ? 'text-red-500' : 'text-red-400'}`}>
+                                                No subjects loaded. Make sure backend server is running on port 5000.
+                                            </p>
+                                        )}
+                                        {loading && (
+                                            <p className={`text-xs mt-1 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                                Loading subjects...
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>

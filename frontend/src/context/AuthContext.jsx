@@ -31,6 +31,8 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
+        // Navigate to home page instead of staying on current page
+        window.location.href = '/';
     }, []);
 
     const updateUser = useCallback((patch) => {
