@@ -64,6 +64,12 @@ const AdminPanel = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
 
+    // Manage content state
+    const [manageSubject, setManageSubject] = useState('');
+    const [uploadedContent, setUploadedContent] = useState([]);
+    const [loadingContent, setLoadingContent] = useState(false);
+    const [deletingContent, setDeletingContent] = useState('');
+
     const [theme] = useState(() => {
         try {
             return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark';
@@ -289,6 +295,11 @@ const AdminPanel = () => {
             const fileInput = document.querySelector('input[type="file"]');
             if (fileInput) fileInput.value = '';
             
+            // Reload content if managing the same subject
+            if (manageSubject === selectedSubject) {
+                loadUploadedContent(selectedSubject);
+            }
+            
         } catch (error) {
             setUploadLoading(false);
             
@@ -332,6 +343,107 @@ const AdminPanel = () => {
 
     const selectedSubjectData = subjects.find(s => s.code === selectedSubject);
     const contentTypeConfig = selectedContentType ? CONTENT_TYPES[selectedContentType] : null;
+    const manageSubjectData = subjects.find(s => s.code === manageSubject);
+
+    // Load uploaded content for a subject
+    const loadUploadedContent = async (subjectCode) => {
+        if (!subjectCode) return;
+        
+        setLoadingContent(true);
+        try {
+            const response = await subjectAPI.getSubjectsByCode(subjectCode);
+            const subjectsWithCode = response.data || [];
+            
+            if (subjectsWithCode.length > 0) {
+                // Get first subject as reference (all should have same content)
+                const subject = subjectsWithCode[0];
+                const contentList = [];
+                
+                // Collect subject-level content
+                ['resources', 'syllabus'].forEach(type => {
+                    if (subject[type] && subject[type].length > 0) {
+                        subject[type].forEach(item => {
+                            contentList.push({
+                                ...item,
+                                contentType: type,
+                                level: 'subject',
+                                displayType: type === 'resources' ? 'PYQs' : 'Syllabus'
+                            });
+                        });
+                    }
+                });
+                
+                // Collect module-level content
+                subject.modules?.forEach(module => {
+                    ['notes', 'questionBanks'].forEach(type => {
+                        if (module[type] && module[type].length > 0) {
+                            module[type].forEach(item => {
+                                contentList.push({
+                                    ...item,
+                                    contentType: type,
+                                    level: 'module',
+                                    moduleNumber: module.moduleNumber,
+                                    moduleTitle: module.title,
+                                    displayType: type === 'notes' ? 'Notes' : 'Question Banks'
+                                });
+                            });
+                        }
+                    });
+                });
+                
+                setUploadedContent(contentList);
+            } else {
+                setUploadedContent([]);
+            }
+        } catch (error) {
+            console.error('Error loading content:', error);
+            alert('Failed to load uploaded content');
+        } finally {
+            setLoadingContent(false);
+        }
+    };
+
+    // Delete content from all branches
+    const handleDeleteContent = async (content) => {
+        if (!confirm(`Are you sure you want to delete "${content.title}" from ALL branches?\n\nThis action cannot be undone.`)) {
+            return;
+        }
+        
+        setDeletingContent(content._id);
+        try {
+            if (content.level === 'subject') {
+                await uploadAPI.bulkDeleteSubjectContent(
+                    manageSubject,
+                    content.contentType,
+                    content.title
+                );
+            } else {
+                await uploadAPI.bulkDeleteModuleContent(
+                    manageSubject,
+                    content.moduleNumber,
+                    content.contentType,
+                    content.title
+                );
+            }
+            
+            alert('Content deleted successfully from all branches!');
+            loadUploadedContent(manageSubject);
+        } catch (error) {
+            console.error('Error deleting content:', error);
+            alert(error.response?.data?.error || 'Failed to delete content');
+        } finally {
+            setDeletingContent('');
+        }
+    };
+
+    // Load content when manage subject changes
+    useEffect(() => {
+        if (manageSubject) {
+            loadUploadedContent(manageSubject);
+        } else {
+            setUploadedContent([]);
+        }
+    }, [manageSubject]);
 
     if (!isAdmin) {
         return null;
@@ -584,7 +696,8 @@ const AdminPanel = () => {
                             <p>Loading subjects and study materials...</p>
                         </div>
                     ) : (
-                        <form onSubmit={handleUpload} className="space-y-6">
+                        <>
+                            <form onSubmit={handleUpload} className="space-y-6">
                             <div className={`p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
                                 <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
                                     Upload Study Material
@@ -767,6 +880,131 @@ const AdminPanel = () => {
                                 </div>
                             </div>
                         </form>
+
+                        {/* Manage Uploaded Content Section */}
+                        <div className={`mt-8 p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                            <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                Manage Uploaded Content
+                                <span className={`block text-sm font-normal mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                    View and delete content from all branches
+                                </span>
+                            </h3>
+
+                            <div className="mb-4">
+                                <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                    Select Subject to Manage
+                                </label>
+                                <select
+                                    value={manageSubject}
+                                    onChange={(e) => setManageSubject(e.target.value)}
+                                    className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                        isLightMode
+                                            ? 'bg-white border-gray-300 text-gray-900'
+                                            : 'bg-gray-700 border-gray-600 text-white'
+                                    }`}
+                                >
+                                    <option value="">Select a subject to view content</option>
+                                    {subjects.map((subject) => (
+                                        <option key={subject.code} value={subject.code}>
+                                            {subject.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {loadingContent && (
+                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        <span className="ml-2">Loading content...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {manageSubject && !loadingContent && uploadedContent.length === 0 && (
+                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    No content uploaded yet for this subject
+                                </div>
+                            )}
+
+                            {manageSubject && !loadingContent && uploadedContent.length > 0 && (
+                                <div className="space-y-3">
+                                    {manageSubjectData && (
+                                        <div className={`text-sm mb-4 p-3 rounded ${isLightMode ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
+                                            <strong>Branches:</strong> {manageSubjectData.branches.join(', ')}
+                                            <br />
+                                            <strong>Total Content:</strong> {uploadedContent.length} items
+                                        </div>
+                                    )}
+
+                                    {uploadedContent.map((content) => (
+                                        <div
+                                            key={content._id}
+                                            className={`p-4 rounded-lg border flex items-start justify-between ${
+                                                isLightMode ? 'bg-gray-50 border-gray-200' : 'bg-gray-700/50 border-gray-600'
+                                            }`}
+                                        >
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                                                        content.displayType === 'Notes' ? 'bg-green-100 text-green-800' :
+                                                        content.displayType === 'PYQs' ? 'bg-purple-100 text-purple-800' :
+                                                        content.displayType === 'Question Banks' ? 'bg-blue-100 text-blue-800' :
+                                                        'bg-orange-100 text-orange-800'
+                                                    }`}>
+                                                        {content.displayType}
+                                                    </span>
+                                                    {content.level === 'module' && (
+                                                        <span className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                            Module {content.moduleNumber}: {content.moduleTitle}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                                    {content.title}
+                                                </h4>
+                                                {content.description && (
+                                                    <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                        {content.description}
+                                                    </p>
+                                                )}
+                                                <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                                    Uploaded: {new Date(content.createdAt).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteContent(content)}
+                                                disabled={deletingContent === content._id}
+                                                className={`ml-4 px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${
+                                                    deletingContent === content._id
+                                                        ? 'bg-gray-400 cursor-not-allowed'
+                                                        : isLightMode
+                                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                            : 'bg-red-500 hover:bg-red-600 text-white'
+                                                } disabled:opacity-50`}
+                                            >
+                                                {deletingContent === content._id ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                        <span>Deleting...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                        <span>Delete</span>
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        </>
                     )}
                 </div>
             )}

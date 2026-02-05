@@ -36,6 +36,22 @@ const getSubjectById = async (req, res) => {
     }
 };
 
+const getSubjectsByCode = async (req, res) => {
+    try {
+        const { code } = req.params;
+
+        // Find all subjects with this code across all branches
+        const subjects = await Subject.find({ code: code.toUpperCase() })
+            .sort({ branch: 1, cycle: 1 })
+            .select('-__v')
+            .lean();
+
+        res.json(subjects);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 const markQuestionCompleted = async (req, res) => {
     try {
         const { subjectId, moduleNumber, questionId } = req.body;
@@ -264,6 +280,7 @@ const getSubjectContent = async (req, res) => {
 module.exports = {
     getSubjectsByBranch,
     getSubjectById,
+    getSubjectsByCode,
     markQuestionCompleted,
     calculateAndUpdateProgress,
     getModuleNotes,

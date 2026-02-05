@@ -3,6 +3,7 @@ const router = express.Router();
 const {
     getSubjectsByBranch,
     getSubjectById,
+    getSubjectsByCode,
     markQuestionCompleted,
     getModuleNotes,
     getContentUrl,
@@ -14,6 +15,7 @@ const authMiddleware = require('../middleware/auth');
 router.use(authMiddleware);
 
 router.get('/branch/:branch', getSubjectsByBranch);
+router.get('/code/:code', getSubjectsByCode);
 router.get('/:subjectId', getSubjectById);
 router.post('/question/complete', markQuestionCompleted);
 

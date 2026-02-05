@@ -65,6 +65,7 @@ export const subjectAPI = {
             params: cycle ? { cycle } : {}
         }),
     getSubjectById: (subjectId) => apiClient.get(`/subjects/${subjectId}`),
+    getSubjectsByCode: (subjectCode) => apiClient.get(`/subjects/code/${subjectCode}`),
     markQuestionCompleted: (data) => apiClient.post('/subjects/question/complete', data),
     getModuleNotes: (subjectId, moduleNumber) =>
         apiClient.get(`/subjects/${subjectId}/module/${moduleNumber}/notes`),
