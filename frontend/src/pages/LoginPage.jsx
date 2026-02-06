@@ -11,6 +11,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
     const [formData, setFormData] = useState({
         usn: '',
         password: '',
+        confirmPassword: '',
         email: ''
     });
     const [mode, setMode] = useState(initialMode === 'register' ? 'register' : 'login'); // 'login', 'register', or 'admin'
@@ -22,7 +23,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
     // Clear form when mode changes
     const handleModeChange = (newMode) => {
         setMode(newMode);
-        setFormData({ usn: '', password: '', email: '' });
+        setFormData({ usn: '', password: '', confirmPassword: '', email: '' });
         setError('');
         setShowReset(false);
     };
@@ -77,10 +78,10 @@ const LoginPage = ({ initialMode = 'login' }) => {
         setLoading(true);
 
         try {
-            const { usn, email, password } = formData;
+            const { usn, email, password, confirmPassword } = formData;
             const branch = deriveBranchFromUSN(usn);
 
-            if (!usn || !email || !password) {
+            if (!usn || !email || !password || !confirmPassword) {
                 setError('All fields are required');
                 return;
             }
@@ -92,6 +93,11 @@ const LoginPage = ({ initialMode = 'login' }) => {
 
             if (password.length < 6) {
                 setError('Password must be at least 6 characters');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                setError('Passwords do not match');
                 return;
             }
 
@@ -327,6 +333,30 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                 />
                                 {mode === 'register' && <p className={`text-xs mt-1 ${isLightMode ? 'text-gray-500' : 'text-secondary-400'}`}>Minimum 6 characters</p>}
                             </div>
+
+                            {mode === 'register' && (
+                                <div>
+                                    <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Confirm Password</label>
+                                    <input
+                                        type="password"
+                                        name="confirmPassword"
+                                        autoComplete="new-password"
+                                        placeholder=""
+                                        value={formData.confirmPassword}
+                                        onChange={handleInputChange}
+                                        className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                            ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                            : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
+                                            }`}
+                                    />
+                                    {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                                        <p className="text-xs mt-1 text-red-500">Passwords do not match</p>
+                                    )}
+                                    {formData.confirmPassword && formData.password === formData.confirmPassword && (
+                                        <p className="text-xs mt-1 text-emerald-500">Passwords match ✓</p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="flex items-center justify-end gap-2">
                                 <button
