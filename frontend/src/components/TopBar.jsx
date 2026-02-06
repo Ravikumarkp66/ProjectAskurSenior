@@ -6,7 +6,7 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) 
     return (
         <div
             className={`fixed top-0 right-0 shadow-lg z-10 transition-all duration-300 
-                left-0 sm:${sidebarCollapsed ? 'left-20' : 'left-64'}
+                ${sidebarCollapsed ? 'left-0 sm:left-20' : 'left-0 sm:left-64'}
                 ${isLightMode ? 'bg-white border-b border-slate-200' : 'bg-[#0F172A] border-b border-[#1E293B]'}`}
         >
             <div className="px-4 sm:px-6 py-4 pl-16 sm:pl-6">

@@ -214,8 +214,8 @@ const Sidebar = ({
             <div
                 className={`${sidebarClasses.shell} h-screen fixed left-0 top-0 shadow-lg flex flex-col transition-all duration-300 z-40 overflow-hidden
                     ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} 
-                    sm:translate-x-0 w-64
-                    sm:${isCollapsed ? 'w-20' : 'w-64'}
+                    sm:translate-x-0 
+                    ${isCollapsed ? 'w-64 sm:w-20' : 'w-64'}
                 `}
             >
             {/* Header with Collapse Button */}

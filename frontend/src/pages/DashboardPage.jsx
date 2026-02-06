@@ -212,9 +212,9 @@ const DashboardPage = () => {
             {/* Main Content - No margin on mobile, left margin on desktop */}
             <div
                 className={`transition-all duration-300 w-full
-                    sm:${sidebarCollapsed
-                        ? 'ml-20 w-[calc(100%-5rem)]'
-                        : 'ml-64 w-[calc(100%-16rem)]'
+                    ${sidebarCollapsed
+                        ? 'sm:ml-20 sm:w-[calc(100%-5rem)]'
+                        : 'sm:ml-64 sm:w-[calc(100%-16rem)]'
                     }`}
             >
                 {/* Top Bar */}
