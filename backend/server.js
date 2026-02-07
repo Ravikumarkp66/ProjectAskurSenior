@@ -16,6 +16,9 @@ const seedDatabase = require('./utils/seedDatabase');
 
 const app = express();
 
+// Trust proxy for secure cookies/rate limiting behind load balancers (Vercel/Render)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
     crossOriginEmbedderPolicy: false,
@@ -44,10 +47,13 @@ app.use('/api/upload', uploadLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 // CORS: allow only configured frontend origin in production
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production' 
-        ? [process.env.FRONTEND_URL, 'https://askursenior.vercel.app'] 
+    origin: process.env.NODE_ENV === 'production'
+        ? [process.env.FRONTEND_URL, 'https://askursenior.vercel.app']
         : true,
     credentials: true,
     optionsSuccessStatus: 200
@@ -97,15 +103,15 @@ app.get('/api/health', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Error:', err.message);
-    
+
     // Don't leak error details in production
     if (process.env.NODE_ENV === 'production') {
-        res.status(err.status || 500).json({ 
+        res.status(err.status || 500).json({
             error: 'Something went wrong!',
             timestamp: new Date().toISOString()
         });
     } else {
-        res.status(err.status || 500).json({ 
+        res.status(err.status || 500).json({
             error: err.message,
             stack: err.stack,
             timestamp: new Date().toISOString()
@@ -115,9 +121,9 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-    res.status(404).json({ 
+    res.status(404).json({
         error: 'Route not found',
-        path: req.originalUrl 
+        path: req.originalUrl
     });
 });
 

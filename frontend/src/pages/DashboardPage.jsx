@@ -6,12 +6,12 @@ import TopBar from '../components/TopBar';
 import SubjectCard from '../components/SubjectCard';
 import StatsCards from '../components/StatsCards';
 import GameifiedLoader from '../components/GameifiedLoader';
-import { subjectAPI } from '../services/api';
+import { subjectAPI, authAPI } from '../services/api';
 import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../utils/constants';
 
 const DashboardPage = () => {
     const navigate = useNavigate();
-    const { user, isAuthenticated, loading: authLoading } = useAuth();
+    const { user, isAuthenticated, loading: authLoading, updateUser } = useAuth();
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem('uiTheme');
@@ -39,6 +39,19 @@ const DashboardPage = () => {
     const [cycle, setCycle] = useState('P');
     const [subjectSearch, setSubjectSearch] = useState('');
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+    // Profile State
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [profileForm, setProfileForm] = useState({
+        bio: '',
+        linkedin: '',
+        github: '',
+        leetcode: ''
+    });
+    const [profileImage, setProfileImage] = useState(null);
+    const [profileImagePreview, setProfileImagePreview] = useState('');
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'security'
 
     const subjectsCacheRef = useRef({});
 
@@ -139,6 +152,23 @@ const DashboardPage = () => {
         if (value) setCurrentBranch(value);
     };
 
+    // Initialize profile form when user data is available or modal opens
+    useEffect(() => {
+        if (showProfileModal && user) {
+            setProfileForm({
+                bio: user.bio || '',
+                linkedin: user.socialLinks?.linkedin || '',
+                github: user.socialLinks?.github || '',
+                leetcode: user.socialLinks?.leetcode || ''
+            });
+            setProfileImagePreview(user.profilePicture ?
+                (user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.profilePicture}`)
+                : '');
+            setIsEditingProfile(false);
+            setProfileImage(null);
+        }
+    }, [showProfileModal, user]);
+
     const handleSubjectToggle = (subjectId) => {
         setExpandedSubjects((prev) => ({
             ...prev,
@@ -178,9 +208,9 @@ const DashboardPage = () => {
 
     if (pageLoading) {
         return (
-            <GameifiedLoader 
-                isLoading={true} 
-                loadingText="Loading Dashboard" 
+            <GameifiedLoader
+                isLoading={true}
+                loadingText="Loading Dashboard"
                 variant="data"
                 tips={[
                     "🎯 Your personalized dashboard is loading...",
@@ -192,6 +222,53 @@ const DashboardPage = () => {
             />
         );
     }
+
+    const handleProfileUpdate = async (e) => {
+        e.preventDefault();
+        setIsSavingProfile(true);
+        try {
+            // 1. Upload image if selected
+            if (profileImage) {
+                const formData = new FormData();
+                formData.append('profilePicture', profileImage);
+                // We're doing this separately because api calls might need valid token
+                // and the backend handles them separately for now
+                await authAPI.uploadProfilePicture(formData);
+                // Update local user object immediately if needed, but the next call will return full user
+            }
+
+            // 2. Update profile details
+            const profileRes = await authAPI.updateProfile({
+                bio: profileForm.bio,
+                socialLinks: {
+                    linkedin: profileForm.linkedin,
+                    github: profileForm.github,
+                    leetcode: profileForm.leetcode
+                }
+            });
+
+            // 3. Update auth context with new user data
+            if (updateUser && profileRes.data.user) {
+                updateUser(profileRes.data.user);
+            }
+
+            setIsEditingProfile(false);
+            // Show success message (optional)
+        } catch (error) {
+            console.error('Failed to update profile', error);
+            // Show error message
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setProfileImage(file);
+            setProfileImagePreview(URL.createObjectURL(file));
+        }
+    };
 
     return (
         <div className={`flex min-h-screen ${isLightMode ? 'bg-white text-slate-900' : 'bg-primary-950 text-secondary-100'}`}>
@@ -227,20 +304,20 @@ const DashboardPage = () => {
                             <div className="flex items-center gap-2 w-full sm:w-auto">
                                 <div
                                     className={`flex rounded-lg p-1 border ${isLightMode
-                                            ? 'bg-slate-100 border-slate-200'
-                                            : 'bg-slate-800/40 border-white/10'
+                                        ? 'bg-slate-100 border-slate-200'
+                                        : 'bg-slate-800/40 border-white/10'
                                         }`}
                                 >
                                     <button
                                         type="button"
                                         onClick={() => setCycle('P')}
                                         className={`min-h-11 px-4 py-2 text-xs font-semibold rounded-md transition flex-1 sm:flex-none ${cycle === 'P'
-                                                ? isLightMode
-                                                    ? 'bg-white text-slate-900'
-                                                    : 'bg-white text-slate-900'
-                                                : isLightMode
-                                                    ? 'text-slate-600 hover:text-slate-900'
-                                                    : 'text-slate-200 hover:text-white'
+                                            ? isLightMode
+                                                ? 'bg-white text-slate-900'
+                                                : 'bg-white text-slate-900'
+                                            : isLightMode
+                                                ? 'text-slate-600 hover:text-slate-900'
+                                                : 'text-slate-200 hover:text-white'
                                             }`}
                                     >
                                         P Cycle
@@ -249,12 +326,12 @@ const DashboardPage = () => {
                                         type="button"
                                         onClick={() => setCycle('C')}
                                         className={`min-h-11 px-4 py-2 text-xs font-semibold rounded-md transition flex-1 sm:flex-none ${cycle === 'C'
-                                                ? isLightMode
-                                                    ? 'bg-white text-slate-900'
-                                                    : 'bg-white text-slate-900'
-                                                : isLightMode
-                                                    ? 'text-slate-600 hover:text-slate-900'
-                                                    : 'text-slate-200 hover:text-white'
+                                            ? isLightMode
+                                                ? 'bg-white text-slate-900'
+                                                : 'bg-white text-slate-900'
+                                            : isLightMode
+                                                ? 'text-slate-600 hover:text-slate-900'
+                                                : 'text-slate-200 hover:text-white'
                                             }`}
                                     >
                                         C Cycle
@@ -270,8 +347,8 @@ const DashboardPage = () => {
                                     type="button"
                                     onClick={() => setShowBranchPicker((v) => !v)}
                                     className={`w-full min-h-11 px-4 rounded-full border text-xs font-semibold flex items-center justify-between gap-2 transition ${isLightMode
-                                            ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                                            : 'border-white/10 bg-slate-900/30 text-secondary-200 hover:bg-slate-900/50'
+                                        ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                        : 'border-white/10 bg-slate-900/30 text-secondary-200 hover:bg-slate-900/50'
                                         }`}
                                 >
                                     <span className="truncate">
@@ -292,8 +369,8 @@ const DashboardPage = () => {
                                 {showBranchPicker && (
                                     <div
                                         className={`absolute right-0 left-0 sm:left-auto z-20 mt-2 sm:w-72 rounded-xl border shadow-xl overflow-hidden ${isLightMode
-                                                ? 'border-slate-200 bg-white'
-                                                : 'border-white/10 bg-dark-100'
+                                            ? 'border-slate-200 bg-white'
+                                            : 'border-white/10 bg-dark-100'
                                             }`}
                                     >
                                         <div className="max-h-64 overflow-y-auto">
@@ -304,10 +381,10 @@ const DashboardPage = () => {
                                                     setShowBranchPicker(false);
                                                 }}
                                                 className={`w-full text-left px-3 py-2 text-sm transition ${!branchOverride
-                                                        ? 'font-semibold text-purple-700'
-                                                        : isLightMode
-                                                            ? 'text-slate-800'
-                                                            : 'text-secondary-200'
+                                                    ? 'font-semibold text-purple-700'
+                                                    : isLightMode
+                                                        ? 'text-slate-800'
+                                                        : 'text-secondary-200'
                                                     } ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/10'}`}
                                             >
                                                 Auto (from USN)
@@ -321,10 +398,10 @@ const DashboardPage = () => {
                                                         setShowBranchPicker(false);
                                                     }}
                                                     className={`w-full text-left px-3 py-2 text-sm transition ${branchOverride === b.code
-                                                            ? 'font-semibold text-purple-700'
-                                                            : isLightMode
-                                                                ? 'text-slate-800'
-                                                                : 'text-secondary-200'
+                                                        ? 'font-semibold text-purple-700'
+                                                        : isLightMode
+                                                            ? 'text-slate-800'
+                                                            : 'text-secondary-200'
                                                         } ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/10'}`}
                                                 >
                                                     {b.code} - {b.name}
@@ -373,58 +450,352 @@ const DashboardPage = () => {
 
             {/* Profile Modal */}
             {showProfileModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className={`${isLightMode ? 'bg-white' : 'bg-dark-100'} rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col`}>
-                        <div className={`p-6 md:p-8 border-b ${isLightMode ? 'border-gray-100' : 'border-white/10'}`}>
-                            <div className="flex items-center justify-between">
-                                <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-secondary-100'}`}>Profile & Progress</h2>
-                                <button
-                                    onClick={() => setShowProfileModal(false)}
-                                    className={isLightMode ? 'text-gray-500 hover:text-gray-700' : 'text-secondary-400 hover:text-secondary-200'}
-                                >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className={`${isLightMode ? 'bg-white' : 'bg-gray-900'} rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col transform transition-all`}>
+                        {/* Header Banner */}
+                        <div className={`h-32 ${isLightMode ? 'bg-gradient-to-r from-blue-500 to-purple-600' : 'bg-gradient-to-r from-blue-900 to-purple-900'} relative`}>
+                            <button
+                                onClick={() => setShowProfileModal(false)}
+                                className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/20 hover:bg-black/30 rounded-full p-2 transition"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Profile Info Header */}
+                        <div className="px-8 pb-6 relative flex flex-col md:flex-row items-end md:items-center -mt-12 gap-6">
+                            {/* Avatar */}
+                            <div className="relative group">
+                                <div className={`w-32 h-32 rounded-full overflow-hidden border-4 ${isLightMode ? 'border-white' : 'border-gray-900'} shadow-lg bg-white`}>
+                                    {profileImagePreview ? (
+                                        <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-4xl font-bold">
+                                            {(user?.usn || 'U').slice(0, 1).toUpperCase()}
+                                        </div>
+                                    )}
+                                </div>
+                                <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full z-10">
+                                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
+                                    <input type="file" accept="image/*" onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            setProfileImage(file);
+                                            setProfileImagePreview(URL.createObjectURL(file));
+                                            setIsEditingProfile(true); // Auto-enable edit mode
+                                        }
+                                    }} className="hidden" />
+                                </label>
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 mb-2">
+                                <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                    {user?.usn}
+                                </h2>
+                                <p className={`text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    {user?.email} • {user?.branch} Branch
+                                </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-3 mb-2">
+                                <button
+                                    onClick={() => activeTab === 'profile' ? setIsEditingProfile(!isEditingProfile) : setActiveTab('profile')}
+                                    className={`px-4 py-2 rounded-lg font-medium text-sm transition ${isEditingProfile
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md'
+                                        : (isLightMode ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-gray-800 text-gray-200 hover:bg-gray-700')
+                                        }`}
+                                >
+                                    {isEditingProfile ? 'Editing...' : 'Edit Profile'}
                                 </button>
                             </div>
                         </div>
 
-                        <div className="p-6 md:p-8 overflow-y-auto">
-                            <div className="grid gap-6 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.8fr)]">
-                                {/* Left: basic profile info */}
-                                <div className="space-y-4">
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <p className="text-xs text-gray-600 mb-1">USN</p>
-                                        <p className="font-bold text-gray-900">{user?.usn}</p>
-                                    </div>
-
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <p className="text-xs text-gray-600 mb-1">Email</p>
-                                        <p className="font-bold text-gray-900">{user?.email}</p>
-                                    </div>
-
-                                    <div className="bg-gray-50 rounded-lg p-4">
-                                        <p className="text-xs text-gray-600 mb-1">Current Branch</p>
-                                        <p className="font-bold text-gray-900">{currentBranch}</p>
-                                    </div>
-                                </div>
-
-                                {/* Right: stats + heatmap previously on dashboard */}
-                                <div className="space-y-4">
-                                    <StatsCards subjects={subjects} progress={overallProgress} />
-                                </div>
+                        {/* Tabs & Content */}
+                        <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
+                            {/* Sidebar / Tabs */}
+                            <div className={`w-full md:w-64 p-6 flex flex-col gap-2 ${isLightMode ? 'border-r border-gray-100' : 'border-r border-gray-800'}`}>
+                                <button
+                                    onClick={() => setActiveTab('profile')}
+                                    className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition flex items-center gap-3 ${activeTab === 'profile'
+                                        ? (isLightMode ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/20 text-blue-400')
+                                        : (isLightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-gray-400 hover:bg-gray-800')
+                                        }`}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                    Personal Details
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('stats')}
+                                    className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition flex items-center gap-3 ${activeTab === 'stats'
+                                        ? (isLightMode ? 'bg-purple-50 text-purple-700' : 'bg-purple-900/20 text-purple-400')
+                                        : (isLightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-gray-400 hover:bg-gray-800')
+                                        }`}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                                    Academic Stats
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('security')}
+                                    className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition flex items-center gap-3 ${activeTab === 'security'
+                                        ? (isLightMode ? 'bg-orange-50 text-orange-700' : 'bg-orange-900/20 text-orange-400')
+                                        : (isLightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-gray-400 hover:bg-gray-800')
+                                        }`}
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                    Security & Password
+                                </button>
                             </div>
 
-                            <button
-                                onClick={() => setShowProfileModal(false)}
-                                className="w-full mt-6 px-4 py-2 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 transition"
-                            >
-                                Close
-                            </button>
+                            {/* Main Content Area */}
+                            <div className={`flex-1 p-6 md:p-8 overflow-y-auto ${isLightMode ? 'bg-gray-50/50' : 'bg-black/20'}`}>
+
+                                {activeTab === 'profile' && (
+                                    <div className="space-y-6 max-w-2xl animate-fadeIn">
+                                        {/* Bio Section */}
+                                        <div>
+                                            <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>Bio</h3>
+                                            {isEditingProfile ? (
+                                                <textarea
+                                                    value={profileForm.bio}
+                                                    onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                                                    className={`w-full p-4 rounded-xl border focus:ring-2 outline-none transition ${isLightMode
+                                                        ? 'bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-100 text-gray-900'
+                                                        : 'bg-gray-800 border-gray-700 focus:border-blue-500 focus:ring-blue-900/50 text-gray-100'
+                                                        }`}
+                                                    rows="4"
+                                                    placeholder="Tell us about your academic interests..."
+                                                />
+                                            ) : (
+                                                <div className={`p-4 rounded-xl border ${isLightMode ? 'bg-white border-gray-100 text-gray-700' : 'bg-gray-800/50 border-gray-700 text-gray-300'}`}>
+                                                    {user?.bio || <span className="italic opacity-60">No bio added yet. Click edit to add one.</span>}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Social Links */}
+                                        <div>
+                                            <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>Social Presence</h3>
+                                            <div className="grid gap-4">
+                                                {[
+                                                    {
+                                                        id: 'linkedin',
+                                                        label: 'LinkedIn',
+                                                        color: 'text-[#0A66C2]',
+                                                        path: 'M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z'
+                                                    },
+                                                    {
+                                                        id: 'github',
+                                                        label: 'GitHub',
+                                                        color: 'text-gray-900',
+                                                        darkModeColor: 'text-white',
+                                                        path: 'M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z'
+                                                    },
+                                                    {
+                                                        id: 'leetcode',
+                                                        label: 'LeetCode',
+                                                        color: 'text-[#FFA116]',
+                                                        path: 'M13.483 0a1.374 1.374 0 0 0 -0.961 0.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0 -1.209 2.104 5.35 5.35 0 0 0 -0.125 0.513 5.527 5.527 0 0 0 0.062 2.362 5.83 5.83 0 0 0 0.349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193 0.039 0.038c2.248 2.165 5.852 2.133 8.063 -0.074l2.396 -2.392c0.54 -0.54 0.54 -1.414 0.003 -1.955a1.378 1.378 0 0 0 -1.951 -0.003l-2.396 2.392a3.021 3.021 0 0 1 -4.205 0.038l-0.02 -0.019 -4.276 -4.193c-0.652 -0.64 -0.972 -1.469 -0.948 -2.263a2.68 2.68 0 0 1 0.066 -0.523 2.545 2.545 0 0 1 0.619 -1.164L9.13 8.114c1.058 -1.134 3.204 -1.27 4.43 -0.278l3.501 2.831c0.593 0.48 1.461 0.387 1.94 -0.207a1.384 1.384 0 0 0 -0.207 -1.943l-3.5 -2.831c-0.8 -0.647 -1.766 -1.045 -2.774 -1.202l2.015 -2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0 -1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38 -1.382 1.38 1.38 0 0 0 -1.38 -1.382z'
+                                                    }
+                                                ].map((social) => (
+                                                    <div key={social.id} className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isLightMode ? 'bg-white shadow-sm' : 'bg-gray-800'}`}>
+                                                            <svg className={`w-6 h-6 ${social.darkModeColor && !isLightMode ? social.darkModeColor : social.color}`} fill="currentColor" viewBox={social.id === 'leetcode' ? "0 0 24 24" : "0 0 24 24"}>
+                                                                <path d={social.path} />
+                                                            </svg>
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            {isEditingProfile ? (
+                                                                <input
+                                                                    type="text"
+                                                                    value={profileForm[social.id] || ''}
+                                                                    onChange={(e) => setProfileForm({ ...profileForm, [social.id]: e.target.value })}
+                                                                    placeholder={`Add your ${social.label} URL`}
+                                                                    className={`w-full px-4 py-2 rounded-lg border text-sm focus:ring-2 outline-none transition ${isLightMode
+                                                                        ? 'bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-100 text-gray-900'
+                                                                        : 'bg-gray-800 border-gray-700 focus:border-blue-500 focus:ring-blue-900/50 text-gray-100'
+                                                                        }`}
+                                                                />
+                                                            ) : (
+                                                                user?.socialLinks?.[social.id] ? (
+                                                                    <a
+                                                                        href={user.socialLinks[social.id].startsWith('http') ? user.socialLinks[social.id] : `https://${user.socialLinks[social.id]}`}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className={`text-sm font-medium hover:underline ${social.darkModeColor && !isLightMode ? social.darkModeColor : social.color}`}
+                                                                    >
+                                                                        {user.socialLinks[social.id].replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className={`text-sm ${isLightMode ? 'text-gray-400' : 'text-gray-600'}`}>Not connected</span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Save Actions */}
+                                        {isEditingProfile && (
+                                            <div className="pt-4 flex gap-3">
+                                                <button
+                                                    onClick={handleProfileUpdate}
+                                                    disabled={isSavingProfile}
+                                                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 transition disabled:opacity-70 flex items-center gap-2"
+                                                >
+                                                    {isSavingProfile ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            Saving Changes...
+                                                        </>
+                                                    ) : (
+                                                        'Save Changes'
+                                                    )}
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsEditingProfile(false)}
+                                                    className={`px-6 py-2.5 font-semibold rounded-xl transition ${isLightMode ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700'}`}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {activeTab === 'security' && (
+                                    <div className="animate-fadeIn max-w-xl">
+                                        <h3 className={`text-lg font-bold mb-6 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>Password & Security</h3>
+                                        <PasswordChangeSection />
+
+
+                                    </div>
+                                )}
+
+                                {activeTab === 'stats' && (
+                                    <div className="animate-fadeIn">
+                                        <StatsCards subjects={subjects} progress={overallProgress} />
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
+
+const PasswordChangeSection = () => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [message, setMessage] = useState({ type: '', text: '' });
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setMessage({ type: '', text: '' });
+
+        if (newPassword !== confirmPassword) {
+            setMessage({ type: 'error', text: 'New passwords do not match' });
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await authAPI.changePassword({
+                currentPassword,
+                newPassword
+            });
+            setMessage({ type: 'success', text: 'Password changed successfully!' });
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setTimeout(() => setIsExpanded(false), 2000);
+        } catch (error) {
+            setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to change password' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isExpanded) {
+        return (
+            <button
+                onClick={() => setIsExpanded(true)}
+                className="w-full py-2 text-sm text-primary-600 border border-dashed border-primary-300 rounded-lg hover:bg-primary-50 transition"
+            >
+                Change Password
+            </button>
+        );
+    }
+
+    return (
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <h3 className="font-semibold text-gray-900 mb-3 text-sm">Change Password</h3>
+            <form onSubmit={handleSubmit} className="space-y-3">
+                <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Current Password"
+                    className="w-full p-2 text-sm border rounded text-gray-900"
+                    required
+                />
+                <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="New Password"
+                    className="w-full p-2 text-sm border rounded text-gray-900"
+                    required
+                />
+                <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm New Password"
+                    className="w-full p-2 text-sm border rounded text-gray-900"
+                    required
+                />
+
+                {message.text && (
+                    <p className={`text-xs ${message.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                        {message.text}
+                    </p>
+                )}
+
+                <div className="flex gap-2">
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="flex-1 py-1.5 bg-primary-600 text-white text-xs font-semibold rounded hover:bg-primary-700 transition disabled:opacity-50"
+                    >
+                        {loading ? 'Updating...' : 'Update Password'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsExpanded(false)}
+                        className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-semibold rounded hover:bg-gray-300 transition"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
         </div>
     );
 };

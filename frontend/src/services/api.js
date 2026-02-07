@@ -2,8 +2,8 @@ import axios from 'axios';
 
 // Use VITE_API_URL in production (e.g., https://backend.onrender.com)
 // In development, directly use localhost:5000 to avoid proxy issues
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-    ? `${import.meta.env.VITE_API_URL}/api` 
+const API_BASE_URL = import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
     : 'http://localhost:5000/api';
 
 export const apiClient = axios.create({
@@ -34,7 +34,7 @@ apiClient.interceptors.response.use(
                 window.location.href = '/login';
             }
         }
-        
+
         // Log error details for debugging (only in development)
         if (process.env.NODE_ENV === 'development') {
             console.error('API Error:', {
@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
                 data: error.response?.data
             });
         }
-        
+
         return Promise.reject(error);
     }
 );
@@ -55,7 +55,14 @@ export const authAPI = {
     login: (data) => apiClient.post('/auth/login', data),
     adminLogin: (data) => apiClient.post('/auth/admin-login', data),
     getProfile: () => apiClient.get('/auth/profile'),
-    switchBranch: (data) => apiClient.post('/auth/switch-branch', data)
+    updateProfile: (data) => apiClient.put('/auth/update-profile', data),
+    uploadProfilePicture: (formData) => apiClient.post('/auth/upload-profile-picture', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+    changePassword: (data) => apiClient.put('/auth/change-password', data),
+    switchBranch: (data) => apiClient.post('/auth/switch-branch', data),
+    forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
+    resetPassword: (email, otp, newPassword) => apiClient.post('/auth/reset-password', { email, otp, newPassword })
 };
 
 // Subject API
@@ -114,9 +121,9 @@ export const uploadAPI = {
     // Delete module-level content
     deleteModuleContent: (subjectId, moduleNumber, contentType, contentId) =>
         apiClient.delete(`/upload/module-content/${subjectId}/${moduleNumber}/${contentType}/${contentId}`),
-    
+
     // BULK UPLOAD - Upload to ALL subjects with same code across all branches/cycles
-    
+
     // Bulk upload subject-level content (syllabus, resources) to all subjects with this code
     bulkUploadSubjectContent: (subjectCode, contentType, file, title, description = '') => {
         const formData = new FormData();

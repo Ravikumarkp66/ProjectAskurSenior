@@ -45,6 +45,29 @@ const userSchema = new mongoose.Schema(
         createdAt: {
             type: Date,
             default: Date.now
+        },
+        profilePicture: {
+            type: String,
+            default: ''
+        },
+        bio: {
+            type: String,
+            default: '',
+            maxlength: 500
+        },
+        socialLinks: {
+            linkedin: { type: String, default: '' },
+            github: { type: String, default: '' },
+            leetcode: { type: String, default: '' }
+        },
+        resetOtp: {
+            code: String,
+            expiresAt: Date,
+            attempts: { type: Number, default: 0 }
+        },
+        tokenVersion: {
+            type: Number,
+            default: 0
         }
     },
     { timestamps: true }

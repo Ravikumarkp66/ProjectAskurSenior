@@ -4,6 +4,7 @@ import { useAuth } from '../utils/hooks';
 import { authAPI } from '../services/api';
 import { deriveBranchFromUSN, toBackendBranch, validateUSN } from '../utils/constants';
 import Hero from '../components/Hero';
+import AuthSuccess from '../components/AuthSuccess';
 
 const LoginPage = ({ initialMode = 'login' }) => {
     const navigate = useNavigate();
@@ -17,15 +18,17 @@ const LoginPage = ({ initialMode = 'login' }) => {
     const [mode, setMode] = useState(initialMode === 'register' ? 'register' : 'login'); // 'login', 'register', or 'admin'
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const [showReset, setShowReset] = useState(false);
-    const [resetEmail, setResetEmail] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+
+    const isAdmin = mode === 'admin';
+    const isLogin = mode === 'login';
 
     // Clear form when mode changes
     const handleModeChange = (newMode) => {
         setMode(newMode);
         setFormData({ usn: '', password: '', confirmPassword: '', email: '' });
         setError('');
-        setShowReset(false);
     };
 
     const handleInputChange = (e) => {
@@ -36,340 +39,291 @@ const LoginPage = ({ initialMode = 'login' }) => {
         }));
     };
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            const { usn, password } = formData;
-            const branch = deriveBranchFromUSN(usn);
-
-            if (!usn || !password) {
-                setError('All fields are required');
-                return;
-            }
-
-            if (!validateUSN(usn)) {
-                setError('Invalid USN format (e.g., VTM22CS001)');
-                return;
-            }
-
-            if (!branch) {
-                setError('Unable to detect branch from USN');
-                return;
-            }
-
-            const response = await authAPI.login({ usn, password, branch: toBackendBranch(branch) });
-            const { token, user } = response.data;
-
-            login(user, token);
-            navigate('/dashboard');
-        } catch (err) {
-            setError(err.response?.data?.error || 'Login failed. Please try again.');
-        } finally {
-            setLoading(false);
-        }
+    const handleSuccess = (user, token, message, targetPath) => {
+        setSuccessMessage(message);
+        setIsSuccess(true);
+        login(user, token);
+        setTimeout(() => {
+            navigate(targetPath);
+        }, 3500);
     };
 
-    const handleRegister = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         try {
             const { usn, email, password, confirmPassword } = formData;
-            const branch = deriveBranchFromUSN(usn);
 
-            if (!usn || !email || !password || !confirmPassword) {
-                setError('All fields are required');
+            if (isAdmin) {
+                if (!email || !password) {
+                    setError('Email and password are required');
+                    setLoading(false);
+                    return;
+                }
+                const response = await authAPI.adminLogin({ email, password });
+                const { token, user } = response.data;
+                handleSuccess(user, token, 'Successfully logged in as Admin', '/admin');
                 return;
             }
 
+            const branch = deriveBranchFromUSN(usn);
+            if (!usn || !password) {
+                setError('USN and password are required');
+                setLoading(false);
+                return;
+            }
             if (!validateUSN(usn)) {
                 setError('Invalid USN format (e.g., VTM22CS001)');
+                setLoading(false);
                 return;
             }
-
-            if (password.length < 6) {
-                setError('Password must be at least 6 characters');
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                setError('Passwords do not match');
-                return;
-            }
-
             if (!branch) {
                 setError('Unable to detect branch from USN');
+                setLoading(false);
                 return;
             }
 
-            const response = await authAPI.register({ usn, email, password, branch: toBackendBranch(branch) });
-            const { token, user } = response.data;
-
-            login(user, token);
-            navigate('/dashboard');
+            if (mode === 'login') {
+                const response = await authAPI.login({ usn, password, branch: toBackendBranch(branch) });
+                const { token, user } = response.data;
+                handleSuccess(user, token, 'Successfully logged in to Ask+', '/dashboard');
+            } else {
+                if (!email) {
+                    setError('Email is required for registration');
+                    setLoading(false);
+                    return;
+                }
+                if (password.length < 6) {
+                    setError('Password must be at least 6 characters');
+                    setLoading(false);
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    setError('Passwords do not match');
+                    setLoading(false);
+                    return;
+                }
+                const response = await authAPI.register({ usn, email, password, branch: toBackendBranch(branch) });
+                const { token, user } = response.data;
+                handleSuccess(user, token, 'Account created successfully!', '/dashboard');
+            }
         } catch (err) {
-            setError(err.response?.data?.error || 'Registration failed. Please try again.');
+            setError(err.response?.data?.error || 'Authentication failed. Please try again.');
         } finally {
             setLoading(false);
         }
     };
-
-    const handleAdminLogin = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            const { email, password } = formData;
-
-            if (!email || !password) {
-                setError('Email and password are required');
-                return;
-            }
-
-            const response = await authAPI.adminLogin({ email, password });
-            const { token, user } = response.data;
-
-            login(user, token);
-            navigate('/admin');
-        } catch (err) {
-            setError(err.response?.data?.error || 'Admin login failed. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = mode === 'login' ? handleLogin : mode === 'register' ? handleRegister : handleAdminLogin;
-
-    const isLogin = mode === 'login';
-    const isAdmin = mode === 'admin';
-
-    const [theme] = useState(() => {
-        try {
-            return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark';
-        } catch {
-            return 'dark';
-        }
-    });
-    const isLightMode = theme === 'light';
 
     return (
-        <div className={`min-h-screen ${isLightMode ? 'bg-slate-50' : 'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800'}`}>
-            <Hero isLightMode={isLightMode} />
-            
+        <div className="min-h-screen bg-[#0a0a0b] flex flex-col justify-center relative overflow-hidden font-outfit">
+            <Hero isLightMode={false} />
+
             {/* Modal Overlay */}
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div className="absolute inset-0 bg-black/60" />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+                {/* Background Decorations Inside Modal Area */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-[600px] pointer-events-none opacity-20">
+                    <div className="absolute top-0 right-0 w-[60%] h-[60%] bg-orange-500/20 blur-[100px] rounded-full" />
+                    <div className="absolute bottom-0 left-0 w-[60%] h-[60%] bg-blue-500/10 blur-[100px] rounded-full" />
+                </div>
+
                 <div
-                    className={`relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border shadow-xl ${
-                        isLightMode
-                            ? 'border-slate-200 bg-white text-slate-900'
-                            : 'border-white/10 bg-primary-900 text-secondary-100'
-                    }`}
+                    className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl border border-white/5 bg-[#141416]/90 shadow-2xl backdrop-blur-xl text-white transition-all duration-500"
                 >
-                    <div className={`flex items-center justify-between px-5 py-4 border-b ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
-                        <h2 className="text-base font-extrabold">
-                            {mode === 'admin' ? 'Admin Login' : mode === 'register' ? 'Create Account' : 'Welcome Back'}
+                    <div className="flex items-center justify-between px-6 py-5 sm:px-8 sm:py-6 border-b border-white/5">
+                        <h2 className="text-lg sm:text-xl font-bold tracking-tight">
+                            {isSuccess ? 'Success' : isAdmin ? 'Admin Access' : mode === 'register' ? 'Join Us' : 'Welcome Back'}
                         </h2>
-                        <Link
-                            to="/"
-                            className={`h-9 w-9 rounded-lg ${isLightMode ? 'hover:bg-slate-100' : 'hover:bg-white/5'} transition flex items-center justify-center`}
-                            aria-label="Close"
-                        >
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </Link>
-                    </div>
-                    <div className="px-5 py-4 space-y-4">
-                        {/* Mode Toggle Buttons */}
-                        <div className={`flex border rounded-lg p-1 ${
-                            isLightMode 
-                                ? 'border-slate-200 bg-slate-50'
-                                : 'border-white/10 bg-white/5'
-                        }`}>
-                            <button
-                                type="button"
-                                onClick={() => handleModeChange('login')}
-                                className={`flex-1 py-2 px-4 text-sm font-semibold rounded-md transition ${
-                                    mode === 'login'
-                                        ? isLightMode
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-blue-600 text-white'
-                                        : isLightMode
-                                            ? 'text-slate-600 hover:text-slate-900'
-                                            : 'text-secondary-300 hover:text-secondary-100'
-                                }`}
+                        {!isSuccess && (
+                            <Link
+                                to="/"
+                                className="h-10 w-10 rounded-xl hover:bg-white/5 transition flex items-center justify-center group"
+                                aria-label="Close"
                             >
-                                Sign In
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleModeChange('register')}
-                                className={`flex-1 py-2 px-4 text-sm font-semibold rounded-md transition ${
-                                    mode === 'register'
-                                        ? isLightMode
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-blue-600 text-white'
-                                        : isLightMode
-                                            ? 'text-slate-600 hover:text-slate-900'
-                                            : 'text-secondary-300 hover:text-secondary-100'
-                                }`}
-                            >
-                                Sign Up
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleModeChange('admin')}
-                                className={`flex-1 py-2 px-4 text-sm font-semibold rounded-md transition ${
-                                    mode === 'admin'
-                                        ? isLightMode
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-purple-600 text-white'
-                                        : isLightMode
-                                            ? 'text-slate-600 hover:text-slate-900'
-                                            : 'text-secondary-300 hover:text-secondary-100'
-                                }`}
-                            >
-                                Admin
-                            </button>
-                        </div>
-
-                        {error && (
-                            <div className={`rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-red-200 bg-red-50 text-red-700' : 'border-red-500/20 bg-red-500/10 text-red-200'}`}>
-                                {error}
-                            </div>
+                                <svg className="h-5 w-5 text-gray-500 group-hover:text-white transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </Link>
                         )}
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-                            {!isAdmin && (
-                                <div>
-                                    <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>USN</label>
-                                    <input
-                                        type="text"
-                                        name="usn"
-                                        autoComplete="off"
-                                        placeholder="USN"
-                                        value={formData.usn}
-                                        onChange={handleInputChange}
-                                        className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                            ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                            : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                            }`}
-                                    />
+                    <div className="px-6 py-6 sm:px-8 sm:py-8 space-y-6">
+                        {isSuccess ? (
+                            <AuthSuccess
+                                message={successMessage}
+                                submessage="Redirecting in"
+                            />
+                        ) : (
+                            <>
+                                {/* Mode Toggle Buttons - Premium Tabs Style */}
+                                <div className="flex bg-[#1c1c1e] rounded-2xl p-1.5 border border-white/5 relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModeChange('login')}
+                                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'login' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {mode === 'login' && (
+                                            <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 animate-fadeIn" />
+                                        )}
+                                        <span className="relative">Sign In</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModeChange('register')}
+                                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'register' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {mode === 'register' && (
+                                            <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 animate-fadeIn" />
+                                        )}
+                                        <span className="relative">Sign Up</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModeChange('admin')}
+                                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'admin' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {mode === 'admin' && (
+                                            <div className="absolute inset-0 bg-purple-600 rounded-xl shadow-lg shadow-purple-600/20 animate-fadeIn" />
+                                        )}
+                                        <span className="relative">Admin</span>
+                                    </button>
                                 </div>
-                            )}
 
-                            {mode === 'register' && (
-                                <div>
-                                    <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
-                                        College Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        autoComplete="off"
-                                        placeholder="usn@sit.ac.in"
-                                        value={formData.email}
-                                        onChange={handleInputChange}
-                                        className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                            ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                            : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                            }`}
-                                    />
-                                </div>
-                            )}
+                                {error && (
+                                    <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 animate-shake">
+                                        {error}
+                                    </div>
+                                )}
 
-                            {isAdmin && (
-                                <div>
-                                    <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
-                                        Admin Email
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="email"
-                                        autoComplete="off"
-                                        placeholder="admin@example.com"
-                                        value={formData.email}
-                                        onChange={handleInputChange}
-                                        className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                            ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                            : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                            }`}
-                                    />
-                                </div>
-                            )}
-
-                            {!isAdmin && (
-                                <div>
-                                    <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Branch</label>
-                                    <input
-                                        value={deriveBranchFromUSN(formData.usn) || ''}
-                                        readOnly
-                                        disabled
-                                        className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-white/10 bg-white/5 text-secondary-400'}`}
-                                        placeholder="Auto-detected from USN"
-                                    />
-                                </div>
-                            )}
-
-                            <div>
-                                <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Password</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    autoComplete="new-password"
-                                    placeholder=""
-                                    value={formData.password}
-                                    onChange={handleInputChange}
-                                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                        : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                        }`}
-                                />
-                                {mode === 'register' && <p className={`text-xs mt-1 ${isLightMode ? 'text-gray-500' : 'text-secondary-400'}`}>Minimum 6 characters</p>}
-                            </div>
-
-                            {mode === 'register' && (
-                                <div>
-                                    <label className={`block text-sm font-semibold mb-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Confirm Password</label>
-                                    <input
-                                        type="password"
-                                        name="confirmPassword"
-                                        autoComplete="new-password"
-                                        placeholder=""
-                                        value={formData.confirmPassword}
-                                        onChange={handleInputChange}
-                                        className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
-                                            ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
-                                            : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'
-                                            }`}
-                                    />
-                                    {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                                        <p className="text-xs mt-1 text-red-500">Passwords do not match</p>
+                                <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+                                    {!isAdmin && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">USN</label>
+                                            <input
+                                                type="text"
+                                                name="usn"
+                                                autoComplete="off"
+                                                placeholder="VTM22CS001"
+                                                value={formData.usn}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                        </div>
                                     )}
-                                    {formData.confirmPassword && formData.password === formData.confirmPassword && (
-                                        <p className="text-xs mt-1 text-emerald-500">Passwords match ✓</p>
-                                    )}
-                                </div>
-                            )}
 
-                            <div className="flex items-center justify-end gap-2">
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${
-                                        loading ? 'bg-purple-600/40 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500'
-                                    }`}
-                                >
-                                    {loading ? 'Authenticating...' : isAdmin ? 'Sign in as Admin' : isLogin ? 'Sign in' : 'Create account'}
-                                </button>
-                            </div>
-                        </form>
+                                    {mode === 'register' && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">College Email</label>
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                autoComplete="off"
+                                                placeholder="usn@sit.ac.in"
+                                                value={formData.email}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {isAdmin && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Admin Email</label>
+                                            <input
+                                                type="text"
+                                                name="email"
+                                                autoComplete="off"
+                                                placeholder="admin@example.com"
+                                                value={formData.email}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {!isAdmin && formData.usn && (
+                                        <div className="animate-fadeIn">
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Detected Branch</label>
+                                            <div className="w-full rounded-2xl border border-white/5 bg-white/5 px-4 py-3.5 text-sm text-blue-400 font-bold">
+                                                {deriveBranchFromUSN(formData.usn) || 'Invalid USN'}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <div className="flex justify-between items-center mb-2 ml-1">
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest">Password</label>
+                                            {mode === 'login' && (
+                                                <Link
+                                                    to="/forgot-password"
+                                                    className="text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors"
+                                                >
+                                                    Forgot?
+                                                </Link>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            autoComplete="new-password"
+                                            placeholder="••••••••"
+                                            value={formData.password}
+                                            onChange={handleInputChange}
+                                            className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                        />
+                                        {mode === 'register' && <p className="text-[10px] mt-2 text-gray-500 tracking-tight">Minimum 6 characters required for security.</p>}
+                                    </div>
+
+                                    {mode === 'register' && (
+                                        <div className="animate-fadeIn">
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Confirm Password</label>
+                                            <input
+                                                type="password"
+                                                name="confirmPassword"
+                                                autoComplete="new-password"
+                                                placeholder="••••••••"
+                                                value={formData.confirmPassword}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                            {formData.confirmPassword && (
+                                                formData.password === formData.confirmPassword ? (
+                                                    <p className="text-[10px] mt-2 text-emerald-500 font-bold flex items-center gap-1">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                        Passwords match
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-[10px] mt-2 text-red-500 font-bold flex items-center gap-1">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        Passwords do not match
+                                                    </p>
+                                                )
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className={`group relative w-full h-12 rounded-2xl text-sm font-bold text-white overflow-hidden transition-all shadow-lg
+                                            ${loading ? 'bg-orange-600/50 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:scale-[1.01] active:scale-[0.99] shadow-orange-500/20'}`}
+                                    >
+                                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        {loading ? (
+                                            <span className="flex items-center justify-center gap-3">
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Processing...
+                                            </span>
+                                        ) : (
+                                            isAdmin ? 'Admin Sign In' : isLogin ? 'Sign In' : 'Create Account'
+                                        )}
+                                    </button>
+                                </form>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

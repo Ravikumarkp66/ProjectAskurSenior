@@ -20,19 +20,17 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
             exit={{ opacity: 0, y: -8 }}
             whileHover={{ y: -2, scale: 1.01 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-            className={`group flex items-start gap-3 rounded-2xl border p-3 shadow-sm hover:shadow-md ${
-                isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-dark-100'
-            } ${completed ? (isLightMode ? 'ring-1 ring-emerald-400/60 bg-emerald-50' : 'ring-1 ring-emerald-400/40 bg-emerald-900/10') : ''}`}
+            className={`group flex items-start gap-3 rounded-2xl border p-3 shadow-sm hover:shadow-md ${isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-dark-100'
+                } ${completed ? (isLightMode ? 'ring-1 ring-emerald-400/60 bg-emerald-50' : 'ring-1 ring-emerald-400/40 bg-emerald-900/10') : ''}`}
         >
             <button
                 onClick={onToggle}
-                className={`mt-1 flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${
-                    completed
+                className={`mt-1 flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${completed
                         ? 'border-emerald-400 bg-emerald-500 text-slate-900'
                         : isLightMode
                             ? 'border-slate-300 bg-white text-slate-600 group-hover:border-emerald-400'
                             : 'border-slate-500/70 bg-slate-900 text-slate-300 group-hover:border-emerald-400'
-                }`}
+                    }`}
             >
                 {completed && (
                     <svg className="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -44,22 +42,20 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                     <p
-                        className={`text-sm font-medium ${
-                            completed
+                        className={`text-sm font-medium ${completed
                                 ? isLightMode
                                     ? 'text-slate-600 line-through'
                                     : 'text-secondary-400 line-through'
                                 : isLightMode
                                     ? 'text-slate-700'
                                     : 'text-secondary-200'
-                        }`}
+                            }`}
                     >
                         {question.title}
                     </p>
                     <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                            difficultyColors[difficulty] || difficultyColors.Medium
-                        }`}
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${difficultyColors[difficulty] || difficultyColors.Medium
+                            }`}
                     >
                         {difficulty}
                     </span>
@@ -71,13 +67,12 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                 <div className="mt-2 flex items-center justify-between gap-2">
                     <button
                         onClick={onToggle}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                            completed
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${completed
                                 ? 'bg-emerald-600 text-white hover:bg-emerald-500'
                                 : isLightMode
                                     ? 'bg-slate-900 text-white hover:bg-slate-800'
                                     : 'bg-slate-800/80 text-slate-100 hover:bg-slate-700/90'
-                        }`}
+                            }`}
                     >
                         {completed ? 'Completed' : 'Mark Completed'}
                     </button>
@@ -85,15 +80,14 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                         <button
                             type="button"
                             onClick={() => onToggleRevision?.()}
-                            className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                                isRevision
+                            className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${isRevision
                                     ? isLightMode
                                         ? 'border-purple-300 bg-purple-100 text-purple-700'
                                         : 'border-purple-400/30 bg-purple-600/20 text-purple-200'
                                     : isLightMode
                                         ? 'border-slate-200 bg-white text-slate-500 hover:text-purple-700 hover:border-purple-300'
                                         : 'border-white/10 bg-white/5 text-secondary-300 hover:text-purple-200 hover:border-purple-400/30'
-                            }`}
+                                }`}
                             title={isRevision ? 'Marked for revision' : 'Mark for revision'}
                         >
                             <svg
@@ -112,12 +106,11 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                         </button>
                         <button
                             type="button"
-                            className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                                isLightMode
+                            className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${isLightMode
                                     ? 'border-slate-200 bg-white text-slate-500 hover:text-sky-600 hover:border-sky-300'
                                     : 'border-white/10 bg-white/5 text-secondary-300 hover:text-sky-300 hover:border-sky-300/30'
-                            }`}
-                            title="Notes (coming soon)"
+                                }`}
+                            title="View Notes"
                         >
                             <svg
                                 className="h-4 w-4"

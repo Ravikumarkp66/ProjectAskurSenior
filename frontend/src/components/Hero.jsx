@@ -28,9 +28,9 @@ const features = [
         description: 'Comprehensive, well-organized notes for every subject. Find what you need instantly.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M9 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2v0z" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M9 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2v0z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
         )
     },
@@ -39,9 +39,9 @@ const features = [
         description: 'Practice with curated PYQs to boost your exam confidence and performance.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M8 7h8M8 11h6M8 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 7h8M8 11h6M8 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
         )
     },
@@ -50,8 +50,8 @@ const features = [
         description: 'Calculate your SGPA and CGPA instantly. Plan your academic targets with precision.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M8 6h8M8 10h4M14 10h2M8 14h2M14 14h2M8 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 6h8M8 10h4M14 10h2M8 14h2M14 14h2M8 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
         )
     },
@@ -60,12 +60,12 @@ const features = [
         description: 'Monitor your study progress across modules with detailed analytics and insights.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M7 12l3-3 4 4 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="7" cy="12" r="1" fill="currentColor"/>
-                <circle cx="10" cy="9" r="1" fill="currentColor"/>
-                <circle cx="14" cy="13" r="1" fill="currentColor"/>
-                <circle cx="19" cy="8" r="1" fill="currentColor"/>
+                <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M7 12l3-3 4 4 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="7" cy="12" r="1" fill="currentColor" />
+                <circle cx="10" cy="9" r="1" fill="currentColor" />
+                <circle cx="14" cy="13" r="1" fill="currentColor" />
+                <circle cx="19" cy="8" r="1" fill="currentColor" />
             </svg>
         )
     },
@@ -74,8 +74,8 @@ const features = [
         description: 'Stay updated with exam schedules, assignment deadlines, and important announcements.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
         )
     },
@@ -84,10 +84,10 @@ const features = [
         description: 'Real insights from seniors who cracked top companies. Learn from their journey.',
         icon: (
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M21 21v-2a4 4 0 00-3-3.87" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M21 21v-2a4 4 0 00-3-3.87" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
         )
     }
@@ -162,7 +162,7 @@ export default function Hero() {
 
             {/* Hero Section */}
             <section className="hero-section">
-                <motion.div 
+                <motion.div
                     className="hero-content"
                     initial="hidden"
                     animate="visible"
@@ -180,23 +180,16 @@ export default function Hero() {
                     </motion.h1>
 
                     <motion.p className="hero-description" variants={itemVariants}>
-                        Master your studies with comprehensive notes, curated PYQs, smart CGPA tracking, 
+                        Master your studies with comprehensive notes, curated PYQs, smart CGPA tracking,
                         and real interview experiences. Everything you need to excel—built for students, by students.
                     </motion.p>
 
                     <motion.div className="availability-banner" variants={itemVariants}>
                         <div className="availability-item available">
                             <svg viewBox="0 0 24 24" fill="none">
-                                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                             <span>1st Year Materials Available Now</span>
-                        </div>
-                        <div className="availability-item coming-soon">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
-                                <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                            </svg>
-                            <span>Higher Semesters Coming Soon</span>
                         </div>
                     </motion.div>
 
@@ -233,7 +226,7 @@ export default function Hero() {
             {/* Features Section */}
             <section className="features-section" id="features">
                 <div className="section-container">
-                    <motion.div 
+                    <motion.div
                         className="section-header"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -249,7 +242,7 @@ export default function Hero() {
                         </p>
                     </motion.div>
 
-                    <motion.div 
+                    <motion.div
                         className="features-grid"
                         initial="hidden"
                         whileInView="visible"
@@ -257,8 +250,8 @@ export default function Hero() {
                         variants={containerVariants}
                     >
                         {features.map((feature, i) => (
-                            <motion.div 
-                                key={i} 
+                            <motion.div
+                                key={i}
                                 className="feature-card glass-card"
                                 variants={itemVariants}
                                 whileHover={{ y: -4, transition: { duration: 0.2 } }}
@@ -278,7 +271,7 @@ export default function Hero() {
             {/* About Section */}
             <section className="about-section" id="about">
                 <div className="section-container">
-                    <motion.div 
+                    <motion.div
                         className="about-content"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -291,15 +284,15 @@ export default function Hero() {
                                 Built by students, <span className="gradient-text">for students</span>
                             </h2>
                             <p className="section-description">
-                                We understand the challenges of academic life because we've lived them. 
-                                ASK+ brings together everything you need in one seamless platform—no more 
+                                We understand the challenges of academic life because we've lived them.
+                                ASK+ brings together everything you need in one seamless platform—no more
                                 switching between apps or searching through scattered resources.
                             </p>
                             <div className="about-features">
                                 <div className="about-feature">
                                     <div className="about-feature-icon">
                                         <svg viewBox="0 0 24 24" fill="none">
-                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
                                     </div>
                                     <span>Curated study materials</span>
@@ -307,7 +300,7 @@ export default function Hero() {
                                 <div className="about-feature">
                                     <div className="about-feature-icon">
                                         <svg viewBox="0 0 24 24" fill="none">
-                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
                                     </div>
                                     <span>Track your progress</span>
@@ -315,7 +308,7 @@ export default function Hero() {
                                 <div className="about-feature">
                                     <div className="about-feature-icon">
                                         <svg viewBox="0 0 24 24" fill="none">
-                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
                                     </div>
                                     <span>100% free to use</span>
@@ -331,15 +324,15 @@ export default function Hero() {
                                 <div className="visual-bar-group">
                                     <div className="visual-bar">
                                         <span>Notes Quality</span>
-                                        <div className="bar-track"><div className="bar-fill" style={{width: '95%'}}></div></div>
+                                        <div className="bar-track"><div className="bar-fill" style={{ width: '95%' }}></div></div>
                                     </div>
                                     <div className="visual-bar">
                                         <span>Ease of Use</span>
-                                        <div className="bar-track"><div className="bar-fill" style={{width: '92%'}}></div></div>
+                                        <div className="bar-track"><div className="bar-fill" style={{ width: '92%' }}></div></div>
                                     </div>
                                     <div className="visual-bar">
                                         <span>Exam Readiness</span>
-                                        <div className="bar-track"><div className="bar-fill" style={{width: '88%'}}></div></div>
+                                        <div className="bar-track"><div className="bar-fill" style={{ width: '88%' }}></div></div>
                                     </div>
                                 </div>
                             </div>
@@ -351,7 +344,7 @@ export default function Hero() {
             {/* Platform Features Section */}
             <section className="platform-section">
                 <div className="section-container">
-                    <motion.div 
+                    <motion.div
                         className="section-header"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -367,7 +360,7 @@ export default function Hero() {
                         </p>
                     </motion.div>
 
-                    <motion.div 
+                    <motion.div
                         className="platform-features"
                         initial="hidden"
                         whileInView="visible"
@@ -378,9 +371,9 @@ export default function Hero() {
                             <div className="platform-feature-header">
                                 <div className="platform-icon">
                                     <svg viewBox="0 0 24 24" fill="none">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5"/>
-                                        <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
-                                        <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5"/>
+                                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" />
+                                        <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5" />
+                                        <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" />
                                     </svg>
                                 </div>
                                 <h3>Smart Organization</h3>
@@ -397,9 +390,9 @@ export default function Hero() {
                             <div className="platform-feature-header">
                                 <div className="platform-icon">
                                     <svg viewBox="0 0 24 24" fill="none">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
-                                        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                                        <circle cx="12" cy="17" r="0.5" fill="currentColor"/>
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
+                                        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                        <circle cx="12" cy="17" r="0.5" fill="currentColor" />
                                     </svg>
                                 </div>
                                 <h3>Community Support</h3>
@@ -416,8 +409,8 @@ export default function Hero() {
                             <div className="platform-feature-header">
                                 <div className="platform-icon">
                                     <svg viewBox="0 0 24 24" fill="none">
-                                        <path d="M12 20h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                                        <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M12 20h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                        <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                 </div>
                                 <h3>Admin Moderation</h3>
@@ -436,7 +429,7 @@ export default function Hero() {
             {/* CTA Section */}
             <section className="cta-section">
                 <div className="section-container">
-                    <motion.div 
+                    <motion.div
                         className="cta-card glass-card"
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
@@ -449,7 +442,7 @@ export default function Hero() {
                                 Ready to ace your <span className="gradient-text">academics?</span>
                             </h2>
                             <p className="cta-description">
-                                Join thousands of students who are already using ASK+ to achieve their academic goals. 
+                                Join thousands of students who are already using ASK+ to achieve their academic goals.
                                 Start your journey today—completely free.
                             </p>
                             {!user && (

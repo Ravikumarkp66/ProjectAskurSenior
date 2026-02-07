@@ -10,13 +10,8 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
     const [subject, setSubject] = useState(initialSubject);
     const [view, setView] = useState('all');
     const isLightMode = theme === 'light';
-    // Show "Coming Soon" for all subjects except the explicitly allowed list
+    // Every subject is now considered available - removing Coming Soon logic
     const _code = (subject?.code ?? '').toString().toUpperCase().trim();
-    const alwaysAvailable = new Set([
-        'APC', 'APS', 'ACE', 'ACM', 'ETC13', 'PLC5', 'ESCO6', 'ESCO7', 'ESCO9',
-        'PSC1', 'PSC5', 'PSC6', 'CC03', 'CC04', 'CC08'
-    ]);
-    const isComingSoon = !_code || !alwaysAvailable.has(_code);
     const [revisionIds, setRevisionIds] = useState(() => {
         try {
             const raw = localStorage.getItem('revisionQuestionIds');
@@ -42,8 +37,8 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
     const handleNotesUploaded = (moduleNumber, s3Key) => {
         setSubject(prev => ({
             ...prev,
-            modules: prev.modules.map(m => 
-                m.moduleNumber === moduleNumber 
+            modules: prev.modules.map(m =>
+                m.moduleNumber === moduleNumber
                     ? { ...m, notesKey: s3Key }
                     : m
             )
@@ -113,16 +108,9 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                 </div>
 
                 <div className="sm:mr-4">
-                    {isComingSoon ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-extrabold tracking-wide text-amber-950 border border-amber-200/60 bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-100 shadow-[0_10px_30px_rgba(245,158,11,0.22)]">
-                            <span className="mr-1.5 h-2 w-2 rounded-full coming-soon-dot" />
-                            Coming Soon
-                        </span>
-                    ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800">
-                            {subject.credits} credits
-                        </span>
-                    )}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800">
+                        {subject.credits} credits
+                    </span>
                 </div>
 
                 <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4 sm:gap-8">
@@ -154,16 +142,14 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                         {/* Study Materials Button */}
                         <button
                             onClick={handleViewContent}
-                            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${
-                                isLightMode 
-                                    ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-400 hover:shadow-md' 
+                            className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${isLightMode
+                                    ? 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 hover:border-purple-400 hover:shadow-md'
                                     : 'bg-gradient-to-r from-purple-600/10 to-blue-600/10 border-purple-500/30 hover:border-purple-400 hover:shadow-lg hover:shadow-purple-500/10'
-                            }`}
+                                }`}
                         >
                             <div className="flex items-center gap-4">
-                                <div className={`p-3 rounded-lg ${
-                                    isLightMode ? 'bg-purple-100' : 'bg-purple-600/20'
-                                }`}>
+                                <div className={`p-3 rounded-lg ${isLightMode ? 'bg-purple-100' : 'bg-purple-600/20'
+                                    }`}>
                                     <svg className={`w-6 h-6 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                     </svg>
@@ -178,9 +164,8 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-                                    isLightMode ? 'bg-white/80' : 'bg-white/5'
-                                }`}>
+                                <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg ${isLightMode ? 'bg-white/80' : 'bg-white/5'
+                                    }`}>
                                     <span className={`text-xs font-medium ${isLightMode ? 'text-green-600' : 'text-green-400'}`}>Notes</span>
                                     <span className={`text-xs ${isLightMode ? 'text-slate-300' : 'text-secondary-600'}`}>•</span>
                                     <span className={`text-xs font-medium ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>PYQs</span>
@@ -199,16 +184,14 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                         {hasQuiz && (
                             <button
                                 onClick={handleTakeQuiz}
-                                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${
-                                    isLightMode 
-                                        ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:border-emerald-400 hover:shadow-md' 
+                                className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition group ${isLightMode
+                                        ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:border-emerald-400 hover:shadow-md'
                                         : 'bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border-emerald-500/30 hover:border-emerald-400 hover:shadow-lg hover:shadow-emerald-500/10'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-lg ${
-                                        isLightMode ? 'bg-emerald-100' : 'bg-emerald-600/20'
-                                    }`}>
+                                    <div className={`p-3 rounded-lg ${isLightMode ? 'bg-emerald-100' : 'bg-emerald-600/20'
+                                        }`}>
                                         <svg className={`w-6 h-6 ${isLightMode ? 'text-emerald-600' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -223,9 +206,8 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg ${
-                                        isLightMode ? 'bg-white/80' : 'bg-white/5'
-                                    }`}>
+                                    <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg ${isLightMode ? 'bg-white/80' : 'bg-white/5'
+                                        }`}>
                                         <span className={`text-xs font-medium ${isLightMode ? 'text-emerald-600' : 'text-emerald-400'}`}>100 Questions</span>
                                     </div>
                                     <svg className={`w-5 h-5 transition-transform group-hover:translate-x-1 ${isLightMode ? 'text-emerald-600' : 'text-emerald-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">

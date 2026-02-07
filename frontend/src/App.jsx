@@ -10,15 +10,17 @@ import CGPACalculatorPage from './pages/CGPACalculatorPage';
 import SubjectContentPage from './pages/SubjectContentPage';
 import QuizPage from './pages/QuizPage';
 import GameifiedLoader from './components/GameifiedLoader';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
 
     if (loading) {
         return (
-            <GameifiedLoader 
-                isLoading={true} 
-                loadingText="Authenticating" 
+            <GameifiedLoader
+                isLoading={true}
+                loadingText="Authenticating"
                 variant="auth"
             />
         );
@@ -32,9 +34,9 @@ const AdminRoute = ({ children }) => {
 
     if (loading) {
         return (
-            <GameifiedLoader 
-                isLoading={true} 
-                loadingText="Preparing Admin Panel" 
+            <GameifiedLoader
+                isLoading={true}
+                loadingText="Preparing Admin Panel"
                 variant="auth"
             />
         );
@@ -50,6 +52,8 @@ function AppContent() {
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<LoginPage initialMode="register" />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
                 path="/dashboard"
                 element={
