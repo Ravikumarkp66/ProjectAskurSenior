@@ -56,46 +56,80 @@ const registerUser = async (req, res) => {
 
         // Validate required fields
         if (!usn || !email || !password || !branch) {
+            console.log('Registration failed: Missing fields', { usn, email, branch });
             return res.status(400).json({ error: 'All fields are required' });
         }
 
         // Check if user already exists
-        const existingUser = await User.findOne({ $or: [{ usn }, { email }] });
-        if (existingUser) {
-            return res.status(400).json({ error: 'User already exists' });
-        }
-
-        // Check if email should be auto-admin
-        const isAdminEmail = ADMIN_EMAILS.includes(email.toLowerCase());
-
-        // Create new user
-        const user = new User({
-            usn: usn.toUpperCase(),
-            email: email.toLowerCase(),
-            password,
-            branch: branch,
-            currentBranch: branch,
-            isAdmin: isAdminEmail
+        const existingUser = await User.findOne({
+            $or: [
+                { usn: usn.toUpperCase() },
+                { email: email.toLowerCase() }
+            ]
         });
 
-        // Generate 6-digit OTP for signup
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const salt = await bcrypt.genSalt(10);
-        const hashedOtp = await bcrypt.hash(otp, salt);
+        let user;
+        let otp;
 
-        user.signupOtp = {
-            code: hashedOtp,
-            expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-            requestCount: 1,
-            lastRequestAt: Date.now()
-        };
+        if (existingUser) {
+            if (existingUser.isVerified) {
+                console.log(`Registration failed: Verified user exists - ${usn} / ${email}`);
+                return res.status(400).json({ error: 'User already exists' });
+            }
 
-        await user.save();
+            // Allow "re-registration" for unverified users to avoid 400 bad request deadlock
+            console.log(`Re-registering unverified user - ${usn} / ${email}`);
+            existingUser.password = password;
+            existingUser.branch = branch;
+            existingUser.currentBranch = branch;
+
+            // Generate new OTP
+            otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const salt = await bcrypt.genSalt(10);
+            existingUser.signupOtp = {
+                code: await bcrypt.hash(otp, salt),
+                expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+                requestCount: 1,
+                lastRequestAt: Date.now()
+            };
+
+            await existingUser.save();
+            user = existingUser;
+        } else {
+            // Check if email should be auto-admin
+            const isAdminEmail = ADMIN_EMAILS.includes(email.toLowerCase());
+
+            // Create new user
+            user = new User({
+                usn: usn.toUpperCase(),
+                email: email.toLowerCase(),
+                password,
+                branch: branch,
+                currentBranch: branch,
+                isAdmin: isAdminEmail
+            });
+
+            // Generate 6-digit OTP for signup
+            otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const salt = await bcrypt.genSalt(10);
+            const hashedOtp = await bcrypt.hash(otp, salt);
+
+            user.signupOtp = {
+                code: hashedOtp,
+                expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
+                requestCount: 1,
+                lastRequestAt: Date.now()
+            };
+
+            await user.save();
+            console.log(`New user created: ${usn} / ${email}`);
+        }
 
         // Send Email
         const message = `Welcome to AskUrSenior!\n\nYour verification code is: ${otp}\n\nPlease enter this code to complete your registration.\n\nIf you did not request this, please ignore this email.`;
 
         try {
+            console.log(`Attempting to send OTP to ${user.email}...`);
             await sendEmail({
                 email: user.email,
                 subject: 'Verify Your Email - AskUrSenior',
@@ -115,6 +149,7 @@ const registerUser = async (req, res) => {
         }
 
     } catch (error) {
+        console.error('Registration server error:', error);
         res.status(500).json({ error: error.message });
     }
 };
