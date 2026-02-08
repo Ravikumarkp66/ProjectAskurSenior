@@ -8,8 +8,13 @@ const {
     getAllUsers,
     switchBranch,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    googleLogin,
+    verifySignup,
+    resendOtp
 } = require('../controllers/authController');
+
+
 const {
     updateProfile,
     uploadProfilePicture,
@@ -40,6 +45,9 @@ router.post('/login', loginUser);
 router.post('/admin-login', adminLogin);
 router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/reset-password', resetPasswordLimiter, resetPassword);
+router.post('/google', googleLogin);
+router.post('/verify-signup', verifySignup);
+router.post('/resend-otp', resendOtp);
 
 // Protected routes
 router.get('/profile', authMiddleware, getUserProfile);

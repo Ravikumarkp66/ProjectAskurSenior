@@ -29,9 +29,12 @@ apiClient.interceptors.response.use(
             // Clear invalid/expired token
             localStorage.removeItem('authToken');
             localStorage.removeItem('user');
-            // Redirect to login if not already there
+
+            // Redirect to login if not already there, with an optional message
             if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
-                window.location.href = '/login';
+                const isSessionExpired = error.response.data?.sessionExpired;
+                const message = isSessionExpired ? '?message=Session expired. Logged in from another device.' : '';
+                window.location.href = `/login${message}`;
             }
         }
 
@@ -54,6 +57,7 @@ export const authAPI = {
     register: (data) => apiClient.post('/auth/register', data),
     login: (data) => apiClient.post('/auth/login', data),
     adminLogin: (data) => apiClient.post('/auth/admin-login', data),
+    googleLogin: (token) => apiClient.post('/auth/google', { token }),
     getProfile: () => apiClient.get('/auth/profile'),
     updateProfile: (data) => apiClient.put('/auth/update-profile', data),
     uploadProfilePicture: (formData) => apiClient.post('/auth/upload-profile-picture', formData, {
@@ -62,7 +66,9 @@ export const authAPI = {
     changePassword: (data) => apiClient.put('/auth/change-password', data),
     switchBranch: (data) => apiClient.post('/auth/switch-branch', data),
     forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
-    resetPassword: (email, otp, newPassword) => apiClient.post('/auth/reset-password', { email, otp, newPassword })
+    resetPassword: (email, otp, newPassword) => apiClient.post('/auth/reset-password', { email, otp, newPassword }),
+    verifySignup: (data) => apiClient.post('/auth/verify-signup', data),
+    resendOtp: (email) => apiClient.post('/auth/resend-otp', { email })
 };
 
 // Subject API

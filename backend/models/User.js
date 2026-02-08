@@ -3,12 +3,16 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
     {
+        name: {
+            type: String,
+            default: ''
+        },
         usn: {
             type: String,
-            required: true,
             unique: true,
             uppercase: true,
-            match: /^[a-z0-9]{8,12}$/i // Accept 8-12 alphanumeric characters
+            sparse: true, // Allows null/missing values while maintaining uniqueness
+            match: /^[a-z0-9]{8,12}$/i
         },
         email: {
             type: String,
@@ -19,12 +23,21 @@ const userSchema = new mongoose.Schema(
         },
         password: {
             type: String,
-            required: true,
-            minlength: 6
+            minlength: 6,
+            required: function () {
+                return !this.authProvider || this.authProvider === 'local';
+            }
+        },
+        authProvider: {
+            type: String,
+            enum: ['local', 'google'],
+            default: 'local'
         },
         branch: {
             type: String,
-            required: true,
+            required: function () {
+                return !this.authProvider || this.authProvider === 'local';
+            },
             enum: [
                 'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT',
                 'CV', 'CS', 'IS', 'CI', 'BT', 'ME', 'IM', 'CH', 'EE', 'EC', 'ET', 'EI'
@@ -32,13 +45,19 @@ const userSchema = new mongoose.Schema(
         },
         currentBranch: {
             type: String,
-            required: true,
+            required: function () {
+                return !this.authProvider || this.authProvider === 'local';
+            },
             enum: [
                 'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT',
                 'CV', 'CS', 'IS', 'CI', 'BT', 'ME', 'IM', 'CH', 'EE', 'EC', 'ET', 'EI'
             ]
         },
         isAdmin: {
+            type: Boolean,
+            default: false
+        },
+        isVerified: {
             type: Boolean,
             default: false
         },
@@ -65,6 +84,12 @@ const userSchema = new mongoose.Schema(
             expiresAt: Date,
             attempts: { type: Number, default: 0 }
         },
+        signupOtp: {
+            code: String,
+            expiresAt: Date,
+            requestCount: { type: Number, default: 0 },
+            lastRequestAt: Date
+        },
         tokenVersion: {
             type: Number,
             default: 0
@@ -75,7 +100,7 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+    if (!this.isModified('password') || !this.password) return next();
 
     try {
         const salt = await bcrypt.genSalt(10);
@@ -88,6 +113,7 @@ userSchema.pre('save', async function (next) {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function (password) {
+    if (!this.password) return false;
     return bcrypt.compare(password, this.password);
 };
 

@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];
 
@@ -9,6 +10,16 @@ const authMiddleware = (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Single Active Session Check
+        const user = await User.findById(decoded.userId).select('tokenVersion');
+        if (!user || user.tokenVersion !== decoded.tokenVersion) {
+            return res.status(401).json({
+                error: 'Session expired. Logged in from another device.',
+                sessionExpired: true
+            });
+        }
+
         req.userId = decoded.userId;
         req.userBranch = decoded.branch;
         req.currentBranch = decoded.currentBranch;
