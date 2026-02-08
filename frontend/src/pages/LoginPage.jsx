@@ -456,6 +456,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                                     onError={() => {
                                                         setError('Google Login Failed');
                                                     }}
+                                                    use_fedcm_for_prompt={true}
                                                     theme="filled_black"
                                                     shape="circle"
                                                 />

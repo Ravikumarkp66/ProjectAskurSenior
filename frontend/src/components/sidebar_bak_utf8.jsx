@@ -531,7 +531,7 @@ const Sidebar = ({
                                                 }`}
                                             aria-label={`Rate ${v} star`}
                                         >
-                                            ★
+                                            Γÿà
                                         </button>
                                     ))}
                                 </div>
@@ -735,7 +735,7 @@ const Sidebar = ({
                                                     </p>
                                                     {notification.subjectCode && (
                                                         <div className={`mt-2 text-xs ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
-                                                            📍 {notification.subjectCode}
+                                                            ≡ƒôì {notification.subjectCode}
                                                             {notification.moduleName && ` ΓåÆ ${notification.moduleName}`}
                                                         </div>
                                                     )}
