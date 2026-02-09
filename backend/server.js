@@ -53,7 +53,11 @@ app.use('/uploads', express.static('uploads'));
 // CORS: allow only configured frontend origin in production
 const corsOptions = {
     origin: process.env.NODE_ENV === 'production'
-        ? [process.env.FRONTEND_URL, 'https://askursenior.vercel.app']
+        ? [
+            process.env.FRONTEND_URL,
+            'https://askursenior.vercel.app',
+            'https://project-askur-senior.vercel.app'
+        ].filter(Boolean)
         : true,
     credentials: true,
     optionsSuccessStatus: 200
