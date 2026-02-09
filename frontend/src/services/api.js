@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-// Use VITE_API_URL in production (e.g., https://backend.onrender.com)
-// In development, directly use localhost:5000 to avoid proxy issues
-const API_BASE_URL = import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/api`
-    : 'http://localhost:5000/api';
+// Use localhost in development, VITE_API_URL in production
+const API_BASE_URL = import.meta.env.DEV
+    ? 'http://localhost:5000/api'
+    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5000/api');
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL
