@@ -1,42 +1,30 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (options) => {
-    // Create a transporter
-    // For development, we can use Gmail with App Password or Ethereal for testing
-
-    // NOTE: If EMAIL_USER/PASS are not set, this will fail or we can fallback to console.log
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('EMAIL_USER/PASS not found. Email will NOT be sent.');
+    if (!process.env.RESEND_API_KEY) {
+        console.warn('RESEND_API_KEY not found. Email will NOT be sent.');
         return;
     }
 
-    const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // use SSL
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 10000,
-        socketTimeout: 30000,
-    });
-
-    const message = {
-        from: `${process.env.FROM_NAME || 'AskUrSenior'} <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
-        to: options.email,
-        subject: options.subject,
-        text: options.message,
-        // html: options.html // could add HTML support later
-    };
-
     try {
-        const info = await transporter.sendMail(message);
-        console.log('Message sent: %s', info.messageId);
+        const { data, error } = await resend.emails.send({
+            from: 'AskUrSenior <onboarding@resend.dev>',
+            to: options.email,
+            subject: options.subject,
+            html: `<p>${options.message.replace(/\n/g, '<br>')}</p>`,
+        });
+
+        if (error) {
+            console.error('Resend email error:', error);
+            throw new Error(error.message);
+        }
+
+        console.log('Message sent successfully via Resend:', data.id);
     } catch (error) {
-        console.error('Error sending email:', error);
-        throw error; // Re-throw to handle in controller
+        console.error('Error sending email via Resend:', error);
+        throw error;
     }
 };
 
