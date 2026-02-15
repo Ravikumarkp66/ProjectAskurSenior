@@ -104,7 +104,9 @@ const loginUser = async (req, res) => {
                 email: user.email,
                 branch: user.branch,
                 currentBranch: user.currentBranch,
-                isAdmin: !!user.isAdmin
+                isAdmin: !!user.isAdmin,
+                registrationComplete: true,
+                registrationComplete: true
             }
         });
     } catch (error) {
@@ -185,7 +187,8 @@ const adminLogin = async (req, res) => {
                 email: user.email,
                 branch: user.branch,
                 currentBranch: user.currentBranch,
-                isAdmin: true
+                isAdmin: true,
+                registrationComplete: true
             }
         });
     } catch (error) {
@@ -237,6 +240,11 @@ const googleLogin = async (req, res) => {
             return res.status(400).json({ error: 'Google token is required' });
         }
 
+        if (!process.env.GOOGLE_CLIENT_ID) {
+            console.error('GOOGLE_CLIENT_ID is not configured in environment variables');
+            return res.status(500).json({ error: 'Google authentication is not configured on the server' });
+        }
+
         const ticket = await googleClient.verifyIdToken({
             idToken: token,
             audience: process.env.GOOGLE_CLIENT_ID
@@ -262,7 +270,7 @@ const googleLogin = async (req, res) => {
                 branch: 'CS',
                 currentBranch: 'CS',
                 isAdmin: isAdminEmail,
-                registrationComplete: true
+                registrationComplete: isAdminEmail // Only admins have complete registration by default
             });
         } else {
             if (!user.googleId) {
@@ -274,12 +282,11 @@ const googleLogin = async (req, res) => {
             if (!user.profilePicture && payload?.picture) {
                 user.profilePicture = payload.picture;
             }
-            if (user.registrationComplete === false) {
-                user.registrationComplete = true;
-            }
+            // Check if admin email and promote to admin if needed
             const isAdminEmail = ADMIN_EMAILS.includes(email.toLowerCase());
             if (isAdminEmail && !user.isAdmin) {
                 user.isAdmin = true;
+                user.registrationComplete = true; // Admins don't need to complete registration
             }
         }
 
@@ -294,14 +301,109 @@ const googleLogin = async (req, res) => {
                 id: user._id,
                 usn: user.usn,
                 email: user.email,
+                name: user.name,
                 branch: user.branch,
                 currentBranch: user.currentBranch,
-                isAdmin: !!user.isAdmin
+                isAdmin: !!user.isAdmin,
+                registrationComplete: user.registrationComplete
+            },
+            needsCompletion: !user.registrationComplete
+        });
+    } catch (error) {
+        console.error('Google login failed - Full error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+
+        // Provide more specific error messages
+        if (error.message && error.message.includes('Token used too early')) {
+            return res.status(400).json({ error: 'Invalid token timing. Please try again.' });
+        }
+        if (error.message && error.message.includes('Invalid token signature')) {
+            return res.status(400).json({ error: 'Invalid token signature. Please try again.' });
+        }
+
+        res.status(500).json({
+            error: 'Google login failed',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// Complete Google registration - Add USN and password for new Google users
+const completeGoogleRegistration = async (req, res) => {
+    try {
+        const { usn, password } = req.body;
+        const userId = req.userId;
+
+        if (!usn || !password) {
+            return res.status(400).json({ error: 'USN and password are required' });
+        }
+
+        // Validate USN format
+        if (!/^[a-z0-9]{8,12}$/i.test(usn)) {
+            return res.status(400).json({ error: 'Invalid USN format' });
+        }
+
+        // Check if USN already exists
+        const existingUser = await User.findOne({ usn: usn.toUpperCase() });
+        if (existingUser && existingUser._id.toString() !== userId) {
+            return res.status(400).json({ error: 'USN already registered' });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (user.registrationComplete) {
+            return res.status(400).json({ error: 'Registration already completed' });
+        }
+
+        // Derive branch from USN
+        const branchCode = usn.substring(5, 7).toUpperCase();
+        const branchMap = {
+            'CS': 'CSE', 'IS': 'ISE', 'EC': 'ECE', 'EE': 'EEE',
+            'ME': 'MECH', 'CV': 'CIVIL', 'AI': 'AIML', 'DS': 'DS',
+            'CB': 'CSBS', 'IT': 'IT', 'CI': 'CIVIL', 'BT': 'BT',
+            'IM': 'IM', 'CH': 'CH', 'ET': 'ET', 'EI': 'EI'
+        };
+        const derivedBranch = branchMap[branchCode] || 'CS';
+
+        // Update user with USN, password, branch, and mark registration complete
+        user.usn = usn.toUpperCase();
+        user.password = password; // Will be hashed by pre-save hook
+        user.branch = derivedBranch;
+        user.currentBranch = derivedBranch;
+        user.registrationComplete = true;
+
+        await user.save();
+
+        // Generate new token with updated information
+        const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
+
+        res.json({
+            message: 'Registration completed successfully',
+            token: tokenJwt,
+            user: {
+                id: user._id,
+                usn: user.usn,
+                email: user.email,
+                name: user.name,
+                branch: user.branch,
+                currentBranch: user.currentBranch,
+                isAdmin: !!user.isAdmin,
+                registrationComplete: true
             }
         });
     } catch (error) {
-        console.error('Google login failed:', error.message);
-        res.status(500).json({ error: 'Google login failed' });
+        console.error('Complete registration error:', error.message);
+        if (error.code === 11000) {
+            return res.status(400).json({ error: 'USN already registered' });
+        }
+        res.status(500).json({ error: 'Failed to complete registration' });
     }
 };
 
@@ -313,5 +415,6 @@ module.exports = {
     getAllUsers,
     switchBranch,
     googleLogin,
+    completeGoogleRegistration,
     ADMIN_EMAILS
 };

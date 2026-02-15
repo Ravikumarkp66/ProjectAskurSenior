@@ -15,6 +15,7 @@ const userUploadRoutes = require('./routes/userUploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const seedDatabase = require('./utils/seedDatabase');
+const User = require('./models/User');
 
 const app = express();
 
@@ -74,6 +75,13 @@ mongoose
     })
     .then(async () => {
         console.log('MongoDB connected successfully');
+
+        try {
+            await User.syncIndexes();
+            console.log('User indexes synced');
+        } catch (error) {
+            console.error('Failed to sync user indexes:', error.message);
+        }
 
         // Redis is disabled - continuing without cache
         console.log('Running without Redis cache');

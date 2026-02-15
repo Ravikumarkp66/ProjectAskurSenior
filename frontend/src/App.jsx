@@ -9,10 +9,11 @@ import AdminPanel from './pages/AdminPanel';
 import CGPACalculatorPage from './pages/CGPACalculatorPage';
 import SubjectContentPage from './pages/SubjectContentPage';
 import QuizPage from './pages/QuizPage';
+import CompleteRegistrationPage from './pages/CompleteRegistrationPage';
 import GameifiedLoader from './components/GameifiedLoader';
 
-const ProtectedRoute = ({ children }) => {
-    const { isAuthenticated, loading } = useAuth();
+const ProtectedRoute = ({ children, allowIncomplete = false }) => {
+    const { isAuthenticated, loading, user } = useAuth();
 
     if (loading) {
         return (
@@ -24,7 +25,14 @@ const ProtectedRoute = ({ children }) => {
         );
     }
 
-    return isAuthenticated ? children : <Navigate to="/login" />;
+    if (!isAuthenticated) return <Navigate to="/login" />;
+
+    // Redirect to complete registration if needed (unless this route allows incomplete registration)
+    if (!allowIncomplete && user && user.registrationComplete === false) {
+        return <Navigate to="/complete-registration" />;
+    }
+
+    return children;
 };
 
 const AdminRoute = ({ children }) => {
@@ -50,6 +58,14 @@ function AppContent() {
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<LoginPage initialMode="register" />} />
+            <Route
+                path="/complete-registration"
+                element={
+                    <ProtectedRoute allowIncomplete={true}>
+                        <CompleteRegistrationPage />
+                    </ProtectedRoute>
+                }
+            />
             <Route
                 path="/dashboard"
                 element={

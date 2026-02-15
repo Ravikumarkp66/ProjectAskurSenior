@@ -40,7 +40,7 @@ const DashboardOverview = () => {
             ]);
 
             setStats(statsRes.data);
-            
+
             // Format user growth data
             if (userGrowthRes.data.months.length > 0) {
                 const userGrowthData = userGrowthRes.data.months.map((month, idx) => ({
@@ -105,7 +105,7 @@ const DashboardOverview = () => {
                     <div className={`rounded-lg border p-4 mb-6 ${isLightMode
                         ? 'border-red-200 bg-red-50 text-red-700'
                         : 'border-red-500/30 bg-red-500/10 text-red-200'
-                    }`}>
+                        }`}>
                         {error}
                     </div>
                 )}
@@ -163,7 +163,7 @@ const DashboardOverview = () => {
                         <div className={`rounded-xl border p-6 ${isLightMode
                             ? 'bg-white border-slate-200'
                             : 'bg-dark-100 border-white/10'
-                        }`}>
+                            }`}>
                             <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
                                 User Growth Trend
                             </h3>
@@ -172,7 +172,7 @@ const DashboardOverview = () => {
                                     <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
                                     <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
                                     <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                    <Tooltip 
+                                    <Tooltip
                                         contentStyle={{
                                             backgroundColor: isLightMode ? '#fff' : '#1f2937',
                                             border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
@@ -181,10 +181,10 @@ const DashboardOverview = () => {
                                         }}
                                     />
                                     <Legend />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="users" 
-                                        stroke="#a77cff" 
+                                    <Line
+                                        type="monotone"
+                                        dataKey="users"
+                                        stroke="#a77cff"
                                         dot={{ fill: '#a77cff', r: 4 }}
                                         activeDot={{ r: 6 }}
                                     />
@@ -198,7 +198,7 @@ const DashboardOverview = () => {
                         <div className={`rounded-xl border p-6 ${isLightMode
                             ? 'bg-white border-slate-200'
                             : 'bg-dark-100 border-white/10'
-                        }`}>
+                            }`}>
                             <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
                                 Upload Growth Trend
                             </h3>
@@ -207,7 +207,7 @@ const DashboardOverview = () => {
                                     <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
                                     <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
                                     <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                    <Tooltip 
+                                    <Tooltip
                                         contentStyle={{
                                             backgroundColor: isLightMode ? '#fff' : '#1f2937',
                                             border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
@@ -216,10 +216,10 @@ const DashboardOverview = () => {
                                         }}
                                     />
                                     <Legend />
-                                    <Line 
-                                        type="monotone" 
-                                        dataKey="uploads" 
-                                        stroke="#10b981" 
+                                    <Line
+                                        type="monotone"
+                                        dataKey="uploads"
+                                        stroke="#10b981"
                                         dot={{ fill: '#10b981', r: 4 }}
                                         activeDot={{ r: 6 }}
                                     />
@@ -234,7 +234,7 @@ const DashboardOverview = () => {
                     <div className={`rounded-xl border p-6 mb-8 ${isLightMode
                         ? 'bg-white border-slate-200'
                         : 'bg-dark-100 border-white/10'
-                    }`}>
+                        }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
                             Content Distribution by Subject
                         </h3>
@@ -243,7 +243,7 @@ const DashboardOverview = () => {
                                 <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
                                 <XAxis dataKey="subject" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
                                 <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                <Tooltip 
+                                <Tooltip
                                     contentStyle={{
                                         backgroundColor: isLightMode ? '#fff' : '#1f2937',
                                         border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
@@ -265,7 +265,7 @@ const DashboardOverview = () => {
                     <div className={`rounded-xl border p-6 ${isLightMode
                         ? 'bg-white border-slate-200'
                         : 'bg-dark-100 border-white/10'
-                    }`}>
+                        }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
                             Upload Breakdown by Type (Monthly)
                         </h3>
@@ -274,7 +274,7 @@ const DashboardOverview = () => {
                                 <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
                                 <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
                                 <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                <Tooltip 
+                                <Tooltip
                                     contentStyle={{
                                         backgroundColor: isLightMode ? '#fff' : '#1f2937',
                                         border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,

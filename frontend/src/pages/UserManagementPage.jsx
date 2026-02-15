@@ -68,7 +68,7 @@ const UserManagementPage = () => {
 
     const handleResetRole = async (userId) => {
         if (!window.confirm('Reset user to default role?')) return;
-        
+
         setActioningUserId(userId);
         try {
             await analyticsAPI.resetUserRole(userId);
@@ -96,7 +96,7 @@ const UserManagementPage = () => {
                     <div className={`rounded-lg border p-4 mb-6 ${isLightMode
                         ? 'border-red-200 bg-red-50 text-red-700'
                         : 'border-red-500/30 bg-red-500/10 text-red-200'
-                    }`}>
+                        }`}>
                         {error}
                     </div>
                 )}
@@ -105,7 +105,7 @@ const UserManagementPage = () => {
                 <div className={`rounded-xl border p-6 mb-6 ${isLightMode
                     ? 'bg-white border-slate-200'
                     : 'bg-dark-100 border-white/10'
-                }`}>
+                    }`}>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         {/* Search */}
                         <div>
@@ -122,7 +122,7 @@ const UserManagementPage = () => {
                                     className={`pl-10 pr-4 py-2 w-full bg-transparent outline-none text-sm ${isLightMode
                                         ? 'text-slate-900 placeholder-slate-400'
                                         : 'text-white placeholder-secondary-500'
-                                    }`}
+                                        }`}
                                 />
                             </div>
                         </div>
@@ -138,7 +138,7 @@ const UserManagementPage = () => {
                                 className={`mt-2 w-full px-3 py-2 rounded-lg border text-sm outline-none ${isLightMode
                                     ? 'bg-white border-slate-200 text-slate-900'
                                     : 'bg-slate-800 border-slate-600 text-white'
-                                }`}
+                                    }`}
                             >
                                 <option value="all" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">All Roles</option>
                                 <option value="user" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">User</option>
@@ -157,7 +157,7 @@ const UserManagementPage = () => {
                                 className={`mt-2 w-full px-3 py-2 rounded-lg border text-sm outline-none ${isLightMode
                                     ? 'bg-white border-slate-200 text-slate-900'
                                     : 'bg-slate-800 border-slate-600 text-white'
-                                }`}
+                                    }`}
                             >
                                 <option value="recent" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Recently Joined</option>
                                 <option value="active" className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">Recently Active</option>
@@ -172,7 +172,7 @@ const UserManagementPage = () => {
                             <div className={`mt-2 px-3 py-2 rounded-lg ${isLightMode
                                 ? 'bg-slate-50 text-slate-900'
                                 : 'bg-white/5 text-white'
-                            } text-lg font-semibold`}>
+                                } text-lg font-semibold`}>
                                 {users.length}
                             </div>
                         </div>
@@ -183,7 +183,7 @@ const UserManagementPage = () => {
                 <div className={`rounded-xl border overflow-hidden ${isLightMode
                     ? 'bg-white border-slate-200'
                     : 'bg-dark-100 border-white/10'
-                }`}>
+                    }`}>
                     {loading ? (
                         <div className={`p-8 text-center ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
                             <div className="inline-flex items-center gap-2 mb-4">
@@ -203,48 +203,48 @@ const UserManagementPage = () => {
                                 <thead className={`border-b ${isLightMode
                                     ? 'bg-slate-50 border-slate-200'
                                     : 'bg-white/5 border-white/10'
-                                }`}>
+                                    }`}>
                                     <tr>
                                         <th className={`px-6 py-3 text-left text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             Name
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             USN
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             Email
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             Role
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             Status
                                         </th>
                                         <th className={`px-6 py-3 text-left text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             Joined
                                         </th>
                                         <th className={`px-6 py-3 text-right text-xs font-semibold ${isLightMode
                                             ? 'text-slate-700'
                                             : 'text-secondary-300'
-                                        }`}>
+                                            }`}>
                                             Actions
                                         </th>
                                     </tr>
@@ -254,33 +254,32 @@ const UserManagementPage = () => {
                                         <tr key={user._id} className={`border-b ${isLightMode
                                             ? 'border-slate-200 hover:bg-slate-50'
                                             : 'border-white/10 hover:bg-white/5'
-                                        } transition`}>
+                                            } transition`}>
                                             <td className={`px-6 py-4 text-sm font-medium ${isLightMode
                                                 ? 'text-slate-900'
                                                 : 'text-white'
-                                            }`}>
+                                                }`}>
                                                 {user.name}
                                             </td>
                                             <td className={`px-6 py-4 text-sm ${isLightMode
                                                 ? 'text-slate-600'
                                                 : 'text-secondary-300'
-                                            }`}>
+                                                }`}>
                                                 {user.usn || 'N/A'}
                                             </td>
                                             <td className={`px-6 py-4 text-sm ${isLightMode
                                                 ? 'text-slate-600'
                                                 : 'text-secondary-300'
-                                            }`}>
+                                                }`}>
                                                 {user.email}
                                             </td>
                                             <td className="px-6 py-4 text-sm">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                                    user.role === 'admin'
+                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.role === 'admin'
                                                         ? 'bg-purple-100 text-purple-700'
                                                         : user.role === 'premium'
                                                             ? 'bg-amber-100 text-amber-700'
                                                             : 'bg-slate-100 text-slate-700'
-                                                }`}>
+                                                    }`}>
                                                     {user.role === 'admin' ? 'Admin' : user.role === 'premium' ? 'Premium' : 'Free'}
                                                 </span>
                                             </td>
@@ -288,14 +287,14 @@ const UserManagementPage = () => {
                                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.isBanned
                                                     ? 'bg-red-100 text-red-700'
                                                     : 'bg-green-100 text-green-700'
-                                                }`}>
+                                                    }`}>
                                                     {user.isBanned ? 'Banned' : 'Active'}
                                                 </span>
                                             </td>
                                             <td className={`px-6 py-4 text-sm ${isLightMode
                                                 ? 'text-slate-600'
                                                 : 'text-secondary-300'
-                                            }`}>
+                                                }`}>
                                                 {new Date(user.createdAt).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-right">
@@ -304,13 +303,12 @@ const UserManagementPage = () => {
                                                         onClick={() => handleTogglePremium(user._id)}
                                                         disabled={actioningUserId === user._id || user.role === 'admin'}
                                                         title={user.role === 'premium' ? 'Remove Premium' : 'Mark as Premium'}
-                                                        className={`p-2 rounded-lg transition ${
-                                                            actioningUserId === user._id || user.role === 'admin'
+                                                        className={`p-2 rounded-lg transition ${actioningUserId === user._id || user.role === 'admin'
                                                                 ? 'bg-gray-400 cursor-not-allowed'
                                                                 : isLightMode
                                                                     ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
                                                                     : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <FaStar className="w-4 h-4" />
                                                     </button>
@@ -318,13 +316,12 @@ const UserManagementPage = () => {
                                                         onClick={() => handleBanUser(user._id)}
                                                         disabled={actioningUserId === user._id}
                                                         title={user.isBanned ? 'Unban' : 'Ban'}
-                                                        className={`p-2 rounded-lg transition ${
-                                                            actioningUserId === user._id
+                                                        className={`p-2 rounded-lg transition ${actioningUserId === user._id
                                                                 ? 'bg-gray-400 cursor-not-allowed'
                                                                 : isLightMode
                                                                     ? 'bg-red-100 text-red-600 hover:bg-red-200'
                                                                     : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <FaBan className="w-4 h-4" />
                                                     </button>
@@ -332,13 +329,12 @@ const UserManagementPage = () => {
                                                         onClick={() => handleResetRole(user._id)}
                                                         disabled={actioningUserId === user._id}
                                                         title="Reset to default role"
-                                                        className={`p-2 rounded-lg transition ${
-                                                            actioningUserId === user._id
+                                                        className={`p-2 rounded-lg transition ${actioningUserId === user._id
                                                                 ? 'bg-gray-400 cursor-not-allowed'
                                                                 : isLightMode
                                                                     ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                                                                     : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
-                                                        }`}
+                                                            }`}
                                                     >
                                                         <FaUndo className="w-4 h-4" />
                                                     </button>

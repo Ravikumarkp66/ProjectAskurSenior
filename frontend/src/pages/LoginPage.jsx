@@ -55,7 +55,16 @@ const LoginPage = ({ initialMode = 'login' }) => {
         setError('');
         try {
             const response = await authAPI.googleLogin(credentialResponse.credential);
-            const { token, user, message } = response.data;
+            const { token, user, message, needsCompletion } = response.data;
+
+            // If registration needs completion, redirect to complete registration page
+            if (needsCompletion) {
+                localStorage.setItem('authToken', token);
+                localStorage.setItem('user', JSON.stringify(user));
+                navigate('/complete-registration');
+                return;
+            }
+
             handleSuccess(user, token, message || 'Successfully logged in with Google', '/dashboard');
         } catch (err) {
             setError(err.response?.data?.error || 'Google Login failed. Please try again.');
@@ -225,120 +234,120 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                 )}
 
                                 <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
-                                        {!isAdmin && (
-                                            <div>
-                                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">USN</label>
-                                                <input
-                                                    type="text"
-                                                    name="usn"
-                                                    autoComplete="off"
-                                                    placeholder="VTM22CS001"
-                                                    value={formData.usn}
-                                                    onChange={handleInputChange}
-                                                    className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {mode === 'register' && (
-                                            <div>
-                                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">College Email</label>
-                                                <input
-                                                    type="email"
-                                                    name="email"
-                                                    autoComplete="off"
-                                                    placeholder="usn@sit.ac.in"
-                                                    value={formData.email}
-                                                    onChange={handleInputChange}
-                                                    className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {isAdmin && (
-                                            <div>
-                                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Admin Email</label>
-                                                <input
-                                                    type="text"
-                                                    name="email"
-                                                    autoComplete="off"
-                                                    placeholder="admin@example.com"
-                                                    value={formData.email}
-                                                    onChange={handleInputChange}
-                                                    className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {!isAdmin && formData.usn && (
-                                            <div className="animate-fadeIn">
-                                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Detected Branch</label>
-                                                <div className="w-full rounded-2xl border border-white/5 bg-white/5 px-4 py-3.5 text-sm text-blue-400 font-bold">
-                                                    {deriveBranchFromUSN(formData.usn) || 'Invalid USN'}
-                                                </div>
-                                            </div>
-                                        )}
-
+                                    {!isAdmin && (
                                         <div>
-                                            <div className="flex justify-between items-center mb-2 ml-1">
-                                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest">Password</label>
-                                            </div>
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">USN</label>
                                             <input
-                                                type="password"
-                                                name="password"
-                                                autoComplete="new-password"
-                                                placeholder="••••••••"
-                                                value={formData.password}
+                                                type="text"
+                                                name="usn"
+                                                autoComplete="off"
+                                                placeholder="VTM22CS001"
+                                                value={formData.usn}
                                                 onChange={handleInputChange}
                                                 className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
                                             />
-                                            {mode === 'register' && <p className="text-[10px] mt-2 text-gray-500 tracking-tight">Minimum 6 characters required for security.</p>}
                                         </div>
+                                    )}
 
-                                        {mode === 'register' && (
-                                            <div className="animate-fadeIn">
-                                                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Confirm Password</label>
-                                                <input
-                                                    type="password"
-                                                    name="confirmPassword"
-                                                    autoComplete="new-password"
-                                                    placeholder="••••••••"
-                                                    value={formData.confirmPassword}
-                                                    onChange={handleInputChange}
-                                                    className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
-                                                />
-                                                {formData.confirmPassword && (
-                                                    formData.password === formData.confirmPassword ? (
-                                                        <p className="text-[10px] mt-2 text-emerald-500 font-bold flex items-center gap-1">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                                            Passwords match
-                                                        </p>
-                                                    ) : (
-                                                        <p className="text-[10px] mt-2 text-red-500 font-bold flex items-center gap-1">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                                                            Passwords do not match
-                                                        </p>
-                                                    )
-                                                )}
+                                    {mode === 'register' && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">College Email</label>
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                autoComplete="off"
+                                                placeholder="usn@sit.ac.in"
+                                                value={formData.email}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {isAdmin && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Admin Email</label>
+                                            <input
+                                                type="text"
+                                                name="email"
+                                                autoComplete="off"
+                                                placeholder="admin@example.com"
+                                                value={formData.email}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {!isAdmin && formData.usn && (
+                                        <div className="animate-fadeIn">
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Detected Branch</label>
+                                            <div className="w-full rounded-2xl border border-white/5 bg-white/5 px-4 py-3.5 text-sm text-blue-400 font-bold">
+                                                {deriveBranchFromUSN(formData.usn) || 'Invalid USN'}
                                             </div>
-                                        )}
+                                        </div>
+                                    )}
 
-                                        <button
-                                            type="submit"
-                                            disabled={loading}
-                                            className={`group relative w-full h-12 rounded-2xl text-sm font-bold text-white overflow-hidden transition-all shadow-lg
-                                                ${loading ? 'bg-orange-600/50 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:scale-[1.01] active:scale-[0.99] shadow-orange-500/20'}`}
-                                        >
-                                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            {loading ? (
-                                                <span className="flex items-center justify-center gap-3">
-                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Processing...
-                                                </span>
-                                            ) : (
-                                                isAdmin ? 'Admin Sign In' : isLogin ? 'Sign In' : 'Create Account'
+                                    <div>
+                                        <div className="flex justify-between items-center mb-2 ml-1">
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest">Password</label>
+                                        </div>
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            autoComplete="new-password"
+                                            placeholder="••••••••"
+                                            value={formData.password}
+                                            onChange={handleInputChange}
+                                            className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                        />
+                                        {mode === 'register' && <p className="text-[10px] mt-2 text-gray-500 tracking-tight">Minimum 6 characters required for security.</p>}
+                                    </div>
+
+                                    {mode === 'register' && (
+                                        <div className="animate-fadeIn">
+                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Confirm Password</label>
+                                            <input
+                                                type="password"
+                                                name="confirmPassword"
+                                                autoComplete="new-password"
+                                                placeholder="••••••••"
+                                                value={formData.confirmPassword}
+                                                onChange={handleInputChange}
+                                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                            />
+                                            {formData.confirmPassword && (
+                                                formData.password === formData.confirmPassword ? (
+                                                    <p className="text-[10px] mt-2 text-emerald-500 font-bold flex items-center gap-1">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
+                                                        Passwords match
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-[10px] mt-2 text-red-500 font-bold flex items-center gap-1">
+                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                        Passwords do not match
+                                                    </p>
+                                                )
                                             )}
-                                        </button>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className={`group relative w-full h-12 rounded-2xl text-sm font-bold text-white overflow-hidden transition-all shadow-lg
+                                                ${loading ? 'bg-orange-600/50 cursor-not-allowed' : 'bg-gradient-to-r from-orange-500 to-amber-600 hover:scale-[1.01] active:scale-[0.99] shadow-orange-500/20'}`}
+                                    >
+                                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        {loading ? (
+                                            <span className="flex items-center justify-center gap-3">
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                Processing...
+                                            </span>
+                                        ) : (
+                                            isAdmin ? 'Admin Sign In' : isLogin ? 'Sign In' : 'Create Account'
+                                        )}
+                                    </button>
                                 </form>
 
                                 {!isAdmin && (

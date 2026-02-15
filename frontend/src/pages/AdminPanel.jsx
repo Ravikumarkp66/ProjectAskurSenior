@@ -10,7 +10,7 @@ const AdminPanel = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
     const isAdmin = user?.isAdmin;
-    
+
     // Redirect if not admin
     useEffect(() => {
         if (!isAdmin) {
@@ -105,7 +105,7 @@ const AdminPanel = () => {
         setResolvingId(bugId);
         try {
             await apiClient.patch(`/bugs/${bugId}`, { status: 'resolved' });
-            setBugItems(prev => prev.map(bug => 
+            setBugItems(prev => prev.map(bug =>
                 bug._id === bugId ? { ...bug, status: 'resolved' } : bug
             ));
         } catch (error) {
@@ -177,9 +177,9 @@ const AdminPanel = () => {
             const allBranches = ['CS', 'IS', 'EC', 'EE', 'ME', 'CV', 'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT', 'CI', 'BT', 'IM', 'CH', 'ET', 'EI'];
             const cycles = ['P', 'C'];
             let allSubjects = [];
-            
+
             console.log('Loading subjects from all branches for admin panel...');
-            
+
             // Load subjects from all branches and cycles
             const promises = [];
             for (const branch of allBranches) {
@@ -191,9 +191,9 @@ const AdminPanel = () => {
                     );
                 }
             }
-            
+
             const results = await Promise.all(promises);
-            
+
             // Combine all results and track all branches for each subject code
             results.forEach(({ branch, cycle, subjects }) => {
                 subjects.forEach(subject => {
@@ -219,15 +219,15 @@ const AdminPanel = () => {
                     }
                 });
             });
-            
+
             // Sort by subject name for better UX
             allSubjects.sort((a, b) => a.name.localeCompare(b.name));
-            
+
             setSubjects(allSubjects);
-            
-            console.log(`Loaded ${allSubjects.length} unique subjects across all branches:`, 
+
+            console.log(`Loaded ${allSubjects.length} unique subjects across all branches:`,
                 allSubjects.map(s => `${s.code}: ${s.branches.join(', ')}`));
-            
+
         } catch (error) {
             console.error('Error loading subjects:', error);
             setSubjects([]);
@@ -242,7 +242,6 @@ const AdminPanel = () => {
         if (activeTab === 'reviews') {
             if (reviewsActiveTab === 'feedback') loadFeedback();
             else if (reviewsActiveTab === 'bugs') loadBugs();
-            else if (reviewsActiveTab === 'users') loadUsers();
             else if (reviewsActiveTab === 'uploads') loadUserUploads();
         } else if (activeTab === 'materials') {
             loadSubjects();
@@ -261,17 +260,17 @@ const AdminPanel = () => {
     // Load uploaded content for a subject
     const loadUploadedContent = async (subjectCode) => {
         if (!subjectCode) return;
-        
+
         setLoadingContent(true);
         try {
             const response = await subjectAPI.getSubjectsByCode(subjectCode);
             const subjectsWithCode = response.data || [];
-            
+
             if (subjectsWithCode.length > 0) {
                 // Get first subject as reference (all should have same content)
                 const subject = subjectsWithCode[0];
                 const contentList = [];
-                
+
                 ['notes', 'pyqs', 'questionBanks', 'syllabus', 'resources'].forEach(type => {
                     if (subject[type] && subject[type].length > 0) {
                         subject[type].forEach(item => {
@@ -293,7 +292,7 @@ const AdminPanel = () => {
                         });
                     }
                 });
-                
+
                 setUploadedContent(contentList);
             } else {
                 setUploadedContent([]);
@@ -311,7 +310,7 @@ const AdminPanel = () => {
         if (!confirm(`Are you sure you want to delete "${content.title}" from ALL branches?\n\nThis action cannot be undone.`)) {
             return;
         }
-        
+
         setDeletingContent(content._id);
         try {
             await uploadAPI.bulkDeleteSubjectContent(
@@ -319,7 +318,7 @@ const AdminPanel = () => {
                 content.contentType,
                 content.title
             );
-            
+
             alert('Content deleted successfully from all branches!');
             loadUploadedContent(manageSubject);
         } catch (error) {
@@ -364,21 +363,19 @@ const AdminPanel = () => {
                             {[
                                 { id: 'feedback', label: 'Feedback' },
                                 { id: 'bugs', label: 'Bug Reports' },
-                                { id: 'uploads', label: 'User Uploads' },
-                                { id: 'users', label: 'Users' }
+                                { id: 'uploads', label: 'User Uploads' }
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setReviewsActiveTab(tab.id)}
-                                    className={`py-2 px-1 border-b-2 font-medium text-sm transition ${
-                                        reviewsActiveTab === tab.id
+                                    className={`py-2 px-1 border-b-2 font-medium text-sm transition ${reviewsActiveTab === tab.id
                                             ? isLightMode
                                                 ? 'border-blue-500 text-blue-600'
                                                 : 'border-blue-400 text-blue-400'
                                             : isLightMode
                                                 ? 'border-transparent text-gray-500 hover:text-gray-700'
                                                 : 'border-transparent text-gray-400 hover:text-gray-300'
-                                    }`}
+                                        }`}
                                 >
                                     {tab.label}
                                 </button>
@@ -393,8 +390,8 @@ const AdminPanel = () => {
                                 <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
                                     <div className="flex items-center justify-center gap-2">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                         <span className="ml-2">Loading feedback...</span>
                                     </div>
                                 </div>
@@ -444,8 +441,8 @@ const AdminPanel = () => {
                                 <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
                                     <div className="flex items-center justify-center gap-2">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                         <span className="ml-2">Loading bug reports...</span>
                                     </div>
                                 </div>
@@ -466,11 +463,10 @@ const AdminPanel = () => {
                                                 <h3 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
                                                     {item.title}
                                                 </h3>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                                    item.status === 'resolved' 
-                                                        ? 'bg-green-100 text-green-800' 
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'resolved'
+                                                        ? 'bg-green-100 text-green-800'
                                                         : 'bg-yellow-100 text-yellow-800'
-                                                }`}>
+                                                    }`}>
                                                     {item.status}
                                                 </span>
                                             </div>
@@ -487,11 +483,10 @@ const AdminPanel = () => {
                                             <button
                                                 onClick={() => markBugAsResolved(item._id)}
                                                 disabled={resolvingId === item._id}
-                                                className={`ml-4 px-3 py-1 text-sm font-medium rounded-md transition ${
-                                                    isLightMode
+                                                className={`ml-4 px-3 py-1 text-sm font-medium rounded-md transition ${isLightMode
                                                         ? 'bg-green-100 text-green-800 hover:bg-green-200'
                                                         : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
-                                                } disabled:opacity-50`}
+                                                    } disabled:opacity-50`}
                                             >
                                                 {resolvingId === item._id ? 'Resolving...' : 'Mark Resolved'}
                                             </button>
@@ -502,69 +497,14 @@ const AdminPanel = () => {
                         </div>
                     )}
 
-                    {reviewsActiveTab === 'users' && (
-                        <div className="space-y-4">
-                            {usersLoading && (
-                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    <div className="flex items-center justify-center gap-2">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                        <span className="ml-2">Loading users...</span>
-                                    </div>
-                                </div>
-                            )}
-                            {usersError && (
-                                <div className="text-red-500 text-center py-4">{usersError}</div>
-                            )}
-                            
-                            {/* Debug info - remove in production */}
-                            {process.env.NODE_ENV === 'development' && (
-                                <div className="mb-4 p-3 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                                    <strong>Debug:</strong> usersLoading: {usersLoading.toString()}, 
-                                    userItems.length: {userItems.length}, 
-                                    usersError: {usersError || 'none'}
-                                </div>
-                            )}
-                            
-                            {!usersLoading && userItems.length === 0 && !usersError && (
-                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    No users found
-                                </div>
-                            )}
-                            <div className="grid gap-4">
-                                {userItems.map((user) => (
-                                    <div key={user._id} className={`p-4 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                                                {(user.usn || 'U').slice(0, 1).toUpperCase()}
-                                            </div>
-                                            <div>
-                                                <p className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                                    {user.usn}
-                                                </p>
-                                                <p className={`text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                    {user.email}
-                                                </p>
-                                                <p className={`text-xs ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                                                    Branch: {user.branch} | Joined: {new Date(user.createdAt).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
                     {reviewsActiveTab === 'uploads' && (
                         <div className="space-y-4">
                             {userUploadsLoading && (
                                 <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
                                     <div className="flex items-center justify-center gap-2">
                                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                         <span className="ml-2">Loading user uploads...</span>
                                     </div>
                                 </div>
@@ -585,12 +525,11 @@ const AdminPanel = () => {
                                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                                                    item.contentType === 'notes' ? 'bg-green-100 text-green-800' :
-                                                    item.contentType === 'pyqs' ? 'bg-purple-100 text-purple-800' :
-                                                    item.contentType === 'questionBanks' ? 'bg-blue-100 text-blue-800' :
-                                                    'bg-orange-100 text-orange-800'
-                                                }`}>
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded ${item.contentType === 'notes' ? 'bg-green-100 text-green-800' :
+                                                        item.contentType === 'pyqs' ? 'bg-purple-100 text-purple-800' :
+                                                            item.contentType === 'questionBanks' ? 'bg-blue-100 text-blue-800' :
+                                                                'bg-orange-100 text-orange-800'
+                                                    }`}>
                                                     {item.contentType}
                                                 </span>
                                                 <span className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
@@ -614,11 +553,10 @@ const AdminPanel = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => handlePreviewUpload(item._id)}
-                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                                                    isLightMode
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${isLightMode
                                                         ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                                         : 'bg-white/10 text-white hover:bg-white/20'
-                                                }`}
+                                                    }`}
                                             >
                                                 Preview
                                             </button>
@@ -626,13 +564,12 @@ const AdminPanel = () => {
                                                 type="button"
                                                 onClick={() => handleApproveUpload(item._id)}
                                                 disabled={userUploadActionId === item._id}
-                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                                                    userUploadActionId === item._id
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${userUploadActionId === item._id
                                                         ? 'bg-gray-400 cursor-not-allowed'
                                                         : isLightMode
                                                             ? 'bg-green-600 hover:bg-green-700 text-white'
                                                             : 'bg-green-500 hover:bg-green-600 text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 {userUploadActionId === item._id ? 'Processing...' : 'Approve'}
                                             </button>
@@ -640,13 +577,12 @@ const AdminPanel = () => {
                                                 type="button"
                                                 onClick={() => handleDeleteUpload(item._id)}
                                                 disabled={userUploadActionId === item._id}
-                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
-                                                    userUploadActionId === item._id
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${userUploadActionId === item._id
                                                         ? 'bg-gray-400 cursor-not-allowed'
                                                         : isLightMode
                                                             ? 'bg-red-600 hover:bg-red-700 text-white'
                                                             : 'bg-red-500 hover:bg-red-600 text-white'
-                                                }`}
+                                                    }`}
                                             >
                                                 Delete
                                             </button>
@@ -674,131 +610,127 @@ const AdminPanel = () => {
                         <div className={`text-center py-12 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
                             <div className="flex items-center justify-center gap-2 mb-4">
                                 <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                             </div>
                             <p>Loading subjects and study materials...</p>
                         </div>
                     ) : (
                         <>
-                        {/* Manage Uploaded Content Section */}
-                        <div className={`mt-8 p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                            <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                Manage Uploaded Content
-                                <span className={`block text-sm font-normal mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                    View and delete content from all branches
-                                </span>
-                            </h3>
+                            {/* Manage Uploaded Content Section */}
+                            <div className={`mt-8 p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                                <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                    Manage Uploaded Content
+                                    <span className={`block text-sm font-normal mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                        View and delete content from all branches
+                                    </span>
+                                </h3>
 
-                            <div className="mb-4">
-                                <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                    Select Subject to Manage
-                                </label>
-                                <select
-                                    value={manageSubject}
-                                    onChange={(e) => setManageSubject(e.target.value)}
-                                    className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                        isLightMode
-                                            ? 'bg-white border-gray-300 text-gray-900'
-                                            : 'bg-gray-700 border-gray-600 text-white'
-                                    }`}
-                                >
-                                    <option value="">Select a subject to view content</option>
-                                    {subjects.map((subject) => (
-                                        <option key={subject.code} value={subject.code}>
-                                            {subject.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {loadingContent && (
-                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    <div className="flex items-center justify-center gap-2">
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                                        <span className="ml-2">Loading content...</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {manageSubject && !loadingContent && uploadedContent.length === 0 && (
-                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    No content uploaded yet for this subject
-                                </div>
-                            )}
-
-                            {manageSubject && !loadingContent && uploadedContent.length > 0 && (
-                                <div className="space-y-3">
-                                    {manageSubjectData && (
-                                        <div className={`text-sm mb-4 p-3 rounded ${isLightMode ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
-                                            <strong>Branches:</strong> {manageSubjectData.branches.join(', ')}
-                                            <br />
-                                            <strong>Total Content:</strong> {uploadedContent.length} items
-                                        </div>
-                                    )}
-
-                                    {uploadedContent.map((content) => (
-                                        <div
-                                            key={content._id}
-                                            className={`p-4 rounded-lg border flex items-start justify-between ${
-                                                isLightMode ? 'bg-gray-50 border-gray-200' : 'bg-gray-700/50 border-gray-600'
+                                <div className="mb-4">
+                                    <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
+                                        Select Subject to Manage
+                                    </label>
+                                    <select
+                                        value={manageSubject}
+                                        onChange={(e) => setManageSubject(e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${isLightMode
+                                                ? 'bg-white border-gray-300 text-gray-900'
+                                                : 'bg-gray-700 border-gray-600 text-white'
                                             }`}
-                                        >
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className={`px-2 py-1 text-xs font-semibold rounded ${
-                                                        content.displayType === 'Notes' ? 'bg-green-100 text-green-800' :
-                                                        content.displayType === 'PYQs' ? 'bg-purple-100 text-purple-800' :
-                                                        content.displayType === 'Question Banks' ? 'bg-blue-100 text-blue-800' :
-                                                        'bg-orange-100 text-orange-800'
-                                                    }`}>
-                                                        {content.displayType}
-                                                    </span>
-                                                </div>
-                                                <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                                    {content.title}
-                                                </h4>
-                                                {content.description && (
-                                                    <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                        {content.description}
-                                                    </p>
-                                                )}
-                                                <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                                                    Uploaded: {new Date(content.createdAt).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                            <button
-                                                onClick={() => handleDeleteContent(content)}
-                                                disabled={deletingContent === content._id}
-                                                className={`ml-4 px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${
-                                                    deletingContent === content._id
-                                                        ? 'bg-gray-400 cursor-not-allowed'
-                                                        : isLightMode
-                                                            ? 'bg-red-600 hover:bg-red-700 text-white'
-                                                            : 'bg-red-500 hover:bg-red-600 text-white'
-                                                } disabled:opacity-50`}
-                                            >
-                                                {deletingContent === content._id ? (
-                                                    <>
-                                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                        <span>Deleting...</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                        <span>Delete</span>
-                                                    </>
-                                                )}
-                                            </button>
-                                        </div>
-                                    ))}
+                                    >
+                                        <option value="">Select a subject to view content</option>
+                                        {subjects.map((subject) => (
+                                            <option key={subject.code} value={subject.code}>
+                                                {subject.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
-                            )}
-                        </div>
+
+                                {loadingContent && (
+                                    <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        <div className="flex items-center justify-center gap-2">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                            <span className="ml-2">Loading content...</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {manageSubject && !loadingContent && uploadedContent.length === 0 && (
+                                    <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        No content uploaded yet for this subject
+                                    </div>
+                                )}
+
+                                {manageSubject && !loadingContent && uploadedContent.length > 0 && (
+                                    <div className="space-y-3">
+                                        {manageSubjectData && (
+                                            <div className={`text-sm mb-4 p-3 rounded ${isLightMode ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
+                                                <strong>Branches:</strong> {manageSubjectData.branches.join(', ')}
+                                                <br />
+                                                <strong>Total Content:</strong> {uploadedContent.length} items
+                                            </div>
+                                        )}
+
+                                        {uploadedContent.map((content) => (
+                                            <div
+                                                key={content._id}
+                                                className={`p-4 rounded-lg border flex items-start justify-between ${isLightMode ? 'bg-gray-50 border-gray-200' : 'bg-gray-700/50 border-gray-600'
+                                                    }`}
+                                            >
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className={`px-2 py-1 text-xs font-semibold rounded ${content.displayType === 'Notes' ? 'bg-green-100 text-green-800' :
+                                                                content.displayType === 'PYQs' ? 'bg-purple-100 text-purple-800' :
+                                                                    content.displayType === 'Question Banks' ? 'bg-blue-100 text-blue-800' :
+                                                                        'bg-orange-100 text-orange-800'
+                                                            }`}>
+                                                            {content.displayType}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                                        {content.title}
+                                                    </h4>
+                                                    {content.description && (
+                                                        <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                            {content.description}
+                                                        </p>
+                                                    )}
+                                                    <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                                        Uploaded: {new Date(content.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteContent(content)}
+                                                    disabled={deletingContent === content._id}
+                                                    className={`ml-4 px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${deletingContent === content._id
+                                                            ? 'bg-gray-400 cursor-not-allowed'
+                                                            : isLightMode
+                                                                ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                                : 'bg-red-500 hover:bg-red-600 text-white'
+                                                        } disabled:opacity-50`}
+                                                >
+                                                    {deletingContent === content._id ? (
+                                                        <>
+                                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                            <span>Deleting...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                            <span>Delete</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </>
                     )}
                 </div>

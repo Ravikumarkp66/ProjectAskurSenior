@@ -41,15 +41,22 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
 
     const totalNotifications = stats?.totalNotifications || 0;
 
+    const handleBellClick = () => {
+        setShowDropdown(!showDropdown);
+        // Clear notification count when bell is clicked (mark as seen)
+        if (!showDropdown && stats && totalNotifications > 0) {
+            setStats({ ...stats, totalNotifications: 0, pendingUploads: 0, reportCount: 0, flaggedContent: 0 });
+        }
+    };
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
-                onClick={() => setShowDropdown(!showDropdown)}
-                className={`relative p-2 rounded-lg transition ${
-                    isLightMode
+                onClick={handleBellClick}
+                className={`relative p-2 rounded-lg transition ${isLightMode
                         ? 'hover:bg-slate-100 text-slate-700'
                         : 'hover:bg-white/10 text-secondary-300'
-                }`}
+                    }`}
                 title="Notifications"
             >
                 <FaBell className="w-5 h-5" />
@@ -61,16 +68,15 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
             </button>
 
             {showDropdown && (
-                <div className={`absolute right-0 mt-2 w-80 rounded-lg border shadow-lg z-50 ${
-                    isLightMode
+                <div className={`absolute right-0 mt-2 w-80 rounded-lg border shadow-lg z-50 ${isLightMode
                         ? 'bg-white border-slate-200'
                         : 'bg-dark-100 border-white/10'
-                }`}>
+                    }`}>
                     {/* Header */}
                     <div className={`px-4 py-3 border-b ${isLightMode
                         ? 'border-slate-200 bg-slate-50'
                         : 'border-white/10 bg-white/5'
-                    }`}>
+                        }`}>
                         <h3 className={`text-sm font-semibold ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
                             Notifications
                         </h3>
@@ -97,9 +103,8 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                                             onNavigate?.('admin', 'reviews');
                                             setShowDropdown(false);
                                         }}
-                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${
-                                            isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
-                                        }`}
+                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
+                                            }`}
                                     >
                                         <div className="flex items-start justify-between mb-1">
                                             <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
@@ -122,9 +127,8 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                                             onNavigate?.('admin', 'reviews');
                                             setShowDropdown(false);
                                         }}
-                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${
-                                            isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
-                                        }`}
+                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
+                                            }`}
                                     >
                                         <div className="flex items-start justify-between mb-1">
                                             <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
@@ -143,9 +147,8 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                                 {/* Flagged Content */}
                                 {stats.flaggedContent > 0 && (
                                     <button
-                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${
-                                            isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
-                                        }`}
+                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
+                                            }`}
                                     >
                                         <div className="flex items-start justify-between mb-1">
                                             <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
@@ -168,13 +171,13 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                     <div className={`px-4 py-2 border-t text-center ${isLightMode
                         ? 'border-slate-200 bg-slate-50'
                         : 'border-white/10 bg-white/5'
-                    }`}>
+                        }`}>
                         <button
                             onClick={() => loadNotificationStats()}
                             className={`text-xs font-medium ${isLightMode
                                 ? 'text-purple-600 hover:text-purple-700'
                                 : 'text-purple-400 hover:text-purple-300'
-                            }`}
+                                }`}
                         >
                             Refresh
                         </button>

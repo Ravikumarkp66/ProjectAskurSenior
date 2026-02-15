@@ -7,7 +7,8 @@ const {
     getUserProfile,
     getAllUsers,
     switchBranch,
-    googleLogin
+    googleLogin,
+    completeGoogleRegistration
 } = require('../controllers/authController');
 
 
@@ -29,6 +30,7 @@ router.post('/google', googleLogin);
 // Protected routes
 router.get('/profile', authMiddleware, getUserProfile);
 router.post('/switch-branch', authMiddleware, switchBranch);
+router.post('/complete-google-registration', authMiddleware, completeGoogleRegistration);
 router.put('/update-profile', authMiddleware, updateProfile);
 router.post('/upload-profile-picture', authMiddleware, upload.single('profilePicture'), uploadProfilePicture);
 router.put('/change-password', authMiddleware, changePassword);

@@ -344,7 +344,7 @@ const Sidebar = ({
             formData.append('contentType', userContentType);
             formData.append('subjectCode', userSubjectCode);
 
-            console.log('User upload formData:', { 
+            console.log('User upload formData:', {
                 filesCount: userFiles.length,
                 contentType: userContentType,
                 subjectCode: userSubjectCode

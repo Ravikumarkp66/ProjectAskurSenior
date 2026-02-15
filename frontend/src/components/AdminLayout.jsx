@@ -22,26 +22,34 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
     };
 
     const tabs = [
-        { id: 'dashboard', label: 'Dashboard', icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-        )},
-        { id: 'reviews', label: 'Reviews', icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-        )},
-        { id: 'materials', label: 'Study Materials', icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-        )},
-        { id: 'users', label: 'User Management', icon: (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm6-12h-3m0 0h-3m3 0v3m0-3v-3m4 0a4 4 0 110 5.292" />
-            </svg>
-        )}
+        {
+            id: 'dashboard', label: 'Dashboard', icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            )
+        },
+        {
+            id: 'reviews', label: 'Reviews', icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            )
+        },
+        {
+            id: 'materials', label: 'Study Materials', icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            )
+        },
+        {
+            id: 'users', label: 'User Management', icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm6-12h-3m0 0h-3m3 0v3m0-3v-3m4 0a4 4 0 110 5.292" />
+                </svg>
+            )
+        }
     ];
 
     return (
@@ -66,7 +74,7 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
 
                         {/* User info and logout */}
                         <div className="flex items-center gap-4">
-                            <NotificationBell 
+                            <NotificationBell
                                 isLightMode={isLightMode}
                                 onNavigate={(section, tab) => {
                                     onTabChange?.(section);
@@ -83,11 +91,10 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
                             </div>
                             <button
                                 onClick={handleLogout}
-                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                                    isLightMode 
-                                        ? 'text-red-700 hover:bg-red-50 border border-red-200' 
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${isLightMode
+                                        ? 'text-red-700 hover:bg-red-50 border border-red-200'
                                         : 'text-red-300 hover:bg-red-900/20 border border-red-500/30'
-                                }`}
+                                    }`}
                                 title="Logout"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,15 +115,14 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
                             <button
                                 key={tab.id}
                                 onClick={() => onTabChange && onTabChange(tab.id)}
-                                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition ${
-                                    activeTab === tab.id
+                                className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition ${activeTab === tab.id
                                         ? isLightMode
                                             ? 'border-amber-500 text-amber-600'
                                             : 'border-amber-400 text-amber-400'
                                         : isLightMode
                                             ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                             : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
-                                }`}
+                                    }`}
                             >
                                 {tab.icon}
                                 {tab.label}

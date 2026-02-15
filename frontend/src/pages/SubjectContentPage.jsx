@@ -26,16 +26,16 @@ const ContentIcon = ({ type, className = "w-5 h-5" }) => {
         ),
         qbank: (
             <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 8V12M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 8V12M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
         ),
         syllabus: (
             <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M9 12H15M9 16H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M9 12H15M9 16H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
         )
     };
@@ -46,7 +46,7 @@ const SubjectContentPage = () => {
     const { subjectId } = useParams();
     const navigate = useNavigate();
     const { user } = useContext(AuthContext);
-    
+
     const [subject, setSubject] = useState(null);
     const [content, setContent] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -75,14 +75,14 @@ const SubjectContentPage = () => {
             setError(null);
             const response = await subjectAPI.getSubjectContent(subjectId);
             const data = response.data;
-            
+
             if (!data) {
                 setError('Subject not found');
                 return;
             }
-            
+
             setSubject(data);
-            
+
             // Simplified content loading - just use current subject's content for now
             const flattenedContent = {
                 notes: data.notes || [],
@@ -253,38 +253,34 @@ const SubjectContentPage = () => {
                                 <button
                                     key={type}
                                     onClick={() => setActiveTab(type)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
-                                        activeTab === type 
-                                            ? `bg-gradient-to-r ${getGradientColor(config.color)} text-white shadow-lg` 
+                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${activeTab === type
+                                            ? `bg-gradient-to-r ${getGradientColor(config.color)} text-white shadow-lg`
                                             : `${isLightMode ? 'hover:bg-gray-50' : 'hover:bg-gray-700'} ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`
-                                    }`}
+                                        }`}
                                 >
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                        activeTab === type 
-                                            ? 'bg-white/20' 
-                                            : isLightMode 
-                                                ? `bg-${config.color}-100` 
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === type
+                                            ? 'bg-white/20'
+                                            : isLightMode
+                                                ? `bg-${config.color}-100`
                                                 : `bg-${config.color}-600/20`
-                                    }`}>
-                                        <ContentIcon type={config.icon} className={`w-4 h-4 ${
-                                            activeTab === type 
-                                                ? 'text-white' 
-                                                : isLightMode 
-                                                    ? `text-${config.color}-600` 
+                                        }`}>
+                                        <ContentIcon type={config.icon} className={`w-4 h-4 ${activeTab === type
+                                                ? 'text-white'
+                                                : isLightMode
+                                                    ? `text-${config.color}-600`
                                                     : `text-${config.color}-400`
-                                        }`} />
+                                            }`} />
                                     </div>
                                     <div className="flex-1">
                                         <div className={`font-medium ${activeTab === type ? 'text-white' : ''}`}>
                                             {config.label}
                                         </div>
-                                        <div className={`text-xs ${
-                                            activeTab === type 
-                                                ? 'text-white/80' 
-                                                : isLightMode 
-                                                    ? 'text-gray-500' 
+                                        <div className={`text-xs ${activeTab === type
+                                                ? 'text-white/80'
+                                                : isLightMode
+                                                    ? 'text-gray-500'
                                                     : 'text-gray-400'
-                                        }`}>
+                                            }`}>
                                             {content && content[type] ? `${content[type].length} items` : '0 items'}
                                         </div>
                                     </div>

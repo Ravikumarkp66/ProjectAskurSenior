@@ -61,6 +61,7 @@ export const authAPI = {
     login: (data) => apiClient.post('/auth/login', data),
     adminLogin: (data) => apiClient.post('/auth/admin-login', data),
     googleLogin: (token) => apiClient.post('/auth/google', { token }),
+    completeGoogleRegistration: (data) => apiClient.post('/auth/complete-google-registration', data),
     getProfile: () => apiClient.get('/auth/profile'),
     updateProfile: (data) => apiClient.put('/auth/update-profile', data),
     uploadProfilePicture: (formData) => apiClient.post('/auth/upload-profile-picture', formData, {

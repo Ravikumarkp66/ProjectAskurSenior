@@ -55,15 +55,13 @@ const ModuleAccordion = ({
 
     return (
         <div
-            className={`border rounded-lg mb-3 overflow-hidden shadow-sm ${
-                isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-dark-100'
-            }`}
+            className={`border rounded-lg mb-3 overflow-hidden shadow-sm ${isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-dark-100'
+                }`}
         >
             <button
                 onClick={() => setExpanded(!expanded)}
-                className={`w-full px-4 py-3 min-h-11 transition flex flex-col sm:flex-row sm:items-center items-start sm:justify-between gap-3 ${
-                    isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-dark-100 hover:bg-dark-50'
-                }`}
+                className={`w-full px-4 py-3 min-h-11 transition flex flex-col sm:flex-row sm:items-center items-start sm:justify-between gap-3 ${isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-dark-100 hover:bg-dark-50'
+                    }`}
             >
                 <div className="w-full sm:flex-1">
                     <div className="flex items-start justify-between gap-3">
@@ -76,11 +74,10 @@ const ModuleAccordion = ({
                                 <ProgressBar progress={progress} height={10} theme={theme} />
                             </div>
                             <span
-                                className={`text-xs font-semibold px-2 py-1 rounded-full border shrink-0 ${
-                                    isLightMode
+                                className={`text-xs font-semibold px-2 py-1 rounded-full border shrink-0 ${isLightMode
                                         ? 'text-purple-700 bg-purple-100 border-purple-300'
                                         : 'text-purple-200 bg-purple-600/20 border-purple-400/30'
-                                }`}
+                                    }`}
                             >
                                 {completed}/{total}
                             </span>
@@ -93,11 +90,10 @@ const ModuleAccordion = ({
                         <button
                             type="button"
                             onClick={(e) => e.stopPropagation()}
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-                                isLightMode
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${isLightMode
                                     ? 'border-slate-200 bg-white text-slate-500 hover:text-purple-700 hover:border-purple-300'
                                     : 'border-white/10 bg-white/5 text-secondary-300 hover:text-purple-200 hover:border-purple-400/40'
-                            }`}
+                                }`}
                             title="Articles: coming soon"
                         >
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -111,15 +107,14 @@ const ModuleAccordion = ({
                             type="button"
                             onClick={handleNotesClick}
                             disabled={notesLoading}
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-                                module.notesKey
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${module.notesKey
                                     ? isLightMode
                                         ? 'border-green-300 bg-green-50 text-green-600 hover:bg-green-100'
                                         : 'border-green-400/40 bg-green-600/20 text-green-300 hover:bg-green-600/30'
                                     : isLightMode
                                         ? 'border-slate-200 bg-white text-slate-400 cursor-not-allowed'
                                         : 'border-white/10 bg-white/5 text-secondary-500 cursor-not-allowed'
-                            }`}
+                                }`}
                             title={module.notesKey ? 'View Notes' : 'Notes not available'}
                         >
                             {notesLoading ? (
@@ -138,11 +133,10 @@ const ModuleAccordion = ({
                         <button
                             type="button"
                             onClick={(e) => e.stopPropagation()}
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${
-                                isLightMode
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg border transition ${isLightMode
                                     ? 'border-slate-200 bg-white text-slate-500 hover:text-purple-700 hover:border-purple-300'
                                     : 'border-white/10 bg-white/5 text-secondary-300 hover:text-purple-200 hover:border-purple-400/40'
-                            }`}
+                                }`}
                             title="FAQs: coming soon"
                         >
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -158,11 +152,10 @@ const ModuleAccordion = ({
                     </div>
 
                     <span
-                        className={`text-xs font-semibold px-2 py-1 rounded-full border ${
-                            isLightMode
+                        className={`text-xs font-semibold px-2 py-1 rounded-full border ${isLightMode
                                 ? 'text-purple-700 bg-purple-100 border-purple-300'
                                 : 'text-purple-200 bg-purple-600/20 border-purple-400/30'
-                        }`}
+                            }`}
                     >
                         {completed}/{total}
                     </span>
@@ -202,20 +195,18 @@ const ModuleAccordion = ({
 
             {/* PDF Preview Modal */}
             {showPdfModal && pdfUrl && (
-                <div 
+                <div
                     className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
                     onClick={closePdfModal}
                 >
-                    <div 
-                        className={`relative w-full max-w-5xl h-[90vh] rounded-lg overflow-hidden ${
-                            isLightMode ? 'bg-white' : 'bg-dark-100'
-                        }`}
+                    <div
+                        className={`relative w-full max-w-5xl h-[90vh] rounded-lg overflow-hidden ${isLightMode ? 'bg-white' : 'bg-dark-100'
+                            }`}
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Modal Header */}
-                        <div className={`flex items-center justify-between px-4 py-3 border-b ${
-                            isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-dark-50 border-white/10'
-                        }`}>
+                        <div className={`flex items-center justify-between px-4 py-3 border-b ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-dark-50 border-white/10'
+                            }`}>
                             <h3 className={`font-semibold ${isLightMode ? 'text-slate-800' : 'text-white'}`}>
                                 {module.title} - Notes
                             </h3>
@@ -224,21 +215,19 @@ const ModuleAccordion = ({
                                     href={pdfUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${
-                                        isLightMode
+                                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition ${isLightMode
                                             ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                                             : 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'
-                                    }`}
+                                        }`}
                                 >
                                     Open in New Tab
                                 </a>
                                 <button
                                     onClick={closePdfModal}
-                                    className={`p-2 rounded-lg transition ${
-                                        isLightMode
+                                    className={`p-2 rounded-lg transition ${isLightMode
                                             ? 'hover:bg-slate-200 text-slate-600'
                                             : 'hover:bg-white/10 text-white'
-                                    }`}
+                                        }`}
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
