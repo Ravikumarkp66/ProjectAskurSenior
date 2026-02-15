@@ -22,8 +22,6 @@ const LoginPage = ({ initialMode = 'login' }) => {
     const [loading, setLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
-    const [verificationEmail, setVerificationEmail] = useState(''); // Store email during verification
-    const [otp, setOtp] = useState('');
 
     const isAdmin = mode === 'admin';
     const isLogin = mode === 'login';
@@ -41,20 +39,6 @@ const LoginPage = ({ initialMode = 'login' }) => {
             ...prev,
             [name]: value
         }));
-    };
-
-    const handleResendOtp = async () => {
-        setError('');
-        setLoading(true);
-        try {
-            await authAPI.resendOtp(verificationEmail);
-            setSuccessMessage('A new code has been sent to your email.');
-            setTimeout(() => setSuccessMessage(''), 5000);
-        } catch (err) {
-            setError(err.response?.data?.error || 'Failed to resend code');
-        } finally {
-            setLoading(false);
-        }
     };
 
     const handleSuccess = (user, token, message, targetPath) => {
@@ -86,13 +70,6 @@ const LoginPage = ({ initialMode = 'login' }) => {
         setLoading(true);
 
         try {
-            if (mode === 'verify') {
-                const response = await authAPI.verifySignup({ email: verificationEmail, otp });
-                const { token, user } = response.data;
-                handleSuccess(user, token, 'Email verified successfully!', '/dashboard');
-                return;
-            }
-
             const { usn, email, password, confirmPassword } = formData;
 
             if (isAdmin) {
@@ -144,19 +121,16 @@ const LoginPage = ({ initialMode = 'login' }) => {
                     setLoading(false);
                     return;
                 }
-                await authAPI.register({ usn, email, password, branch: toBackendBranch(branch) });
-                setVerificationEmail(email);
-                setMode('verify');
-                setSuccessMessage('Account created! Please check your email for the verification code.');
+                const response = await authAPI.register({ usn, email, password, branch: toBackendBranch(branch) });
+                const { token, user } = response.data;
+                handleSuccess(user, token, 'Account created successfully!', '/dashboard');
             }
         } catch (err) {
-            const errorMsg = err.response?.data?.error || 'Authentication failed. Please try again.';
-            setError(errorMsg);
-
-            if (err.response?.data?.needsVerification) {
-                setVerificationEmail(err.response.data.email);
-                setMode('verify');
-            }
+            const rawMessage = err.response?.data?.error || 'Authentication failed. Please try again.';
+            const normalizedMessage = /verify|otp/i.test(rawMessage)
+                ? 'Invalid credentials. Please try again.'
+                : rawMessage;
+            setError(normalizedMessage);
         } finally {
             setLoading(false);
         }
@@ -181,9 +155,9 @@ const LoginPage = ({ initialMode = 'login' }) => {
                 >
                     <div className="flex items-center justify-between px-6 py-5 sm:px-8 sm:py-6 border-b border-white/5">
                         <h2 className="text-lg sm:text-xl font-bold tracking-tight">
-                            {isSuccess ? 'Success' : mode === 'verify' ? 'Verify Email' : isAdmin ? 'Admin Access' : mode === 'register' ? 'Join Us' : 'Welcome Back'}
+                            {isSuccess ? 'Success' : isAdmin ? 'Admin Access' : mode === 'register' ? 'Join Us' : 'Welcome Back'}
                         </h2>
-                        {!isSuccess && mode !== 'verify' && (
+                        {!isSuccess && (
                             <Link
                                 to="/"
                                 className="h-10 w-10 rounded-xl hover:bg-white/5 transition flex items-center justify-center group"
@@ -205,40 +179,38 @@ const LoginPage = ({ initialMode = 'login' }) => {
                         ) : (
                             <>
                                 {/* Mode Toggle Buttons - Premium Tabs Style */}
-                                {mode !== 'verify' && (
-                                    <div className="flex bg-[#1c1c1e] rounded-2xl p-1.5 border border-white/5 relative">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleModeChange('login')}
-                                            className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'login' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                        >
-                                            {mode === 'login' && (
-                                                <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 animate-fadeIn" />
-                                            )}
-                                            <span className="relative">Sign In</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleModeChange('register')}
-                                            className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'register' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                        >
-                                            {mode === 'register' && (
-                                                <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 animate-fadeIn" />
-                                            )}
-                                            <span className="relative">Sign Up</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleModeChange('admin')}
-                                            className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'admin' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                        >
-                                            {mode === 'admin' && (
-                                                <div className="absolute inset-0 bg-purple-600 rounded-xl shadow-lg shadow-purple-600/20 animate-fadeIn" />
-                                            )}
-                                            <span className="relative">Admin</span>
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="flex bg-[#1c1c1e] rounded-2xl p-1.5 border border-white/5 relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModeChange('login')}
+                                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'login' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {mode === 'login' && (
+                                            <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 animate-fadeIn" />
+                                        )}
+                                        <span className="relative">Sign In</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModeChange('register')}
+                                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'register' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {mode === 'register' && (
+                                            <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20 animate-fadeIn" />
+                                        )}
+                                        <span className="relative">Sign Up</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleModeChange('admin')}
+                                        className={`relative z-10 flex-1 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 ${mode === 'admin' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        {mode === 'admin' && (
+                                            <div className="absolute inset-0 bg-purple-600 rounded-xl shadow-lg shadow-purple-600/20 animate-fadeIn" />
+                                        )}
+                                        <span className="relative">Admin</span>
+                                    </button>
+                                </div>
 
                                 {error && (
                                     <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 animate-shake">
@@ -252,67 +224,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                     </div>
                                 )}
 
-                                {mode === 'verify' ? (
-                                    <form onSubmit={handleSubmit} className="space-y-6 animate-fadeIn">
-                                        <div className="text-center space-y-2">
-                                            <p className="text-sm text-gray-400">
-                                                We've sent a 6-digit verification code to
-                                            </p>
-                                            <p className="text-sm font-bold text-blue-400">
-                                                {verificationEmail}
-                                            </p>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">Verification Code</label>
-                                            <input
-                                                type="text"
-                                                maxLength="6"
-                                                placeholder="000000"
-                                                value={otp}
-                                                onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
-                                                className="w-full text-center tracking-[1em] text-xl font-bold rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-4 text-white outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/10 placeholder-gray-700 transition-all font-outfit"
-                                            />
-                                        </div>
-
-                                        <button
-                                            type="submit"
-                                            disabled={loading || otp.length !== 6}
-                                            className={`group relative w-full h-12 rounded-2xl text-sm font-bold text-white overflow-hidden transition-all shadow-lg
-                                                ${loading || otp.length !== 6 ? 'bg-blue-600/50 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.01] active:scale-[0.99] shadow-blue-600/20'}`}
-                                        >
-                                            <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                            {loading ? (
-                                                <span className="flex items-center justify-center gap-3">
-                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Verifying...
-                                                </span>
-                                            ) : (
-                                                'Verify & Continue'
-                                            )}
-                                        </button>
-
-                                        <div className="text-center">
-                                            <button
-                                                type="button"
-                                                onClick={handleResendOtp}
-                                                disabled={loading}
-                                                className="text-xs font-bold text-gray-500 hover:text-white transition-colors"
-                                            >
-                                                Didn't receive the code? <span className="text-blue-500">Resend Code</span>
-                                            </button>
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setMode('login')}
-                                            className="w-full text-xs font-bold text-gray-600 hover:text-gray-400 transition-colors pt-2"
-                                        >
-                                            Back to Sign In
-                                        </button>
-                                    </form>
-                                ) : (
-                                    <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
+                                <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
                                         {!isAdmin && (
                                             <div>
                                                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 ml-1">USN</label>
@@ -370,14 +282,6 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                         <div>
                                             <div className="flex justify-between items-center mb-2 ml-1">
                                                 <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest">Password</label>
-                                                {mode === 'login' && (
-                                                    <Link
-                                                        to="/forgot-password"
-                                                        className="text-xs font-bold text-orange-500 hover:text-orange-400 transition-colors"
-                                                    >
-                                                        Forgot?
-                                                    </Link>
-                                                )}
                                             </div>
                                             <input
                                                 type="password"
@@ -435,10 +339,9 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                                 isAdmin ? 'Admin Sign In' : isLogin ? 'Sign In' : 'Create Account'
                                             )}
                                         </button>
-                                    </form>
-                                )}
+                                </form>
 
-                                {!isAdmin && mode !== 'verify' && (
+                                {!isAdmin && (
                                     <>
                                         <div className="relative py-4">
                                             <div className="absolute inset-0 flex items-center">

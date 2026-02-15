@@ -7,11 +7,7 @@ const {
     getUserProfile,
     getAllUsers,
     switchBranch,
-    forgotPassword,
-    resetPassword,
-    googleLogin,
-    verifySignup,
-    resendOtp
+    googleLogin
 } = require('../controllers/authController');
 
 
@@ -24,30 +20,11 @@ const {
 const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 
-const rateLimit = require('express-rate-limit');
-
-// Rate limiters for password reset
-const forgotPasswordLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 3, // Limit each IP to 3 requests per windowMs
-    message: { error: 'Too many password reset requests. Please try again after an hour.' }
-});
-
-const resetPasswordLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 hour
-    max: 5, // Limit each IP to 5 requests per windowMs
-    message: { error: 'Too many password reset attempts. Please try again after an hour.' }
-});
-
 // Public routes
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/admin-login', adminLogin);
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
-router.post('/reset-password', resetPasswordLimiter, resetPassword);
 router.post('/google', googleLogin);
-router.post('/verify-signup', verifySignup);
-router.post('/resend-otp', resendOtp);
 
 // Protected routes
 router.get('/profile', authMiddleware, getUserProfile);

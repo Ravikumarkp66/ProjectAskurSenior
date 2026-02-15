@@ -3,15 +3,11 @@ const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema(
     {
-        name: {
-            type: String,
-            default: ''
-        },
         usn: {
             type: String,
             unique: true,
+            sparse: true,
             uppercase: true,
-            sparse: true, // Allows null/missing values while maintaining uniqueness
             match: /^[a-z0-9]{8,12}$/i
         },
         email: {
@@ -21,78 +17,56 @@ const userSchema = new mongoose.Schema(
             lowercase: true,
             match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         },
-        password: {
+        name: {
             type: String,
-            minlength: 6,
-            required: function () {
-                return !this.authProvider || this.authProvider === 'local';
-            }
-        },
-        authProvider: {
-            type: String,
-            enum: ['local', 'google'],
-            default: 'local'
-        },
-        branch: {
-            type: String,
-            required: function () {
-                return !this.authProvider || this.authProvider === 'local';
-            },
-            enum: [
-                'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT',
-                'CV', 'CS', 'IS', 'CI', 'BT', 'ME', 'IM', 'CH', 'EE', 'EC', 'ET', 'EI'
-            ]
-        },
-        currentBranch: {
-            type: String,
-            required: function () {
-                return !this.authProvider || this.authProvider === 'local';
-            },
-            enum: [
-                'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT',
-                'CV', 'CS', 'IS', 'CI', 'BT', 'ME', 'IM', 'CH', 'EE', 'EC', 'ET', 'EI'
-            ]
-        },
-        isAdmin: {
-            type: Boolean,
-            default: false
-        },
-        isVerified: {
-            type: Boolean,
-            default: false
-        },
-        createdAt: {
-            type: Date,
-            default: Date.now
+            default: ''
         },
         profilePicture: {
             type: String,
             default: ''
         },
-        bio: {
+        // OAuth fields
+        googleId: {
             type: String,
-            default: '',
-            maxlength: 500
+            unique: true,
+            sparse: true
         },
-        socialLinks: {
-            linkedin: { type: String, default: '' },
-            github: { type: String, default: '' },
-            leetcode: { type: String, default: '' }
+        password: {
+            type: String,
+            default: null // Optional for OAuth users
         },
-        resetOtp: {
-            code: String,
-            expiresAt: Date,
-            attempts: { type: Number, default: 0 }
+        branch: {
+            type: String,
+            enum: [
+                'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT',
+                'CV', 'CS', 'IS', 'CI', 'BT', 'ME', 'IM', 'CH', 'EE', 'EC', 'ET', 'EI'
+            ],
+            default: 'CS'
         },
-        signupOtp: {
-            code: String,
-            expiresAt: Date,
-            requestCount: { type: Number, default: 0 },
-            lastRequestAt: Date
+        currentBranch: {
+            type: String,
+            enum: [
+                'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT',
+                'CV', 'CS', 'IS', 'CI', 'BT', 'ME', 'IM', 'CH', 'EE', 'EC', 'ET', 'EI'
+            ],
+            default: 'CS'
         },
-        tokenVersion: {
-            type: Number,
-            default: 0
+        role: {
+            type: String,
+            enum: ['free', 'premium', 'admin'],
+            default: 'free'
+        },
+        isAdmin: {
+            type: Boolean,
+            default: false
+        },
+        registrationComplete: {
+            type: Boolean,
+            default: true
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
         }
     },
     { timestamps: true }
@@ -100,7 +74,7 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password') || !this.password) return next();
+    if (!this.isModified('password')) return next();
 
     try {
         const salt = await bcrypt.genSalt(10);
@@ -113,7 +87,6 @@ userSchema.pre('save', async function (next) {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function (password) {
-    if (!this.password) return false;
     return bcrypt.compare(password, this.password);
 };
 

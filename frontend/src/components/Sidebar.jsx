@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
-import { apiClient, notificationAPI } from '../services/api';
+import { apiClient, notificationAPI, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 
 const Sidebar = ({
     currentBranch,
@@ -35,6 +36,25 @@ const Sidebar = ({
     const [notificationsLoading, setNotificationsLoading] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+    const [showAdminUploadModal, setShowAdminUploadModal] = useState(false);
+    const [showUserUploadModal, setShowUserUploadModal] = useState(false);
+
+    const [adminSubjects, setAdminSubjects] = useState([]);
+    const [adminSubjectsLoading, setAdminSubjectsLoading] = useState(false);
+    const [adminUploadLoading, setAdminUploadLoading] = useState(false);
+    const [adminUploadError, setAdminUploadError] = useState('');
+    const [adminSubjectId, setAdminSubjectId] = useState('');
+    const [adminContentType, setAdminContentType] = useState('');
+    const [adminFiles, setAdminFiles] = useState([]);
+
+    const [userSubjects, setUserSubjects] = useState([]);
+    const [userSubjectsLoading, setUserSubjectsLoading] = useState(false);
+    const [userUploadLoading, setUserUploadLoading] = useState(false);
+    const [userUploadError, setUserUploadError] = useState('');
+    const [userSubjectCode, setUserSubjectCode] = useState('');
+    const [userContentType, setUserContentType] = useState('');
+    const [userFiles, setUserFiles] = useState([]);
 
     // Fetch notifications from backend
     const fetchNotifications = useCallback(async () => {
@@ -184,6 +204,171 @@ const Sidebar = ({
         }
     };
 
+
+    const loadAdminSubjects = async () => {
+        if (!user?.isAdmin) return;
+        setAdminSubjectsLoading(true);
+        setAdminUploadError('');
+        try {
+            const allBranches = ['CS', 'IS', 'EC', 'EE', 'ME', 'CV', 'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT', 'CI', 'BT', 'IM', 'CH', 'ET', 'EI'];
+            const cycles = ['P', 'C'];
+            const promises = [];
+            for (const branch of allBranches) {
+                for (const cycleCode of cycles) {
+                    promises.push(
+                        subjectAPI.getSubjectsByBranch(branch, cycleCode)
+                            .then((response) => ({ branch, cycle: cycleCode, subjects: response.data || [] }))
+                            .catch(() => ({ branch, cycle: cycleCode, subjects: [] }))
+                    );
+                }
+            }
+
+            const results = await Promise.all(promises);
+            const allSubjects = [];
+
+            results.forEach(({ branch, cycle, subjects }) => {
+                subjects.forEach((subject) => {
+                    allSubjects.push({
+                        ...subject,
+                        branch,
+                        cycle
+                    });
+                });
+            });
+
+            const subjectsByCode = new Map();
+            allSubjects.forEach((subject) => {
+                const code = String(subject.code || '').trim();
+                if (!code || subjectsByCode.has(code)) return;
+                subjectsByCode.set(code, subject);
+            });
+
+            const uniqueSubjects = Array.from(subjectsByCode.values());
+            uniqueSubjects.sort((a, b) => String(a.code).localeCompare(String(b.code)));
+            setAdminSubjects(uniqueSubjects);
+        } catch (error) {
+            console.error('Error loading admin subjects:', error);
+            setAdminUploadError('Failed to load subjects');
+        } finally {
+            setAdminSubjectsLoading(false);
+        }
+    };
+
+    const loadUserSubjects = async () => {
+        setUserSubjectsLoading(true);
+        setUserUploadError('');
+        try {
+            const response = await subjectAPI.getSubjectsByBranch(currentBranch, cycle);
+            setUserSubjects(response.data || []);
+        } catch (error) {
+            console.error('Error loading user subjects:', error);
+            setUserUploadError('Failed to load subjects');
+        } finally {
+            setUserSubjectsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showAdminUploadModal && user?.isAdmin && adminSubjects.length === 0) {
+            loadAdminSubjects();
+        }
+    }, [showAdminUploadModal, user?.isAdmin]);
+
+    useEffect(() => {
+        if (showUserUploadModal && userSubjects.length === 0) {
+            loadUserSubjects();
+        }
+    }, [showUserUploadModal, currentBranch, cycle]);
+
+    const resetAdminUploadForm = () => {
+        setAdminSubjectId('');
+        setAdminContentType('');
+        setAdminFiles([]);
+    };
+
+    const resetUserUploadForm = () => {
+        setUserSubjectCode('');
+        setUserContentType('');
+        setUserFiles([]);
+    };
+
+    const mapContentType = (type) => type;
+
+    const handleAdminUploadSubmit = async (e) => {
+        e.preventDefault();
+        if (!adminSubjectId || !adminContentType || adminFiles.length === 0) {
+            setAdminUploadError('Please fill all required fields');
+            return;
+        }
+
+        setAdminUploadLoading(true);
+        setAdminUploadError('');
+
+        try {
+            const response = await uploadAPI.uploadSubjectFiles(
+                adminSubjectId,
+                mapContentType(adminContentType),
+                adminFiles
+            );
+            console.log('Admin upload response:', response);
+
+            resetAdminUploadForm();
+            setShowAdminUploadModal(false);
+            alert('Upload complete. Study materials updated for all branches.');
+        } catch (error) {
+            console.error('Admin upload error details:', {
+                message: error?.message,
+                status: error?.response?.status,
+                data: error?.response?.data,
+                fullError: error
+            });
+            setAdminUploadError(error?.response?.data?.error || error?.message || 'Upload failed');
+        } finally {
+            setAdminUploadLoading(false);
+        }
+    };
+
+    const handleUserUploadSubmit = async (e) => {
+        e.preventDefault();
+        if (!userSubjectCode || !userContentType || userFiles.length === 0) {
+            setUserUploadError('Please fill all required fields');
+            return;
+        }
+
+        setUserUploadLoading(true);
+        setUserUploadError('');
+
+        try {
+            const formData = new FormData();
+            userFiles.forEach((file) => formData.append('files', file));
+            formData.append('contentType', userContentType);
+            formData.append('subjectCode', userSubjectCode);
+
+            console.log('User upload formData:', { 
+                filesCount: userFiles.length,
+                contentType: userContentType,
+                subjectCode: userSubjectCode
+            });
+
+            const response = await userUploadAPI.createUpload(formData);
+            console.log('User upload response:', response);
+
+            resetUserUploadForm();
+            setShowUserUploadModal(false);
+            alert('Upload sent to admin for review.');
+        } catch (error) {
+            console.error('User upload error details:', {
+                message: error?.message,
+                status: error?.response?.status,
+                data: error?.response?.data,
+                fullError: error
+            });
+            setUserUploadError(error?.response?.data?.error || error?.message || 'Upload failed');
+        } finally {
+            setUserUploadLoading(false);
+        }
+    };
+
     return (
         <>
             {/* Mobile Menu Button - Fixed top left on mobile only */}
@@ -287,6 +472,32 @@ const Sidebar = ({
                                         <span className="mt-1 inline-flex items-center rounded-full bg-purple-500/15 text-purple-300 px-2 py-0.5 border border-purple-400/20 text-[11px]">
                                             New
                                         </span>
+                                    </div>
+                                )}
+                            </div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => (user?.isAdmin ? setShowAdminUploadModal(true) : setShowUserUploadModal(true))}
+                            className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition mt-3 ${isCollapsed ? '' : 'text-left'
+                                }`}
+                            title={user?.isAdmin ? 'Admin Upload' : 'Upload Study Material'}
+                        >
+                            <div className={`flex ${isCollapsed ? 'items-center justify-center' : 'items-start'} gap-3`}>
+                                <div className={isCollapsed ? '' : 'mt-0.5'}>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                                    </svg>
+                                </div>
+                                {!isCollapsed && (
+                                    <div className="min-w-0">
+                                        <p className={`text-sm font-semibold ${sidebarClasses.title}`}>
+                                            {user?.isAdmin ? 'Admin Upload' : 'Upload Materials'}
+                                        </p>
+                                        <p className="text-[11px] text-gray-400/80">
+                                            {user?.isAdmin ? 'Add study materials' : 'Send to admin review'}
+                                        </p>
                                     </div>
                                 )}
                             </div>
@@ -586,6 +797,224 @@ const Sidebar = ({
                     </ModalShell>
                 )}
 
+                {showAdminUploadModal && (
+                    <ModalShell
+                        isLightMode={isLightMode}
+                        title="Admin Upload"
+                        onClose={() => {
+                            setShowAdminUploadModal(false);
+                            setAdminUploadError('');
+                        }}
+                    >
+                        <form onSubmit={handleAdminUploadSubmit} className="space-y-4">
+                            <div>
+                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                    Subject
+                                </label>
+                                <select
+                                    value={adminSubjectId}
+                                    onChange={(e) => setAdminSubjectId(e.target.value)}
+                                    className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                        : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
+                                        }`}
+                                >
+                                    <option value="">Select a subject</option>
+                                    {adminSubjects.map((subject) => (
+                                        <option key={subject._id} value={subject._id}>
+                                            {subject.code}
+                                        </option>
+                                    ))}
+                                </select>
+                                {adminSubjectsLoading && (
+                                    <p className={`text-xs mt-1 ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                        Loading subjects...
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                    Content Type
+                                </label>
+                                <select
+                                    value={adminContentType}
+                                    onChange={(e) => {
+                                        setAdminContentType(e.target.value);
+                                    }}
+                                    className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                        : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
+                                        }`}
+                                >
+                                    <option value="">Select content type</option>
+                                    <option value="notes">Notes</option>
+                                    <option value="pyqs">PYQs</option>
+                                    <option value="questionBanks">Question Banks</option>
+                                    <option value="syllabus">Syllabus</option>
+                                    <option value="resources">Resources</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                    Files
+                                </label>
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => setAdminFiles(Array.from(e.target.files || []))}
+                                    className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                        : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
+                                        }`}
+                                    accept=".pdf,.doc,.docx,.ppt,.pptx"
+                                />
+                            </div>
+
+                            {adminUploadError && (
+                                <div className={`rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-red-200 bg-red-50 text-red-700' : 'border-red-500/20 bg-red-500/10 text-red-200'}`}>
+                                    {adminUploadError}
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAdminUploadModal(false)}
+                                    className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'
+                                        }`}
+                                    disabled={adminUploadLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${adminUploadLoading
+                                        ? 'bg-purple-600/40 cursor-not-allowed'
+                                        : 'bg-purple-600 hover:bg-purple-500'
+                                        }`}
+                                    disabled={adminUploadLoading}
+                                >
+                                    {adminUploadLoading ? 'Uploading...' : 'Upload'}
+                                </button>
+                            </div>
+                        </form>
+                    </ModalShell>
+                )}
+
+                {showUserUploadModal && (
+                    <ModalShell
+                        isLightMode={isLightMode}
+                        title="Upload Materials"
+                        onClose={() => {
+                            setShowUserUploadModal(false);
+                            setUserUploadError('');
+                        }}
+                    >
+                        <form onSubmit={handleUserUploadSubmit} className="space-y-4">
+                            <div className={`rounded-xl border px-3 py-2 text-xs ${isLightMode ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-white/10 bg-white/5 text-secondary-300'}`}>
+                                Your upload is sent to admin review. Approved materials appear in study materials.
+                            </div>
+
+                            <div>
+                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                    Subject
+                                </label>
+                                <select
+                                    value={userSubjectCode}
+                                    onChange={(e) => {
+                                        setUserSubjectCode(e.target.value);
+                                    }}
+                                    className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                        : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
+                                        }`}
+                                >
+                                    <option value="">Select a subject</option>
+                                    {userSubjects.map((subject) => (
+                                        <option key={subject.code} value={subject.code}>
+                                            {subject.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {userSubjectsLoading && (
+                                    <p className={`text-xs mt-1 ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                        Loading subjects...
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                    Content Type
+                                </label>
+                                <select
+                                    value={userContentType}
+                                    onChange={(e) => {
+                                        setUserContentType(e.target.value);
+                                    }}
+                                    className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                        : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
+                                        }`}
+                                >
+                                    <option value="">Select content type</option>
+                                    <option value="notes">Notes</option>
+                                    <option value="pyqs">PYQs</option>
+                                    <option value="questionBanks">Question Banks</option>
+                                    <option value="syllabus">Syllabus</option>
+                                    <option value="resources">Resources</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
+                                    Files
+                                </label>
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={(e) => setUserFiles(Array.from(e.target.files || []))}
+                                    className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode
+                                        ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
+                                        : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
+                                        }`}
+                                    accept=".pdf,.doc,.docx,.ppt,.pptx"
+                                />
+                            </div>
+
+                            {userUploadError && (
+                                <div className={`rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-red-200 bg-red-50 text-red-700' : 'border-red-500/20 bg-red-500/10 text-red-200'}`}>
+                                    {userUploadError}
+                                </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUserUploadModal(false)}
+                                    className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'
+                                        }`}
+                                    disabled={userUploadLoading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${userUploadLoading
+                                        ? 'bg-purple-600/40 cursor-not-allowed'
+                                        : 'bg-purple-600 hover:bg-purple-500'
+                                        }`}
+                                    disabled={userUploadLoading}
+                                >
+                                    {userUploadLoading ? 'Submitting...' : 'Submit'}
+                                </button>
+                            </div>
+                        </form>
+                    </ModalShell>
+                )}
+
                 {showBugModal && (
                     <ModalShell
                         isLightMode={isLightMode}
@@ -771,8 +1200,8 @@ const Sidebar = ({
 };
 
 const ModalShell = ({ isLightMode, title, onClose, children }) => {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <button
                 type="button"
                 className="absolute inset-0 bg-black/60"
@@ -800,7 +1229,8 @@ const ModalShell = ({ isLightMode, title, onClose, children }) => {
                 </div>
                 <div className="px-5 py-4">{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

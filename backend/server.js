@@ -11,7 +11,9 @@ const feedbackRoutes = require('./routes/feedbackRoutes');
 const bugRoutes = require('./routes/bugRoutes');
 const downloadRoutes = require('./routes/downloadRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const userUploadRoutes = require('./routes/userUploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const seedDatabase = require('./utils/seedDatabase');
 
 const app = express();
@@ -97,7 +99,9 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/bugs', bugRoutes);
 app.use('/api/download', downloadRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin/analytics', analyticsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

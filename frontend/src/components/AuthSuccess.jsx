@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
 
-const AuthSuccess = ({ message = "Successfully logged in", submessage = "Redirecting in 3s...", onAnimationComplete }) => {
-    const [seconds, setSeconds] = useState(3);
+const AuthSuccess = ({ message = "Successfully logged in", submessage = "Redirecting in 1.5s...", onAnimationComplete }) => {
+    const [seconds, setSeconds] = useState(1.5);
 
     useEffect(() => {
         const timer = setInterval(() => {
-            setSeconds((prev) => (prev > 0 ? prev - 1 : 0));
-        }, 1000);
+            setSeconds((prev) => (prev > 0 ? parseFloat((prev - 0.1).toFixed(1)) : 0));
+        }, 100);
         return () => clearInterval(timer);
     }, []);
 

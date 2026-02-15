@@ -27,6 +27,15 @@ const contentItemSchema = new mongoose.Schema({
         type: String,
         default: 'pdf'
     },
+    tags: {
+        type: [String],
+        default: []
+    },
+    status: {
+        type: String,
+        enum: ['approved', 'pending'],
+        default: 'approved'
+    },
     uploadedAt: {
         type: Date,
         default: Date.now
@@ -94,6 +103,9 @@ const subjectSchema = new mongoose.Schema({
     },
     modules: [moduleSchema],
     // Subject-level content
+    notes: [contentItemSchema],         // Notes files
+    pyqs: [contentItemSchema],          // Previous Year Questions
+    questionBanks: [contentItemSchema], // Question Banks
     syllabus: [contentItemSchema],      // Syllabus files
     resources: [contentItemSchema],     // Additional resources
     branch: {

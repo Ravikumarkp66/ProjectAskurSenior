@@ -199,20 +199,16 @@ const getContentUrl = async (req, res) => {
         let contentItem;
         let contextName = subject.name;
 
-        // Subject-level content (syllabus, resources)
-        if (['syllabus', 'resources'].includes(contentType)) {
+        if (['notes', 'pyqs', 'questionBanks', 'syllabus', 'resources'].includes(contentType)) {
             contentItem = subject[contentType]?.find(c => c._id.toString() === contentId);
-        } 
-        // Module-level content (notes, pyqs, questionBanks)
-        else if (['notes', 'pyqs', 'questionBanks'].includes(contentType) && moduleNumber) {
+        }
+
+        if (!contentItem && moduleNumber) {
             const module = subject.modules.find(m => m.moduleNumber === parseInt(moduleNumber));
-            if (!module) {
-                return res.status(404).json({ error: 'Module not found' });
+            if (module && module[contentType]) {
+                contentItem = module[contentType]?.find(c => c._id.toString() === contentId);
+                contextName = `${subject.name} - ${module.title}`;
             }
-            contentItem = module[contentType]?.find(c => c._id.toString() === contentId);
-            contextName = `${subject.name} - ${module.title}`;
-        } else {
-            return res.status(400).json({ error: 'Invalid content type or missing module number' });
         }
 
         if (!contentItem) {
@@ -257,6 +253,9 @@ const getSubjectContent = async (req, res) => {
                 branch: subject.branch,
                 cycle: subject.cycle
             },
+            notes: subject.notes || [],
+            pyqs: subject.pyqs || [],
+            questionBanks: subject.questionBanks || [],
             syllabus: subject.syllabus || [],
             resources: subject.resources || [],
             modules: subject.modules.map(m => ({

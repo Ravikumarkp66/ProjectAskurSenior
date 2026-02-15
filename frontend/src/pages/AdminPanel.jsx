@@ -1,30 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
-import GameifiedLoader from '../components/GameifiedLoader';
-import { apiClient, subjectAPI, uploadAPI } from '../services/api';
-import { AuthContext } from '../context/AuthContext';
+import DashboardOverview from './DashboardOverview';
+import UserManagementPage from './UserManagementPage';
+import { apiClient, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 import { useAuth } from '../utils/hooks';
-
-const CONTENT_TYPES = {
-    notes: { label: 'Notes', hasModules: true },
-    pyqs: { label: 'PYQs', hasModules: false },
-    questionBanks: { label: 'Question Banks', hasModules: true },
-    syllabus: { label: 'Syllabus', hasModules: false }
-};
-
-const getBackendContentType = (frontendType) => {
-    if (frontendType === 'syllabus') {
-        return 'syllabus';
-    }
-    if (frontendType === 'pyqs') {
-        return 'resources'; // PYQs go to subject-level resources
-    }
-    if (['notes', 'questionBanks'].includes(frontendType)) {
-        return frontendType;
-    }
-    return 'resources';
-};
 
 const AdminPanel = () => {
     const navigate = useNavigate();
@@ -52,17 +32,14 @@ const AdminPanel = () => {
     const [usersLoading, setUsersLoading] = useState(false);
     const [usersError, setUsersError] = useState('');
     const [resolvingId, setResolvingId] = useState('');
+    const [userUploads, setUserUploads] = useState([]);
+    const [userUploadsLoading, setUserUploadsLoading] = useState(false);
+    const [userUploadsError, setUserUploadsError] = useState('');
+    const [userUploadActionId, setUserUploadActionId] = useState('');
 
     // Study materials state
     const [subjects, setSubjects] = useState([]);
-    const [selectedSubject, setSelectedSubject] = useState('');
-    const [selectedContentType, setSelectedContentType] = useState('');
-    const [selectedModule, setSelectedModule] = useState('');
     const [loading, setLoading] = useState(true);
-    const [uploadLoading, setUploadLoading] = useState(false);
-    const [file, setFile] = useState(null);
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
 
     // Manage content state
     const [manageSubject, setManageSubject] = useState('');
@@ -138,6 +115,61 @@ const AdminPanel = () => {
         }
     };
 
+    const loadUserUploads = async () => {
+        setUserUploadsLoading(true);
+        setUserUploadsError('');
+        try {
+            const res = await userUploadAPI.getUploads('pending');
+            setUserUploads(res?.data?.items || []);
+        } catch (error) {
+            console.error('Failed to load user uploads:', error);
+            setUserUploadsError(error?.response?.data?.error || 'Failed to load user uploads');
+        } finally {
+            setUserUploadsLoading(false);
+        }
+    };
+
+    const handlePreviewUpload = async (uploadId) => {
+        try {
+            const res = await userUploadAPI.getUploadUrl(uploadId);
+            if (res?.data?.url) {
+                window.open(res.data.url, '_blank', 'noopener,noreferrer');
+            }
+        } catch (error) {
+            console.error('Failed to preview upload:', error);
+            alert(error?.response?.data?.error || 'Failed to preview upload');
+        }
+    };
+
+    const handleApproveUpload = async (uploadId) => {
+        setUserUploadActionId(uploadId);
+        try {
+            await userUploadAPI.approveUpload(uploadId);
+            await loadUserUploads();
+        } catch (error) {
+            console.error('Failed to approve upload:', error);
+            alert(error?.response?.data?.error || 'Failed to approve upload');
+        } finally {
+            setUserUploadActionId('');
+        }
+    };
+
+    const handleDeleteUpload = async (uploadId) => {
+        if (!confirm('Delete this upload permanently? This will remove it from S3 as well.')) {
+            return;
+        }
+        setUserUploadActionId(uploadId);
+        try {
+            await userUploadAPI.deleteUpload(uploadId);
+            await loadUserUploads();
+        } catch (error) {
+            console.error('Failed to delete upload:', error);
+            alert(error?.response?.data?.error || 'Failed to delete upload');
+        } finally {
+            setUserUploadActionId('');
+        }
+    };
+
     // Study materials functions
     const loadSubjects = async () => {
         try {
@@ -204,124 +236,6 @@ const AdminPanel = () => {
         }
     };
 
-    const handleUpload = async (e) => {
-        e.preventDefault();
-        
-        // Validation
-        if (!file) {
-            alert('Please select a file to upload');
-            return;
-        }
-        if (!selectedSubject) {
-            alert('Please select a subject');
-            return;
-        }
-        if (!selectedContentType) {
-            alert('Please select a content type');
-            return;
-        }
-        if (!title.trim()) {
-            alert('Please enter a title');
-            return;
-        }
-
-        const contentTypeConfig = CONTENT_TYPES[selectedContentType];
-        if (contentTypeConfig.hasModules && !selectedModule) {
-            alert('Please select a module for this content type');
-            return;
-        }
-
-        setUploadLoading(true);
-
-        try {
-            let uploadResponse;
-            
-            if (contentTypeConfig.hasModules) {
-                // Module-level content (notes, pyqs, questionBanks) - use BULK upload to all branches
-                console.log('🚀 BULK MODULE UPLOAD:', {
-                    subjectCode: selectedSubject,
-                    subjectName: selectedSubjectData?.name,
-                    moduleNumber: selectedModule,
-                    contentType: getBackendContentType(selectedContentType),
-                    fileName: file.name,
-                    title: title.trim(),
-                    targetBranches: selectedSubjectData?.branches || [],
-                    totalBranches: selectedSubjectData?.branches?.length || 0
-                });
-                
-                uploadResponse = await uploadAPI.bulkUploadModuleContent(
-                    selectedSubject, // Subject CODE for bulk upload
-                    parseInt(selectedModule),
-                    getBackendContentType(selectedContentType), 
-                    file, 
-                    title.trim(), 
-                    description.trim()
-                );
-                
-                console.log('✅ Upload successful!', uploadResponse.data);
-            } else {
-                // Subject-level content (syllabus) - use BULK upload to all branches
-                console.log('🚀 BULK SUBJECT UPLOAD:', {
-                    subjectCode: selectedSubject,
-                    subjectName: selectedSubjectData?.name,
-                    contentType: getBackendContentType(selectedContentType),
-                    fileName: file.name,
-                    title: title.trim(),
-                    targetBranches: selectedSubjectData?.branches || [],
-                    totalBranches: selectedSubjectData?.branches?.length || 0
-                });
-                
-                uploadResponse = await uploadAPI.bulkUploadSubjectContent(
-                    selectedSubject, // Subject CODE for bulk upload
-                    getBackendContentType(selectedContentType), 
-                    file, 
-                    title.trim(), 
-                    description.trim()
-                );
-                
-                console.log('✅ Upload successful!', uploadResponse.data);
-            }
-            
-            const branchCount = selectedSubjectData?.branches?.length || 0;
-            alert(`🎉 File uploaded successfully to ${branchCount} branches!\n\nBranches: ${selectedSubjectData?.branches?.join(', ') || 'N/A'}\n\nStudents in ALL these branches will now see this content.`);
-            
-            // Reset form
-            setFile(null);
-            setTitle('');
-            setDescription('');
-            setSelectedModule('');
-            
-            // Reset file input
-            const fileInput = document.querySelector('input[type="file"]');
-            if (fileInput) fileInput.value = '';
-            
-            // Reload content if managing the same subject
-            if (manageSubject === selectedSubject) {
-                loadUploadedContent(selectedSubject);
-            }
-            
-        } catch (error) {
-            setUploadLoading(false);
-            
-            let errorMessage = 'Upload failed. ';
-            
-            if (error.response?.status === 404) {
-                errorMessage += 'Backend server not found.';
-            } else if (error.response?.status === 401) {
-                errorMessage += 'Authentication required.';
-            } else if (error.response?.status === 413) {
-                errorMessage += 'File too large.';
-            } else if (error.response?.status === 400) {
-                errorMessage += error.response?.data?.error || 'Invalid request.';
-            } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-                errorMessage += 'Cannot connect to server.';
-            } else {
-                errorMessage += error.response?.data?.error || error.message || 'Please try again.';
-            }
-            
-            alert(errorMessage);
-        }
-    };
 
     // Load data on mount and tab change
     useEffect(() => {
@@ -329,6 +243,7 @@ const AdminPanel = () => {
             if (reviewsActiveTab === 'feedback') loadFeedback();
             else if (reviewsActiveTab === 'bugs') loadBugs();
             else if (reviewsActiveTab === 'users') loadUsers();
+            else if (reviewsActiveTab === 'uploads') loadUserUploads();
         } else if (activeTab === 'materials') {
             loadSubjects();
         }
@@ -341,8 +256,6 @@ const AdminPanel = () => {
         }
     }, []);
 
-    const selectedSubjectData = subjects.find(s => s.code === selectedSubject);
-    const contentTypeConfig = selectedContentType ? CONTENT_TYPES[selectedContentType] : null;
     const manageSubjectData = subjects.find(s => s.code === manageSubject);
 
     // Load uploaded content for a subject
@@ -359,36 +272,26 @@ const AdminPanel = () => {
                 const subject = subjectsWithCode[0];
                 const contentList = [];
                 
-                // Collect subject-level content
-                ['resources', 'syllabus'].forEach(type => {
+                ['notes', 'pyqs', 'questionBanks', 'syllabus', 'resources'].forEach(type => {
                     if (subject[type] && subject[type].length > 0) {
                         subject[type].forEach(item => {
+                            const displayType = type === 'pyqs'
+                                ? 'PYQs'
+                                : type === 'questionBanks'
+                                    ? 'Question Banks'
+                                    : type === 'syllabus'
+                                        ? 'Syllabus'
+                                        : type === 'resources'
+                                            ? 'Resources'
+                                            : 'Notes';
                             contentList.push({
                                 ...item,
                                 contentType: type,
                                 level: 'subject',
-                                displayType: type === 'resources' ? 'PYQs' : 'Syllabus'
+                                displayType
                             });
                         });
                     }
-                });
-                
-                // Collect module-level content
-                subject.modules?.forEach(module => {
-                    ['notes', 'questionBanks'].forEach(type => {
-                        if (module[type] && module[type].length > 0) {
-                            module[type].forEach(item => {
-                                contentList.push({
-                                    ...item,
-                                    contentType: type,
-                                    level: 'module',
-                                    moduleNumber: module.moduleNumber,
-                                    moduleTitle: module.title,
-                                    displayType: type === 'notes' ? 'Notes' : 'Question Banks'
-                                });
-                            });
-                        }
-                    });
                 });
                 
                 setUploadedContent(contentList);
@@ -411,20 +314,11 @@ const AdminPanel = () => {
         
         setDeletingContent(content._id);
         try {
-            if (content.level === 'subject') {
-                await uploadAPI.bulkDeleteSubjectContent(
-                    manageSubject,
-                    content.contentType,
-                    content.title
-                );
-            } else {
-                await uploadAPI.bulkDeleteModuleContent(
-                    manageSubject,
-                    content.moduleNumber,
-                    content.contentType,
-                    content.title
-                );
-            }
+            await uploadAPI.bulkDeleteSubjectContent(
+                manageSubject,
+                content.contentType,
+                content.title
+            );
             
             alert('Content deleted successfully from all branches!');
             loadUploadedContent(manageSubject);
@@ -451,19 +345,8 @@ const AdminPanel = () => {
 
     return (
         <AdminLayout activeTab={activeTab} onTabChange={setActiveTab}>
-            <GameifiedLoader 
-                isLoading={uploadLoading} 
-                loadingText="Uploading Study Material" 
-                variant="upload"
-                tips={[
-                    "📤 Your file is being uploaded to help students learn!",
-                    "🏆 Every upload contributes to the knowledge base",
-                    "⚡ Large files might take a moment - quality education takes time",
-                    "🎓 You're making a difference by sharing educational content",
-                    "🚀 Almost done! Your material will be available soon"
-                ]}
-            />
-            
+            {activeTab === 'dashboard' && <DashboardOverview />}
+            {activeTab === 'users' && <UserManagementPage />}
             {activeTab === 'reviews' && (
                 <div className="space-y-6">
                     <div>
@@ -481,6 +364,7 @@ const AdminPanel = () => {
                             {[
                                 { id: 'feedback', label: 'Feedback' },
                                 { id: 'bugs', label: 'Bug Reports' },
+                                { id: 'uploads', label: 'User Uploads' },
                                 { id: 'users', label: 'Users' }
                             ].map((tab) => (
                                 <button
@@ -672,6 +556,106 @@ const AdminPanel = () => {
                             </div>
                         </div>
                     )}
+
+                    {reviewsActiveTab === 'uploads' && (
+                        <div className="space-y-4">
+                            {userUploadsLoading && (
+                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                                        <span className="ml-2">Loading user uploads...</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {userUploadsError && (
+                                <div className="text-red-500 text-center py-4">{userUploadsError}</div>
+                            )}
+
+                            {!userUploadsLoading && userUploads.length === 0 && !userUploadsError && (
+                                <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    No pending user uploads
+                                </div>
+                            )}
+
+                            {userUploads.map((item) => (
+                                <div key={item._id} className={`p-4 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded ${
+                                                    item.contentType === 'notes' ? 'bg-green-100 text-green-800' :
+                                                    item.contentType === 'pyqs' ? 'bg-purple-100 text-purple-800' :
+                                                    item.contentType === 'questionBanks' ? 'bg-blue-100 text-blue-800' :
+                                                    'bg-orange-100 text-orange-800'
+                                                }`}>
+                                                    {item.contentType}
+                                                </span>
+                                                <span className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                    {item.subjectCode}{item.moduleNumber ? ` • Module ${item.moduleNumber}` : ''}
+                                                </span>
+                                            </div>
+                                            <h4 className={`mt-2 font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                                {item.title}
+                                            </h4>
+                                            {item.description && (
+                                                <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                    {item.description}
+                                                </p>
+                                            )}
+                                            <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                                Uploaded by: {item.uploadedBy?.usn || item.uploadedBy?.email || 'Unknown'} • {new Date(item.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handlePreviewUpload(item._id)}
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
+                                                    isLightMode
+                                                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                                }`}
+                                            >
+                                                Preview
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleApproveUpload(item._id)}
+                                                disabled={userUploadActionId === item._id}
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
+                                                    userUploadActionId === item._id
+                                                        ? 'bg-gray-400 cursor-not-allowed'
+                                                        : isLightMode
+                                                            ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                            : 'bg-green-500 hover:bg-green-600 text-white'
+                                                }`}
+                                            >
+                                                {userUploadActionId === item._id ? 'Processing...' : 'Approve'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteUpload(item._id)}
+                                                disabled={userUploadActionId === item._id}
+                                                className={`px-3 py-2 rounded-md text-sm font-medium transition ${
+                                                    userUploadActionId === item._id
+                                                        ? 'bg-gray-400 cursor-not-allowed'
+                                                        : isLightMode
+                                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                            : 'bg-red-500 hover:bg-red-600 text-white'
+                                                }`}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -682,7 +666,7 @@ const AdminPanel = () => {
                             Study Materials Management
                         </h1>
                         <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                            Upload and manage study materials for all subjects
+                            Manage study materials across all subjects
                         </p>
                     </div>
 
@@ -697,190 +681,6 @@ const AdminPanel = () => {
                         </div>
                     ) : (
                         <>
-                            <form onSubmit={handleUpload} className="space-y-6">
-                            <div className={`p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                                <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                    Upload Study Material
-                                    <span className={`block text-sm font-normal mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                        Content will be shared across all branches
-                                    </span>
-                                </h3>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                            Subject *
-                                        </label>
-                                        <select
-                                            value={selectedSubject}
-                                            onChange={(e) => setSelectedSubject(e.target.value)}
-                                            className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                isLightMode
-                                                    ? 'bg-white border-gray-300 text-gray-900'
-                                                    : 'bg-gray-700 border-gray-600 text-white'
-                                            }`}
-                                            required
-                                        >
-                                            <option value="">Select a subject</option>
-                                            {subjects.length === 0 && !loading ? (
-                                                <option disabled>No subjects found - check console</option>
-                                            ) : (
-                                                subjects.map((subject) => (
-                                                    <option key={subject.code} value={subject.code}>
-                                                        {subject.name}
-                                                    </option>
-                                                ))
-                                            )}
-                                        </select>
-                                        {subjects.length === 0 && !loading && (
-                                            <p className={`text-xs mt-1 ${isLightMode ? 'text-red-500' : 'text-red-400'}`}>
-                                                No subjects loaded. Make sure backend server is running on port 5000.
-                                            </p>
-                                        )}
-                                        {loading && (
-                                            <p className={`text-xs mt-1 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                                Loading subjects...
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div>
-                                        <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                            Content Type *
-                                        </label>
-                                        <select
-                                            value={selectedContentType}
-                                            onChange={(e) => {
-                                                setSelectedContentType(e.target.value);
-                                                setSelectedModule('');
-                                            }}
-                                            className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                isLightMode
-                                                    ? 'bg-white border-gray-300 text-gray-900'
-                                                    : 'bg-gray-700 border-gray-600 text-white'
-                                            }`}
-                                            required
-                                        >
-                                            <option value="">Select content type</option>
-                                            {Object.entries(CONTENT_TYPES).map(([key, config]) => (
-                                                <option key={key} value={key}>
-                                                    {config.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {contentTypeConfig?.hasModules && selectedSubjectData && (
-                                        <div className="md:col-span-2">
-                                            <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                                Module *
-                                            </label>
-                                            <select
-                                                value={selectedModule}
-                                                onChange={(e) => setSelectedModule(e.target.value)}
-                                                className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                    isLightMode
-                                                        ? 'bg-white border-gray-300 text-gray-900'
-                                                        : 'bg-gray-700 border-gray-600 text-white'
-                                                }`}
-                                                required
-                                            >
-                                                <option value="">Select a module</option>
-                                                {selectedSubjectData.modules?.map((module) => (
-                                                    <option key={module._id} value={module.moduleNumber}>
-                                                        Module {module.moduleNumber}: {module.title}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    )}
-
-                                    <div className="md:col-span-2">
-                                        <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                            Title *
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={title}
-                                            onChange={(e) => setTitle(e.target.value)}
-                                            className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                isLightMode
-                                                    ? 'bg-white border-gray-300 text-gray-900'
-                                                    : 'bg-gray-700 border-gray-600 text-white'
-                                            }`}
-                                            placeholder="Enter title for the material"
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="md:col-span-2">
-                                        <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                            Description (optional)
-                                        </label>
-                                        <textarea
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
-                                            rows={3}
-                                            className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                isLightMode
-                                                    ? 'bg-white border-gray-300 text-gray-900'
-                                                    : 'bg-gray-700 border-gray-600 text-white'
-                                            }`}
-                                            placeholder="Enter description (optional)"
-                                        />
-                                    </div>
-
-                                    <div className="md:col-span-2">
-                                        <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                            File *
-                                        </label>
-                                        <input
-                                            type="file"
-                                            onChange={(e) => setFile(e.target.files[0])}
-                                            className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                                isLightMode
-                                                    ? 'bg-white border-gray-300 text-gray-900'
-                                                    : 'bg-gray-700 border-gray-600 text-white'
-                                            }`}
-                                            accept=".pdf,.doc,.docx,.ppt,.pptx"
-                                            required
-                                        />
-                                        <p className={`text-xs mt-1 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                            Supported formats: PDF, DOC, DOCX, PPT, PPTX
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-6">
-                                    <button
-                                        type="submit"
-                                        disabled={uploadLoading || !file || !selectedSubject || !selectedContentType || !title.trim() || (contentTypeConfig?.hasModules && !selectedModule)}
-                                        className={`w-full md:w-auto px-6 py-2 rounded-md font-medium transition flex items-center gap-2 ${
-                                            uploadLoading
-                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                : isLightMode
-                                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                                                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                    >
-                                        {uploadLoading ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                <span>Uploading...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                                </svg>
-                                                <span>Upload Material</span>
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-
                         {/* Manage Uploaded Content Section */}
                         <div className={`mt-8 p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
                             <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
@@ -956,11 +756,6 @@ const AdminPanel = () => {
                                                     }`}>
                                                         {content.displayType}
                                                     </span>
-                                                    {content.level === 'module' && (
-                                                        <span className={`text-xs ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                            Module {content.moduleNumber}: {content.moduleTitle}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
                                                     {content.title}

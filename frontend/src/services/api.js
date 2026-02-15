@@ -63,11 +63,7 @@ export const authAPI = {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
     changePassword: (data) => apiClient.put('/auth/change-password', data),
-    switchBranch: (data) => apiClient.post('/auth/switch-branch', data),
-    forgotPassword: (email) => apiClient.post('/auth/forgot-password', { email }),
-    resetPassword: (email, otp, newPassword) => apiClient.post('/auth/reset-password', { email, otp, newPassword }),
-    verifySignup: (data) => apiClient.post('/auth/verify-signup', data),
-    resendOtp: (email) => apiClient.post('/auth/resend-otp', { email })
+    switchBranch: (data) => apiClient.post('/auth/switch-branch', data)
 };
 
 // Subject API
@@ -92,67 +88,29 @@ export const subjectAPI = {
 
 // Upload API (Admin)
 export const uploadAPI = {
-    // Legacy notes upload
-    uploadNotes: (subjectId, moduleNumber, file) => {
+    uploadSubjectFiles: (subjectId, contentType, files) => {
         const formData = new FormData();
-        formData.append('file', file);
-        return apiClient.post(`/upload/notes/${subjectId}/${moduleNumber}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    },
-    // Subject-level content upload (syllabus, resources)
-    uploadSubjectContent: (subjectId, contentType, file, title, description = '') => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('title', title);
-        formData.append('description', description);
-        return apiClient.post(`/upload/content/${subjectId}/${contentType}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    },
-    // Module-level content upload (notes, pyqs, questionBanks)
-    uploadModuleContent: (subjectId, moduleNumber, contentType, file, title, description = '') => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('title', title);
-        formData.append('description', description);
-        return apiClient.post(`/upload/module-content/${subjectId}/${moduleNumber}/${contentType}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        files.forEach((file) => formData.append('files', file));
+        return apiClient.post(`/upload/${subjectId}/${contentType}`, formData);
     },
     // Delete subject-level content
     deleteSubjectContent: (subjectId, contentType, contentId) =>
         apiClient.delete(`/upload/content/${subjectId}/${contentType}/${contentId}`),
-    // Delete module-level content
+    // Delete module-level content (legacy)
     deleteModuleContent: (subjectId, moduleNumber, contentType, contentId) =>
         apiClient.delete(`/upload/module-content/${subjectId}/${moduleNumber}/${contentType}/${contentId}`),
 
     // BULK UPLOAD - Upload to ALL subjects with same code across all branches/cycles
 
-    // Bulk upload subject-level content (syllabus, resources) to all subjects with this code
-    bulkUploadSubjectContent: (subjectCode, contentType, file, title, description = '') => {
+    bulkUploadSubjectContent: (subjectCode, contentType, files) => {
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('title', title);
-        formData.append('description', description);
-        return apiClient.post(`/upload/bulk/content/${subjectCode}/${contentType}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    },
-    // Bulk upload module-level content (notes, pyqs, questionBanks) to all subjects with this code
-    bulkUploadModuleContent: (subjectCode, moduleNumber, contentType, file, title, description = '') => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('title', title);
-        formData.append('description', description);
-        return apiClient.post(`/upload/bulk/module-content/${subjectCode}/${moduleNumber}/${contentType}`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        files.forEach((file) => formData.append('files', file));
+        return apiClient.post(`/upload/bulk/content/${subjectCode}/${contentType}`, formData);
     },
     // Bulk delete subject-level content from all subjects with this code
     bulkDeleteSubjectContent: (subjectCode, contentType, title) =>
         apiClient.delete(`/upload/bulk/content/${subjectCode}/${contentType}/${encodeURIComponent(title)}`),
-    // Bulk delete module-level content from all subjects with this code
+    // Bulk delete module-level content from all subjects with this code (legacy)
     bulkDeleteModuleContent: (subjectCode, moduleNumber, contentType, title) =>
         apiClient.delete(`/upload/bulk/module-content/${subjectCode}/${moduleNumber}/${contentType}/${encodeURIComponent(title)}`)
 };
@@ -178,4 +136,17 @@ export const notificationAPI = {
     // Delete notification (admin only)
     deleteNotification: (notificationId) =>
         apiClient.delete(`/notifications/${notificationId}`)
+};
+
+// User upload API (user submits, admin approves)
+export const userUploadAPI = {
+    createUpload: (formData) => apiClient.post('/user-uploads', formData),
+    getUploads: (status = 'pending') =>
+        apiClient.get('/user-uploads', { params: { status } }),
+    getUploadUrl: (uploadId) =>
+        apiClient.get(`/user-uploads/${uploadId}/url`),
+    approveUpload: (uploadId) =>
+        apiClient.post(`/user-uploads/${uploadId}/approve`),
+    deleteUpload: (uploadId) =>
+        apiClient.delete(`/user-uploads/${uploadId}`)
 };

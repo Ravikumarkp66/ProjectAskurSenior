@@ -10,8 +10,6 @@ import CGPACalculatorPage from './pages/CGPACalculatorPage';
 import SubjectContentPage from './pages/SubjectContentPage';
 import QuizPage from './pages/QuizPage';
 import GameifiedLoader from './components/GameifiedLoader';
-import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
@@ -52,8 +50,6 @@ function AppContent() {
         <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<LoginPage initialMode="register" />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
                 path="/dashboard"
                 element={
