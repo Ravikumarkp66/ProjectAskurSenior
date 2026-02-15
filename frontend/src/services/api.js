@@ -15,8 +15,12 @@ apiClient.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
-    // Add timeout for all requests
-    config.timeout = 30000; // 30 second timeout
+    // Add timeout for all requests - longer for uploads
+    if (config.url.includes('/upload') || config.url.includes('/user-uploads')) {
+        config.timeout = 300000; // 5 minute timeout for uploads (50MB files)
+    } else {
+        config.timeout = 120000; // 2 minute timeout for other requests
+    }
     return config;
 });
 
@@ -91,7 +95,9 @@ export const uploadAPI = {
     uploadSubjectFiles: (subjectId, contentType, files) => {
         const formData = new FormData();
         files.forEach((file) => formData.append('files', file));
-        return apiClient.post(`/upload/${subjectId}/${contentType}`, formData);
+        return apiClient.post(`/upload/${subjectId}/${contentType}`, formData, {
+            timeout: 300000 // 5 minute timeout for large files
+        });
     },
     // Delete subject-level content
     deleteSubjectContent: (subjectId, contentType, contentId) =>
@@ -105,7 +111,9 @@ export const uploadAPI = {
     bulkUploadSubjectContent: (subjectCode, contentType, files) => {
         const formData = new FormData();
         files.forEach((file) => formData.append('files', file));
-        return apiClient.post(`/upload/bulk/content/${subjectCode}/${contentType}`, formData);
+        return apiClient.post(`/upload/bulk/content/${subjectCode}/${contentType}`, formData, {
+            timeout: 300000 // 5 minute timeout for large files
+        });
     },
     // Bulk delete subject-level content from all subjects with this code
     bulkDeleteSubjectContent: (subjectCode, contentType, title) =>
@@ -140,7 +148,9 @@ export const notificationAPI = {
 
 // User upload API (user submits, admin approves)
 export const userUploadAPI = {
-    createUpload: (formData) => apiClient.post('/user-uploads', formData),
+    createUpload: (formData) => apiClient.post('/user-uploads', formData, {
+        timeout: 300000 // 5 minute timeout for large files
+    }),
     getUploads: (status = 'pending') =>
         apiClient.get('/user-uploads', { params: { status } }),
     getUploadUrl: (uploadId) =>
