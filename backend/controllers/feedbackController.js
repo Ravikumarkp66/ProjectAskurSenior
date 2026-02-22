@@ -1,4 +1,5 @@
 const Feedback = require('../models/Feedback');
+const cacheInvalidator = require('../utils/cacheInvalidator');
 
 const createFeedback = async (req, res) => {
     try {
@@ -18,6 +19,9 @@ const createFeedback = async (req, res) => {
             rating: normalizedRating,
             message: message ? String(message).trim() : undefined
         });
+
+        // Invalidate Cache
+        cacheInvalidator.emit('FEEDBACK_UPDATED');
 
         return res.status(201).json({ message: 'Feedback submitted', feedback });
     } catch (error) {
@@ -60,9 +64,9 @@ const feedbackStats = async (req, res) => {
 
         const stats = result?.[0]
             ? {
-                  total: result[0].total,
-                  avgRating: Math.round(result[0].avgRating * 10) / 10
-              }
+                total: result[0].total,
+                avgRating: Math.round(result[0].avgRating * 10) / 10
+            }
             : { total: 0, avgRating: 0 };
 
         return res.json({ stats });

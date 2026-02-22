@@ -10,6 +10,14 @@ const userSchema = new mongoose.Schema(
             uppercase: true,
             match: /^[a-z0-9]{8,12}$/i
         },
+        username: {
+            type: String,
+            unique: true,
+            sparse: true,
+            trim: true,
+            minlength: 3,
+            maxlength: 20
+        },
         email: {
             type: String,
             required: true,
@@ -33,7 +41,7 @@ const userSchema = new mongoose.Schema(
         },
         password: {
             type: String,
-            default: null // Optional for OAuth users
+            default: null
         },
         branch: {
             type: String,

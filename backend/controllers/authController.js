@@ -300,6 +300,7 @@ const googleLogin = async (req, res) => {
             user: {
                 id: user._id,
                 usn: user.usn,
+                username: user.username,
                 email: user.email,
                 name: user.name,
                 branch: user.branch,
@@ -332,14 +333,14 @@ const googleLogin = async (req, res) => {
     }
 };
 
-// Complete Google registration - Add USN and password for new Google users
+// Complete Google registration - Add USN, Username, and Branch for new Google users
 const completeGoogleRegistration = async (req, res) => {
     try {
-        const { usn, password } = req.body;
+        const { usn, username, branch } = req.body;
         const userId = req.userId;
 
-        if (!usn || !password) {
-            return res.status(400).json({ error: 'USN and password are required' });
+        if (!usn || !username || !branch) {
+            return res.status(400).json({ error: 'USN, Username, and Branch are required' });
         }
 
         // Validate USN format
@@ -348,9 +349,15 @@ const completeGoogleRegistration = async (req, res) => {
         }
 
         // Check if USN already exists
-        const existingUser = await User.findOne({ usn: usn.toUpperCase() });
-        if (existingUser && existingUser._id.toString() !== userId) {
+        const existingUsn = await User.findOne({ usn: usn.toUpperCase() });
+        if (existingUsn && existingUsn._id.toString() !== userId) {
             return res.status(400).json({ error: 'USN already registered' });
+        }
+
+        // Check if Username already exists
+        const existingUsername = await User.findOne({ username: username.toLowerCase() });
+        if (existingUsername && existingUsername._id.toString() !== userId) {
+            return res.status(400).json({ error: 'Username already taken' });
         }
 
         const user = await User.findById(userId);
@@ -362,21 +369,11 @@ const completeGoogleRegistration = async (req, res) => {
             return res.status(400).json({ error: 'Registration already completed' });
         }
 
-        // Derive branch from USN
-        const branchCode = usn.substring(5, 7).toUpperCase();
-        const branchMap = {
-            'CS': 'CSE', 'IS': 'ISE', 'EC': 'ECE', 'EE': 'EEE',
-            'ME': 'MECH', 'CV': 'CIVIL', 'AI': 'AIML', 'DS': 'DS',
-            'CB': 'CSBS', 'IT': 'IT', 'CI': 'CIVIL', 'BT': 'BT',
-            'IM': 'IM', 'CH': 'CH', 'ET': 'ET', 'EI': 'EI'
-        };
-        const derivedBranch = branchMap[branchCode] || 'CS';
-
-        // Update user with USN, password, branch, and mark registration complete
+        // Update user with USN, username, branch, and mark registration complete
         user.usn = usn.toUpperCase();
-        user.password = password; // Will be hashed by pre-save hook
-        user.branch = derivedBranch;
-        user.currentBranch = derivedBranch;
+        user.username = username.toLowerCase();
+        user.branch = branch;
+        user.currentBranch = branch;
         user.registrationComplete = true;
 
         await user.save();
@@ -385,11 +382,12 @@ const completeGoogleRegistration = async (req, res) => {
         const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
 
         res.json({
-            message: 'Registration completed successfully',
+            message: 'Profile completed successfully',
             token: tokenJwt,
             user: {
                 id: user._id,
                 usn: user.usn,
+                username: user.username,
                 email: user.email,
                 name: user.name,
                 branch: user.branch,
@@ -399,11 +397,12 @@ const completeGoogleRegistration = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Complete registration error:', error.message);
+        console.error('Complete profile error:', error.message);
         if (error.code === 11000) {
-            return res.status(400).json({ error: 'USN already registered' });
+            const field = Object.keys(error.keyPattern)[0];
+            return res.status(400).json({ error: `${field} already exists` });
         }
-        res.status(500).json({ error: 'Failed to complete registration' });
+        res.status(500).json({ error: 'Failed to complete profile' });
     }
 };
 

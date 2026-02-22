@@ -112,6 +112,9 @@ const itemVariants = {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }
 };
 
+// Optimization: Ensure images are lazy loaded and use WebP where possible
+// Note: Hero currently uses mostly inline SVGs which are excellent for performance.
+
 export default function Hero() {
     const [user, setUser] = useState(null);
 

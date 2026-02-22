@@ -3,6 +3,7 @@ const Subject = require("../models/Subject");
 const UserUpload = require("../models/UserUpload");
 const Feedback = require("../models/Feedback");
 const BugReport = require("../models/BugReport");
+const cacheInvalidator = require("../utils/cacheInvalidator");
 
 /**
  * GET /admin/analytics/overview
@@ -14,32 +15,21 @@ exports.getOverviewAnalytics = async (req, res) => {
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
         // Total users
-        const totalUsers = await User.countDocuments();
+        const totalUsers = await User.countDocuments().lean();
 
         // User upload count
-        const userUploadCount = await UserUpload.countDocuments();
-
-        // Total files
-        const subjects = await Subject.find({});
-        let totalFiles = 0;
-        subjects.forEach((subject) => {
-            totalFiles += (subject.notes?.length || 0);
-            totalFiles += (subject.pyqs?.length || 0);
-            totalFiles += (subject.questionBanks?.length || 0);
-            totalFiles += (subject.syllabus?.length || 0);
-            totalFiles += (subject.resources?.length || 0);
-        });
+        const userUploadCount = await UserUpload.countDocuments().lean();
 
         // Pending uploads
-        const pendingUploads = await UserUpload.countDocuments({ status: "pending" });
+        const pendingUploads = await UserUpload.countDocuments({ status: "pending" }).lean();
 
         // Total subjects
-        const totalSubjects = await Subject.countDocuments();
+        const totalSubjects = await Subject.countDocuments().lean();
 
         // Uploads this month
         const uploadsThisMonth = await UserUpload.countDocuments({
             createdAt: { $gte: startOfMonth }
-        });
+        }).lean();
 
         res.json({
             totalUsers,
@@ -59,25 +49,26 @@ exports.getOverviewAnalytics = async (req, res) => {
  * GET /admin/analytics/user-growth
  * Return: { months: [], counts: [] } - Monthly user registration data
  */
+/**
+ * GET /admin/analytics/user-growth
+ * Optimized using MongoDB aggregation
+ */
 exports.getUserGrowthAnalytics = async (req, res) => {
     try {
-        const users = await User.find({})
-            .select("createdAt")
-            .sort({ createdAt: 1 })
-            .lean();
+        const growth = await User.aggregate([
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
 
-        const monthlyData = {};
-        users.forEach((user) => {
-            if (user.createdAt) {
-                const key = user.createdAt.toISOString().split("T")[0].slice(0, 7); // YYYY-MM
-                monthlyData[key] = (monthlyData[key] || 0) + 1;
-            }
-        });
+        const months = growth.map(g => g._id);
+        const counts = growth.map(g => g.count);
 
-        const months = Object.keys(monthlyData).sort();
-        const counts = months.map((month) => monthlyData[month]);
-
-        // Calculate cumulative (total users per month)
+        // Calculate cumulative
         const cumulativeCounts = [];
         let cumulative = 0;
         counts.forEach((count) => {
@@ -94,25 +85,22 @@ exports.getUserGrowthAnalytics = async (req, res) => {
 
 /**
  * GET /admin/analytics/upload-growth
- * Return: { months: [], counts: [] } - Monthly upload data
+ * Optimized using MongoDB aggregation
  */
 exports.getUploadGrowthAnalytics = async (req, res) => {
     try {
-        const uploads = await UserUpload.find({})
-            .select("createdAt")
-            .sort({ createdAt: 1 })
-            .lean();
+        const growth = await UserUpload.aggregate([
+            {
+                $group: {
+                    _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+                    count: { $sum: 1 }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
 
-        const monthlyData = {};
-        uploads.forEach((upload) => {
-            if (upload.createdAt) {
-                const key = upload.createdAt.toISOString().split("T")[0].slice(0, 7); // YYYY-MM
-                monthlyData[key] = (monthlyData[key] || 0) + 1;
-            }
-        });
-
-        const months = Object.keys(monthlyData).sort();
-        const counts = months.map((month) => monthlyData[month]);
+        const months = growth.map(g => g._id);
+        const counts = growth.map(g => g.count);
 
         res.json({ months, counts });
     } catch (err) {
@@ -234,7 +222,8 @@ exports.getNotificationStats = async (req, res) => {
  */
 exports.getUserListAnalytics = async (req, res) => {
     try {
-        const { search, role, sortBy } = req.query;
+        const { search, role, sortBy, page = 1, limit = 10 } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
         let query = {};
 
@@ -250,20 +239,27 @@ exports.getUserListAnalytics = async (req, res) => {
             query.isAdmin = role === "admin";
         }
 
-        let users = await User.find(query)
+        let usersQuery = User.find(query)
             .select("name usn email role isAdmin isBanned createdAt lastLogin")
             .lean();
 
         // Sorting
         if (sortBy === "recent") {
-            users.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            usersQuery = usersQuery.sort({ createdAt: -1 });
         } else if (sortBy === "active") {
-            users.sort((a, b) => new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0));
+            usersQuery = usersQuery.sort({ lastLogin: -1 });
         }
+
+        const [users, total] = await Promise.all([
+            usersQuery.skip(skip).limit(parseInt(limit)),
+            User.countDocuments(query)
+        ]);
 
         res.json({
             users,
-            total: users.length
+            total,
+            page: parseInt(page),
+            pages: Math.ceil(total / limit)
         });
     } catch (err) {
         console.error("Error fetching users:", err);
@@ -300,6 +296,9 @@ exports.togglePremium = async (req, res) => {
             message: `User ${isPremium ? "upgraded to premium" : "downgraded to free"}`,
             user
         });
+
+        // Invalidate Cache
+        cacheInvalidator.emit('FEEDBACK_UPDATED');
     } catch (err) {
         console.error("Error updating user premium status:", err);
         res.status(500).json({ error: "Failed to update user premium status" });
@@ -333,6 +332,9 @@ exports.banUser = async (req, res) => {
             message: `User ${isBanned ? "banned" : "unbanned"}`,
             user
         });
+
+        // Invalidate Cache
+        cacheInvalidator.emit('FEEDBACK_UPDATED');
     } catch (err) {
         console.error("Error banning user:", err);
         res.status(500).json({ error: "Failed to update user status" });
@@ -361,9 +363,90 @@ exports.resetUserRole = async (req, res) => {
             message: "User role reset to default",
             user
         });
+
+        // Invalidate Cache
+        cacheInvalidator.emit('FEEDBACK_UPDATED');
     } catch (err) {
         console.error("Error resetting user role:", err);
         res.status(500).json({ error: "Failed to reset user role" });
     }
 };
+const CACHE_KEYS = require("../utils/cacheKeys");
+const { getCache, setCache } = require("../utils/cache");
 
+/**
+ * GET /admin/analytics/dashboard-summary
+ * Optimized consolidated dashboard data with Smart Caching
+ */
+exports.getDashboardSummary = async (req, res) => {
+    try {
+        // Step 1: Check Cache
+        const cachedScSummary = await getCache(CACHE_KEYS.DASHBOARD_SUMMARY);
+        if (cachedScSummary) {
+            return res.json({ ...cachedScSummary, cached: true });
+        }
+
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        // Run independent queries in parallel
+        const [
+            totalUsers,
+            totalSubjects,
+            pendingUploads,
+            uploadsThisMonth,
+            recentUsers
+        ] = await Promise.all([
+            User.countDocuments().lean(),
+            Subject.countDocuments().lean(),
+            UserUpload.countDocuments({ status: "pending" }).lean(),
+            UserUpload.countDocuments({ createdAt: { $gte: startOfMonth } }).lean(),
+            User.find().sort({ createdAt: -1 }).limit(5).select("name usn email createdAt").lean()
+        ]);
+
+        // Aggregate total files across all subjects efficiently
+        const fileStats = await Subject.aggregate([
+            {
+                $project: {
+                    totalFiles: {
+                        $add: [
+                            { $size: { $ifNull: ["$notes", []] } },
+                            { $size: { $ifNull: ["$pyqs", []] } },
+                            { $size: { $ifNull: ["$questionBanks", []] } },
+                            { $size: { $ifNull: ["$syllabus", []] } },
+                            { $size: { $ifNull: ["$resources", []] } }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalFiles: { $sum: "$totalFiles" }
+                }
+            }
+        ]);
+
+        const totalFiles = fileStats.length > 0 ? fileStats[0].totalFiles : 0;
+
+        const responseData = {
+            stats: {
+                totalUsers,
+                totalSubjects,
+                totalFiles,
+                pendingUploads,
+                uploadsThisMonth
+            },
+            recentUsers,
+            timestamp: new Date()
+        };
+
+        // Cache the result
+        await setCache(CACHE_KEYS.DASHBOARD_SUMMARY, responseData, 3600);
+
+        res.json(responseData);
+    } catch (err) {
+        console.error("Error fetching dashboard summary:", err);
+        res.status(500).json({ error: "Failed to fetch dashboard summary" });
+    }
+};

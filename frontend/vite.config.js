@@ -18,7 +18,9 @@ export default defineConfig({
             output: {
                 manualChunks: {
                     vendor: ['react', 'react-dom', 'react-router-dom'],
-                    ui: ['axios']
+                    animations: ['framer-motion'],
+                    charts: ['recharts'],
+                    utils: ['axios']
                 }
             }
         }

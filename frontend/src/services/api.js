@@ -93,11 +93,20 @@ export const subjectAPI = {
 
 // Upload API (Admin)
 export const uploadAPI = {
-    uploadSubjectFiles: (subjectId, contentType, files) => {
+    uploadSubjectFiles: (subjectId, contentType, files, options = {}) => {
         const formData = new FormData();
         files.forEach((file) => formData.append('files', file));
         return apiClient.post(`/upload/${subjectId}/${contentType}`, formData, {
-            timeout: 300000 // 5 minute timeout for large files
+            timeout: 300000, // 5 minute timeout for large files
+            onUploadProgress: options.onUploadProgress
+        });
+    },
+    uploadSubjectZip: (subjectId, zipFile, options = {}) => {
+        const formData = new FormData();
+        formData.append('file', zipFile);
+        return apiClient.post(`/upload/zip/${subjectId}`, formData, {
+            timeout: 300000,
+            onUploadProgress: options.onUploadProgress
         });
     },
     // Delete subject-level content
@@ -149,8 +158,9 @@ export const notificationAPI = {
 
 // User upload API (user submits, admin approves)
 export const userUploadAPI = {
-    createUpload: (formData) => apiClient.post('/user-uploads', formData, {
-        timeout: 300000 // 5 minute timeout for large files
+    createUpload: (formData, options = {}) => apiClient.post('/user-uploads', formData, {
+        timeout: 300000, // 5 minute timeout for large files
+        onUploadProgress: options.onUploadProgress
     }),
     getUploads: (status = 'pending') =>
         apiClient.get('/user-uploads', { params: { status } }),

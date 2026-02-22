@@ -47,6 +47,9 @@ const Sidebar = ({
     const [adminSubjectId, setAdminSubjectId] = useState('');
     const [adminContentType, setAdminContentType] = useState('');
     const [adminFiles, setAdminFiles] = useState([]);
+    const [adminUploadProgress, setAdminUploadProgress] = useState(0);
+    const [adminUploadFileIndex, setAdminUploadFileIndex] = useState(0);
+    const [adminUploadFileTotal, setAdminUploadFileTotal] = useState(0);
 
     const [userSubjects, setUserSubjects] = useState([]);
     const [userSubjectsLoading, setUserSubjectsLoading] = useState(false);
@@ -55,6 +58,9 @@ const Sidebar = ({
     const [userSubjectCode, setUserSubjectCode] = useState('');
     const [userContentType, setUserContentType] = useState('');
     const [userFiles, setUserFiles] = useState([]);
+    const [userUploadProgress, setUserUploadProgress] = useState(0);
+    const [userUploadFileIndex, setUserUploadFileIndex] = useState(0);
+    const [userUploadFileTotal, setUserUploadFileTotal] = useState(0);
 
     // Fetch notifications from backend
     const fetchNotifications = useCallback(async () => {
@@ -284,33 +290,98 @@ const Sidebar = ({
         setAdminSubjectId('');
         setAdminContentType('');
         setAdminFiles([]);
+        setAdminUploadProgress(0);
+        setAdminUploadFileIndex(0);
+        setAdminUploadFileTotal(0);
     };
 
     const resetUserUploadForm = () => {
         setUserSubjectCode('');
         setUserContentType('');
         setUserFiles([]);
+        setUserUploadProgress(0);
+        setUserUploadFileIndex(0);
+        setUserUploadFileTotal(0);
     };
 
     const mapContentType = (type) => type;
 
+    const getUploadPercent = (event) => {
+        if (!event || !event.total) return 0;
+        return Math.min(100, Math.round((event.loaded / event.total) * 100));
+    };
+
+    const isZipFile = (file) => {
+        if (!file) return false;
+        const name = String(file.name || '').toLowerCase();
+        const type = String(file.type || '').toLowerCase();
+        return name.endsWith('.zip') || type === 'application/zip' || type === 'application/x-zip-compressed';
+    };
+
+    const isPdfFile = (file) => {
+        if (!file) return false;
+        const name = String(file.name || '').toLowerCase();
+        const type = String(file.type || '').toLowerCase();
+        return name.endsWith('.pdf') || type === 'application/pdf';
+    };
+
     const handleAdminUploadSubmit = async (e) => {
         e.preventDefault();
-        if (!adminSubjectId || !adminContentType || adminFiles.length === 0) {
+        if (!adminSubjectId || adminFiles.length === 0) {
             setAdminUploadError('Please fill all required fields');
             return;
         }
 
+        const zipFile = adminFiles.find(isZipFile);
+        if (zipFile && adminFiles.length > 1) {
+            setAdminUploadError('Upload only one ZIP file at a time');
+            return;
+        }
+
+        if (!zipFile && !adminContentType) {
+            setAdminUploadError('Please select a content type for PDF uploads');
+            return;
+        }
+
+        if (!zipFile && adminFiles.some((file) => !isPdfFile(file))) {
+            setAdminUploadError('Only PDF files are supported');
+            return;
+        }
+
+        const totalFiles = zipFile ? 1 : adminFiles.length;
+        setAdminUploadFileTotal(totalFiles);
+        setAdminUploadFileIndex(0);
+        setAdminUploadProgress(0);
         setAdminUploadLoading(true);
         setAdminUploadError('');
 
         try {
-            const response = await uploadAPI.uploadSubjectFiles(
-                adminSubjectId,
-                mapContentType(adminContentType),
-                adminFiles
-            );
-            console.log('Admin upload response:', response);
+            if (zipFile) {
+                setAdminUploadFileIndex(1);
+                const response = await uploadAPI.uploadSubjectZip(adminSubjectId, zipFile, {
+                    onUploadProgress: (event) => {
+                        setAdminUploadProgress(getUploadPercent(event));
+                    }
+                });
+                console.log('Admin ZIP upload response:', response);
+            } else {
+                for (let index = 0; index < adminFiles.length; index += 1) {
+                    const file = adminFiles[index];
+                    setAdminUploadFileIndex(index + 1);
+                    setAdminUploadProgress(0);
+                    const response = await uploadAPI.uploadSubjectFiles(
+                        adminSubjectId,
+                        mapContentType(adminContentType),
+                        [file],
+                        {
+                            onUploadProgress: (event) => {
+                                setAdminUploadProgress(getUploadPercent(event));
+                            }
+                        }
+                    );
+                    console.log('Admin upload response:', response);
+                }
+            }
 
             resetAdminUploadForm();
             setShowAdminUploadModal(false);
@@ -325,6 +396,9 @@ const Sidebar = ({
             setAdminUploadError(error?.response?.data?.error || error?.message || 'Upload failed');
         } finally {
             setAdminUploadLoading(false);
+            setAdminUploadProgress(0);
+            setAdminUploadFileIndex(0);
+            setAdminUploadFileTotal(0);
         }
     };
 
@@ -335,6 +409,10 @@ const Sidebar = ({
             return;
         }
 
+        const totalFiles = userFiles.length;
+        setUserUploadFileTotal(totalFiles);
+        setUserUploadFileIndex(0);
+        setUserUploadProgress(0);
         setUserUploadLoading(true);
         setUserUploadError('');
 
@@ -350,7 +428,19 @@ const Sidebar = ({
                 subjectCode: userSubjectCode
             });
 
-            const response = await userUploadAPI.createUpload(formData);
+            const response = await userUploadAPI.createUpload(formData, {
+                onUploadProgress: (event) => {
+                    const percent = getUploadPercent(event);
+                    setUserUploadProgress(percent);
+                    if (totalFiles > 0) {
+                        const estimatedCount = Math.min(
+                            totalFiles,
+                            Math.max(1, Math.round((percent / 100) * totalFiles))
+                        );
+                        setUserUploadFileIndex(estimatedCount);
+                    }
+                }
+            });
             console.log('User upload response:', response);
 
             resetUserUploadForm();
@@ -366,6 +456,9 @@ const Sidebar = ({
             setUserUploadError(error?.response?.data?.error || error?.message || 'Upload failed');
         } finally {
             setUserUploadLoading(false);
+            setUserUploadProgress(0);
+            setUserUploadFileIndex(0);
+            setUserUploadFileTotal(0);
         }
     };
 
@@ -868,8 +961,11 @@ const Sidebar = ({
                                         ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400'
                                         : 'border-white/10 bg-white text-slate-900 focus:border-purple-500/60'
                                         }`}
-                                    accept=".pdf,.doc,.docx,.ppt,.pptx"
+                                    accept=".pdf,.zip"
                                 />
+                                <p className={`mt-1 text-xs ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                    Upload PDFs or a single ZIP with notes/, pyqs/, questionBanks/, syllabus/, resources/.
+                                </p>
                             </div>
 
                             {adminUploadError && (
@@ -896,7 +992,21 @@ const Sidebar = ({
                                         }`}
                                     disabled={adminUploadLoading}
                                 >
-                                    {adminUploadLoading ? 'Uploading...' : 'Upload'}
+                                    {adminUploadLoading ? (
+                                        <div className="relative h-full w-full">
+                                            <div className="absolute inset-0 rounded-lg bg-white/20" />
+                                            <div
+                                                className="absolute inset-y-0 left-0 rounded-lg bg-white/70 transition-all duration-200"
+                                                style={{ width: `${adminUploadProgress}%` }}
+                                            />
+                                            <div className="relative z-10 flex h-full items-center justify-between px-3 text-[11px] text-white">
+                                                <span>{`Uploading ${adminUploadFileIndex || 0} of ${adminUploadFileTotal || 0} files`}</span>
+                                                <span>{`${adminUploadProgress}%`}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        'Upload'
+                                    )}
                                 </button>
                             </div>
                         </form>
@@ -1008,7 +1118,21 @@ const Sidebar = ({
                                         }`}
                                     disabled={userUploadLoading}
                                 >
-                                    {userUploadLoading ? 'Submitting...' : 'Submit'}
+                                    {userUploadLoading ? (
+                                        <div className="relative h-full w-full">
+                                            <div className="absolute inset-0 rounded-lg bg-white/20" />
+                                            <div
+                                                className="absolute inset-y-0 left-0 rounded-lg bg-white/70 transition-all duration-200"
+                                                style={{ width: `${userUploadProgress}%` }}
+                                            />
+                                            <div className="relative z-10 flex h-full items-center justify-between px-3 text-[11px] text-white">
+                                                <span>{`Uploading ${userUploadFileIndex || 0} of ${userUploadFileTotal || 0} files`}</span>
+                                                <span>{`${userUploadProgress}%`}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        'Submit'
+                                    )}
                                 </button>
                             </div>
                         </form>

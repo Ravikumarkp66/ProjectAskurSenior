@@ -16,9 +16,9 @@ export const analyticsAPI = {
     getNotificationStats: () => apiClient.get('/admin/analytics/notification-stats'),
 
     // User management
-    getUsers: (search = '', role = 'all', sortBy = 'recent') =>
+    getUsers: (search = '', role = 'all', sortBy = 'recent', page = 1, limit = 10) =>
         apiClient.get('/admin/analytics/users', {
-            params: { search, role, sortBy }
+            params: { search, role, sortBy, page, limit }
         }),
 
     togglePremium: (userId, isPremium) =>

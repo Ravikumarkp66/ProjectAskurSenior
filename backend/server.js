@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const compression = require('compression');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
@@ -14,10 +15,14 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const userUploadRoutes = require('./routes/userUploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const { initRedis } = require('./utils/cache');
 const seedDatabase = require('./utils/seedDatabase');
 const User = require('./models/User');
 
 const app = express();
+
+// Optimization: Compression middleware
+app.use(compression());
 
 // Trust proxy for secure cookies/rate limiting behind load balancers (Vercel/Render)
 app.set('trust proxy', 1);
@@ -83,8 +88,8 @@ mongoose
             console.error('Failed to sync user indexes:', error.message);
         }
 
-        // Redis is disabled - continuing without cache
-        console.log('Running without Redis cache');
+        // Initialize Redis Cache
+        await initRedis();
 
         // Seed database only in development
         if (process.env.NODE_ENV !== 'production') {
@@ -110,6 +115,12 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
+
+// Consolidated Dashboard Summary Route
+const analyticsController = require('./controllers/analyticsController');
+const authMiddleware = require('./middleware/auth');
+const adminMiddleware = require('./middleware/admin');
+app.get('/api/admin/dashboard-summary', authMiddleware, adminMiddleware, analyticsController.getDashboardSummary);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -149,6 +160,12 @@ const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📝 Environment: ${process.env.NODE_ENV}`);
     console.log(`⏰ Started at: ${new Date().toISOString()}`);
+
+    // Optimization: Render Keep-Alive
+    if (process.env.NODE_ENV === 'production' && process.env.SELF_URL) {
+        const { startSelfPing } = require('./utils/keepAlive');
+        startSelfPing(`${process.env.SELF_URL}/api/health`);
+    }
 });
 
 // Graceful shutdown

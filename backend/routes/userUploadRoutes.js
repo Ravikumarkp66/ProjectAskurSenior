@@ -8,6 +8,7 @@ const adminMiddleware = require("../middleware/admin");
 const UserUpload = require("../models/UserUpload");
 const Subject = require("../models/Subject");
 const { createContentNotification } = require("../controllers/notificationController");
+const cacheInvalidator = require("../utils/cacheInvalidator");
 
 const router = express.Router();
 
@@ -163,6 +164,11 @@ router.post("/:uploadId/approve", authMiddleware, adminMiddleware, async (req, r
             success: true,
             message: "Upload approved and added to study materials"
         });
+
+        // Invalidate Cache
+        if (subjects.length > 0) {
+            cacheInvalidator.emit('USER_UPLOAD_APPROVED', { subjectId: subjects[0]._id });
+        }
     } catch (err) {
         console.error("Error approving user upload:", err.message);
         res.status(500).json({ error: err.message || "Approval failed" });

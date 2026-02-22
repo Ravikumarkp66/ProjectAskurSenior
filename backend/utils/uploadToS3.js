@@ -23,17 +23,23 @@ const uploadToS3 = async (file, folder = "notes") => {
     console.log(`Successfully uploaded file to S3: ${key}`);
 
     // Cleanup local file after successful upload
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    try {
+      await fs.promises.access(file.path);
+      await fs.promises.unlink(file.path);
+    } catch {
+      // File already removed or inaccessible
     }
 
     return key; // Return only the S3 key
   } catch (error) {
     // Cleanup local file even if upload fails
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
+    try {
+      await fs.promises.access(file.path);
+      await fs.promises.unlink(file.path);
+    } catch {
+      // File already removed or inaccessible
     }
-    
+
     console.error("Error uploading to S3:", error.message);
     throw new Error(`S3 upload failed: ${error.message}`);
   }

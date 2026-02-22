@@ -10,6 +10,9 @@ const UserManagementPage = () => {
     const [roleFilter, setRoleFilter] = useState('all');
     const [sortBy, setSortBy] = useState('recent');
     const [actioningUserId, setActioningUserId] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalUsers, setTotalUsers] = useState(0);
 
     const [theme] = useState(() => {
         try {
@@ -24,20 +27,27 @@ const UserManagementPage = () => {
         setLoading(true);
         setError('');
         try {
-            const response = await analyticsAPI.getUsers(search, roleFilter, sortBy);
+            const response = await analyticsAPI.getUsers(search, roleFilter, sortBy, currentPage, 10);
             setUsers(response.data.users || []);
+            setTotalPages(response.data.pages || 1);
+            setTotalUsers(response.data.total || 0);
         } catch (err) {
             console.error('Error loading users:', err);
             setError(err?.response?.data?.error || 'Failed to load users');
         } finally {
             setLoading(false);
         }
-    }, [search, roleFilter, sortBy]);
+    }, [search, roleFilter, sortBy, currentPage]);
 
     useEffect(() => {
         const timer = setTimeout(loadUsers, 300);
         return () => clearTimeout(timer);
-    }, [search, roleFilter, sortBy, loadUsers]);
+    }, [search, roleFilter, sortBy, currentPage, loadUsers]);
+
+    // Reset to first page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, roleFilter, sortBy]);
 
     const handleTogglePremium = async (userId) => {
         setActioningUserId(userId);
@@ -173,7 +183,7 @@ const UserManagementPage = () => {
                                 ? 'bg-slate-50 text-slate-900'
                                 : 'bg-white/5 text-white'
                                 } text-lg font-semibold`}>
-                                {users.length}
+                                {totalUsers}
                             </div>
                         </div>
                     </div>
@@ -275,10 +285,10 @@ const UserManagementPage = () => {
                                             </td>
                                             <td className="px-6 py-4 text-sm">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${user.role === 'admin'
-                                                        ? 'bg-purple-100 text-purple-700'
-                                                        : user.role === 'premium'
-                                                            ? 'bg-amber-100 text-amber-700'
-                                                            : 'bg-slate-100 text-slate-700'
+                                                    ? 'bg-purple-100 text-purple-700'
+                                                    : user.role === 'premium'
+                                                        ? 'bg-amber-100 text-amber-700'
+                                                        : 'bg-slate-100 text-slate-700'
                                                     }`}>
                                                     {user.role === 'admin' ? 'Admin' : user.role === 'premium' ? 'Premium' : 'Free'}
                                                 </span>
@@ -304,10 +314,10 @@ const UserManagementPage = () => {
                                                         disabled={actioningUserId === user._id || user.role === 'admin'}
                                                         title={user.role === 'premium' ? 'Remove Premium' : 'Mark as Premium'}
                                                         className={`p-2 rounded-lg transition ${actioningUserId === user._id || user.role === 'admin'
-                                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                                : isLightMode
-                                                                    ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
-                                                                    : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
+                                                            ? 'bg-gray-400 cursor-not-allowed'
+                                                            : isLightMode
+                                                                ? 'bg-amber-100 text-amber-600 hover:bg-amber-200'
+                                                                : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20'
                                                             }`}
                                                     >
                                                         <FaStar className="w-4 h-4" />
@@ -317,10 +327,10 @@ const UserManagementPage = () => {
                                                         disabled={actioningUserId === user._id}
                                                         title={user.isBanned ? 'Unban' : 'Ban'}
                                                         className={`p-2 rounded-lg transition ${actioningUserId === user._id
-                                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                                : isLightMode
-                                                                    ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                                                    : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                                                            ? 'bg-gray-400 cursor-not-allowed'
+                                                            : isLightMode
+                                                                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                                                : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
                                                             }`}
                                                     >
                                                         <FaBan className="w-4 h-4" />
@@ -330,10 +340,10 @@ const UserManagementPage = () => {
                                                         disabled={actioningUserId === user._id}
                                                         title="Reset to default role"
                                                         className={`p-2 rounded-lg transition ${actioningUserId === user._id
-                                                                ? 'bg-gray-400 cursor-not-allowed'
-                                                                : isLightMode
-                                                                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                                                                    : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
+                                                            ? 'bg-gray-400 cursor-not-allowed'
+                                                            : isLightMode
+                                                                ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                                                                : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20'
                                                             }`}
                                                     >
                                                         <FaUndo className="w-4 h-4" />
@@ -344,6 +354,44 @@ const UserManagementPage = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    )}
+
+                    {/* Pagination Controls */}
+                    {!loading && totalPages > 1 && (
+                        <div className={`px-6 py-4 flex items-center justify-between border-t ${isLightMode ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/5'}`}>
+                            <div className={`text-sm ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>
+                                Showing <span className="font-medium">{(currentPage - 1) * 10 + 1}</span> to <span className="font-medium">{Math.min(currentPage * 10, totalUsers)}</span> of <span className="font-medium">{totalUsers}</span> users
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 rounded-md text-sm font-medium transition ${currentPage === 1
+                                        ? 'bg-gray-400 cursor-not-allowed text-white'
+                                        : isLightMode
+                                            ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                        }`}
+                                >
+                                    Previous
+                                </button>
+                                <div className={`flex items-center px-4 py-1 rounded-md text-sm font-medium ${isLightMode ? 'bg-white border border-slate-200 text-slate-700' : 'bg-white/20 text-white'}`}>
+                                    Page {currentPage} of {totalPages}
+                                </div>
+                                <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 rounded-md text-sm font-medium transition ${currentPage === totalPages
+                                        ? 'bg-gray-400 cursor-not-allowed text-white'
+                                        : isLightMode
+                                            ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                                            : 'bg-white/10 text-white hover:bg-white/20'
+                                        }`}
+                                >
+                                    Next
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

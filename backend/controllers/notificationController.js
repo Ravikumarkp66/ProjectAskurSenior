@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const cacheInvalidator = require('../utils/cacheInvalidator');
 
 /**
  * Get notifications for a user (optionally filtered by branch/cycle)
@@ -133,6 +134,9 @@ const createNotification = async (req, res) => {
 
         await notification.save();
 
+        // Invalidate Cache
+        cacheInvalidator.emit('NOTIFICATION_CREATED', { userId: notification.userId });
+
         res.json({ success: true, notification });
     } catch (error) {
         console.error('Error creating notification:', error);
@@ -231,6 +235,9 @@ const deleteNotification = async (req, res) => {
         if (!notification) {
             return res.status(404).json({ error: 'Notification not found' });
         }
+
+        // Invalidate Cache
+        cacheInvalidator.emit('FEEDBACK_UPDATED'); // Clears dashboard summary
 
         res.json({ success: true, message: 'Notification deleted' });
     } catch (error) {

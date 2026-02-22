@@ -1,4 +1,5 @@
 const BugReport = require('../models/BugReport');
+const cacheInvalidator = require('../utils/cacheInvalidator');
 
 const createBug = async (req, res) => {
     try {
@@ -60,11 +61,12 @@ const updateBugStatus = async (req, res) => {
         }
 
         const bug = await BugReport.findByIdAndUpdate(id, update, { new: true });
-        if (!bug) {
-            return res.status(404).json({ error: 'Bug not found' });
-        }
+        if (!bug) return res.status(404).json({ error: 'Bug report not found' });
 
-        return res.json({ message: 'Bug updated', bug });
+        // Invalidate Cache
+        cacheInvalidator.emit('FEEDBACK_UPDATED');
+
+        res.json({ message: 'Bug report updated', bug });
     } catch (error) {
         return res.status(500).json({ error: error.message });
     }
