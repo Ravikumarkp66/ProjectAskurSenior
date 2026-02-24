@@ -164,8 +164,8 @@ const InterviewExperiencePage = () => {
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className={`w-full pl-12 pr-4 py-3 rounded-xl border focus:ring-2 outline-none transition ${isLightMode
-                                            ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-100'
-                                            : 'bg-primary-950 border-primary-700 focus:border-primary-500 focus:ring-primary-900'
+                                        ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-100'
+                                        : 'bg-primary-950 border-primary-700 focus:border-primary-500 focus:ring-primary-900'
                                         }`}
                                 />
                             </div>
@@ -174,8 +174,8 @@ const InterviewExperiencePage = () => {
                                     value={roleFilter}
                                     onChange={(e) => setRoleFilter(e.target.value)}
                                     className={`w-full px-4 py-3 rounded-xl border focus:ring-2 outline-none appearance-none cursor-pointer transition ${isLightMode
-                                            ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-100'
-                                            : 'bg-primary-950 border-primary-700 focus:border-primary-500 focus:ring-primary-900'
+                                        ? 'bg-white border-slate-200 focus:border-purple-500 focus:ring-purple-100'
+                                        : 'bg-primary-950 border-primary-700 focus:border-primary-500 focus:ring-primary-900'
                                         }`}
                                 >
                                     {roles.map(role => (

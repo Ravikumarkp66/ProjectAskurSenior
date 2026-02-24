@@ -7,6 +7,7 @@ import { authAPI } from '../services/api';
 import { deriveBranchFromUSN, toBackendBranch, validateUSN } from '../utils/constants';
 import Hero from '../components/Hero';
 import AuthSuccess from '../components/AuthSuccess';
+import Logo from '../components/Logo';
 
 const LoginPage = ({ initialMode = 'login' }) => {
     const navigate = useNavigate();
@@ -47,7 +48,7 @@ const LoginPage = ({ initialMode = 'login' }) => {
         login(user, token);
         setTimeout(() => {
             navigate(targetPath);
-        }, 3500);
+        }, 2000);
     };
 
     const handleGoogleSuccess = async (credentialResponse) => {
@@ -187,9 +188,10 @@ const LoginPage = ({ initialMode = 'login' }) => {
                             />
                         ) : (
                             <>
-                                <div className="space-y-4">
-                                    <h3 className="text-2xl font-bold text-white mb-2">Login or Join Ask+</h3>
-                                    <p className="text-gray-400 text-sm mb-6">
+                                <div className="space-y-4 flex flex-col items-center">
+                                    <Logo size="lg" className="mb-4" />
+                                    <h3 className="text-2xl font-bold text-white mb-2">Login or Join AskUrSenior</h3>
+                                    <p className="text-gray-400 text-sm mb-6 max-w-xs mx-auto text-center">
                                         Use your college email to access study materials, analytics, and more.
                                     </p>
                                 </div>

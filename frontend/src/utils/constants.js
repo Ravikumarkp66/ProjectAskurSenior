@@ -10,7 +10,7 @@ export const BRANCHES = [
     { code: 'CH', name: 'Chemical Engineering' },
     { code: 'EE', name: 'Electrical Engineering' },
     { code: 'EC', name: 'Electronics & Communication Engineering' },
-    { code: 'ET', name: 'Electronics Technology' },
+    { code: 'ET', name: 'Electronics and Telecommunication' },
     { code: 'EI', name: 'Electronics & Instrumentation Engineering' }
 ];
 
@@ -23,7 +23,12 @@ export const toBackendBranch = (code) => {
         EE: 'EEE',
         ME: 'MECH',
         CV: 'CIVIL',
-        CI: 'AIML'
+        CI: 'AIML',
+        BT: 'BT',
+        IM: 'IM',
+        CH: 'CH',
+        ET: 'ETC',
+        EI: 'EIE'
     };
     return map[value] || value;
 };
@@ -37,7 +42,12 @@ export const toUiBranch = (code) => {
         EEE: 'EE',
         MECH: 'ME',
         CIVIL: 'CV',
-        AIML: 'CI'
+        AIML: 'CI',
+        BT: 'BT',
+        IM: 'IM',
+        CH: 'CH',
+        ETC: 'ET',
+        EIE: 'EI'
     };
     return map[value] || value;
 };

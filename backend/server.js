@@ -15,6 +15,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const userUploadRoutes = require('./routes/userUploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const interviewExperienceRoutes = require('./routes/interviewExperienceRoutes');
 const { initRedis } = require('./utils/cache');
 const seedDatabase = require('./utils/seedDatabase');
 const User = require('./models/User');
@@ -88,8 +89,8 @@ mongoose
             console.error('Failed to sync user indexes:', error.message);
         }
 
-        // Initialize Redis Cache
-        await initRedis();
+        // Initialize Redis Cache - Disabled
+        // await initRedis();
 
         // Seed database only in development
         if (process.env.NODE_ENV !== 'production') {
@@ -115,6 +116,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/interview-experiences', interviewExperienceRoutes);
 
 // Consolidated Dashboard Summary Route
 const analyticsController = require('./controllers/analyticsController');

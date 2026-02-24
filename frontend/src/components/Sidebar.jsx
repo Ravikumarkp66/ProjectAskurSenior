@@ -467,8 +467,7 @@ const Sidebar = ({
             {/* Mobile Menu Button - Fixed top left on mobile only */}
             <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={`sm:hidden fixed top-4 left-4 z-50 h-10 w-10 rounded-lg flex items-center justify-center shadow-lg ${isLightMode ? 'bg-white border border-slate-200' : 'bg-primary-900 border border-primary-700'
-                    }`}
+                className={`sm:hidden fixed top-4 left-4 z-50 h-10 w-10 rounded-lg flex items-center justify-center shadow-lg ${isLightMode ? 'bg-white border border-slate-200' : 'bg-primary-900 border border-primary-700'}`}
             >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     {mobileMenuOpen ? (
@@ -484,7 +483,7 @@ const Sidebar = ({
                 <div
                     className="sm:hidden fixed inset-0 bg-black/60 z-40"
                     onClick={() => setMobileMenuOpen(false)}
-                />
+                ></div>
             )}
 
             {/* Sidebar - Responsive */}

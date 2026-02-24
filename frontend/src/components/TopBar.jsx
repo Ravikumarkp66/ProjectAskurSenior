@@ -1,4 +1,5 @@
 import React from 'react';
+import Logo from './Logo';
 
 const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) => {
     const safeProgress = Math.min(100, Math.max(0, Number(progress) || 0));
@@ -10,9 +11,9 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) 
                 ${isLightMode ? 'bg-white border-b border-slate-200' : 'bg-[#0F172A] border-b border-[#1E293B]'}`}
         >
             <div className="px-4 sm:px-6 py-4 pl-16 sm:pl-6">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <Logo size="sm" />
                     <div>
-                        <h2 className={`text-base sm:text-xl font-bold ${isLightMode ? 'text-slate-900' : 'text-[#E5E7EB]'}`}>ASK+ A2Z Sheet</h2>
                         <p className={`${isLightMode ? 'text-slate-500' : 'text-[#94A3B8]'} text-xs mt-0.5`}>Overall Progress</p>
                     </div>
                 </div>
@@ -21,9 +22,8 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) 
                     <div className="relative">
                         <div className={`h-3 rounded-full overflow-hidden ${isLightMode ? 'bg-slate-200' : 'bg-[#1E293B]'}`}>
                             <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                    isLightMode ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-[#38BDF8]'
-                                }`}
+                                className={`h-full rounded-full transition-all duration-500 ${isLightMode ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-[#38BDF8]'
+                                    }`}
                                 style={{ width: `${safeProgress}%`, transition: 'width 0.3s ease-out' }}
                             />
                         </div>

@@ -7,30 +7,8 @@ let redisClient = null;
  * Ensures singleton connection across function invocations
  */
 const getRedisClient = async () => {
-    if (process.env.REDIS_ENABLED !== 'true') return null;
-
-    if (redisClient && redisClient.isOpen) {
-        return redisClient;
-    }
-
-    try {
-        redisClient = redis.createClient({
-            url: process.env.REDIS_URL,
-            socket: {
-                reconnectStrategy: (retries) => Math.min(retries * 50, 2000)
-            }
-        });
-
-        redisClient.on('error', (err) => console.error('Redis Client Error', err));
-
-        await redisClient.connect();
-        console.log('Connected to Redis (Serverless Singleton)');
-        return redisClient;
-    } catch (err) {
-        console.error('Redis connection failed:', err.message);
-        redisClient = null;
-        return null;
-    }
+    // Redis disabled to resolve UX failure/latency issues
+    return null;
 };
 
 const getCache = async (key) => {

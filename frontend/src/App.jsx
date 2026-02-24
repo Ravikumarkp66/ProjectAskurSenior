@@ -1,8 +1,9 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './utils/hooks';
 import GameifiedLoader from './components/GameifiedLoader';
+import WatermarkStamp from './components/common/WatermarkStamp';
 
 // Lazy load pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -14,6 +15,7 @@ const SubjectContentPage = lazy(() => import('./pages/SubjectContentPage'));
 const QuizPage = lazy(() => import('./pages/QuizPage'));
 const CompleteRegistrationPage = lazy(() => import('./pages/CompleteRegistrationPage'));
 const CompleteProfilePage = lazy(() => import('./pages/CompleteProfilePage'));
+const InterviewExperiencePage = lazy(() => import('./pages/InterviewExperiencePage'));
 
 // Generic loading fallback for Suspense
 const LoadingFallback = () => (
@@ -64,89 +66,95 @@ const AdminRoute = ({ children }) => {
 };
 
 function AppContent() {
-    return (
-        <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<LoginPage initialMode="register" />} />
-                <Route
-                    path="/complete-registration"
-                    element={
-                        <ProtectedRoute allowIncomplete={true}>
-                            <CompleteRegistrationPage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/complete-profile"
-                    element={
-                        <ProtectedRoute allowIncomplete={true}>
-                            <CompleteProfilePage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/dashboard"
-                    element={
-                        <ProtectedRoute>
-                            <DashboardPage />
-                        </ProtectedRoute>
-                    }
-                />
+    const location = useLocation();
+    const pathname = location?.pathname || '';
 
-                <Route
-                    path="/admin"
-                    element={
-                        <AdminRoute>
-                            <AdminPanel />
-                        </AdminRoute>
-                    }
-                />
-                <Route
-                    path="/admin/reviews"
-                    element={
-                        <AdminRoute>
-                            <AdminPanel />
-                        </AdminRoute>
-                    }
-                />
-                <Route
-                    path="/admin/study-materials"
-                    element={
-                        <AdminRoute>
-                            <AdminPanel />
-                        </AdminRoute>
-                    }
-                />
-                <Route
-                    path="/calculator"
-                    element={
-                        <ProtectedRoute>
-                            <CGPACalculatorPage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/subject/:subjectId/content"
-                    element={
-                        <ProtectedRoute>
-                            <SubjectContentPage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route
-                    path="/quiz/:quizId"
-                    element={
-                        <ProtectedRoute>
-                            <QuizPage />
-                        </ProtectedRoute>
-                    }
-                />
-                <Route path="/" element={<HomePage />} />
-                {/* Catch-all route for unmatched paths */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-        </Suspense>
+    const shouldShowWatermark = pathname === '/calculator' || pathname.startsWith('/result') || pathname.startsWith('/pdf');
+
+    return (
+        <div className="relative">
+            {shouldShowWatermark && (
+                <WatermarkStamp opacity={0.05} size={450} rotation={-15} />
+            )}
+
+            <div className="relative z-[1]">
+                <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/signup" element={<LoginPage initialMode="register" />} />
+                        <Route
+                            path="/complete-registration"
+                            element={
+                                <ProtectedRoute allowIncomplete={true}>
+                                    <CompleteRegistrationPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/complete-profile"
+                            element={
+                                <ProtectedRoute allowIncomplete={true}>
+                                    <CompleteProfilePage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/dashboard"
+                            element={
+                                <ProtectedRoute>
+                                    <DashboardPage />
+                                </ProtectedRoute>
+                            }
+                        />
+
+                        <Route
+                            path="/admin"
+                            element={
+                                <AdminRoute>
+                                    <AdminPanel />
+                                </AdminRoute>
+                            }
+                        />
+                        <Route
+                            path="/admin/reviews"
+                            element={
+                                <AdminRoute>
+                                    <AdminPanel />
+                                </AdminRoute>
+                            }
+                        />
+                        <Route
+                            path="/admin/study-materials"
+                            element={
+                                <AdminRoute>
+                                    <AdminPanel />
+                                </AdminRoute>
+                            }
+                        />
+                        <Route path="/calculator" element={<CGPACalculatorPage />} />
+                        <Route
+                            path="/subject/:subjectId/content"
+                            element={
+                                <ProtectedRoute>
+                                    <SubjectContentPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route
+                            path="/quiz/:quizId"
+                            element={
+                                <ProtectedRoute>
+                                    <QuizPage />
+                                </ProtectedRoute>
+                            }
+                        />
+                        <Route path="/" element={<HomePage />} />
+                        {/* Catch-all route for unmatched paths */}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Suspense>
+            </div>
+        </div>
     );
 }
 

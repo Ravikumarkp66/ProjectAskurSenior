@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import Logo from './Logo';
 import './Hero.css';
 
 const ArrowRightIcon = ({ size = 18 }) => (
@@ -145,12 +146,15 @@ export default function Hero() {
             <nav className="landing-nav">
                 <div className="nav-container">
                     <Link to="/" className="nav-logo">
-                        <span className="logo-icon">A</span>
-                        <span className="logo-text">ASK<span className="logo-plus">+</span></span>
+                        <Logo size="md" />
                     </Link>
                     <div className="nav-links">
                         <a href="#features" onClick={handleExploreFeatures} className="nav-link">Features</a>
-                        <a href="#about" className="nav-link">About</a>
+                        <Link to="/calculator" className="nav-link nav-link-highlight">CGPA Calculator</Link>
+                        <span className="nav-badge-item">
+                            Interview Experiences
+                            <span className="coming-soon-tag">Coming Soon</span>
+                        </span>
                         {user ? (
                             <Link to="/dashboard" className="nav-btn nav-btn-primary">Dashboard</Link>
                         ) : (
@@ -176,7 +180,11 @@ export default function Hero() {
                         <span>Trusted by 2,000+ Students</span>
                     </motion.div>
 
-                    <motion.h1 className="hero-title" variants={itemVariants}>
+                    <motion.div className="hero-logo-container mb-8" variants={itemVariants}>
+                        <Logo size="xl" className="justify-center" />
+                    </motion.div>
+
+                    <motion.h1 className="hero-title pt-4" variants={itemVariants}>
                         Your Complete
                         <br />
                         <span className="gradient-text">Academic Companion</span>
@@ -282,16 +290,19 @@ export default function Hero() {
                         transition={{ duration: 0.5 }}
                     >
                         <div className="about-text">
-                            <span className="section-tag">Why ASK+</span>
+                            <span className="section-tag">Academic Tools</span>
                             <h2 className="section-title">
-                                Built by students, <span className="gradient-text">for students</span>
+                                Smart <span className="gradient-text">CGPA Calculator</span>
                             </h2>
                             <p className="section-description">
-                                We understand the challenges of academic life because we've lived them.
-                                ASK+ brings together everything you need in one seamless platform—no more
-                                switching between apps or searching through scattered resources.
+                                Tired of manual calculations? Use our guest-friendly SGPA and CGPA calculator
+                                to track your academic performance instantly. No login required for basic calculations!
                             </p>
                             <div className="about-features">
+                                <Link to="/calculator" className="btn btn-primary mb-6 inline-flex">
+                                    Open Calculator
+                                    <ArrowRightIcon />
+                                </Link>
                                 <div className="about-feature">
                                     <div className="about-feature-icon">
                                         <svg viewBox="0 0 24 24" fill="none">
