@@ -26,46 +26,55 @@ exports.getOverviewAnalytics = async (req, res) => {
         // Total subjects
         const totalSubjects = await Subject.countDocuments().lean();
 
-        // Total files across all subjects
-        const fileStats = await Subject.aggregate([
-            {
-                $project: {
-                    totalFiles: {
-                        $add: [
-                            { $size: { $ifNull: ["$notes", []] } },
-                            { $size: { $ifNull: ["$pyqs", []] } },
-                            { $size: { $ifNull: ["$questionBanks", []] } },
-                            { $size: { $ifNull: ["$syllabus", []] } },
-                            { $size: { $ifNull: ["$resources", []] } }
-                        ]
+        // Total files across all subjects (with defensive checks)
+        let totalFiles = 0;
+        try {
+            const fileStats = await Subject.aggregate([
+                {
+                    $project: {
+                        totalFiles: {
+                            $add: [
+                                { $size: { $ifNull: ["$notes", []] } },
+                                { $size: { $ifNull: ["$pyqs", []] } },
+                                { $size: { $ifNull: ["$questionBanks", []] } },
+                                { $size: { $ifNull: ["$syllabus", []] } },
+                                { $size: { $ifNull: ["$resources", []] } }
+                            ]
+                        }
+                    }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        totalFiles: { $sum: "$totalFiles" }
                     }
                 }
-            },
-            {
-                $group: {
-                    _id: null,
-                    totalFiles: { $sum: "$totalFiles" }
-                }
-            }
-        ]);
-        const totalFiles = fileStats.length > 0 ? fileStats[0].totalFiles : 0;
+            ]);
+            totalFiles = fileStats.length > 0 ? fileStats[0].totalFiles : 0;
+        } catch (aggErr) {
+            console.error("Aggregation error in totalFiles:", aggErr);
+            totalFiles = 0;
+        }
 
         // Uploads this month
         const uploadsThisMonth = await UserUpload.countDocuments({
             createdAt: { $gte: startOfMonth }
         }).lean();
 
-        res.json({
+        const result = {
             totalUsers,
             userUploadCount,
             totalFiles,
             pendingUploads,
             totalSubjects,
             uploadsThisMonth
-        });
+        };
+
+        console.log("Overview analytics result:", result);
+        res.json(result);
     } catch (err) {
         console.error("Error fetching overview analytics:", err);
-        res.status(500).json({ error: "Failed to fetch analytics" });
+        res.status(500).json({ error: "Failed to fetch analytics", details: err.message });
     }
 };
 
