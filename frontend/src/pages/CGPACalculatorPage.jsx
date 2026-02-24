@@ -1466,7 +1466,8 @@ const CGPACalculatorPage = () => {
 
     const addSemester = () => {
         const newId = Math.max(...semesters.map(s => s.id), 0) + 1;
-        setSemesters(prev => [...prev, { id: newId, sem: prev.length + 1, sgpa: '', credits: '' }]);
+        const nextSemNumber = Math.max(...semesters.map(s => s.sem), 0) + 1;
+        setSemesters(prev => [...prev, { id: newId, sem: nextSemNumber, sgpa: '', credits: '' }]);
     };
 
     const removeSemester = (id) => {
@@ -2145,6 +2146,57 @@ const CGPACalculatorPage = () => {
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Semester List */}
+                                <div className="p-4 space-y-3">
+                                    {semesters.map((sem, idx) => (
+                                        <div key={sem.id} className="grid grid-cols-12 gap-3 items-center">
+                                            <div className="col-span-4 sm:col-span-5">
+                                                <input
+                                                    type="text"
+                                                    value={`Semester ${sem.sem}`}
+                                                    readOnly
+                                                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-bold outline-none"
+                                                />
+                                            </div>
+                                            <div className="col-span-3 sm:col-span-3">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="10"
+                                                    step="0.01"
+                                                    value={sem.sgpa}
+                                                    onChange={(e) => updateSemester(sem.id, 'sgpa', e.target.value)}
+                                                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-bold outline-none focus:border-purple-500"
+                                                    placeholder="SGPA"
+                                                />
+                                            </div>
+                                            <div className="col-span-3 sm:col-span-3">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="30"
+                                                    step="1"
+                                                    value={sem.credits}
+                                                    onChange={(e) => updateSemester(sem.id, 'credits', e.target.value)}
+                                                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-bold outline-none focus:border-purple-500"
+                                                    placeholder="Credits"
+                                                />
+                                            </div>
+                                            <div className="col-span-2 sm:col-span-1 text-center">
+                                                <button
+                                                    onClick={() => removeSemester(sem.id)}
+                                                    className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/30 text-red-400 transition-all inline-flex items-center justify-center border border-red-500/20"
+                                                    disabled={semesters.length <= 1}
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
 
                                 {/* CGPA Result */}
