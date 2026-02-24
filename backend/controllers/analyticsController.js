@@ -26,6 +26,30 @@ exports.getOverviewAnalytics = async (req, res) => {
         // Total subjects
         const totalSubjects = await Subject.countDocuments().lean();
 
+        // Total files across all subjects
+        const fileStats = await Subject.aggregate([
+            {
+                $project: {
+                    totalFiles: {
+                        $add: [
+                            { $size: { $ifNull: ["$notes", []] } },
+                            { $size: { $ifNull: ["$pyqs", []] } },
+                            { $size: { $ifNull: ["$questionBanks", []] } },
+                            { $size: { $ifNull: ["$syllabus", []] } },
+                            { $size: { $ifNull: ["$resources", []] } }
+                        ]
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalFiles: { $sum: "$totalFiles" }
+                }
+            }
+        ]);
+        const totalFiles = fileStats.length > 0 ? fileStats[0].totalFiles : 0;
+
         // Uploads this month
         const uploadsThisMonth = await UserUpload.countDocuments({
             createdAt: { $gte: startOfMonth }
