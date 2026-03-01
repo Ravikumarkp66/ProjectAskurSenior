@@ -49,6 +49,13 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-2a6 6 0 0112 0v2zm6-12h-3m0 0h-3m3 0v3m0-3v-3m4 0a4 4 0 110 5.292" />
                 </svg>
             )
+        },
+        {
+            id: 'payments', label: 'Payments', icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+            )
         }
     ];
 
@@ -92,8 +99,8 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
                             <button
                                 onClick={handleLogout}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition ${isLightMode
-                                        ? 'text-red-700 hover:bg-red-50 border border-red-200'
-                                        : 'text-red-300 hover:bg-red-900/20 border border-red-500/30'
+                                    ? 'text-red-700 hover:bg-red-50 border border-red-200'
+                                    : 'text-red-300 hover:bg-red-900/20 border border-red-500/30'
                                     }`}
                                 title="Logout"
                             >
@@ -116,12 +123,12 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
                                 key={tab.id}
                                 onClick={() => onTabChange && onTabChange(tab.id)}
                                 className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition ${activeTab === tab.id
-                                        ? isLightMode
-                                            ? 'border-amber-500 text-amber-600'
-                                            : 'border-amber-400 text-amber-400'
-                                        : isLightMode
-                                            ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
+                                    ? isLightMode
+                                        ? 'border-amber-500 text-amber-600'
+                                        : 'border-amber-400 text-amber-400'
+                                    : isLightMode
+                                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-600'
                                     }`}
                             >
                                 {tab.icon}

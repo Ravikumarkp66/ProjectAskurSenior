@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useAuth } from '../utils/hooks';
 import Logo from './Logo';
 import './Hero.css';
 
@@ -117,16 +118,7 @@ const itemVariants = {
 // Note: Hero currently uses mostly inline SVGs which are excellent for performance.
 
 export default function Hero() {
-    const [user, setUser] = useState(null);
-
-    useEffect(() => {
-        try {
-            const userData = localStorage.getItem('user');
-            setUser(userData ? JSON.parse(userData) : null);
-        } catch {
-            setUser(null);
-        }
-    }, []);
+    const { user } = useAuth();
 
     const handleExploreFeatures = (e) => {
         e.preventDefault();

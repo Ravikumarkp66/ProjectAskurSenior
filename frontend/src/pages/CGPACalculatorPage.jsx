@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
 import { subjectAPI } from '../services/api';
 import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../utils/constants';
+import { getAllCIEResults } from '../utils/cieEngine';
 
 // Universal CIE Rule Engine
 const CIE_RULES = {
@@ -688,10 +689,13 @@ const CGPACalculatorPage = () => {
                 const fetchedSubjects = response.data || [];
 
                 if (fetchedSubjects.length > 0) {
+                    const storedCIE = getAllCIEResults();
                     setSubjects(
                         fetchedSubjects.map((s, index) => {
                             const credits = Number.isFinite(Number(s.credits)) ? Number(s.credits) : 0;
                             const hasLab = s.name?.toLowerCase().includes('lab');
+                            // Check if CIE was pre-computed on the Dashboard
+                            const prefilledCIE = storedCIE[s.code] || null;
 
                             return {
                                 id: index + 1,
@@ -700,21 +704,19 @@ const CGPACalculatorPage = () => {
                                 credits,
                                 hasLab,
                                 isOpenEnded: false,
-                                cie: '',
+                                cie: prefilledCIE ? String(prefilledCIE.cie) : '',
                                 see: '',
                                 isCIEExpanded: false,
-                                cieMarks: {
-                                    test1: '',
-                                    test2: '',
-                                    quiz1: '',
-                                    quiz2: '',
-                                    abl1: '',
-                                    abl2: '',
+                                cieFilledFromDashboard: !!prefilledCIE,
+                                cieMarks: prefilledCIE?.cieMarks || {
+                                    test1: '', test2: '',
+                                    quiz1: '', quiz2: '',
+                                    abl1: '', abl2: '',
                                     labs: [''],
                                     labTests: [''],
                                     openEnded: ''
                                 },
-                                isEligible: null
+                                isEligible: prefilledCIE ? prefilledCIE.isEligible : null
                             };
                         })
                     );
@@ -733,6 +735,21 @@ const CGPACalculatorPage = () => {
 
         loadSubjects();
     }, [selectedBranch, selectedCycle]);
+
+    // Live-sync CIE from Dashboard when user calculates on that page
+    useEffect(() => {
+        const handleCIEUpdate = (e) => {
+            const { subjectCode, cie, isEligible, cleared } = e.detail || {};
+            if (!subjectCode) return;
+            setSubjects(prev => prev.map(s => {
+                if (s.code !== subjectCode) return s;
+                if (cleared) return { ...s, cie: '', cieFilledFromDashboard: false, isEligible: null };
+                return { ...s, cie: String(cie), cieFilledFromDashboard: true, isEligible };
+            }));
+        };
+        window.addEventListener('cieResultsUpdated', handleCIEUpdate);
+        return () => window.removeEventListener('cieResultsUpdated', handleCIEUpdate);
+    }, []);
 
     const renderCIEInputs = (subject) => {
         const missing = missingFields?.[subject.id] || [];
@@ -863,9 +880,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'test1'), 50, subject.id, 'test1')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'test1'), 50, subject.id, 'test1')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'test1'))}
-                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all placeholder:text-white/20 focus:border-purple-500 ${
-                                                        (isMissing('Test 1') || cieInvalidFlash[getCieRefKey(subject.id, 'test1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all placeholder:text-white/20 focus:border-purple-500 ${(isMissing('Test 1') || cieInvalidFlash[getCieRefKey(subject.id, 'test1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
 
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -881,9 +897,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'test2'), 50, subject.id, 'test2')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'test2'), 50, subject.id, 'test2')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'test2'))}
-                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all placeholder:text-white/20 focus:border-purple-500 ${
-                                                        (isMissing('Test 2') || cieInvalidFlash[getCieRefKey(subject.id, 'test2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all placeholder:text-white/20 focus:border-purple-500 ${(isMissing('Test 2') || cieInvalidFlash[getCieRefKey(subject.id, 'test2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && isSectionOpen(subject.id, 'practical') && cieLockOverlay}
@@ -913,9 +928,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'quiz1'), 20, subject.id, 'quiz1')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'quiz1'), 20, subject.id, 'quiz1')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'quiz1'))}
-                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-cyan-500 ${
-                                                        (isMissing('Quiz 1') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-cyan-500 ${(isMissing('Quiz 1') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -926,9 +940,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'quiz2'), 20, subject.id, 'quiz2')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'quiz2'), 20, subject.id, 'quiz2')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'quiz2'))}
-                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-cyan-500 ${
-                                                        (isMissing('Quiz 2') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-cyan-500 ${(isMissing('Quiz 2') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -949,9 +962,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'abl1'), 20, subject.id, 'abl1')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'abl1'), 20, subject.id, 'abl1')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'abl1'))}
-                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-blue-500 ${
-                                                        (isMissing('ABL 1') || cieInvalidFlash[getCieRefKey(subject.id, 'abl1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-blue-500 ${(isMissing('ABL 1') || cieInvalidFlash[getCieRefKey(subject.id, 'abl1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -962,9 +974,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'abl2'), 20, subject.id, 'abl2')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'abl2'), 20, subject.id, 'abl2')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'abl2'))}
-                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-blue-500 ${
-                                                        (isMissing('ABL 2') || cieInvalidFlash[getCieRefKey(subject.id, 'abl2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-blue-500 ${(isMissing('ABL 2') || cieInvalidFlash[getCieRefKey(subject.id, 'abl2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -991,9 +1002,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'quiz1_internal'), 20, subject.id, 'quiz1')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'quiz1_internal'), 20, subject.id, 'quiz1')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'quiz1_internal'))}
-                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all font-mono placeholder:text-white/20 focus:border-emerald-500 ${
-                                                        (isMissing('Internal 1') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz1_internal')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all font-mono placeholder:text-white/20 focus:border-emerald-500 ${(isMissing('Internal 1') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz1_internal')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -1007,9 +1017,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'abl1_internal'), 20, subject.id, 'abl1')}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'abl1_internal'), 20, subject.id, 'abl1')}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'abl1_internal'))}
-                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all font-mono placeholder:text-white/20 focus:border-emerald-500 ${
-                                                        (isMissing('Internal 2') || cieInvalidFlash[getCieRefKey(subject.id, 'abl1_internal')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all font-mono placeholder:text-white/20 focus:border-emerald-500 ${(isMissing('Internal 2') || cieInvalidFlash[getCieRefKey(subject.id, 'abl1_internal')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -1055,9 +1064,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'labs', idx), 35, subject.id, 'labs', idx)}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'labs', idx), 35, subject.id, 'labs', idx)}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'labs', idx))}
-                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none focus:border-blue-500 font-mono placeholder:text-white/20 ${
-                                                        (missing.includes('Lab Records') && val === '') || cieInvalidFlash[getCieRefKey(subject.id, 'labs', idx)] ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none focus:border-blue-500 font-mono placeholder:text-white/20 ${(missing.includes('Lab Records') && val === '') || cieInvalidFlash[getCieRefKey(subject.id, 'labs', idx)] ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -1101,9 +1109,8 @@ const CGPACalculatorPage = () => {
                                                     onPaste={(e) => handleCiePaste(e, subject, getCieRefKey(subject.id, 'labTests', idx), 15, subject.id, 'labTests', idx)}
                                                     onChange={(e) => handleSmartCieChange(e, subject, getCieRefKey(subject.id, 'labTests', idx), 15, subject.id, 'labTests', idx)}
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'labTests', idx))}
-                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none focus:border-indigo-500 font-mono placeholder:text-white/20 ${
-                                                        (missing.includes('Lab Test') && val === '') || cieInvalidFlash[getCieRefKey(subject.id, 'labTests', idx)] ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
-                                                    }`}
+                                                    className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none focus:border-indigo-500 font-mono placeholder:text-white/20 ${(missing.includes('Lab Test') && val === '') || cieInvalidFlash[getCieRefKey(subject.id, 'labTests', idx)] ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
+                                                        }`}
                                                     disabled={!isAuthenticated}
                                                 />
                                                 {!isAuthenticated && cieLockOverlay}
@@ -1864,15 +1871,24 @@ const CGPACalculatorPage = () => {
                                                     <div className="col-span-12 sm:col-span-4">
                                                         <div className="flex items-center gap-3">
                                                             {isAuthenticated && (
-                                                                <button
-                                                                    onClick={() => toggleCIE(subject.id)}
-                                                                    className={`p-1.5 rounded-lg transition-all ${subject.isCIEExpanded ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'hover:bg-white/10 text-white/40'} flex-shrink-0`}
-                                                                    title="Open CIE Calculator"
-                                                                >
-                                                                    <svg className={`w-4 h-4 transform transition-transform ${subject.isCIEExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                                    </svg>
-                                                                </button>
+                                                                subject.cieFilledFromDashboard ? (
+                                                                    <span
+                                                                        className="px-2 py-1 rounded-lg bg-violet-600/20 text-violet-300 border border-violet-500/30 text-[9px] font-black flex-shrink-0 whitespace-nowrap"
+                                                                        title="CIE calculated from Dashboard"
+                                                                    >
+                                                                        📊 Dashboard
+                                                                    </span>
+                                                                ) : (
+                                                                    <button
+                                                                        onClick={() => toggleCIE(subject.id)}
+                                                                        className={`p-1.5 rounded-lg transition-all ${subject.isCIEExpanded ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'hover:bg-white/10 text-white/40'} flex-shrink-0`}
+                                                                        title="Open CIE Calculator"
+                                                                    >
+                                                                        <svg className={`w-4 h-4 transform transition-transform ${subject.isCIEExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                                        </svg>
+                                                                    </button>
+                                                                )
                                                             )}
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center gap-2 mb-0.5">
@@ -1945,14 +1961,23 @@ const CGPACalculatorPage = () => {
                                                                 max="50"
                                                                 {...getInputModeProps()}
                                                                 onKeyDown={(e) => handleSgpaKeyDown(e, getSgpaRefKey(subject.id, 'cie'))}
-                                                                readOnly={isAuthenticated && subject.isCIEExpanded}
+                                                                readOnly={isAuthenticated && (subject.isCIEExpanded || subject.cieFilledFromDashboard)}
                                                                 ref={registerSgpaInputRef(getSgpaRefKey(subject.id, 'cie'))}
                                                                 value={subject.cie}
                                                                 onChange={(e) => handleSgpaMarkChange(e, subject.id, 'cie', 50, getSgpaRefKey(subject.id, 'cie'))}
-                                                                className={`w-full h-10 px-2 rounded-xl border text-sm text-center outline-none transition-all font-black ${subject.isEligible === true ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : subject.isEligible === false ? 'bg-red-500/20 border-red-500/50 text-red-500' : 'bg-white/5 border-white/10 text-white focus:border-purple-500/50'}`}
+                                                                className={`w-full h-10 px-2 rounded-xl border text-sm text-center outline-none transition-all font-black ${subject.cieFilledFromDashboard
+                                                                        ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 cursor-default'
+                                                                        : subject.isEligible === true
+                                                                            ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                                                                            : subject.isEligible === false
+                                                                                ? 'bg-red-500/20 border-red-500/50 text-red-500'
+                                                                                : 'bg-white/5 border-white/10 text-white focus:border-purple-500/50'
+                                                                    }`}
                                                                 placeholder="0-50"
-                                                            // ...existing code...
                                                             />
+                                                            {subject.cieFilledFromDashboard && (
+                                                                <span className="absolute -top-2 -right-1 text-[8px] bg-violet-600 text-white rounded px-1 font-black leading-4">auto</span>
+                                                            )}
                                                         </div>
                                                     </div>
 
@@ -2067,11 +2092,10 @@ const CGPACalculatorPage = () => {
                                     <div className="flex justify-center mt-6">
                                         <button
                                             disabled={!canDownloadPdf.allowed}
-                                            className={`px-6 py-3 rounded-xl text-white font-bold shadow-lg transition ${
-                                                canDownloadPdf.allowed
-                                                    ? 'bg-purple-600 hover:bg-purple-700'
-                                                    : 'bg-white/10 text-white/40 cursor-not-allowed'
-                                            }`}
+                                            className={`px-6 py-3 rounded-xl text-white font-bold shadow-lg transition ${canDownloadPdf.allowed
+                                                ? 'bg-purple-600 hover:bg-purple-700'
+                                                : 'bg-white/10 text-white/40 cursor-not-allowed'
+                                                }`}
                                             onClick={() => {
                                                 if (!canDownloadPdf.allowed) return;
                                                 import('../utils/generateResultAnalysisPDF').then(({ generateResultAnalysisPDF }) => {

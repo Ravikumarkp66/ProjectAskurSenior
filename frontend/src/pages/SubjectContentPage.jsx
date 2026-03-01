@@ -254,21 +254,21 @@ const SubjectContentPage = () => {
                                     key={type}
                                     onClick={() => setActiveTab(type)}
                                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${activeTab === type
-                                            ? `bg-gradient-to-r ${getGradientColor(config.color)} text-white shadow-lg`
-                                            : `${isLightMode ? 'hover:bg-gray-50' : 'hover:bg-gray-700'} ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`
+                                        ? `bg-gradient-to-r ${getGradientColor(config.color)} text-white shadow-lg`
+                                        : `${isLightMode ? 'hover:bg-gray-50' : 'hover:bg-gray-700'} ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`
                                         }`}
                                 >
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === type
-                                            ? 'bg-white/20'
-                                            : isLightMode
-                                                ? `bg-${config.color}-100`
-                                                : `bg-${config.color}-600/20`
+                                        ? 'bg-white/20'
+                                        : isLightMode
+                                            ? `bg-${config.color}-100`
+                                            : `bg-${config.color}-600/20`
                                         }`}>
                                         <ContentIcon type={config.icon} className={`w-4 h-4 ${activeTab === type
-                                                ? 'text-white'
-                                                : isLightMode
-                                                    ? `text-${config.color}-600`
-                                                    : `text-${config.color}-400`
+                                            ? 'text-white'
+                                            : isLightMode
+                                                ? `text-${config.color}-600`
+                                                : `text-${config.color}-400`
                                             }`} />
                                     </div>
                                     <div className="flex-1">
@@ -276,10 +276,10 @@ const SubjectContentPage = () => {
                                             {config.label}
                                         </div>
                                         <div className={`text-xs ${activeTab === type
-                                                ? 'text-white/80'
-                                                : isLightMode
-                                                    ? 'text-gray-500'
-                                                    : 'text-gray-400'
+                                            ? 'text-white/80'
+                                            : isLightMode
+                                                ? 'text-gray-500'
+                                                : 'text-gray-400'
                                             }`}>
                                             {content && content[type] ? `${content[type].length} items` : '0 items'}
                                         </div>

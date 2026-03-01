@@ -11,7 +11,7 @@ import Logo from '../components/Logo';
 
 const LoginPage = ({ initialMode = 'login' }) => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, isAuthenticated, loading: authLoading, user } = useAuth();
     const [formData, setFormData] = useState({
         usn: '',
         password: '',
@@ -23,6 +23,17 @@ const LoginPage = ({ initialMode = 'login' }) => {
     const [loading, setLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+
+    // Auto-redirect if already authenticated
+    useEffect(() => {
+        if (!authLoading && isAuthenticated) {
+            if (user?.registrationComplete === false) {
+                navigate('/complete-profile');
+            } else {
+                navigate('/dashboard');
+            }
+        }
+    }, [navigate, isAuthenticated, authLoading, user]);
 
     const isAdmin = mode === 'admin';
     const isLogin = mode === 'login';
@@ -60,8 +71,8 @@ const LoginPage = ({ initialMode = 'login' }) => {
 
             // If registration needs completion, redirect to complete registration page
             if (needsCompletion) {
-                localStorage.setItem('authToken', token);
-                localStorage.setItem('user', JSON.stringify(user));
+                // Must call login to update state even if incomplete
+                login(user, token);
                 navigate('/complete-profile');
                 return;
             }

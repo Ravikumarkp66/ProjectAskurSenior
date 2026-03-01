@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { addWatermarkToAllPages } from "./pdf/addWatermark";
+import autoTable from "jspdf-autotable";
 
 // Watermark/logo removed for compatibility
 
@@ -8,161 +8,114 @@ export function generateResultAnalysisPDF(data) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  const leftMargin = 40;
-  const rightMargin = 40;
-
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const formatDate = (d) => {
-    const dt = d instanceof Date ? d : new Date(d);
-    if (Number.isNaN(dt.getTime())) return "";
-    return `${pad2(dt.getDate())}-${pad2(dt.getMonth() + 1)}-${dt.getFullYear()}`;
-  };
-
-  const divider = (y) => {
-    doc.setDrawColor(160);
-    doc.setLineWidth(0.6);
-    doc.line(leftMargin, y, pageWidth - rightMargin, y);
-  };
-
-  const ensureSpace = (y, needed) => {
-    if (y + needed <= pageHeight - 70) return y;
-    doc.addPage();
-    return 50;
-  };
-
-  const safeText = (v) => (v === null || v === undefined ? "" : String(v));
-  const safeNum = (v) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
-
-  const generatedOn = data?.generatedOn ? new Date(data.generatedOn) : new Date();
-  const academicYear = safeText(data?.student?.year || new Date().getFullYear());
-  const semester = safeText(data?.student?.semester || "");
-
-  // Header
+  // Header Section
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
+  doc.setFontSize(18);
   doc.text("RESULT ANALYSIS REPORT", pageWidth / 2, 50, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(`Semester: ${semester}`, pageWidth / 2, 70, { align: "center" });
-  doc.text(`Academic Year: ${academicYear}`, pageWidth / 2, 86, { align: "center" });
-  doc.text(`Generated On: ${formatDate(generatedOn)}`, pageWidth / 2, 102, { align: "center" });
-  divider(118);
-
-  // Student details
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("STUDENT DETAILS", leftMargin, 140);
+  doc.text(
+    `Semester: ${data.student.semester}    Academic Year: ${data.student.year}    Generated On: ${new Date().toLocaleDateString()}`,
+    pageWidth / 2,
+    70,
+    { align: "center" }
+  );
+
+  // Student Info
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  doc.text(`Student Name : ${safeText(data?.student?.name)}`, leftMargin, 160);
-  doc.text(`USN          : ${safeText(data?.student?.usn)}`, leftMargin, 176);
-  doc.text(`Program      : ${safeText(data?.student?.program)}`, leftMargin, 192);
-  divider(210);
+  doc.text("------------------------------------------------------------", 40, 100);
+  doc.text(`Student Name : ${data.student.name}`, 40, 115);
+  doc.text(`USN          : ${data.student.usn}`, 40, 130);
+  doc.text(`Program      : ${data.student.program || ""}`, 40, 145);
+  doc.text("------------------------------------------------------------", 40, 160);
 
-  let y = 235;
-  const subjects = Array.isArray(data?.subjects) ? data.subjects : [];
+  let y = 180;
 
-  subjects.forEach((subj) => {
-    y = ensureSpace(y, 220);
-
-    const subjectName = safeText(subj?.name);
-    const credits = safeText(subj?.credits);
-    const type = safeText(subj?.type);
-    const cieRounded = safeText(subj?.cieRounded);
-    const cieTheory = safeNum(subj?.theoryContribution);
-    const ciePractical = safeNum(subj?.practicalContribution);
-
-    const see = safeNum(subj?.see);
-    const seeReduced = subj?.seeReduced !== undefined && subj?.seeReduced !== null ? safeText(subj.seeReduced) : (see / 2).toFixed(1);
-
-    const finalMarks = safeText(subj?.finalMarks);
-    const grade = safeText(subj?.grade);
-    const gradePoints = safeText(subj?.gradePoints);
-    const status = safeText(subj?.status);
-
-    // Subject header
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(`Subject: ${subjectName}`, leftMargin, y);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(11);
-    doc.text(`Credits: ${credits}`, leftMargin, y + 16);
-    doc.text(`Type: ${type}`, leftMargin + 170, y + 16);
-    divider(y + 28);
-
-    // CIE section
-    doc.setFont("helvetica", "bold");
-    doc.text("CIE", leftMargin, y + 48);
-    doc.setFont("helvetica", "normal");
-    doc.text("CIE (Internal - 50)", leftMargin, y + 64);
-
-    if (type === 'IPCC') {
-      doc.text(`Theory Contribution     : ${cieTheory.toFixed(2)} / 25`, leftMargin, y + 84);
-      doc.text(`Practical Contribution  : ${ciePractical.toFixed(2)} / 25`, leftMargin, y + 100);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Final CIE               : ${cieRounded} / 50`, leftMargin, y + 118);
-    } else if (type === 'THEORY_ONLY' || type === 'LOW_THEORY') {
-      doc.text(`Theory Contribution     : ${cieRounded} / 50`, leftMargin, y + 84);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Final CIE               : ${cieRounded} / 50`, leftMargin, y + 104);
-    } else if (type === 'LAB_ONLY') {
-      doc.text(`Practical Contribution  : ${cieRounded} / 50`, leftMargin, y + 84);
-      doc.setFont("helvetica", "bold");
-      doc.text(`Final CIE               : ${cieRounded} / 50`, leftMargin, y + 104);
-    } else {
-      doc.setFont("helvetica", "bold");
-      doc.text(`Final CIE               : ${cieRounded} / 50`, leftMargin, y + 92);
+  // Subject-wise Analysis
+  data.subjects.forEach((subj, idx) => {
+    if (y > pageHeight - 200) {
+      doc.addPage();
+      y = 50;
     }
-
-    // SEE & Final result
     doc.setFont("helvetica", "bold");
-    doc.text("SEE & FINAL RESULT", leftMargin, y + 142);
-    doc.setFont("helvetica", "normal");
-    doc.text(`SEE                     : ${see} / 100`, leftMargin, y + 160);
-    doc.text(`SEE (Reduced)           : ${seeReduced} / 50`, leftMargin, y + 176);
-    doc.text(`Final Marks             : ${finalMarks} / 100`, leftMargin, y + 196);
-    doc.text(`Grade                   : ${grade}`, leftMargin, y + 212);
-    doc.text(`Grade Points            : ${gradePoints}`, leftMargin, y + 228);
-    doc.text(`Status                  : ${status}`, leftMargin, y + 244);
+    doc.setFontSize(13);
+    doc.text(`Subject: ${subj.name}`, 40, y);
+    doc.setFontSize(11);
+    doc.text(`Credits: ${subj.credits}    Type: ${subj.type}`, 40, y + 15);
+    doc.text("--------------------------------------------------", 40, y + 30);
 
-    divider(y + 265);
-    y += 290;
+    doc.setFont("helvetica", "bold");
+    doc.text("📘 CIE Breakdown", 40, y + 45);
+
+    doc.setFont("helvetica", "normal");
+    let lines = [];
+    if (subj.type === "IPCC") {
+      lines = [
+        "CIE (Internal – 50 Marks)",
+        `Theory (25 Marks)`,
+        `Tests (T1+T2): ${subj.testsRaw} / 100`,
+        `Quiz  (Q1+Q2): ${subj.quizRaw} / 40`,
+        `ABL   (A1+A2): ${subj.ablRaw} / 40`,
+        `Theory Contribution: ${subj.theoryValue} / 25`,
+        "",
+        `Practical (25 Marks)`,
+        `Lab Records Total: ${subj.labRaw} / ${subj.labMax}`,
+        `Lab Tests Total: ${subj.labTestRaw} / ${subj.labTestMax}`,
+        `Practical Contribution: ${subj.practicalValue} / 25`,
+        "",
+        `Final CIE: ${subj.cieRounded} / 50`
+      ];
+    } else if (subj.type === "THEORY_ONLY") {
+      lines = [
+        `Theory Contribution: ${subj.cieRounded} / 50`,
+        `Final CIE: ${subj.cieRounded} / 50`
+      ];
+    } else if (subj.type === "LAB_ONLY") {
+      lines = [
+        `Lab Contribution: ${subj.cieRounded} / 50`,
+        `Final CIE: ${subj.cieRounded} / 50`
+      ];
+    }
+    doc.setFontSize(11);
+    doc.text(lines, 60, y + 65);
+
+    // SEE & Final Result
+    doc.setFont("helvetica", "bold");
+    doc.text("📝 SEE & Final Result", 40, y + 180);
+    doc.setFont("helvetica", "normal");
+    doc.text(
+      `SEE: ${subj.see} / 100  →  ${subj.see / 2} / 50\nFinal Marks: ${subj.finalMarks} / 100\nGrade: ${subj.grade}\nGrade Points: ${subj.gradePoints}\nStatus: ${subj.status}`,
+      60,
+      y + 200
+    );
+
+    doc.text("==================================================", 40, y + 260);
+    y += 280;
   });
 
   // SGPA Summary
-  y = ensureSpace(y, 140);
+  if (y > pageHeight - 120) {
+    doc.addPage();
+    y = 50;
+  }
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("SGPA SUMMARY", leftMargin, y);
-  divider(y + 12);
+  doc.text("SGPA SUMMARY", pageWidth / 2, y, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
-  doc.text(`Total Credits        : ${safeText(data?.totalCredits)}`, leftMargin, y + 34);
-  doc.text(`Total Grade Points   : ${safeText(data?.totalPoints)}`, leftMargin, y + 50);
-  doc.setFont("helvetica", "bold");
-  doc.text(`SGPA                 : ${safeText(data?.sgpa)}`, leftMargin, y + 70);
-  divider(y + 86);
+  doc.text(
+    `--------------------------------------------\nTotal Credits: ${data.totalCredits}\nTotal Grade Points: ${data.totalPoints}\nSGPA: ${data.sgpa}\n--------------------------------------------`,
+    pageWidth / 2,
+    y + 20,
+    { align: "center" }
+  );
 
   // Footer
-  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  const footerText = [
-    "Minimum CIE required: 20",
-    "Minimum SEE required: 36",
-    "NE subjects carry 0 grade points",
-    "",
-    "Generated by AskUrSenior",
-  ];
-  doc.text(footerText, pageWidth / 2, pageHeight - 70, { align: "center" });
+  doc.text(
+    "• Minimum CIE required: 20\n• Minimum SEE required: 36\n• NE subjects carry 0 grade points\n--------------------------------------------------\nGenerated by Your Platform Name\n--------------------------------------------------",
+    pageWidth / 2,
+    pageHeight - 60,
+    { align: "center" }
+  );
 
-  addWatermarkToAllPages(doc, {
-    opacity: 0.05,
-    size: 450,
-    rotation: -15,
-  });
-
-  doc.save(`Result_Analysis_${safeText(data?.student?.usn || "Student")}.pdf`);
+  doc.save(`Result_Analysis_${data.student.usn}.pdf`);
 }

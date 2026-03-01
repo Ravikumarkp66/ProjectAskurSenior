@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DashboardOverview from './DashboardOverview';
 import UserManagementPage from './UserManagementPage';
+import PaymentManagementPage from './PaymentManagementPage';
 import { apiClient, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 import { useAuth } from '../utils/hooks';
 
@@ -346,6 +347,7 @@ const AdminPanel = () => {
         <AdminLayout activeTab={activeTab} onTabChange={setActiveTab}>
             {activeTab === 'dashboard' && <DashboardOverview />}
             {activeTab === 'users' && <UserManagementPage />}
+            {activeTab === 'payments' && <PaymentManagementPage />}
             {activeTab === 'reviews' && (
                 <div className="space-y-6">
                     <div>
@@ -369,12 +371,12 @@ const AdminPanel = () => {
                                     key={tab.id}
                                     onClick={() => setReviewsActiveTab(tab.id)}
                                     className={`py-2 px-1 border-b-2 font-medium text-sm transition ${reviewsActiveTab === tab.id
-                                            ? isLightMode
-                                                ? 'border-blue-500 text-blue-600'
-                                                : 'border-blue-400 text-blue-400'
-                                            : isLightMode
-                                                ? 'border-transparent text-gray-500 hover:text-gray-700'
-                                                : 'border-transparent text-gray-400 hover:text-gray-300'
+                                        ? isLightMode
+                                            ? 'border-blue-500 text-blue-600'
+                                            : 'border-blue-400 text-blue-400'
+                                        : isLightMode
+                                            ? 'border-transparent text-gray-500 hover:text-gray-700'
+                                            : 'border-transparent text-gray-400 hover:text-gray-300'
                                         }`}
                                 >
                                     {tab.label}
@@ -464,8 +466,8 @@ const AdminPanel = () => {
                                                     {item.title}
                                                 </h3>
                                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'resolved'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-yellow-100 text-yellow-800'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : 'bg-yellow-100 text-yellow-800'
                                                     }`}>
                                                     {item.status}
                                                 </span>
@@ -484,8 +486,8 @@ const AdminPanel = () => {
                                                 onClick={() => markBugAsResolved(item._id)}
                                                 disabled={resolvingId === item._id}
                                                 className={`ml-4 px-3 py-1 text-sm font-medium rounded-md transition ${isLightMode
-                                                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                        : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
+                                                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                    : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
                                                     } disabled:opacity-50`}
                                             >
                                                 {resolvingId === item._id ? 'Resolving...' : 'Mark Resolved'}
@@ -526,9 +528,9 @@ const AdminPanel = () => {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <span className={`px-2 py-1 text-xs font-semibold rounded ${item.contentType === 'notes' ? 'bg-green-100 text-green-800' :
-                                                        item.contentType === 'pyqs' ? 'bg-purple-100 text-purple-800' :
-                                                            item.contentType === 'questionBanks' ? 'bg-blue-100 text-blue-800' :
-                                                                'bg-orange-100 text-orange-800'
+                                                    item.contentType === 'pyqs' ? 'bg-purple-100 text-purple-800' :
+                                                        item.contentType === 'questionBanks' ? 'bg-blue-100 text-blue-800' :
+                                                            'bg-orange-100 text-orange-800'
                                                     }`}>
                                                     {item.contentType}
                                                 </span>
@@ -554,8 +556,8 @@ const AdminPanel = () => {
                                                 type="button"
                                                 onClick={() => handlePreviewUpload(item._id)}
                                                 className={`px-3 py-2 rounded-md text-sm font-medium transition ${isLightMode
-                                                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                                    ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                                    : 'bg-white/10 text-white hover:bg-white/20'
                                                     }`}
                                             >
                                                 Preview
@@ -565,10 +567,10 @@ const AdminPanel = () => {
                                                 onClick={() => handleApproveUpload(item._id)}
                                                 disabled={userUploadActionId === item._id}
                                                 className={`px-3 py-2 rounded-md text-sm font-medium transition ${userUploadActionId === item._id
-                                                        ? 'bg-gray-400 cursor-not-allowed'
-                                                        : isLightMode
-                                                            ? 'bg-green-600 hover:bg-green-700 text-white'
-                                                            : 'bg-green-500 hover:bg-green-600 text-white'
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : isLightMode
+                                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                        : 'bg-green-500 hover:bg-green-600 text-white'
                                                     }`}
                                             >
                                                 {userUploadActionId === item._id ? 'Processing...' : 'Approve'}
@@ -578,10 +580,10 @@ const AdminPanel = () => {
                                                 onClick={() => handleDeleteUpload(item._id)}
                                                 disabled={userUploadActionId === item._id}
                                                 className={`px-3 py-2 rounded-md text-sm font-medium transition ${userUploadActionId === item._id
-                                                        ? 'bg-gray-400 cursor-not-allowed'
-                                                        : isLightMode
-                                                            ? 'bg-red-600 hover:bg-red-700 text-white'
-                                                            : 'bg-red-500 hover:bg-red-600 text-white'
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : isLightMode
+                                                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                        : 'bg-red-500 hover:bg-red-600 text-white'
                                                     }`}
                                             >
                                                 Delete
@@ -634,8 +636,8 @@ const AdminPanel = () => {
                                         value={manageSubject}
                                         onChange={(e) => setManageSubject(e.target.value)}
                                         className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${isLightMode
-                                                ? 'bg-white border-gray-300 text-gray-900'
-                                                : 'bg-gray-700 border-gray-600 text-white'
+                                            ? 'bg-white border-gray-300 text-gray-900'
+                                            : 'bg-gray-700 border-gray-600 text-white'
                                             }`}
                                     >
                                         <option value="">Select a subject to view content</option>
@@ -683,9 +685,9 @@ const AdminPanel = () => {
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <span className={`px-2 py-1 text-xs font-semibold rounded ${content.displayType === 'Notes' ? 'bg-green-100 text-green-800' :
-                                                                content.displayType === 'PYQs' ? 'bg-purple-100 text-purple-800' :
-                                                                    content.displayType === 'Question Banks' ? 'bg-blue-100 text-blue-800' :
-                                                                        'bg-orange-100 text-orange-800'
+                                                            content.displayType === 'PYQs' ? 'bg-purple-100 text-purple-800' :
+                                                                content.displayType === 'Question Banks' ? 'bg-blue-100 text-blue-800' :
+                                                                    'bg-orange-100 text-orange-800'
                                                             }`}>
                                                             {content.displayType}
                                                         </span>
@@ -706,10 +708,10 @@ const AdminPanel = () => {
                                                     onClick={() => handleDeleteContent(content)}
                                                     disabled={deletingContent === content._id}
                                                     className={`ml-4 px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${deletingContent === content._id
-                                                            ? 'bg-gray-400 cursor-not-allowed'
-                                                            : isLightMode
-                                                                ? 'bg-red-600 hover:bg-red-700 text-white'
-                                                                : 'bg-red-500 hover:bg-red-600 text-white'
+                                                        ? 'bg-gray-400 cursor-not-allowed'
+                                                        : isLightMode
+                                                            ? 'bg-red-600 hover:bg-red-700 text-white'
+                                                            : 'bg-red-500 hover:bg-red-600 text-white'
                                                         } disabled:opacity-50`}
                                                 >
                                                     {deletingContent === content._id ? (

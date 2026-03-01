@@ -415,5 +415,96 @@ module.exports = {
     switchBranch,
     googleLogin,
     completeGoogleRegistration,
+    discordCallback,
     ADMIN_EMAILS
 };
+
+async function discordCallback(req, res) {
+    const { code } = req.query;
+
+    if (!code) {
+        return res.status(400).json({ error: 'OAuth code is required' });
+    }
+
+    try {
+        const { gaxios } = require('gaxios');
+        const qs = require('qs');
+
+        // 1. Exchange code for access token
+        const tokenResponse = await gaxios.request({
+            method: 'POST',
+            url: 'https://discord.com/api/oauth2/token',
+            data: qs.stringify({
+                client_id: process.env.DISCORD_CLIENT_ID,
+                client_secret: process.env.DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/discord/callback`,
+            }),
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
+
+        const { access_token } = tokenResponse.data;
+
+        // 2. Fetch user information from Discord
+        const userResponse = await gaxios.request({
+            url: 'https://discord.com/api/users/@me',
+            headers: {
+                Authorization: `Bearer ${access_token}`,
+            },
+        });
+
+        const discordUser = userResponse.data;
+        // discordUser: { id, username, email, avatar, etc }
+
+        // 3. Find or create user in your database
+        let user = await User.findOne({
+            $or: [
+                { discordId: discordUser.id },
+                { email: discordUser.email?.toLowerCase() }
+            ]
+        });
+
+        if (!user) {
+            // New user registration flow
+            const isAdminEmail = ADMIN_EMAILS.includes(discordUser.email?.toLowerCase());
+            user = new User({
+                discordId: discordUser.id,
+                email: discordUser.email?.toLowerCase(),
+                name: discordUser.global_name || discordUser.username,
+                profilePicture: discordUser.avatar
+                    ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+                    : '',
+                branch: 'CS',
+                currentBranch: 'CS',
+                isAdmin: isAdminEmail,
+                registrationComplete: isAdminEmail
+            });
+        } else {
+            // Update existing user
+            if (!user.discordId) user.discordId = discordUser.id;
+            if (!user.name && (discordUser.global_name || discordUser.username)) {
+                user.name = discordUser.global_name || discordUser.username;
+            }
+        }
+
+        await user.save();
+
+        const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
+
+        // 4. Redirect to frontend with token
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const redirectUrl = new URL(`${frontendUrl}/login-success`);
+        redirectUrl.searchParams.append('token', tokenJwt);
+        redirectUrl.searchParams.append('needsCompletion', (!user.registrationComplete).toString());
+
+        res.redirect(redirectUrl.toString());
+
+    } catch (error) {
+        console.error('Discord callback error:', error.response?.data || error.message);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        res.redirect(`${frontendUrl}/login-error?error=discord_auth_failed`);
+    }
+}

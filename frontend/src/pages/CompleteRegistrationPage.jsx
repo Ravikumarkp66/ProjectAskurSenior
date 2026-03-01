@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import { useAuth } from '../utils/hooks';
 
 const CompleteRegistrationPage = () => {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const [formData, setFormData] = useState({
         usn: '',
         password: '',
@@ -74,13 +76,11 @@ const CompleteRegistrationPage = () => {
                 password: formData.password
             });
 
-            // Update localStorage with new token and user info
-            localStorage.setItem('authToken', response.data.token);
-            localStorage.setItem('user', JSON.stringify(response.data.user));
+            // Update auth context
+            login(response.data.user, response.data.token);
 
             // Redirect to home page
             navigate('/');
-            window.location.reload(); // Reload to update auth context
         } catch (err) {
             setError(err?.response?.data?.error || 'Failed to complete registration');
         } finally {

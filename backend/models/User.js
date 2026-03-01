@@ -39,6 +39,11 @@ const userSchema = new mongoose.Schema(
             unique: true,
             sparse: true
         },
+        discordId: {
+            type: String,
+            unique: true,
+            sparse: true
+        },
         password: {
             type: String,
             default: null
@@ -61,9 +66,15 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['free', 'premium', 'admin'],
-            default: 'free'
+            enum: ['free', 'premium', 'admin', 'student'],
+            default: 'student'
         },
+        subscription: {
+            type: String,
+            enum: ["free", "askplus"],
+            default: "free"
+        },
+        subscriptionExpiry: Date,
         isAdmin: {
             type: Boolean,
             default: false
@@ -71,6 +82,11 @@ const userSchema = new mongoose.Schema(
         registrationComplete: {
             type: Boolean,
             default: true
+        },
+        accountStatus: {
+            type: String,
+            enum: ['active', 'suspended'],
+            default: 'active'
         },
         createdAt: {
             type: Date,

@@ -11,7 +11,8 @@ const {
     getUserListAnalytics,
     togglePremium,
     banUser,
-    resetUserRole
+    resetUserRole,
+    getAdminLogs
 } = require("../controllers/analyticsController");
 
 const router = express.Router();
@@ -42,5 +43,6 @@ router.get("/users", getUserListAnalytics);
 router.patch("/users/:userId/premium", togglePremium);
 router.patch("/users/:userId/ban", banUser);
 router.patch("/users/:userId/reset-role", resetUserRole);
+router.get("/users/:userId/logs", getAdminLogs);
 
 module.exports = router;

@@ -7,10 +7,11 @@ import InterviewExperienceCard from '../components/InterviewExperienceCard';
 import GameifiedLoader from '../components/GameifiedLoader';
 import { interviewExperienceAPI } from '../services/api';
 import { deriveBranchFromUSN, toUiBranch } from '../utils/constants';
+import ProfileModal from '../components/ProfileModal';
 
 const InterviewExperiencePage = () => {
     const navigate = useNavigate();
-    const { user, isAuthenticated, loading: authLoading } = useAuth();
+    const { user, isAuthenticated, loading: authLoading, updateUser } = useAuth();
     const [theme, setTheme] = useState(() => {
         try {
             const saved = localStorage.getItem('uiTheme');
@@ -22,6 +23,7 @@ const InterviewExperiencePage = () => {
     const [experiences, setExperiences] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
     const [branchOverride, setBranchOverride] = useState(() => {
         try {
             return localStorage.getItem('branchOverride') || '';
@@ -129,7 +131,7 @@ const InterviewExperiencePage = () => {
                 cycle="P"
                 branchOverride={branchOverride}
                 onBranchOverrideChange={handleBranchOverrideChange}
-                onProfileClick={() => navigate('/dashboard')}
+                onProfileClick={() => setShowProfileModal(true)}
                 isCollapsed={sidebarCollapsed}
                 onCollapsedChange={setSidebarCollapsed}
             />
@@ -213,6 +215,14 @@ const InterviewExperiencePage = () => {
                     </div>
                 </div>
             </div>
+
+            <ProfileModal
+                show={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                user={user}
+                updateUser={updateUser}
+                theme={theme}
+            />
         </div>
     );
 };

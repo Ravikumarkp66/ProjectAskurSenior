@@ -523,76 +523,80 @@ const Sidebar = ({
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 p-4 space-y-3 overflow-hidden">
-                    <div>
+                <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
+                    {/* Core Learning Zone */}
+                    <div className="space-y-1">
                         <button
-                            type="button"
-                            className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition ${isCollapsed ? '' : 'text-left'
-                                }`}
+                            onClick={() => navigate('/dashboard')}
+                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
+                            title="Dashboard"
+                        >
+                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            {!isCollapsed && <span className="text-sm font-semibold">Dashboard</span>}
+                        </button>
+
+                        <button
+                            onClick={() => navigate('/interview-experiences')}
+                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
                             title="Interview Experiences"
                         >
-                            <div className={`flex ${isCollapsed ? 'items-center justify-center' : 'items-start'} gap-3`}>
-                                <div className={isCollapsed ? '' : 'mt-0.5'}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                                    </svg>
-                                </div>
-                                {!isCollapsed && (
-                                    <div className="min-w-0">
-                                        <p className={`text-sm font-semibold ${sidebarClasses.title}`}>Interview Experiences</p>
-                                    </div>
-                                )}
-                            </div>
+                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                            </svg>
+                            {!isCollapsed && <span className="text-sm font-semibold text-left">Interview Experiences</span>}
                         </button>
 
                         <button
-                            type="button"
                             onClick={() => navigate('/calculator')}
-                            className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition mt-3 ${isCollapsed ? '' : 'text-left'
-                                }`}
-                            title="CGPA / SGPA Calculator"
+                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
+                            title="CGPA Calculator"
                         >
-                            <div className={`flex ${isCollapsed ? 'items-center justify-center' : 'items-start'} gap-3`}>
-                                <div className={isCollapsed ? '' : 'mt-0.5'}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                                {!isCollapsed && (
-                                    <div className="min-w-0">
-                                        <p className={`text-sm font-semibold ${sidebarClasses.title}`}>CGPA / SGPA Calculator</p>
-                                        <span className="mt-1 inline-flex items-center rounded-full bg-purple-500/15 text-purple-300 px-2 py-0.5 border border-purple-400/20 text-[11px]">
-                                            New
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
+                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            {!isCollapsed && <span className="text-sm font-semibold">CGPA Calculator</span>}
                         </button>
+                    </div>
 
+                    {/* Billing/Plan Zone */}
+                    <div className="pt-2 border-t border-white/5 space-y-1">
                         <button
-                            type="button"
-                            onClick={() => (user?.isAdmin ? setShowAdminUploadModal(true) : setShowUserUploadModal(true))}
-                            className={`${isCollapsed ? 'w-full flex items-center justify-center' : 'w-full'} ${sidebarClasses.panel} ${sidebarClasses.panelHover} rounded-xl p-3 transition mt-3 ${isCollapsed ? '' : 'text-left'
-                                }`}
-                            title={user?.isAdmin ? 'Admin Upload' : 'Upload Study Material'}
+                            onClick={() => navigate('/subscription')}
+                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
+                            title="Subscription"
                         >
-                            <div className={`flex ${isCollapsed ? 'items-center justify-center' : 'items-start'} gap-3`}>
-                                <div className={isCollapsed ? '' : 'mt-0.5'}>
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                                    </svg>
+                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {!isCollapsed && (
+                                <div className="flex flex-col items-start overflow-hidden">
+                                    <span className="text-sm font-semibold">Subscription</span>
+                                    {user?.subscription === 'free' && (
+                                        <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider">Upgrade to ASK+</span>
+                                    )}
                                 </div>
-                                {!isCollapsed && (
-                                    <div className="min-w-0">
-                                        <p className={`text-sm font-semibold ${sidebarClasses.title}`}>
-                                            {user?.isAdmin ? 'Admin Upload' : 'Upload Materials'}
-                                        </p>
-                                        <p className="text-[11px] text-gray-400/80">
-                                            {user?.isAdmin ? 'Add study materials' : 'Send to admin review'}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Contribution Zone */}
+                    <div className="pt-2 border-t border-white/5 space-y-1">
+                        <button
+                            onClick={() => (user?.isAdmin ? setShowAdminUploadModal(true) : setShowUserUploadModal(true))}
+                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
+                            title="Upload Materials"
+                        >
+                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                            </svg>
+                            {!isCollapsed && (
+                                <div className="text-left">
+                                    <p className="text-sm font-semibold">Upload Materials</p>
+                                    <p className="text-[10px] text-slate-500">Contribute & review</p>
+                                </div>
+                            )}
                         </button>
                     </div>
                 </nav>
@@ -618,12 +622,18 @@ const Sidebar = ({
                                         (user?.usn || 'U').slice(0, 1).toUpperCase()
                                     )}
                                 </div>
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <p className={`text-sm font-semibold ${sidebarClasses.title} truncate`}>{user?.usn}</p>
-                                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-gray-400 truncate">
-                                        <span className="inline-flex items-center rounded-full bg-white/5 text-gray-300 px-2 py-0.5 border border-white/10">
-                                            {currentBranch}
-                                        </span>
+                                    <div className="mt-0.5 flex flex-col gap-0.5">
+                                        <p className={`text-[10px] truncate ${user?.subscription === 'askplus'
+                                            ? (user?.subscriptionExpiry && (new Date(user.subscriptionExpiry) - new Date()) < 3 * 24 * 60 * 60 * 1000 ? 'text-amber-500 font-bold' : 'text-slate-400')
+                                            : 'text-slate-500'
+                                            }`}>
+                                            {user?.subscription === 'askplus'
+                                                ? `ASK+ Active • ${user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Lifetime'}`
+                                                : 'Free Learning Plan'
+                                            }
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="ml-auto">
@@ -685,6 +695,24 @@ const Sidebar = ({
                                     </button>
                                 )}
 
+                                {/* Upgrade button for free users only (not admin) */}
+                                {user?.subscription === 'free' && !user?.isAdmin && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowProfileMenu(false);
+                                            navigate('/pricing');
+                                        }}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition`}
+                                        title="Upgrade to ASK+"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
+                                        <span>Upgrade to ASK+</span>
+                                    </button>
+                                )}
+
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -718,6 +746,21 @@ const Sidebar = ({
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                     <span>Report a Bug</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const token = localStorage.getItem('authToken');
+                                        window.location.href = `https://askursenior.onrender.com/api/discord/login?token=${token}`;
+                                    }}
+                                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold bg-[#5865F2]/10 text-[#5865F2] hover:bg-[#5865F2]/20 transition`}
+                                    title="Connect Discord"
+                                >
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152c-.03-.0044-.059-.0069-.0785.0371-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.5868 0-.1635-.3847-.4058-.8742-.6177-1.2495-.0195-.044-.0485-.0415-.0785-.037a19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294.03.0093.059.0068.0842-.0276.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914.03-.0247.059-.0346.0775-.0105 3.9278 1.7933 8.18 1.7933 12.0614 0 .0185-.0241.0475-.0142.0775.0105.1201.0991.246.1971.3718.2914.03-.0241.059-.0142-.0066.1277 12.2986 12.2986 0 1 1-1.8722.8923.0761.0761 0 0 0-.0416.1057c.3528.6991.7644 1.3638 1.226 1.9942.0252.0344.0542.0369.0842.0276 1.9516-.6066 3.9401-1.5218 5.9929-3.0294a.081.081 0 00.0312-.0561c.4991-5.2263-.8382-9.7231-3.5204-13.6603-.012-.0175-.0245-.0252-.0321-.0277z"></path>
+                                    </svg>
+                                    <span>Connect Discord</span>
                                 </button>
 
                                 <button
@@ -1317,7 +1360,7 @@ const Sidebar = ({
                 )}
 
                 {/* Footer */}
-            </div>
+            </div >
         </>
     );
 };

@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext.jsx';
 import { useAuth } from './utils/hooks';
 import GameifiedLoader from './components/GameifiedLoader';
 import WatermarkStamp from './components/common/WatermarkStamp';
@@ -16,6 +16,9 @@ const QuizPage = lazy(() => import('./pages/QuizPage'));
 const CompleteRegistrationPage = lazy(() => import('./pages/CompleteRegistrationPage'));
 const CompleteProfilePage = lazy(() => import('./pages/CompleteProfilePage'));
 const InterviewExperiencePage = lazy(() => import('./pages/InterviewExperiencePage'));
+const PaymentPage = lazy(() => import('./pages/PaymentPage'));
+const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
+const PricingSection = lazy(() => import('./components/PricingSection'));
 
 // Generic loading fallback for Suspense
 const LoadingFallback = () => (
@@ -71,6 +74,7 @@ function AppContent() {
 
     const shouldShowWatermark = pathname === '/calculator' || pathname.startsWith('/result') || pathname.startsWith('/pdf');
 
+    const { user } = useAuth();
     return (
         <div className="relative">
             {shouldShowWatermark && (
@@ -82,6 +86,9 @@ function AppContent() {
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<LoginPage initialMode="register" />} />
+                        <Route path="/subscription" element={<SubscriptionPage />} />
+                        <Route path="/pricing" element={<PricingSection user={user} />} />
+                        <Route path="/upgrade" element={<PaymentPage user={user} />} />
                         <Route
                             path="/complete-registration"
                             element={
@@ -106,7 +113,6 @@ function AppContent() {
                                 </ProtectedRoute>
                             }
                         />
-
                         <Route
                             path="/admin"
                             element={
@@ -132,6 +138,14 @@ function AppContent() {
                             }
                         />
                         <Route path="/calculator" element={<CGPACalculatorPage />} />
+                        <Route
+                            path="/interview-experiences"
+                            element={
+                                <ProtectedRoute>
+                                    <InterviewExperiencePage />
+                                </ProtectedRoute>
+                            }
+                        />
                         <Route
                             path="/subject/:subjectId/content"
                             element={

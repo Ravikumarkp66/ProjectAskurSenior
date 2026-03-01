@@ -3,6 +3,8 @@ const Subject = require("../models/Subject");
 const UserUpload = require("../models/UserUpload");
 const Feedback = require("../models/Feedback");
 const BugReport = require("../models/BugReport");
+const Payment = require("../models/Payment");
+const AdminLog = require("../models/AdminLog");
 const cacheInvalidator = require("../utils/cacheInvalidator");
 
 /**
@@ -255,8 +257,10 @@ exports.getNotificationStats = async (req, res) => {
  */
 exports.getUserListAnalytics = async (req, res) => {
     try {
-        const { search, role, sortBy, page = 1, limit = 10 } = req.query;
+        const { page = 1, limit = 10, search = "", role = "all", sortBy = "recent", filter = "" } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
+        const now = new Date();
+        const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
         let query = {};
 
@@ -272,27 +276,75 @@ exports.getUserListAnalytics = async (req, res) => {
             query.isAdmin = role === "admin";
         }
 
-        let usersQuery = User.find(query)
-            .select("name usn email role isAdmin isBanned createdAt lastLogin")
-            .lean();
+        // Base pipeline
+        let pipeline = [
+            { $match: query },
+            // Lookup latest payment
+            {
+                $lookup: {
+                    from: "payments",
+                    let: { userId: "$_id" },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 }
+                    ],
+                    as: "latestPayment"
+                }
+            },
+            {
+                $addFields: {
+                    paymentStatus: { $arrayElemAt: ["$latestPayment.status", 0] },
+                    utrNumber: { $arrayElemAt: ["$latestPayment.utrNumber", 0] }
+                }
+            }
+        ];
 
-        // Sorting
-        if (sortBy === "recent") {
-            usersQuery = usersQuery.sort({ createdAt: -1 });
-        } else if (sortBy === "active") {
-            usersQuery = usersQuery.sort({ lastLogin: -1 });
+        // Filter by Pending Payments
+        if (filter === "pending_payment") {
+            pipeline.push({ $match: { paymentStatus: "pending" } });
         }
 
-        const [users, total] = await Promise.all([
-            usersQuery.skip(skip).limit(parseInt(limit)),
-            User.countDocuments(query)
+        // Sorting
+        let sort = {};
+        if (sortBy === "recent") {
+            sort = { createdAt: -1 };
+        } else if (sortBy === "active") {
+            sort = { lastLogin: -1 };
+        } else {
+            sort = { createdAt: -1 };
+        }
+        pipeline.push({ $sort: sort });
+
+        // Pagination
+        const countPipeline = [...pipeline];
+        pipeline.push({ $skip: skip }, { $limit: parseInt(limit) });
+
+        const [users, totalResult, activeSubscriptions, pendingPayments, expiringSoon] = await Promise.all([
+            User.aggregate(pipeline),
+            User.aggregate([...countPipeline, { $count: "count" }]),
+            User.countDocuments({ subscription: "askplus" }),
+            Payment.countDocuments({ status: "pending" }),
+            User.countDocuments({
+                subscription: "askplus",
+                subscriptionExpiry: { $gte: now, $lte: next7Days }
+            })
         ]);
+
+        const total = totalResult.length > 0 ? totalResult[0].count : 0;
+        const totalUsersCount = await User.countDocuments();
 
         res.json({
             users,
             total,
             page: parseInt(page),
-            pages: Math.ceil(total / limit)
+            pages: Math.ceil(total / limit),
+            summary: {
+                totalUsers: totalUsersCount,
+                activeSubscriptions,
+                pendingPayments,
+                expiringSoon
+            }
         });
     } catch (err) {
         console.error("Error fetching users:", err);
@@ -313,20 +365,33 @@ exports.togglePremium = async (req, res) => {
             return res.status(400).json({ error: "isPremium must be boolean" });
         }
 
-        const newRole = isPremium ? "premium" : "free";
+        const subscription = isPremium ? "askplus" : "free";
+        // Also update role for legacy compatibility if needed
+        const role = isPremium ? "premium" : "free";
+
+        const expiry = isPremium ? new Date() : null;
+        if (isPremium) expiry.setDate(expiry.getDate() + 30);
 
         const user = await User.findByIdAndUpdate(
             userId,
-            { role: newRole },
+            { subscription, role, subscriptionExpiry: expiry },
             { new: true }
-        ).select("name usn email role");
+        ).select("name usn email role subscription subscriptionExpiry");
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
 
+        // Create Admin Log
+        await AdminLog.create({
+            adminId: req.userId,
+            action: isPremium ? "UPGRADED_TO_ASKPLUS" : "DOWNGRADED_TO_FREE",
+            targetUserId: userId,
+            details: { manual: true, expiry }
+        });
+
         res.json({
-            message: `User ${isPremium ? "upgraded to premium" : "downgraded to free"}`,
+            message: `User ${isPremium ? "upgraded to ASK+" : "downgraded to free"}`,
             user
         });
 
@@ -351,18 +416,26 @@ exports.banUser = async (req, res) => {
             return res.status(400).json({ error: "isBanned must be boolean" });
         }
 
+        const accountStatus = isBanned ? 'suspended' : 'active';
         const user = await User.findByIdAndUpdate(
             userId,
-            { isBanned },
+            { isBanned, accountStatus },
             { new: true }
-        ).select("name usn email isBanned");
+        ).select("name usn email isBanned accountStatus");
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
 
+        // Create Admin Log
+        await AdminLog.create({
+            adminId: req.userId,
+            action: isBanned ? "SUSPENDED_USER" : "ACTIVATED_USER",
+            targetUserId: userId
+        });
+
         res.json({
-            message: `User ${isBanned ? "banned" : "unbanned"}`,
+            message: `User ${isBanned ? "suspended" : "activated"}`,
             user
         });
 
@@ -384,13 +457,20 @@ exports.resetUserRole = async (req, res) => {
 
         const user = await User.findByIdAndUpdate(
             userId,
-            { isAdmin: false, isBanned: false },
+            { isAdmin: false, isBanned: false, role: "free", subscription: "free", accountStatus: "active" },
             { new: true }
-        ).select("name usn email isAdmin isBanned");
+        ).select("name usn email isAdmin isBanned role subscription accountStatus");
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
+
+        // Create Admin Log
+        await AdminLog.create({
+            adminId: req.userId,
+            action: "RESET_USER_ROLE",
+            targetUserId: userId
+        });
 
         res.json({
             message: "User role reset to default",
@@ -402,6 +482,25 @@ exports.resetUserRole = async (req, res) => {
     } catch (err) {
         console.error("Error resetting user role:", err);
         res.status(500).json({ error: "Failed to reset user role" });
+    }
+};
+
+/**
+ * GET /admin/users/:userId/logs
+ * Get audit trail for a user
+ */
+exports.getAdminLogs = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const logs = await AdminLog.find({ targetUserId: userId })
+            .populate("adminId", "name email")
+            .sort({ createdAt: -1 })
+            .limit(20);
+
+        res.json(logs);
+    } catch (err) {
+        console.error("Error fetching admin logs:", err);
+        res.status(500).json({ error: "Failed to fetch audit trail" });
     }
 };
 const CACHE_KEYS = require("../utils/cacheKeys");

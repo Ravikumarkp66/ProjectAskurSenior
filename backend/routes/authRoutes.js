@@ -8,7 +8,8 @@ const {
     getAllUsers,
     switchBranch,
     googleLogin,
-    completeGoogleRegistration
+    completeGoogleRegistration,
+    discordCallback
 } = require('../controllers/authController');
 
 
@@ -26,6 +27,7 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/admin-login', adminLogin);
 router.post('/google', googleLogin);
+router.get('/discord/callback', discordCallback);
 
 // Protected routes
 router.get('/profile', authMiddleware, getUserProfile);

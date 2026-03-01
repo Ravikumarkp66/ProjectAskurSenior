@@ -1,71 +1,82 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 
+
+// Create the AuthContext
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [token, setToken] = useState(null);
-    const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    // Load token from localStorage on mount
-    useEffect(() => {
-        const storedToken = localStorage.getItem('authToken');
-        const storedUser = localStorage.getItem('user');
+  useEffect(() => {
+    // Load auth data from localStorage on mount
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("authToken");
 
-        if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
+    if (storedUser && storedToken) {
+      try {
+        let userObj = JSON.parse(storedUser);
+        // Ensure subscription property exists and is 'free' if missing, for non-admins only
+        if (!userObj.isAdmin && !userObj.subscription) {
+          userObj.subscription = "free";
+          localStorage.setItem("user", JSON.stringify(userObj));
         }
-        setLoading(false);
-    }, []);
+        setUser(userObj);
+        setToken(storedToken);
+      } catch (err) {
+        console.error("Failed to parse stored user:", err);
+        localStorage.removeItem("user");
+        localStorage.removeItem("authToken");
+      }
+    } else {
+      localStorage.removeItem("user");
+      localStorage.removeItem("authToken");
+    }
+    setLoading(false);
+  }, []);
 
-    const login = useCallback((userData, authToken) => {
-        setUser(userData);
-        setToken(authToken);
-        localStorage.setItem('authToken', authToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-    }, []);
+  const login = useCallback((userData, authToken) => {
+    setUser(userData);
+    setToken(authToken);
+    if (authToken) localStorage.setItem("authToken", authToken);
+    localStorage.setItem("user", JSON.stringify(userData));
+  }, []);
 
-    const logout = useCallback(() => {
-        setUser(null);
-        setToken(null);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('user');
-        // Navigate to home page instead of staying on current page
-        window.location.href = '/';
-    }, []);
+  const updateUser = useCallback((patch) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updatedUser = { ...prev, ...(patch || {}) };
+      try {
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      } catch (err) {
+        console.error("Failed to update user in localStorage:", err);
+      }
+      return updatedUser;
+    });
+  }, []);
 
-    const updateUser = useCallback((patch) => {
-        setUser((prev) => {
-            if (!prev) return prev;
-            const updatedUser = { ...prev, ...(patch || {}) };
-            try {
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-            } catch {
-                // ignore
-            }
-            return updatedUser;
-        });
-    }, []);
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+  }, []);
 
-    const switchBranch = useCallback((newBranch) => {
-        if (user) {
-            const updatedUser = { ...user, currentBranch: newBranch };
-            setUser(updatedUser);
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-    }, [user]);
+  const switchBranch = useCallback((newBranch) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updatedUser = { ...prev, currentBranch: newBranch };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  }, []);
 
-    const value = {
-        user,
-        token,
-        loading,
-        login,
-        logout,
-        switchBranch,
-        updateUser,
-        isAuthenticated: !!token
-    };
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, token, loading, isAuthenticated: !!token, login, logout, updateUser, switchBranch }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
+export const useAuthContext = () => useContext(AuthContext);

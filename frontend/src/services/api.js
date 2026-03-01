@@ -178,3 +178,13 @@ export const interviewExperienceAPI = {
     addBulkExperiences: (data) => apiClient.post('/interview-experiences/bulk', data)
 };
 
+// Payment API
+export const paymentAPI = {
+    submitUtr: (data) => apiClient.post('/payments/submit', data),
+    getLatestPayment: (userId) => apiClient.get(`/payments/user/${userId}`),
+    getPaymentHistory: () => apiClient.get('/payments/history'),
+    // Admin methods
+    getAllPayments: () => apiClient.get('/payments/admin/all'),
+    verifyPayment: (id, data) => apiClient.patch(`/payments/admin/verify/${id}`, data),
+    deletePayment: (id) => apiClient.delete(`/payments/admin/${id}`)
+};
