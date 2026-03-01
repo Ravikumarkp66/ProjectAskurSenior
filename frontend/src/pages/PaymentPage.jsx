@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import QRCode from "react-qr-code";
 import { paymentAPI } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import TermsModal from "../components/TermsModal";
+import PrivacyModal from "../components/PrivacyModal";
 
 const PaymentPage = ({ user }) => {
   const [utr, setUtr] = useState("");
@@ -9,6 +11,8 @@ const PaymentPage = ({ user }) => {
   const [submitted, setSubmitted] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const navigate = useNavigate();
 
   const isSubscribed = user?.subscription === 'askplus' && (!user.subscriptionExpiry || new Date(user.subscriptionExpiry) > new Date());
@@ -270,16 +274,46 @@ const PaymentPage = ({ user }) => {
             You can submit it later from your dashboard.
           </p>
 
-          <div className="mt-6 w-full max-w-sm p-4 rounded-2xl bg-[#5865F2]/5 border border-[#5865F2]/10">
+          <div className="mt-8 w-full max-w-sm p-4 rounded-2xl bg-[#5865F2]/5 border border-[#5865F2]/10">
             <p className="text-[10px] text-[#5865F2] font-black uppercase tracking-widest text-center">
               ⚡ For instant approval from admin: <br />
               Connect Discord from the Profile Section!
             </p>
           </div>
 
+          <div className="mt-8 w-full max-w-sm space-y-4">
+            <div className="bg-red-500/5 border border-red-500/10 p-4 rounded-2xl">
+              <p className="font-bold text-red-500 text-[10px] uppercase tracking-widest mb-1">⚠️ IMPORTANT: NO REFUND POLICY</p>
+              <p className="text-[10px] text-gray-400 leading-tight">
+                As AskUrSenior provides immediate digital access to premium resources upon activation, all payments are final and **non-refundable**.
+              </p>
+            </div>
+
+            <p className="text-[10px] text-gray-500 text-center leading-relaxed">
+              By submitting the UTR, you agree to our <br />
+              <button onClick={() => setShowTerms(true)} className="text-blue-500 hover:underline">Terms of Service</button> and <button onClick={() => setShowPrivacy(true)} className="text-blue-500 hover:underline">Privacy Policy</button>
+            </p>
+
+            <div className="pt-2 border-t border-gray-100 flex flex-col items-center gap-1">
+              <p className="text-[9px] text-gray-400 uppercase tracking-widest font-bold">Need Help?</p>
+              <a href="mailto:askursenior66@gmail.com" className="text-[10px] text-blue-500 font-bold hover:underline">
+                askursenior66@gmail.com
+              </a>
+            </div>
+          </div>
+
         </div>
 
       </div>
+
+      <TermsModal
+        isOpen={showTerms}
+        onClose={() => setShowTerms(false)}
+      />
+      <PrivacyModal
+        isOpen={showPrivacy}
+        onClose={() => setShowPrivacy(false)}
+      />
     </div>
   );
 };

@@ -19,6 +19,8 @@ const InterviewExperiencePage = lazy(() => import('./pages/InterviewExperiencePa
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
 const PricingSection = lazy(() => import('./components/PricingSection'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
 // Generic loading fallback for Suspense
 const LoadingFallback = () => (
@@ -146,8 +148,7 @@ function AppContent() {
                                 </ProtectedRoute>
                             }
                         />
-                        <Route
-                            path="/subject/:subjectId/content"
+                        <Route path="/subject/:subjectId/content"
                             element={
                                 <ProtectedRoute>
                                     <SubjectContentPage />
@@ -162,6 +163,8 @@ function AppContent() {
                                 </ProtectedRoute>
                             }
                         />
+                        <Route path="/terms" element={<TermsPage />} />
+                        <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="/" element={<HomePage />} />
                         {/* Catch-all route for unmatched paths */}
                         <Route path="*" element={<Navigate to="/" replace />} />

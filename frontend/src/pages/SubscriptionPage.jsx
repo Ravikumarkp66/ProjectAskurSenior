@@ -7,6 +7,8 @@ import TopBar from '../components/TopBar';
 import GameifiedLoader from '../components/GameifiedLoader';
 import { FaCrown, FaHistory, FaCheckCircle, FaExclamationCircle, FaArrowRight } from 'react-icons/fa';
 import ProfileModal from '../components/ProfileModal';
+import TermsModal from '../components/TermsModal';
+import PrivacyModal from '../components/PrivacyModal';
 
 const SubscriptionPage = () => {
     const navigate = useNavigate();
@@ -14,6 +16,8 @@ const SubscriptionPage = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showProfileModal, setShowProfileModal] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
     const [theme] = useState(() => {
         try {
             return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark';
@@ -194,6 +198,18 @@ const SubscriptionPage = () => {
                                 </div>
                             </div>
                         )}
+
+                        {/* Legal Links Footer */}
+                        <div className="flex flex-col items-center gap-4 py-8 opacity-50 text-center">
+                            <p className="text-[10px] uppercase font-bold tracking-widest text-slate-500">
+                                🚫 No Refund Policy: All Digital Access Sales are Final
+                            </p>
+                            <div className="flex gap-4 text-xs font-medium">
+                                <button onClick={() => setShowTerms(true)} className="hover:text-blue-500 transition-colors">Terms of Service</button>
+                                <button onClick={() => setShowPrivacy(true)} className="hover:text-blue-500 transition-colors">Privacy Policy</button>
+                                <a href="mailto:askursenior66@gmail.com" className="hover:text-blue-500 transition-colors">Support</a>
+                            </div>
+                        </div>
                     </div>
                 </main>
             </div>
@@ -204,6 +220,15 @@ const SubscriptionPage = () => {
                 user={user}
                 updateUser={updateUser}
                 theme={theme}
+            />
+
+            <TermsModal
+                isOpen={showTerms}
+                onClose={() => setShowTerms(false)}
+            />
+            <PrivacyModal
+                isOpen={showPrivacy}
+                onClose={() => setShowPrivacy(false)}
             />
         </div>
     );

@@ -37,7 +37,7 @@ const upload = multer({
 // Update Profile (Bio, Social Links)
 const updateProfile = async (req, res) => {
     try {
-        const { bio, socialLinks } = req.body;
+        const { bio, socialLinks, usn } = req.body;
         const userId = req.userId;
 
         const user = await User.findById(userId);
@@ -47,6 +47,15 @@ const updateProfile = async (req, res) => {
 
         // Update fields if provided
         if (bio !== undefined) user.bio = bio;
+
+        if (usn !== undefined && usn.toUpperCase() !== user.usn) {
+            // Check if new USN is already taken
+            const existingUser = await User.findOne({ usn: usn.toUpperCase() });
+            if (existingUser) {
+                return res.status(400).json({ error: 'This USN is already registered by another user' });
+            }
+            user.usn = usn.toUpperCase();
+        }
 
         if (socialLinks) {
             user.socialLinks = {

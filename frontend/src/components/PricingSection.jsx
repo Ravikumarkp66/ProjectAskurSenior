@@ -1,7 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import TermsModal from "./TermsModal";
+import PrivacyModal from "./PrivacyModal";
 
 const PricingSection = ({ user }) => {
   const navigate = useNavigate();
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center px-6 py-12">
@@ -115,6 +120,30 @@ const PricingSection = ({ user }) => {
         </div>
 
       </div>
+
+      <div className="mt-16 w-full max-w-sm flex flex-col items-center gap-4 text-center">
+        <div className="bg-white/5 border border-white/10 p-4 rounded-2xl w-full">
+          <p className="font-bold text-red-400 text-[10px] uppercase tracking-widest mb-1">🚫 No Refund Policy</p>
+          <p className="text-[10px] text-gray-400 leading-tight">
+            As AskUrSenior provides immediate digital access to premium features upon activation, all payments are final and non-refundable.
+          </p>
+        </div>
+
+        <div className="flex gap-6 text-[10px] font-medium text-gray-500 uppercase tracking-widest">
+          <button onClick={() => setShowTerms(true)} className="hover:text-white transition-colors">Terms</button>
+          <button onClick={() => setShowPrivacy(true)} className="hover:text-white transition-colors">Privacy</button>
+          <a href="mailto:askursenior66@gmail.com" className="hover:text-white transition-colors">Support</a>
+        </div>
+      </div>
+
+      <TermsModal
+        isOpen={showTerms}
+        onClose={() => setShowTerms(false)}
+      />
+      <PrivacyModal
+        isOpen={showPrivacy}
+        onClose={() => setShowPrivacy(false)}
+      />
     </div>
   );
 };

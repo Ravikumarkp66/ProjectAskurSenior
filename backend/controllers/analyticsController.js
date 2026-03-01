@@ -276,6 +276,11 @@ exports.getUserListAnalytics = async (req, res) => {
             query.isAdmin = role === "admin";
         }
 
+        // Handle Plan Filters (Free/ASK+)
+        if (filter === "free" || filter === "askplus") {
+            query.subscription = filter;
+        }
+
         // Base pipeline
         let pipeline = [
             { $match: query },

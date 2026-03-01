@@ -2,129 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import StatsCards from './StatsCards';
 
-const PasswordChangeSection = ({ isLightMode }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [message, setMessage] = useState({ type: '', text: '' });
-    const [loading, setLoading] = useState(false);
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setMessage({ type: '', text: '' });
-
-        if (newPassword !== confirmPassword) {
-            setMessage({ type: 'error', text: 'New passwords do not match' });
-            return;
-        }
-
-        if (newPassword.length < 6) {
-            setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
-            return;
-        }
-
-        setLoading(true);
-        try {
-            await authAPI.changePassword({
-                currentPassword,
-                newPassword
-            });
-            setMessage({ type: 'success', text: 'Password changed successfully!' });
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setTimeout(() => setIsExpanded(false), 2000);
-        } catch (error) {
-            setMessage({ type: 'error', text: error.response?.data?.error || 'Failed to change password' });
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!isExpanded) {
-        return (
-            <button
-                onClick={() => setIsExpanded(true)}
-                className={`w-full py-2 text-sm border border-dashed rounded-lg transition ${isLightMode
-                    ? 'text-blue-600 border-blue-300 hover:bg-blue-50'
-                    : 'text-blue-400 border-blue-900/50 hover:bg-blue-900/20'
-                    }`}
-            >
-                Change Password
-            </button>
-        );
-    }
-
-    return (
-        <div className={`rounded-xl p-4 border ${isLightMode ? 'bg-gray-50 border-gray-200' : 'bg-gray-800/50 border-gray-700'}`}>
-            <h3 className={`font-semibold mb-3 text-sm ${isLightMode ? 'text-gray-900' : 'text-white'}`}>Change Password</h3>
-            <form onSubmit={handleSubmit} className="space-y-3">
-                <input
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Current Password"
-                    className={`w-full p-2 text-sm border rounded outline-none ${isLightMode
-                        ? 'bg-white border-gray-200 text-gray-900'
-                        : 'bg-gray-800 border-gray-700 text-white'
-                        }`}
-                    required
-                />
-                <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New Password"
-                    className={`w-full p-2 text-sm border rounded outline-none ${isLightMode
-                        ? 'bg-white border-gray-200 text-gray-900'
-                        : 'bg-gray-800 border-gray-700 text-white'
-                        }`}
-                    required
-                />
-                <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm New Password"
-                    className={`w-full p-2 text-sm border rounded outline-none ${isLightMode
-                        ? 'bg-white border-gray-200 text-gray-900'
-                        : 'bg-gray-800 border-gray-700 text-white'
-                        }`}
-                    required
-                />
-
-                {message.text && (
-                    <p className={`text-xs ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-                        {message.text}
-                    </p>
-                )}
-
-                <div className="flex gap-2">
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="flex-1 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                        {loading ? 'Updating...' : 'Update Password'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsExpanded(false)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded transition ${isLightMode ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                            }`}
-                    >
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
-};
+// PasswordChangeSection component removed
 
 const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallProgress = 0, theme = 'dark' }) => {
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [profileForm, setProfileForm] = useState({
+        name: '',
+        usn: '',
         bio: '',
         linkedin: '',
         github: '',
@@ -133,13 +17,16 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
     const [profileImage, setProfileImage] = useState(null);
     const [profileImagePreview, setProfileImagePreview] = useState('');
     const [isSavingProfile, setIsSavingProfile] = useState(false);
-    const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'stats', 'security'
+    const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'stats', 'subscription'
+    const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
 
     const isLightMode = theme === 'light';
 
     useEffect(() => {
         if (show && user) {
             setProfileForm({
+                name: user.name || '',
+                usn: user.usn || '',
                 bio: user.bio || '',
                 linkedin: user.socialLinks?.linkedin || '',
                 github: user.socialLinks?.github || '',
@@ -151,6 +38,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
             setIsEditingProfile(false);
             setProfileImage(null);
             setActiveTab('profile');
+            setProfileMessage({ type: '', text: '' });
         }
     }, [show, user]);
 
@@ -158,6 +46,14 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
 
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
+        setProfileMessage({ type: '', text: '' });
+
+        // Validate USN format if provided
+        if (profileForm.usn && !/^[A-Z0-9]{8,12}$/i.test(profileForm.usn)) {
+            setProfileMessage({ type: 'error', text: 'USN must be 8-12 alphanumeric characters' });
+            return;
+        }
+
         setIsSavingProfile(true);
         try {
             if (profileImage) {
@@ -167,6 +63,8 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
             }
 
             const profileRes = await authAPI.updateProfile({
+                name: profileForm.name,
+                usn: profileForm.usn,
                 bio: profileForm.bio,
                 socialLinks: {
                     linkedin: profileForm.linkedin,
@@ -179,9 +77,14 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                 updateUser(profileRes.data.user);
             }
 
-            setIsEditingProfile(false);
+            setProfileMessage({ type: 'success', text: 'Profile updated successfully!' });
+            setTimeout(() => {
+                setIsEditingProfile(false);
+                setProfileMessage({ type: '', text: '' });
+            }, 2000);
         } catch (error) {
             console.error('Failed to update profile', error);
+            setProfileMessage({ type: 'error', text: error.response?.data?.error || 'Failed to update profile' });
         } finally {
             setIsSavingProfile(false);
         }
@@ -220,7 +123,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                                 <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-4xl font-bold">
-                                    {(user?.usn || 'U').slice(0, 1).toUpperCase()}
+                                    {(user?.name || user?.usn || 'S').slice(0, 1).toUpperCase()}
                                 </div>
                             )}
                         </div>
@@ -236,11 +139,21 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                     {/* Info */}
                     <div className="flex-1 mb-2">
                         <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                            {user?.usn}
+                            {user?.name || user?.usn || 'Guest Student'}
                         </h2>
-                        <p className={`text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {user?.email} • {user?.branch} Branch
-                        </p>
+                        <div className="flex flex-col md:flex-row md:items-center gap-2 mt-0.5">
+                            <p className={`text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                {user?.email} • {user?.branch} Branch
+                            </p>
+                            {user?.name && user?.usn && (
+                                <span className={`hidden md:block text-gray-400`}>•</span>
+                            )}
+                            {user?.usn && (
+                                <p className={`text-xs font-mono font-medium ${isLightMode ? 'text-blue-600' : 'text-blue-400'}`}>
+                                    {user.usn}
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Actions */}
@@ -282,14 +195,14 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                             Academic Stats
                         </button>
                         <button
-                            onClick={() => setActiveTab('security')}
-                            className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition flex items-center gap-3 ${activeTab === 'security'
+                            onClick={() => setActiveTab('subscription')}
+                            className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition flex items-center gap-3 ${activeTab === 'subscription'
                                 ? (isLightMode ? 'bg-orange-50 text-orange-700' : 'bg-orange-900/20 text-orange-400')
                                 : (isLightMode ? 'text-gray-600 hover:bg-gray-50' : 'text-gray-400 hover:bg-gray-800')
                                 }`}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                            Security & Password
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" /></svg>
+                            Current Plan
                         </button>
                     </div>
 
@@ -298,6 +211,59 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
 
                         {activeTab === 'profile' && (
                             <div className="space-y-6 max-w-2xl animate-fadeIn">
+                                {/* Personal Details Section */}
+                                <div>
+                                    <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        Full Name
+                                    </h3>
+                                    {isEditingProfile ? (
+                                        <input
+                                            type="text"
+                                            value={profileForm.name}
+                                            onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                                            placeholder="Your Full Name"
+                                            className={`w-full p-4 rounded-xl border focus:ring-2 outline-none transition ${isLightMode
+                                                ? 'bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-100 text-gray-900'
+                                                : 'bg-gray-800 border-gray-700 focus:border-blue-500 focus:ring-blue-900/50 text-gray-100'
+                                                }`}
+                                        />
+                                    ) : (
+                                        <div className={`p-4 rounded-xl border ${isLightMode ? 'bg-white border-gray-100 text-gray-700' : 'bg-gray-800/50 border-gray-700 text-gray-300'}`}>
+                                            {user?.name || <span className="italic opacity-60">No name added yet.</span>}
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Student ID Section */}
+                                <div>
+                                    <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        Student ID / USN <span className="text-red-500">*</span>
+                                    </h3>
+                                    {isEditingProfile ? (
+                                        <div className="space-y-2">
+                                            <input
+                                                type="text"
+                                                value={profileForm.usn}
+                                                onChange={(e) => setProfileForm({ ...profileForm, usn: e.target.value.toUpperCase() })}
+                                                placeholder="Enter USN (e.g. VTM22CS001)"
+                                                className={`w-full p-4 rounded-xl border focus:ring-2 outline-none transition uppercase font-mono tracking-wider ${isLightMode
+                                                    ? 'bg-white border-gray-200 focus:border-blue-500 focus:ring-blue-100 text-gray-900'
+                                                    : 'bg-gray-800 border-gray-700 focus:border-blue-500 focus:ring-blue-900/50 text-gray-100'
+                                                    }`}
+                                            />
+                                            <p className="text-[10px] text-gray-400">Required for payment approval and academic features.</p>
+                                        </div>
+                                    ) : (
+                                        <div className={`p-4 rounded-xl border flex items-center justify-between ${user?.usn ? (isLightMode ? 'bg-white border-gray-100' : 'bg-gray-800/50 border-gray-700') : 'bg-red-500/10 border-red-500/20'}`}>
+                                            <span className={`font-mono text-lg tracking-widest ${user?.usn ? (isLightMode ? 'text-gray-900' : 'text-white') : 'text-red-400 font-bold'}`}>
+                                                {user?.usn || 'NOT PROVIDED'}
+                                            </span>
+                                            {!user?.usn && (
+                                                <span className="text-[10px] bg-red-500 text-white px-2 py-1 rounded-full animate-pulse uppercase font-black">Missing</span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 {/* Bio Section */}
                                 <div>
                                     <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>Bio</h3>
@@ -410,36 +376,102 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
 
                                 {/* Save Actions */}
                                 {isEditingProfile && (
-                                    <div className="pt-4 flex gap-3">
-                                        <button
-                                            onClick={handleProfileUpdate}
-                                            disabled={isSavingProfile}
-                                            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 transition disabled:opacity-70 flex items-center gap-2"
-                                        >
-                                            {isSavingProfile ? (
-                                                <>
-                                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    Saving Changes...
-                                                </>
-                                            ) : (
-                                                'Save Changes'
-                                            )}
-                                        </button>
-                                        <button
-                                            onClick={() => setIsEditingProfile(false)}
-                                            className={`px-6 py-2.5 font-semibold rounded-xl transition ${isLightMode ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700'}`}
-                                        >
-                                            Cancel
-                                        </button>
+                                    <div className="pt-4 space-y-4">
+                                        {profileMessage.text && (
+                                            <div className={`p-3 rounded-xl text-xs font-medium animate-fadeIn ${profileMessage.type === 'success' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
+                                                {profileMessage.text}
+                                            </div>
+                                        )}
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={handleProfileUpdate}
+                                                disabled={isSavingProfile}
+                                                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/20 transition disabled:opacity-70 flex items-center gap-2"
+                                            >
+                                                {isSavingProfile ? (
+                                                    <>
+                                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        Saving Changes...
+                                                    </>
+                                                ) : (
+                                                    'Save Changes'
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() => setIsEditingProfile(false)}
+                                                className={`px-6 py-2.5 font-semibold rounded-xl transition ${isLightMode ? 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50' : 'bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700'}`}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {activeTab === 'security' && (
-                            <div className="animate-fadeIn max-w-xl">
-                                <h3 className={`text-lg font-bold mb-6 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>Password & Security</h3>
-                                <PasswordChangeSection isLightMode={isLightMode} />
+                        {activeTab === 'subscription' && (
+                            <div className="animate-fadeIn max-w-xl space-y-6">
+                                <div className={`p-6 rounded-2xl border ${isLightMode ? 'bg-white border-gray-100' : 'bg-gray-800/40 border-gray-700'} relative overflow-hidden`}>
+                                    <div className="flex justify-between items-start relative z-10">
+                                        <div>
+                                            <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>Current Plan</p>
+                                            <h3 className={`text-3xl font-black ${user?.subscription === 'askplus' ? 'text-blue-500' : (isLightMode ? 'text-gray-900' : 'text-white')}`}>
+                                                {user?.subscription === 'askplus' ? 'ASK+' : 'FREE'}
+                                            </h3>
+                                        </div>
+                                        {user?.subscription === 'askplus' && (
+                                            <div className="bg-blue-500 text-white p-2 rounded-xl shadow-lg shadow-blue-500/20">
+                                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5M19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z" /></svg>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {user?.subscription === 'askplus' ? (
+                                        <div className="mt-8 space-y-4 relative z-10">
+                                            <div className={`p-4 rounded-xl ${isLightMode ? 'bg-blue-50' : 'bg-blue-900/10'} border border-blue-500/20`}>
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className={`text-xs font-bold ${isLightMode ? 'text-blue-700' : 'text-blue-400'}`}>Valid Until</p>
+                                                        <p className={`text-sm font-semibold ${isLightMode ? 'text-blue-900' : 'text-blue-200'}`}>
+                                                            {new Date(user.subscriptionExpiry).toLocaleDateString(undefined, { dateStyle: 'long' })}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text-xs font-bold ${isLightMode ? 'text-blue-700' : 'text-blue-400'}`}>Time Left</p>
+                                                        <p className="text-xl font-black text-blue-500">
+                                                            {Math.max(0, Math.ceil((new Date(user.subscriptionExpiry) - new Date()) / (1000 * 60 * 60 * 24)))} Days
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className={`p-3 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-900/50'} flex items-center gap-3`}>
+                                                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                    <span className={`text-[11px] font-bold ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Premium Notes</span>
+                                                </div>
+                                                <div className={`p-3 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-900/50'} flex items-center gap-3`}>
+                                                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                                                    <span className={`text-[11px] font-bold ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Interview Exp.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-8 space-y-4 relative z-10">
+                                            <p className={`text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                Upgrade to ASK+ to unlock previous year questions, placement experiences, and premium notes.
+                                            </p>
+                                            <button
+                                                onClick={() => { onClose(); window.location.href = '/subscription'; }}
+                                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition active:scale-95"
+                                            >
+                                                Upgrade to ASK+
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* Abstract background pattern */}
+                                    <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+                                </div>
                             </div>
                         )}
 

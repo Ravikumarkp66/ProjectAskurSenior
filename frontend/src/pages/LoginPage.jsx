@@ -8,6 +8,8 @@ import { deriveBranchFromUSN, toBackendBranch, validateUSN } from '../utils/cons
 import Hero from '../components/Hero';
 import AuthSuccess from '../components/AuthSuccess';
 import Logo from '../components/Logo';
+import TermsModal from '../components/TermsModal';
+import PrivacyModal from '../components/PrivacyModal';
 
 const LoginPage = ({ initialMode = 'login' }) => {
     const navigate = useNavigate();
@@ -23,6 +25,8 @@ const LoginPage = ({ initialMode = 'login' }) => {
     const [loading, setLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
 
     // Auto-redirect if already authenticated
     useEffect(() => {
@@ -230,14 +234,23 @@ const LoginPage = ({ initialMode = 'login' }) => {
                                     </div>
                                 </div>
 
-                                <p className="text-xs text-gray-500 mt-6 px-10">
-                                    By continuing, you agree to our <span className="text-blue-400 cursor-pointer">Terms of Service</span> and <span className="text-blue-400 cursor-pointer">Privacy Policy</span>.
+                                <p className="text-xs text-gray-500 mt-6 px-10 leading-relaxed shadow-sm">
+                                    By continuing, you agree to our <button onClick={() => setShowTerms(true)} className="text-blue-400 font-bold hover:underline">Terms of Service</button> and <button onClick={() => setShowPrivacy(true)} className="text-blue-400 font-bold hover:underline">Privacy Policy</button>.
                                 </p>
                             </>
                         )}
                     </div>
                 </div>
             </div>
+
+            <TermsModal
+                isOpen={showTerms}
+                onClose={() => setShowTerms(false)}
+            />
+            <PrivacyModal
+                isOpen={showPrivacy}
+                onClose={() => setShowPrivacy(false)}
+            />
         </div>
     );
 };
