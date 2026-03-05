@@ -2,7 +2,6 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { useAuth } from './utils/hooks';
-import GameifiedLoader from './components/GameifiedLoader';
 import WatermarkStamp from './components/common/WatermarkStamp';
 
 // Lazy load pages for code splitting
@@ -23,9 +22,13 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 
 // Generic loading fallback for Suspense
+// Simple loading fallback for Suspense to reduce initial bundle size and complexity
 const LoadingFallback = () => (
-    <div className="flex items-center justify-center min-vh-100 bg-slate-900">
-        <GameifiedLoader isLoading={true} loadingText="Loading..." variant="general" />
+    <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+            <p className="text-slate-400 font-medium animate-pulse">Loading AskUrSenior...</p>
+        </div>
     </div>
 );
 
@@ -34,11 +37,9 @@ const ProtectedRoute = ({ children, allowIncomplete = false }) => {
 
     if (loading) {
         return (
-            <GameifiedLoader
-                isLoading={true}
-                loadingText="Authenticating"
-                variant="auth"
-            />
+            <div className="flex items-center justify-center min-h-screen bg-slate-900">
+                <div className="w-8 h-8 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+            </div>
         );
     }
 
@@ -57,11 +58,9 @@ const AdminRoute = ({ children }) => {
 
     if (loading) {
         return (
-            <GameifiedLoader
-                isLoading={true}
-                loadingText="Preparing Admin Panel"
-                variant="auth"
-            />
+            <div className="flex items-center justify-center min-h-screen bg-slate-900">
+                <div className="w-8 h-8 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+            </div>
         );
     }
 

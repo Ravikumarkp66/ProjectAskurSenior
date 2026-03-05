@@ -4,7 +4,6 @@ import { useAuth } from '../utils/hooks';
 import { paymentAPI, authAPI } from '../services/api';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import GameifiedLoader from '../components/GameifiedLoader';
 import { FaCrown, FaHistory, FaCheckCircle, FaExclamationCircle, FaArrowRight } from 'react-icons/fa';
 import ProfileModal from '../components/ProfileModal';
 import TermsModal from '../components/TermsModal';
@@ -52,7 +51,16 @@ const SubscriptionPage = () => {
         (user.subscriptionExpiry ? new Date(user.subscriptionExpiry) > new Date() : true);
     const daysLeft = user?.subscriptionExpiry ? Math.ceil((new Date(user.subscriptionExpiry) - new Date()) / (1000 * 60 * 60 * 24)) : null;
 
-    if (loading) return <GameifiedLoader theme={theme} />;
+    if (loading) {
+        return (
+            <div className={`min-h-screen flex items-center justify-center ${isLightMode ? 'bg-slate-50' : 'bg-primary-900'}`}>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                    <p className={`${isLightMode ? 'text-slate-600' : 'text-slate-400'} font-medium animate-pulse`}>Loading subscription details...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={`min-h-screen flex ${isLightMode ? 'bg-slate-50' : 'bg-primary-900'}`}>

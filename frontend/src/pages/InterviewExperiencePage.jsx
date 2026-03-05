@@ -4,7 +4,6 @@ import { useAuth } from '../utils/hooks';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import InterviewExperienceCard from '../components/InterviewExperienceCard';
-import GameifiedLoader from '../components/GameifiedLoader';
 import { interviewExperienceAPI } from '../services/api';
 import { deriveBranchFromUSN, toUiBranch } from '../utils/constants';
 import ProfileModal from '../components/ProfileModal';
@@ -99,16 +98,12 @@ const InterviewExperiencePage = () => {
 
     if (loading || authLoading) {
         return (
-            <GameifiedLoader
-                isLoading={true}
-                loadingText="Fetching Experiences"
-                variant="data"
-                tips={[
-                    "🎯 Real interview questions are being loaded...",
-                    "📊 Preparing cards for you",
-                    "🚀 Learning from seniors is the best way to prepare"
-                ]}
-            />
+            <div className={`min-h-screen flex items-center justify-center ${isLightMode ? 'bg-white' : 'bg-primary-950'}`}>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                    <p className={`${isLightMode ? 'text-slate-600' : 'text-secondary-400'} font-medium animate-pulse`}>Fetching experiences...</p>
+                </div>
+            </div>
         );
     }
 

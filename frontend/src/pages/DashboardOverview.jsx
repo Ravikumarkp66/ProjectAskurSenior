@@ -1,8 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { FaUsers, FaCloudUploadAlt, FaFileAlt, FaHourglassHalf, FaBook, FaArrowUp } from 'react-icons/fa';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+// import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import AnalyticsCard from '../components/AnalyticsCard';
 import { analyticsAPI } from '../services/analyticsAPI';
+import Skeleton from '../components/Skeleton';
+
+// Lazy load Recharts
+const LineChart = lazy(() => import('recharts').then(mod => ({ default: mod.LineChart })));
+const Line = lazy(() => import('recharts').then(mod => ({ default: mod.Line })));
+const BarChart = lazy(() => import('recharts').then(mod => ({ default: mod.BarChart })));
+const Bar = lazy(() => import('recharts').then(mod => ({ default: mod.Bar })));
+const XAxis = lazy(() => import('recharts').then(mod => ({ default: mod.XAxis })));
+const YAxis = lazy(() => import('recharts').then(mod => ({ default: mod.YAxis })));
+const CartesianGrid = lazy(() => import('recharts').then(mod => ({ default: mod.CartesianGrid })));
+const Tooltip = lazy(() => import('recharts').then(mod => ({ default: mod.Tooltip })));
+const Legend = lazy(() => import('recharts').then(mod => ({ default: mod.Legend })));
+const ResponsiveContainer = lazy(() => import('recharts').then(mod => ({ default: mod.ResponsiveContainer })));
 
 const DashboardOverview = () => {
     const [stats, setStats] = useState(null);
@@ -159,137 +172,161 @@ const DashboardOverview = () => {
                 {/* Charts Section */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     {/* User Growth Chart */}
-                    {userGrowth && userGrowth.length > 0 && (
-                        <div className={`rounded-xl border p-6 ${isLightMode
-                            ? 'bg-white border-slate-200'
-                            : 'bg-dark-100 border-white/10'
-                            }`}>
-                            <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                                User Growth Trend
-                            </h3>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={userGrowth}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
-                                    <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                    <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: isLightMode ? '#fff' : '#1f2937',
-                                            border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
-                                            borderRadius: '8px',
-                                            color: isLightMode ? '#000' : '#fff'
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="users"
-                                        stroke="#a77cff"
-                                        dot={{ fill: '#a77cff', r: 4 }}
-                                        activeDot={{ r: 6 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
-
-                    {/* Upload Growth Chart */}
-                    {uploadGrowth && uploadGrowth.length > 0 && (
-                        <div className={`rounded-xl border p-6 ${isLightMode
-                            ? 'bg-white border-slate-200'
-                            : 'bg-dark-100 border-white/10'
-                            }`}>
-                            <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                                Upload Growth Trend
-                            </h3>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <LineChart data={uploadGrowth}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
-                                    <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                    <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                    <Tooltip
-                                        contentStyle={{
-                                            backgroundColor: isLightMode ? '#fff' : '#1f2937',
-                                            border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
-                                            borderRadius: '8px',
-                                            color: isLightMode ? '#000' : '#fff'
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="uploads"
-                                        stroke="#10b981"
-                                        dot={{ fill: '#10b981', r: 4 }}
-                                        activeDot={{ r: 6 }}
-                                    />
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
-                    )}
-                </div>
-
-                {/* Content by Subject Bar Chart */}
-                {contentBySubject && contentBySubject.length > 0 && (
-                    <div className={`rounded-xl border p-6 mb-8 ${isLightMode
-                        ? 'bg-white border-slate-200'
-                        : 'bg-dark-100 border-white/10'
-                        }`}>
-                        <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                            Content Distribution by Subject
-                        </h3>
-                        <ResponsiveContainer width="100%" height={400}>
-                            <BarChart data={contentBySubject}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
-                                <XAxis dataKey="subject" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: isLightMode ? '#fff' : '#1f2937',
-                                        border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
-                                        borderRadius: '8px',
-                                        color: isLightMode ? '#000' : '#fff'
-                                    }}
-                                />
-                                <Legend />
-                                <Bar dataKey="notes" fill="#22c55e" />
-                                <Bar dataKey="pyqs" fill="#a77cff" />
-                                <Bar dataKey="questionBanks" fill="#0ea5e9" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
-
-                {/* Upload by Month Bar Chart */}
-                {uploadByMonth && uploadByMonth.length > 0 && (
                     <div className={`rounded-xl border p-6 ${isLightMode
                         ? 'bg-white border-slate-200'
                         : 'bg-dark-100 border-white/10'
                         }`}>
                         <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                            Upload Breakdown by Type (Monthly)
+                            User Growth Trend
                         </h3>
-                        <ResponsiveContainer width="100%" height={400}>
-                            <BarChart data={uploadByMonth}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
-                                <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: isLightMode ? '#fff' : '#1f2937',
-                                        border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
-                                        borderRadius: '8px',
-                                        color: isLightMode ? '#000' : '#fff'
-                                    }}
-                                />
-                                <Legend />
-                                <Bar dataKey="notes" fill="#10b981" />
-                                <Bar dataKey="pyqs" fill="#a77cff" />
-                                <Bar dataKey="questionBanks" fill="#3b82f6" />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <Suspense fallback={<div className="h-[300px] flex items-center justify-center"><Skeleton className="h-full w-full rounded-lg" /></div>}>
+                            {userGrowth && userGrowth.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={userGrowth}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
+                                        <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                        <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: isLightMode ? '#fff' : '#1f2937',
+                                                border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
+                                                borderRadius: '8px',
+                                                color: isLightMode ? '#000' : '#fff'
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="users"
+                                            stroke="#a77cff"
+                                            dot={{ fill: '#a77cff', r: 4 }}
+                                            activeDot={{ r: 6 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : loading ? (
+                                <div className="h-[300px]"><Skeleton className="h-full w-full rounded-lg" /></div>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center text-slate-500 italic">No data available</div>
+                            )}
+                        </Suspense>
                     </div>
-                )}
+
+                    {/* Upload Growth Chart */}
+                    <div className={`rounded-xl border p-6 ${isLightMode
+                        ? 'bg-white border-slate-200'
+                        : 'bg-dark-100 border-white/10'
+                        }`}>
+                        <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                            Upload Growth Trend
+                        </h3>
+                        <Suspense fallback={<div className="h-[300px] flex items-center justify-center"><Skeleton className="h-full w-full rounded-lg" /></div>}>
+                            {uploadGrowth && uploadGrowth.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <LineChart data={uploadGrowth}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
+                                        <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                        <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                        <Tooltip
+                                            contentStyle={{
+                                                backgroundColor: isLightMode ? '#fff' : '#1f2937',
+                                                border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
+                                                borderRadius: '8px',
+                                                color: isLightMode ? '#000' : '#fff'
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="uploads"
+                                            stroke="#10b981"
+                                            dot={{ fill: '#10b981', r: 4 }}
+                                            activeDot={{ r: 6 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : loading ? (
+                                <div className="h-[300px]"><Skeleton className="h-full w-full rounded-lg" /></div>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center text-slate-500 italic">No data available</div>
+                            )}
+                        </Suspense>
+                    </div>
+                </div>
+
+                {/* Content by Subject Bar Chart */}
+                <div className={`rounded-xl border p-6 mb-8 ${isLightMode
+                    ? 'bg-white border-slate-200'
+                    : 'bg-dark-100 border-white/10'
+                    }`}>
+                    <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                        Content Distribution by Subject
+                    </h3>
+                    <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><Skeleton className="h-full w-full rounded-lg" /></div>}>
+                        {contentBySubject && contentBySubject.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={400}>
+                                <BarChart data={contentBySubject}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
+                                    <XAxis dataKey="subject" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                    <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: isLightMode ? '#fff' : '#1f2937',
+                                            border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
+                                            borderRadius: '8px',
+                                            color: isLightMode ? '#000' : '#fff'
+                                        }}
+                                    />
+                                    <Legend />
+                                    <Bar dataKey="notes" fill="#22c55e" />
+                                    <Bar dataKey="pyqs" fill="#a77cff" />
+                                    <Bar dataKey="questionBanks" fill="#0ea5e9" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : loading ? (
+                            <div className="h-[400px]"><Skeleton className="h-full w-full rounded-lg" /></div>
+                        ) : (
+                            <div className="h-[400px] flex items-center justify-center text-slate-500 italic">No data available</div>
+                        )}
+                    </Suspense>
+                </div>
+
+                {/* Upload by Month Bar Chart */}
+                <div className={`rounded-xl border p-6 ${isLightMode
+                    ? 'bg-white border-slate-200'
+                    : 'bg-dark-100 border-white/10'
+                    }`}>
+                    <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                        Upload Breakdown by Type (Monthly)
+                    </h3>
+                    <Suspense fallback={<div className="h-[400px] flex items-center justify-center"><Skeleton className="h-full w-full rounded-lg" /></div>}>
+                        {uploadByMonth && uploadByMonth.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={400}>
+                                <BarChart data={uploadByMonth}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isLightMode ? '#e2e8f0' : '#374151'} />
+                                    <XAxis dataKey="month" stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                    <YAxis stroke={isLightMode ? '#64748b' : '#9ca3af'} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: isLightMode ? '#fff' : '#1f2937',
+                                            border: `1px solid ${isLightMode ? '#e2e8f0' : '#374151'}`,
+                                            borderRadius: '8px',
+                                            color: isLightMode ? '#000' : '#fff'
+                                        }}
+                                    />
+                                    <Legend />
+                                    <Bar dataKey="notes" fill="#10b981" />
+                                    <Bar dataKey="pyqs" fill="#a77cff" />
+                                    <Bar dataKey="questionBanks" fill="#3b82f6" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        ) : loading ? (
+                            <div className="h-[400px]"><Skeleton className="h-full w-full rounded-lg" /></div>
+                        ) : (
+                            <div className="h-[400px] flex items-center justify-center text-slate-500 italic">No data available</div>
+                        )}
+                    </Suspense>
+                </div>
             </div>
         </div>
     );

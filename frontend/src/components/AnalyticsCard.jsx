@@ -29,8 +29,8 @@ const AnalyticsCard = ({ icon: Icon, label, value, trend, isLoading, isLightMode
                     </p>
                     {trend && (
                         <p className={`text-xs mt-2 ${trend >= 0
-                                ? isLightMode ? 'text-green-600' : 'text-green-400'
-                                : isLightMode ? 'text-red-600' : 'text-red-400'
+                            ? isLightMode ? 'text-green-600' : 'text-green-400'
+                            : isLightMode ? 'text-red-600' : 'text-red-400'
                             }`}>
                             {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}% from last month
                         </p>
@@ -41,4 +41,4 @@ const AnalyticsCard = ({ icon: Icon, label, value, trend, isLoading, isLightMode
     );
 };
 
-export default AnalyticsCard;
+export default React.memo(AnalyticsCard);

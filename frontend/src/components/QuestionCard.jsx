@@ -26,10 +26,10 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
             <button
                 onClick={onToggle}
                 className={`mt-1 flex h-5 w-5 items-center justify-center rounded-md border transition-colors ${completed
-                        ? 'border-emerald-400 bg-emerald-500 text-slate-900'
-                        : isLightMode
-                            ? 'border-slate-300 bg-white text-slate-600 group-hover:border-emerald-400'
-                            : 'border-slate-500/70 bg-slate-900 text-slate-300 group-hover:border-emerald-400'
+                    ? 'border-emerald-400 bg-emerald-500 text-slate-900'
+                    : isLightMode
+                        ? 'border-slate-300 bg-white text-slate-600 group-hover:border-emerald-400'
+                        : 'border-slate-500/70 bg-slate-900 text-slate-300 group-hover:border-emerald-400'
                     }`}
             >
                 {completed && (
@@ -43,12 +43,12 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                 <div className="flex items-center justify-between gap-2">
                     <p
                         className={`text-sm font-medium ${completed
-                                ? isLightMode
-                                    ? 'text-slate-600 line-through'
-                                    : 'text-secondary-400 line-through'
-                                : isLightMode
-                                    ? 'text-slate-700'
-                                    : 'text-secondary-200'
+                            ? isLightMode
+                                ? 'text-slate-600 line-through'
+                                : 'text-secondary-400 line-through'
+                            : isLightMode
+                                ? 'text-slate-700'
+                                : 'text-secondary-200'
                             }`}
                     >
                         {question.title}
@@ -68,10 +68,10 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                     <button
                         onClick={onToggle}
                         className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${completed
-                                ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                                : isLightMode
-                                    ? 'bg-slate-900 text-white hover:bg-slate-800'
-                                    : 'bg-slate-800/80 text-slate-100 hover:bg-slate-700/90'
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                            : isLightMode
+                                ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                : 'bg-slate-800/80 text-slate-100 hover:bg-slate-700/90'
                             }`}
                     >
                         {completed ? 'Completed' : 'Mark Completed'}
@@ -81,12 +81,12 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                             type="button"
                             onClick={() => onToggleRevision?.()}
                             className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${isRevision
-                                    ? isLightMode
-                                        ? 'border-purple-300 bg-purple-100 text-purple-700'
-                                        : 'border-purple-400/30 bg-purple-600/20 text-purple-200'
-                                    : isLightMode
-                                        ? 'border-slate-200 bg-white text-slate-500 hover:text-purple-700 hover:border-purple-300'
-                                        : 'border-white/10 bg-white/5 text-secondary-300 hover:text-purple-200 hover:border-purple-400/30'
+                                ? isLightMode
+                                    ? 'border-purple-300 bg-purple-100 text-purple-700'
+                                    : 'border-purple-400/30 bg-purple-600/20 text-purple-200'
+                                : isLightMode
+                                    ? 'border-slate-200 bg-white text-slate-500 hover:text-purple-700 hover:border-purple-300'
+                                    : 'border-white/10 bg-white/5 text-secondary-300 hover:text-purple-200 hover:border-purple-400/30'
                                 }`}
                             title={isRevision ? 'Marked for revision' : 'Mark for revision'}
                         >
@@ -107,8 +107,8 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
                         <button
                             type="button"
                             className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${isLightMode
-                                    ? 'border-slate-200 bg-white text-slate-500 hover:text-sky-600 hover:border-sky-300'
-                                    : 'border-white/10 bg-white/5 text-secondary-300 hover:text-sky-300 hover:border-sky-300/30'
+                                ? 'border-slate-200 bg-white text-slate-500 hover:text-sky-600 hover:border-sky-300'
+                                : 'border-white/10 bg-white/5 text-secondary-300 hover:text-sky-300 hover:border-sky-300/30'
                                 }`}
                             title="View Notes"
                         >
@@ -148,4 +148,4 @@ const QuestionCard = ({ question, onToggle, isRevision = false, onToggleRevision
     );
 };
 
-export default QuestionCard;
+export default React.memo(QuestionCard);

@@ -287,8 +287,8 @@ export default function Hero() {
                                 Smart <span className="gradient-text">CGPA Calculator</span>
                             </h2>
                             <p className="section-description">
-                                Tired of manual calculations? Use our guest-friendly SGPA and CGPA calculator
-                                to track your academic performance instantly. No login required for basic calculations!
+                                Tired of manual calculations? Login to use our SGPA and CGPA calculator
+                                to track your academic performance instantly.
                             </p>
                             <div className="about-features">
                                 <Link to="/calculator" className="btn btn-primary mb-6 inline-flex">

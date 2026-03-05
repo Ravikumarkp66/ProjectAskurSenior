@@ -1,14 +1,27 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, Suspense, lazy, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../utils/hooks';
+import { useAuth, useDebounce } from '../utils/hooks';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import SubjectCard from '../components/SubjectCard';
 import StatsCards from '../components/StatsCards';
-import ProfileModal from '../components/ProfileModal';
-import GameifiedLoader from '../components/GameifiedLoader';
+// import ProfileModal from '../components/ProfileModal'; // Will be lazy loaded
 import { subjectAPI } from '../services/api';
 import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../utils/constants';
+
+const ProfileModal = lazy(() => import('../components/ProfileModal'));
+
+const SubjectsSkeleton = ({ isLightMode }) => (
+    <div className="space-y-4">
+        {[1, 2, 3, 4].map((i) => (
+            <div
+                key={i}
+                className={`h-24 sm:h-32 rounded-2xl animate-pulse border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/20 border-white/5'
+                    }`}
+            />
+        ))}
+    </div>
+);
 
 const DashboardPage = () => {
     const navigate = useNavigate();
@@ -23,8 +36,7 @@ const DashboardPage = () => {
     });
     const [subjects, setSubjects] = useState([]);
     const [expandedSubjects, setExpandedSubjects] = useState({});
-    const [pageLoading, setPageLoading] = useState(true);
-    const [subjectsLoading, setSubjectsLoading] = useState(false);
+    const [subjectsLoading, setSubjectsLoading] = useState(true);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showBranchPicker, setShowBranchPicker] = useState(false);
     const [branchOverride, setBranchOverride] = useState(() => {
@@ -39,9 +51,8 @@ const DashboardPage = () => {
     );
     const [cycle, setCycle] = useState('P');
     const [subjectSearch, setSubjectSearch] = useState('');
+    const debouncedSearch = useDebounce(subjectSearch, 300);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-    const subjectsCacheRef = useRef({});
 
     const isLightMode = theme === 'light';
 
@@ -62,19 +73,24 @@ const DashboardPage = () => {
         };
     }, []);
 
-    const overallProgress = useMemo(() => {
-        const totalQuestions = subjects.reduce(
-            (sum, s) => sum + s.modules.reduce((mSum, m) => mSum + m.questions.length, 0),
-            0
-        );
-        const completedQuestions = subjects.reduce(
-            (sum, s) =>
-                sum +
-                s.modules.reduce((mSum, m) => mSum + m.questions.filter((q) => q.completed).length, 0),
-            0
-        );
+    const calculateProgress = (subjectsList) => {
+        if (!subjectsList || subjectsList.length === 0) return 0;
+        let totalQuestions = 0;
+        let completedQuestions = 0;
+
+        subjectsList.forEach(s => {
+            if (s.modules) {
+                s.modules.forEach(m => {
+                    if (m.questions) {
+                        totalQuestions += m.questions.length;
+                        completedQuestions += m.questions.filter(q => q.completed).length;
+                    }
+                });
+            }
+        });
+
         return totalQuestions === 0 ? 0 : Math.round((completedQuestions / totalQuestions) * 100);
-    }, [subjects]);
+    };
 
     // Redirect to login if not authenticated (wait for auth to finish loading first)
     useEffect(() => {
@@ -93,34 +109,84 @@ const DashboardPage = () => {
 
             // Don't load data if not authenticated
             if (!isAuthenticated || !currentBranch) {
-                setPageLoading(false);
+                setSubjectsLoading(false);
                 return;
             }
 
             try {
-                const cacheKey = `${currentBranch}_${cycle}`;
-                const cached = subjectsCacheRef.current[cacheKey];
-                if (cached) {
-                    setSubjects(cached);
-                    setSubjectsLoading(false);
-                    setPageLoading(false);
-                    return;
-                }
-
                 setSubjectsLoading(true);
                 const subjectsRes = await subjectAPI.getSubjectsByBranch(currentBranch, cycle);
-                subjectsCacheRef.current[cacheKey] = subjectsRes.data;
                 setSubjects(subjectsRes.data);
             } catch (error) {
                 console.error('Error loading data:', error);
             } finally {
                 setSubjectsLoading(false);
-                setPageLoading(false);
             }
         };
 
         loadData();
-    }, [authLoading, isAuthenticated, currentBranch, cycle, user]);
+    }, [authLoading, isAuthenticated, currentBranch, cycle]);
+
+    const handleSubjectToggle = useCallback((subjectId) => {
+        setExpandedSubjects((prev) => ({
+            ...prev,
+            [subjectId]: !prev[subjectId]
+        }));
+    }, []);
+
+    const handleQuestionToggle = useCallback(async (data) => {
+        try {
+            await subjectAPI.markQuestionCompleted(data);
+
+            setSubjects((prevSubjects) => prevSubjects.map((subject) => {
+                if (subject._id === data.subjectId) {
+                    const updatedModules = subject.modules.map((module) => {
+                        if (module.moduleNumber === data.moduleNumber) {
+                            const updatedQuestions = module.questions.map((question) => {
+                                if (question._id === data.questionId) {
+                                    return { ...question, completed: !question.completed };
+                                }
+                                return question;
+                            });
+                            return { ...module, questions: updatedQuestions };
+                        }
+                        return module;
+                    });
+                    return { ...subject, modules: updatedModules };
+                }
+                return subject;
+            }));
+        } catch (error) {
+            console.error('Error updating question:', error);
+        }
+    }, []);
+
+    const overallProgress = useMemo(() => calculateProgress(subjects), [subjects]);
+
+    const filteredSubjectsList = useMemo(() => subjects
+        .filter((subject) => {
+            const term = debouncedSearch.trim().toLowerCase();
+            if (!term) return true;
+            return (
+                subject.name.toLowerCase().includes(term) ||
+                (subject.code || '').toLowerCase().includes(term)
+            );
+        })
+        .map((subject, index) => {
+            const isPremium = user?.subscription === 'askplus' || user?.role === 'premium' || user?.isAdmin;
+            const isLocked = index > 0 && !isPremium;
+            return (
+                <SubjectCard
+                    key={subject._id}
+                    subject={subject}
+                    expanded={expandedSubjects[subject._id] || false}
+                    onToggle={handleSubjectToggle}
+                    onQuestionToggle={handleQuestionToggle}
+                    theme={theme}
+                    isLocked={isLocked}
+                />
+            );
+        }), [subjects, debouncedSearch, expandedSubjects, user, theme, handleSubjectToggle, handleQuestionToggle]);
 
     useEffect(() => {
         const derived = deriveBranchFromUSN(user?.usn) || toUiBranch(user?.currentBranch) || '';
@@ -141,59 +207,9 @@ const DashboardPage = () => {
     };
 
 
-    const handleSubjectToggle = (subjectId) => {
-        setExpandedSubjects((prev) => ({
-            ...prev,
-            [subjectId]: !prev[subjectId]
-        }));
-    };
 
-    const handleQuestionToggle = async (data) => {
-        try {
-            await subjectAPI.markQuestionCompleted(data);
 
-            // Update local state
-            const updatedSubjects = subjects.map((subject) => {
-                if (subject._id === data.subjectId) {
-                    const updatedModules = subject.modules.map((module) => {
-                        if (module.moduleNumber === data.moduleNumber) {
-                            const updatedQuestions = module.questions.map((question) => {
-                                if (question._id === data.questionId) {
-                                    return { ...question, completed: !question.completed };
-                                }
-                                return question;
-                            });
-                            return { ...module, questions: updatedQuestions };
-                        }
-                        return module;
-                    });
-                    return { ...subject, modules: updatedModules };
-                }
-                return subject;
-            });
 
-            setSubjects(updatedSubjects);
-        } catch (error) {
-            console.error('Error updating question:', error);
-        }
-    };
-
-    if (pageLoading) {
-        return (
-            <GameifiedLoader
-                isLoading={true}
-                loadingText="Loading Dashboard"
-                variant="data"
-                tips={[
-                    "🎯 Your personalized dashboard is loading...",
-                    "📊 Fetching your academic progress data",
-                    "📚 Preparing your subject overview",
-                    "🚀 Almost ready! Setting up your study environment",
-                    "⭐ Tip: Use the search bar to quickly find subjects"
-                ]}
-            />
-        );
-    }
 
 
     return (
@@ -340,7 +356,9 @@ const DashboardPage = () => {
                         </div>
 
                         {/* Subjects List (stacked) */}
-                        {subjects.length === 0 ? (
+                        {subjectsLoading ? (
+                            <SubjectsSkeleton isLightMode={isLightMode} />
+                        ) : subjects.length === 0 ? (
                             <div className="text-center py-12">
                                 <svg className="w-16 h-16 text-primary-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C6.5 6.253 2 10.58 2 15.97m0 0h20m-20 0C2 21.419 6.5 25.747 12 25.747m0 0c5.5 0 10-4.328 10-9.777m0 0V6.253m0 13C22 21.419 17.5 25.747 12 25.747m0-25.494C6.5 1.759 2 6.087 2 11.476m20 0C22 6.087 17.5 1.759 12 1.759m0 0C6.5 1.759 2 6.087 2 11.476" />
@@ -349,30 +367,7 @@ const DashboardPage = () => {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {subjects
-                                    .filter((subject) => {
-                                        const term = subjectSearch.trim().toLowerCase();
-                                        if (!term) return true;
-                                        return (
-                                            subject.name.toLowerCase().includes(term) ||
-                                            (subject.code || '').toLowerCase().includes(term)
-                                        );
-                                    })
-                                    .map((subject, index) => {
-                                        const isPremium = user?.subscription === 'askplus' || user?.role === 'premium' || user?.isAdmin;
-                                        const isLocked = index > 0 && !isPremium;
-                                        return (
-                                            <SubjectCard
-                                                key={subject._id}
-                                                subject={subject}
-                                                expanded={expandedSubjects[subject._id] || false}
-                                                onToggle={handleSubjectToggle}
-                                                onQuestionToggle={handleQuestionToggle}
-                                                theme={theme}
-                                                isLocked={isLocked}
-                                            />
-                                        );
-                                    })}
+                                {filteredSubjectsList}
                             </div>
                         )}
                     </div>
@@ -380,15 +375,20 @@ const DashboardPage = () => {
             </div>
 
             {/* Profile Modal */}
-            <ProfileModal
-                show={showProfileModal}
-                onClose={() => setShowProfileModal(false)}
-                user={user}
-                updateUser={updateUser}
-                subjects={subjects}
-                overallProgress={overallProgress}
-                theme={theme}
-            />
+            {/* Profile Modal - Lazy Loaded */}
+            <Suspense fallback={null}>
+                {showProfileModal && (
+                    <ProfileModal
+                        show={showProfileModal}
+                        onClose={() => setShowProfileModal(false)}
+                        user={user}
+                        updateUser={updateUser}
+                        subjects={subjects}
+                        overallProgress={overallProgress}
+                        theme={theme}
+                    />
+                )}
+            </Suspense>
         </div>
     );
 };

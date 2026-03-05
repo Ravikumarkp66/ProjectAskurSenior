@@ -71,12 +71,23 @@ export const authAPI = {
     switchBranch: (data) => apiClient.post('/auth/switch-branch', data)
 };
 
-// Subject API
+// Subject API with caching
+const subjectCache = new Map();
 export const subjectAPI = {
-    getSubjectsByBranch: (branch, cycle) =>
-        apiClient.get(`/subjects/branch/${branch}`, {
+    getSubjectsByBranch: async (branch, cycle) => {
+        const cacheKey = `subjects_${branch}_${cycle || 'any'}`;
+        const cached = subjectCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp < 300000)) { // 5 min cache
+            return cached.promise;
+        }
+
+        const promise = apiClient.get(`/subjects/branch/${branch}`, {
             params: cycle ? { cycle } : {}
-        }),
+        });
+
+        subjectCache.set(cacheKey, { promise, timestamp: Date.now() });
+        return promise;
+    },
     getSubjectById: (subjectId) => apiClient.get(`/subjects/${subjectId}`),
     getSubjectsByCode: (subjectCode) => apiClient.get(`/subjects/code/${subjectCode}`),
     markQuestionCompleted: (data) => apiClient.post('/subjects/question/complete', data),

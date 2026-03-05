@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const StatCard = ({ label, value, sublabel, icon, accent }) => {
+const StatCard = React.memo(({ label, value, sublabel, icon, accent }) => {
     return (
         <motion.div
             whileHover={{ y: -4, scale: 1.01 }}
@@ -20,25 +20,36 @@ const StatCard = ({ label, value, sublabel, icon, accent }) => {
             </div>
         </motion.div>
     );
-};
+});
 
-const StatsCards = ({ subjects = [], progress = 0 }) => {
-    const totalSubjects = subjects.length;
-    const modules = subjects.flatMap((s) => s.modules || []);
-    const totalModules = modules.length;
-    const questions = modules.flatMap((m) => m.questions || []);
-    const totalQuestions = questions.length;
-    const solvedQuestions = questions.filter((q) => q.completed).length;
+const StatsCards = React.memo(({ subjects = [], progress = 0 }) => {
+    const { totalSubjects, totalModules, completedModulesCount, solvedQuestions, totalQuestions, streak } = React.useMemo(() => {
+        const ts = subjects.length;
+        const modules = subjects.flatMap((s) => s.modules || []);
+        const tm = modules.length;
+        const questions = modules.flatMap((m) => m.questions || []);
+        const tq = questions.length;
+        const sq = questions.filter((q) => q.completed).length;
+        const cmc = modules.filter((m) => (m.questions || []).every((q) => q.completed)).length;
 
-    // simple streak placeholder: days with any completion in last 7 days
-    const dailyByDate = questions
-        .filter((q) => q.completedAt)
-        .reduce((acc, q) => {
-            const day = new Date(q.completedAt).toDateString();
-            acc[day] = (acc[day] || 0) + 1;
-            return acc;
-        }, {});
-    const streak = Object.keys(dailyByDate).length;
+        const dailyByDate = questions
+            .filter((q) => q.completedAt)
+            .reduce((acc, q) => {
+                const day = new Date(q.completedAt).toDateString();
+                acc[day] = (acc[day] || 0) + 1;
+                return acc;
+            }, {});
+        const s = Object.keys(dailyByDate).length;
+
+        return {
+            totalSubjects: ts,
+            totalModules: tm,
+            completedModulesCount: cmc,
+            solvedQuestions: sq,
+            totalQuestions: tq,
+            streak: s
+        };
+    }, [subjects]);
 
     return (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -73,9 +84,7 @@ const StatsCards = ({ subjects = [], progress = 0 }) => {
             />
             <StatCard
                 label="Modules Completed"
-                value={`${modules.filter((m) => (m.questions || []).every((q) => q.completed)).length}/${
-                    totalModules || 0
-                }`}
+                value={`${completedModulesCount}/${totalModules || 0}`}
                 sublabel="Fully completed modules"
                 accent="from-blue-500 to-sky-400"
                 icon={
@@ -163,6 +172,6 @@ const StatsCards = ({ subjects = [], progress = 0 }) => {
             />
         </div>
     );
-};
+});
 
 export default StatsCards;

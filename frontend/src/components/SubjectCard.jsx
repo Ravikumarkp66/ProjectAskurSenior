@@ -410,4 +410,4 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
     );
 };
 
-export default SubjectCard;
+export default React.memo(SubjectCard);

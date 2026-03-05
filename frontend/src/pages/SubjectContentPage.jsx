@@ -181,10 +181,13 @@ const SubjectContentPage = () => {
 
     if (loading) {
         return (
-            <div className={`min-h-screen ${isLightMode ? 'bg-gray-50' : 'bg-gray-900'} flex items-center justify-center`}>
-                <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className={`${isLightMode ? 'text-gray-700' : 'text-gray-300'} font-semibold`}>Loading content...</p>
+            <div className={`min-h-screen ${isLightMode ? 'bg-gray-50' : 'bg-gray-900'} p-8`}>
+                <div className="max-w-7xl mx-auto animate-pulse">
+                    <div className="h-10 bg-slate-700/20 rounded w-1/3 mb-8"></div>
+                    <div className="flex gap-6">
+                        <div className="w-64 h-[400px] bg-slate-700/20 rounded"></div>
+                        <div className="flex-1 h-[600px] bg-slate-700/20 rounded"></div>
+                    </div>
                 </div>
             </div>
         );

@@ -109,6 +109,40 @@ const defaultSubjects = [
     },
 ];
 
+const ISE_3RD_SEM_SUBJECTS = [
+    { code: 'S3MAT1', name: 'Statistics and Probability', credits: 3, hasLab: false },
+    { code: 'S3ISI01', name: 'Digital Circuits and Computer Organization', credits: 4, hasLab: true },
+    { code: 'S3ISI02', name: 'Advanced Web Technology and Internet Applications', credits: 4, hasLab: true },
+    { code: 'S3IS01', name: 'Data Structures', credits: 3, hasLab: false },
+    { code: 'S3ISL01', name: 'Data Structures Laboratory', credits: 1, hasLab: true },
+    { code: 'S3ISES03', name: 'Object Oriented Programming with Java', credits: 3, hasLab: false },
+    { code: 'SHS01', name: 'Social Connect and Responsibility', credits: 1, hasLab: false },
+    { code: 'S3ISA03', name: 'Unix and Shell Programming', credits: 1, hasLab: false },
+    { code: 'SMC01 / SMC02 / SMC03', name: 'NSS / PE / Yoga', credits: 0, hasLab: false }
+];
+
+const ISE_4TH_SEM_SUBJECTS = [
+    { code: 'S4IS01', name: 'Operating System', credits: 3, hasLab: false },
+    { code: 'S4ISI01', name: 'Design and Analysis of Algorithms', credits: 4, hasLab: true },
+    { code: 'S4ISI02', name: 'ARM Processor and Microcontroller', credits: 4, hasLab: true },
+    { code: 'S4ISL02', name: 'Data Visualization Laboratory', credits: 1, hasLab: true },
+    { code: 'S4ISES01', name: 'Discrete Mathematical Structures', credits: 3, hasLab: false },
+    { code: 'S4CCA01', name: 'Biology for Engineers', credits: 3, hasLab: false },
+    { code: 'SHS02', name: 'Universal Human Values Course', credits: 1, hasLab: false },
+    {
+        code: 'S4ISA02',
+        name: 'Mobile Application Development',
+        credits: 1,
+        hasLab: false,
+        isElective: true,
+        options: [
+            { name: 'Mobile Application Development', code: 'S4ISA02' },
+            { name: 'Natural Language Processing', code: 'S4ISA04' }
+        ]
+    },
+    { code: 'SMC01 / SMC02 / SMC03', name: 'NSS / PE / Yoga', credits: 0, hasLab: false }
+];
+
 // Confetti Particle System for Subject Eligibility
 const triggerSubjectConfetti = (canvas) => {
     if (!canvas) return;
@@ -172,12 +206,21 @@ const SubjectConfetti = ({ triggerId, subjectId }) => {
 
 const CGPACalculatorPage = () => {
     const navigate = useNavigate();
-    const { user, isAuthenticated } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState('sgpa');
     const [subjects, setSubjects] = useState([]);
     const [semesters, setSemesters] = useState([
         { id: 1, sem: 1, sgpa: '', credits: '' }
     ]);
+
+    const isPremium = user?.subscription === 'askplus' || user?.role === 'premium' || user?.isAdmin;
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!authLoading && !isAuthenticated) {
+            navigate('/login');
+        }
+    }, [authLoading, isAuthenticated, navigate]);
 
     // Branch and Cycle selection
     const [selectedBranch, setSelectedBranch] = useState('');
@@ -185,6 +228,8 @@ const CGPACalculatorPage = () => {
     const [loadingSubjects, setLoadingSubjects] = useState(false);
     const [subjectsError, setSubjectsError] = useState('');
     const [showRulesModal, setShowRulesModal] = useState(false);
+
+    const [confettiTrigger, setConfettiTrigger] = useState(null);
     // Tracks which CIE sub-sections are open: { [subjectId_theory]: bool, [subjectId_practical]: bool }
     const [cieSections, setCieSections] = useState({});
     const toggleCIESection = (subjectId, section) => {
@@ -527,6 +572,8 @@ const CGPACalculatorPage = () => {
     };
 
 
+
+
     // Evaluation Rules Modal Component
     const RulesModal = () => {
         if (!showRulesModal) return null;
@@ -662,7 +709,6 @@ const CGPACalculatorPage = () => {
         }
     }, [user?.usn, user?.currentBranch, isAuthenticated]);
 
-    const [confettiTrigger, setConfettiTrigger] = useState(null);
 
     // Add event listener for confetti
     useEffect(() => {
@@ -680,9 +726,87 @@ const CGPACalculatorPage = () => {
         const loadSubjects = async () => {
             if (!selectedBranch) return;
 
-            setLoadingSubjects(true);
+            // Clear previous state immediately to avoid stale data
+            setSubjects([]);
             setSubjectsError('');
 
+            // Handle III Sem (ISE) pre-filled subjects locally
+            if (activeTab === 'sgpa' && selectedCycle === '3' && (selectedBranch === 'IS' || selectedBranch === 'ISE')) {
+                const storedCIE = getAllCIEResults();
+                setSubjects(
+                    ISE_3RD_SEM_SUBJECTS.map((s, index) => {
+                        const prefilledCIE = storedCIE[s.code] || null;
+                        return {
+                            id: index + 1,
+                            name: s.name,
+                            code: s.code,
+                            credits: s.credits,
+                            hasLab: s.hasLab,
+                            isOpenEnded: false,
+                            cie: prefilledCIE ? String(prefilledCIE.cie) : '',
+                            see: '',
+                            isCIEExpanded: false,
+                            cieFilledFromDashboard: !!prefilledCIE,
+                            cieMarks: prefilledCIE?.cieMarks || {
+                                test1: '', test2: '',
+                                quiz1: '', quiz2: '',
+                                abl1: '', abl2: '',
+                                labs: [''],
+                                labTests: [''],
+                                openEnded: ''
+                            },
+                            isEligible: prefilledCIE ? prefilledCIE.isEligible : null
+                        };
+                    })
+                );
+                setLoadingSubjects(false);
+                return;
+            }
+
+            // Handle IV Sem (ISE) pre-filled subjects locally
+            if (activeTab === 'sgpa' && selectedCycle === '4' && (selectedBranch === 'IS' || selectedBranch === 'ISE')) {
+                const storedCIE = getAllCIEResults();
+                setSubjects(
+                    ISE_4TH_SEM_SUBJECTS.map((s, index) => {
+                        const prefilledCIE = storedCIE[s.code] || null;
+                        return {
+                            id: index + 1,
+                            name: s.name,
+                            code: s.code,
+                            credits: s.credits,
+                            hasLab: s.hasLab,
+                            isOpenEnded: false,
+                            options: s.options || null,
+                            isElective: s.isElective || false,
+                            cie: prefilledCIE ? String(prefilledCIE.cie) : '',
+                            see: '',
+                            isCIEExpanded: false,
+                            cieFilledFromDashboard: !!prefilledCIE,
+                            cieMarks: prefilledCIE?.cieMarks || {
+                                test1: '', test2: '',
+                                quiz1: '', quiz2: '',
+                                abl1: '', abl2: '',
+                                labs: [''],
+                                labTests: [''],
+                                openEnded: ''
+                            },
+                            isEligible: prefilledCIE ? prefilledCIE.isEligible : null
+                        };
+                    })
+                );
+                setLoadingSubjects(false);
+                return;
+            }
+
+            // Explicitly handle "Under Progress" semesters (5-8)
+            if (['5', '6', '7', '8'].includes(selectedCycle)) {
+                setSubjects([]);
+                setSubjectsError(`🚧 ${selectedCycle}th Sem is currently under progress! We are working hard to bring it to you soon! ✨`);
+                setLoadingSubjects(false);
+                return;
+            }
+
+            setLoadingSubjects(true);
             try {
                 // Fetch using the branch code directly as it matches the database seed
                 const response = await subjectAPI.getSubjectsByBranch(selectedBranch, selectedCycle);
@@ -722,7 +846,7 @@ const CGPACalculatorPage = () => {
                     );
                 } else {
                     setSubjects([]);
-                    setSubjectsError('No subjects found for this selection');
+                    setSubjectsError(`🚧 ${selectedCycle}${isNaN(selectedCycle) ? '' : 'th Sem'} is currently under progress! We are working hard to bring it to you soon! ✨`);
                 }
             } catch (error) {
                 console.error('Error loading subjects:', error);
@@ -734,7 +858,7 @@ const CGPACalculatorPage = () => {
         };
 
         loadSubjects();
-    }, [selectedBranch, selectedCycle]);
+    }, [selectedBranch, selectedCycle, activeTab]);
 
     // Live-sync CIE from Dashboard when user calculates on that page
     useEffect(() => {
@@ -751,7 +875,7 @@ const CGPACalculatorPage = () => {
         return () => window.removeEventListener('cieResultsUpdated', handleCIEUpdate);
     }, []);
 
-    const renderCIEInputs = (subject) => {
+    const renderCIEInputs = (subject, isLocked = false) => {
         const missing = missingFields?.[subject.id] || [];
         const isMissing = (label) => missing.includes(label);
         const type = detectSubjectType(subject.credits, subject.hasLab);
@@ -769,15 +893,23 @@ const CGPACalculatorPage = () => {
         let ablSum = (parseFloat(m.abl1) || 0) + (parseFloat(m.abl2) || 0);
         let internalSum = (parseFloat(m.quiz1) || 0) + (parseFloat(m.abl1) || 0);
 
-        // Helper for lock overlay (only for expanded breakdown)
+        // Updated lock overlay for free users/guests
         const cieLockOverlay = (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10 rounded-lg">
-                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-6V9a6 6 0 10-12 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2z" />
-                </svg>
-                <span className="text-white font-bold text-xs ml-2">Login to unlock breakdown</span>
+            <div
+                className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px] z-50 rounded-lg p-2 text-center group cursor-pointer"
+                onClick={() => navigate('/subscription')}
+            >
+                <div className="p-2 bg-purple-600/20 rounded-lg border border-purple-500/30 mb-2">
+                    <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-6V9a6 6 0 10-12 0v2a2 2 0 00-2 2v7a2 2 0 002 2h12a2 2 0 002-2v-7a2 2 0 00-2-2z" />
+                    </svg>
+                </div>
+                <span className="text-white font-black text-[10px] uppercase tracking-widest px-2">Upgrade to Unlock</span>
+                <p className="text-[8px] text-purple-300 font-bold mt-1 uppercase opacity-60">Breakdown available for ASKPLUS</p>
             </div>
         );
+
+        const isOverlayVisible = isLocked;
 
         if (rule.theory) {
             if (rule.theory.tests) theoryExact += (testSum / rule.theory.tests.max) * rule.theory.tests.reducedTo;
@@ -858,7 +990,7 @@ const CGPACalculatorPage = () => {
                             isOpen={isSectionOpen(subject.id, 'theory')}
                             onToggle={() => toggleCIESection(subject.id, 'theory')}
                         />
-                        {(isSectionOpen(subject.id, 'theory') || !isAuthenticated) && (
+                        {(isSectionOpen(subject.id, 'theory') || isOverlayVisible) && (
                             <div className="p-5 bg-black/20 border-x border-b border-white/10 space-y-6">
                                 {/* Tests */}
                                 <div className="space-y-4">
@@ -884,7 +1016,7 @@ const CGPACalculatorPage = () => {
                                                         }`}
 
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                             </div>
                                         </div>
                                         <div className="space-y-1">
@@ -899,9 +1031,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'test2'))}
                                                     className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all placeholder:text-white/20 focus:border-purple-500 ${(isMissing('Test 2') || cieInvalidFlash[getCieRefKey(subject.id, 'test2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && isSectionOpen(subject.id, 'practical') && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                             </div>
                                         </div>
                                     </div>
@@ -930,9 +1062,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'quiz1'))}
                                                     className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-cyan-500 ${(isMissing('Quiz 1') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                                 <input
                                                     type="number" value={m.quiz2} placeholder="Quiz 2 out of 20" min="0" max="20"
                                                     {...getInputModeProps()}
@@ -942,9 +1074,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'quiz2'))}
                                                     className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-cyan-500 ${(isMissing('Quiz 2') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                             </div>
                                         </div>
                                         <div className="space-y-4">
@@ -964,9 +1096,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'abl1'))}
                                                     className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-blue-500 ${(isMissing('ABL 1') || cieInvalidFlash[getCieRefKey(subject.id, 'abl1')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                                 <input
                                                     type="number" value={m.abl2} placeholder="ABL 2 out of 20" min="0" max="20"
                                                     {...getInputModeProps()}
@@ -976,9 +1108,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'abl2'))}
                                                     className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none placeholder:text-white/20 focus:border-blue-500 ${(isMissing('ABL 2') || cieInvalidFlash[getCieRefKey(subject.id, 'abl2')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                             </div>
                                         </div>
                                     </div>
@@ -1004,9 +1136,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'quiz1_internal'))}
                                                     className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all font-mono placeholder:text-white/20 focus:border-emerald-500 ${(isMissing('Internal 1') || cieInvalidFlash[getCieRefKey(subject.id, 'quiz1_internal')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-black text-white/30 uppercase tracking-widest">ABL (20)</label>
@@ -1019,9 +1151,9 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'abl1_internal'))}
                                                     className={`w-full h-9 bg-white/5 border rounded-lg text-center text-xs font-bold outline-none transition-all font-mono placeholder:text-white/20 focus:border-emerald-500 ${(isMissing('Internal 2') || cieInvalidFlash[getCieRefKey(subject.id, 'abl1_internal')]) ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                             </div>
                                         </div>
                                     </div>
@@ -1043,7 +1175,7 @@ const CGPACalculatorPage = () => {
                             isOpen={isSectionOpen(subject.id, 'practical')}
                             onToggle={() => toggleCIESection(subject.id, 'practical')}
                         />
-                        {(isSectionOpen(subject.id, 'practical') || !isAuthenticated) && (
+                        {(isSectionOpen(subject.id, 'practical') || isOverlayVisible) && (
                             <div className="p-5 bg-black/20 border-x border-b border-white/10 space-y-8">
                                 {/* Lab Records - Dynamic List */}
                                 <div className="space-y-4">
@@ -1066,15 +1198,15 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'labs', idx))}
                                                     className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none focus:border-blue-500 font-mono placeholder:text-white/20 ${(missing.includes('Lab Records') && val === '') || cieInvalidFlash[getCieRefKey(subject.id, 'labs', idx)] ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                                 {missing.includes('Lab Records') && val === '' && <span className="absolute left-0 -top-5 text-xs text-red-400 font-bold">Required</span>}
                                                 {labs.length > 1 && (
                                                     <button
                                                         onClick={() => removeCIEItem(subject.id, 'labs', idx)}
                                                         className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/lab:opacity-100 transition-opacity text-[8px]"
-                                                        disabled={!isAuthenticated}
+                                                        disabled={isOverlayVisible}
                                                     >
                                                         ×
                                                     </button>
@@ -1111,15 +1243,15 @@ const CGPACalculatorPage = () => {
                                                     ref={registerCieInputRef(getCieRefKey(subject.id, 'labTests', idx))}
                                                     className={`w-full h-8 bg-white/5 border rounded-lg text-center text-[10px] font-bold outline-none focus:border-indigo-500 font-mono placeholder:text-white/20 ${(missing.includes('Lab Test') && val === '') || cieInvalidFlash[getCieRefKey(subject.id, 'labTests', idx)] ? 'border-red-500/60 ring-2 ring-red-500/20' : 'border-white/5'
                                                         }`}
-                                                    disabled={!isAuthenticated}
+                                                    disabled={isOverlayVisible}
                                                 />
-                                                {!isAuthenticated && cieLockOverlay}
+                                                {isOverlayVisible && cieLockOverlay}
                                                 {missing.includes('Lab Test') && val === '' && <span className="absolute left-0 -top-5 text-xs text-red-400 font-bold">Required</span>}
                                                 {lTests.length > 1 && (
                                                     <button
                                                         onClick={() => removeCIEItem(subject.id, 'labTests', idx)}
                                                         className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/test:opacity-100 transition-opacity text-[8px]"
-                                                        disabled={!isAuthenticated}
+                                                        disabled={isOverlayVisible}
                                                     >
                                                         ×
                                                     </button>
@@ -1760,9 +1892,12 @@ const CGPACalculatorPage = () => {
                         {/* SGPA Calculator */}
                         {activeTab === 'sgpa' && (
                             <div className="space-y-4">
-                                {/* Branch & Cycle Selector */}
+                                {/* Branch & Semester Selector */}
                                 <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                                    <h3 className="text-sm font-semibold text-white mb-3">Select Branch & Cycle</h3>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-sm font-semibold text-white">Select Branch & Semester</h3>
+
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="relative">
                                             <label className="text-xs font-medium text-white/60 mb-1 block">Branch</label>
@@ -1787,26 +1922,31 @@ const CGPACalculatorPage = () => {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-medium text-white/60 mb-1 block">Cycle</label>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => setSelectedCycle('P')}
-                                                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${selectedCycle === 'P'
-                                                        ? 'bg-purple-600 text-white'
-                                                        : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                                        }`}
+                                            <label className="text-xs font-medium text-white/60 mb-1 block">Semester / Cycle</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={selectedCycle}
+                                                    onChange={(e) => setSelectedCycle(e.target.value)}
+                                                    className="w-full h-11 px-4 rounded-xl bg-white/10 border border-white/10 text-white text-sm outline-none focus:border-purple-500 transition cursor-pointer pr-10 appearance-none font-semibold"
                                                 >
-                                                    P Cycle
-                                                </button>
-                                                <button
-                                                    onClick={() => setSelectedCycle('C')}
-                                                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${selectedCycle === 'C'
-                                                        ? 'bg-purple-600 text-white'
-                                                        : 'bg-white/10 text-white/70 hover:bg-white/20'
-                                                        }`}
-                                                >
-                                                    C Cycle
-                                                </button>
+                                                    <optgroup label="1st Year" className="bg-slate-800">
+                                                        <option value="P">P Cycle</option>
+                                                        <option value="C">C Cycle</option>
+                                                    </optgroup>
+                                                    <optgroup label="Higher Semesters" className="bg-slate-800">
+                                                        <option value="3">3rd Semester</option>
+                                                        <option value="4">4th Semester</option>
+                                                        <option value="5">5th Semester</option>
+                                                        <option value="6">6th Semester</option>
+                                                        <option value="7">7th Semester</option>
+                                                        <option value="8">8th Semester</option>
+                                                    </optgroup>
+                                                </select>
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1817,9 +1957,31 @@ const CGPACalculatorPage = () => {
                                         </div>
                                     )}
                                     {subjectsError && !loadingSubjects && (
-                                        <div className="mt-3 text-xs text-amber-400">{subjectsError}</div>
+                                        <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3">
+                                            <span className="text-xl">🚧</span>
+                                            <div className="text-[11px] font-bold text-amber-200/80 leading-snug">
+                                                {subjectsError}
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
+
+                                {/* III Sem (ISE) Header */}
+                                {activeTab === 'sgpa' && selectedCycle === '3' && (selectedBranch === 'IS' || selectedBranch === 'ISE') && (
+                                    <div className="rounded-2xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-600/20">
+                                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-black text-white uppercase tracking-tight">III Semester - Information Science</h3>
+                                                <p className="text-[10px] text-blue-300 font-bold uppercase opacity-60">Subjects pre-filled based on departmental curriculum</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Guest Banner */}
 
@@ -1858,212 +2020,272 @@ const CGPACalculatorPage = () => {
                                             <div className="col-span-1"></div>
                                         </div>
 
-                                        {sgpaResult.subjects.map((subject) => (
-                                            <div
-                                                key={subject.id}
-                                                className={`relative rounded-xl border transition-all duration-300 ${subject.isEligible === true ? 'bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/10' : subject.isEligible === false ? 'bg-red-500/5 border-red-500/20' : 'bg-white/5 border-white/10'} hover:border-white/20 mb-3 overflow-hidden`}
-                                            >
-                                                <SubjectConfetti triggerId={confettiTrigger} subjectId={subject.id} />
+                                        {sgpaResult.subjects.length === 0 && !loadingSubjects && (
+                                            <div className="py-12 px-6 text-center">
+                                                <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
+                                                    <span className="text-4xl animate-pulse">🛠️</span>
+                                                </div>
+                                                <h4 className="text-lg font-bold text-white mb-2">Semester Details Coming Soon!</h4>
+                                                <p className="text-sm text-white/50 max-w-xs mx-auto">
+                                                    We are currently updating the curriculum for {selectedCycle}{isNaN(selectedCycle) ? '' : 'th Semester'} {selectedBranch}. Stay tuned!
+                                                </p>
+                                                <div className="mt-6 flex justify-center gap-2">
+                                                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                    <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                                </div>
+                                            </div>
+                                        )}
 
-                                                {/* Subject Header & Basic Inputs - Row Layout */}
-                                                <div className="grid grid-cols-12 gap-3 items-center p-3 sm:px-5">
-                                                    {/* Subject Name */}
-                                                    <div className="col-span-12 sm:col-span-4">
-                                                        <div className="flex items-center gap-3">
-                                                            {isAuthenticated && (
-                                                                subject.cieFilledFromDashboard ? (
-                                                                    <span
-                                                                        className="px-2 py-1 rounded-lg bg-violet-600/20 text-violet-300 border border-violet-500/30 text-[9px] font-black flex-shrink-0 whitespace-nowrap"
-                                                                        title="CIE calculated from Dashboard"
-                                                                    >
-                                                                        📊 Dashboard
-                                                                    </span>
-                                                                ) : (
-                                                                    <button
-                                                                        onClick={() => toggleCIE(subject.id)}
-                                                                        className={`p-1.5 rounded-lg transition-all ${subject.isCIEExpanded ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'hover:bg-white/10 text-white/40'} flex-shrink-0`}
-                                                                        title="Open CIE Calculator"
-                                                                    >
-                                                                        <svg className={`w-4 h-4 transform transition-transform ${subject.isCIEExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                                                                        </svg>
-                                                                    </button>
-                                                                )
-                                                            )}
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center gap-2 mb-0.5">
-                                                                    {subject.code ? (
-                                                                        <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded border border-purple-400/20">
-                                                                            {subject.code}
+                                        {sgpaResult.subjects.map((subject, index) => {
+                                            const isLocked = index > 0 && !isPremium;
+                                            return (
+                                                <div
+                                                    key={subject.id}
+                                                    className={`relative rounded-xl border transition-all duration-300 ${subject.isEligible === true ? 'bg-emerald-500/5 border-emerald-500/20 shadow-lg shadow-emerald-500/10' : subject.isEligible === false ? 'bg-red-500/5 border-red-500/20' : 'bg-white/5 border-white/10'} hover:border-white/20 mb-3 overflow-hidden`}
+                                                >
+                                                    <SubjectConfetti triggerId={confettiTrigger} subjectId={subject.id} />
+
+                                                    {/* Subject Header & Basic Inputs - Row Layout */}
+                                                    <div className="grid grid-cols-12 gap-3 items-center p-3 sm:px-5">
+                                                        {/* Subject Name */}
+                                                        <div className="col-span-12 sm:col-span-4">
+                                                            <div className="flex items-center gap-3">
+                                                                {isAuthenticated && (
+                                                                    subject.cieFilledFromDashboard ? (
+                                                                        <span
+                                                                            className="px-2 py-1 rounded-lg bg-violet-600/20 text-violet-300 border border-violet-500/30 text-[9px] font-black flex-shrink-0 whitespace-nowrap"
+                                                                            title="CIE calculated from Dashboard"
+                                                                        >
+                                                                            📊 Dashboard
                                                                         </span>
-                                                                    ) : null}
-                                                                </div>
-                                                                {subject.code ? (
-                                                                    <>
-                                                                        <div className="text-sm text-white font-bold truncate leading-tight" title={subject.name}>
-                                                                            {subject.name}
-                                                                        </div>
-                                                                        <div className="mt-0.5">
-                                                                            <span className="text-[9px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20 uppercase tracking-tighter whitespace-nowrap">
-                                                                                {detectSubjectType(subject.credits, subject.hasLab)}
-                                                                            </span>
-                                                                        </div>
-                                                                    </>
-                                                                ) : (
-                                                                    <div style={{ position: 'relative' }}>
-                                                                        <input
-                                                                            type="text"
-                                                                            value={subject.name}
-                                                                            onChange={(e) => updateSubject(subject.id, 'name', e.target.value)}
-                                                                            className="w-full h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-bold outline-none focus:border-purple-500 transition-all placeholder:text-white/20"
-                                                                            placeholder="Subject name"
-                                                                            disabled={!isAuthenticated}
-                                                                        />
-                                                                        {!isAuthenticated && (
-                                                                            <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-                                                                                <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v.01M12 13a4 4 0 100-8 4 4 0 000 8zm0 0v4" />
+                                                                    ) : (
+                                                                        isLocked ? (
+                                                                            <button
+                                                                                onClick={() => navigate('/subscription')}
+                                                                                className="p-1.5 rounded-lg bg-white/5 border border-purple-500/30 text-purple-400 hover:bg-purple-500/10 transition-all flex-shrink-0"
+                                                                                title="Breakdown locked - Upgrade to unlock"
+                                                                            >
+                                                                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                                                 </svg>
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => toggleCIE(subject.id)}
+                                                                                className={`p-1.5 rounded-lg transition-all ${subject.isCIEExpanded ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30' : 'hover:bg-white/10 text-white/40'} flex-shrink-0`}
+                                                                                title="Open CIE Calculator"
+                                                                            >
+                                                                                <svg className={`w-4 h-4 transform transition-transform ${subject.isCIEExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                                                                </svg>
+                                                                            </button>
+                                                                        )
+                                                                    )
                                                                 )}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                                        {subject.code ? (
+                                                                            <span className="text-[10px] font-mono font-bold text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded border border-purple-400/20">
+                                                                                {subject.code}
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </div>
+                                                                    {subject.code ? (
+                                                                        <>
+                                                                            {subject.options ? (
+                                                                                <div className="relative group">
+                                                                                    <select
+                                                                                        value={subject.code}
+                                                                                        onChange={(e) => {
+                                                                                            const opt = subject.options.find(o => o.code === e.target.value);
+                                                                                            setSubjects(prev => prev.map(s =>
+                                                                                                s.id === subject.id ? { ...s, name: opt.name, code: opt.code } : s
+                                                                                            ));
+                                                                                        }}
+                                                                                        className="w-full bg-purple-600/10 border border-purple-500/30 text-white text-sm font-bold py-1 px-3 rounded-xl outline-none appearance-none cursor-pointer hover:bg-purple-600/20 transition-all"
+                                                                                    >
+                                                                                        {subject.options.map(opt => (
+                                                                                            <option key={opt.code} value={opt.code} className="bg-slate-900">
+                                                                                                {opt.name} ({opt.code})
+                                                                                            </option>
+                                                                                        ))}
+                                                                                    </select>
+                                                                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-purple-400">
+                                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                                                                                        </svg>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <div className="text-sm text-white font-bold truncate leading-tight" title={subject.name}>
+                                                                                        {subject.name}
+                                                                                    </div>
+                                                                                    <div className="mt-0.5">
+                                                                                        <span className="text-[9px] font-black text-blue-400 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20 uppercase tracking-tighter whitespace-nowrap">
+                                                                                            {detectSubjectType(subject.credits, subject.hasLab)}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </>
+                                                                            )}
+                                                                        </>
+                                                                    ) : (
+                                                                        <div style={{ position: 'relative' }}>
+                                                                            <input
+                                                                                type="text"
+                                                                                value={subject.name}
+                                                                                onChange={(e) => updateSubject(subject.id, 'name', e.target.value)}
+                                                                                className="w-full h-9 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-bold outline-none focus:border-purple-500 transition-all placeholder:text-white/20"
+                                                                                placeholder="Subject name"
+                                                                                disabled={!isAuthenticated}
+                                                                            />
+                                                                            {!isAuthenticated && (
+                                                                                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                                                                                    <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 17v.01M12 13a4 4 0 100-8 4 4 0 000 8zm0 0v4" />
+                                                                                    </svg>
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Credits */}
-                                                    <div className="col-span-3 sm:col-span-1">
-                                                        {subject.code ? (
-                                                            <div className="text-center text-white font-black text-sm py-1.5 rounded-xl border border-white/5 bg-white/5">
-                                                                {subject.credits}
-                                                            </div>
-                                                        ) : (
-                                                            <input
-                                                                type="number"
-                                                                min="1"
-                                                                max="6"
-                                                                value={subject.credits}
-                                                                onChange={(e) => updateSubject(subject.id, 'credits', e.target.value)}
-                                                                className="w-full h-10 px-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-bold outline-none focus:border-purple-500 transition-all"
-                                                                placeholder="Cr"
-                                                                disabled={false}
-                                                            />
-                                                        )}
-                                                    </div>
+                                                        {/* Credits */}
+                                                        <div className="col-span-3 sm:col-span-1">
+                                                            {subject.code ? (
+                                                                <div className="text-center text-white font-black text-sm py-1.5 rounded-xl border border-white/5 bg-white/5">
+                                                                    {subject.credits}
+                                                                </div>
+                                                            ) : (
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    max="6"
+                                                                    value={subject.credits}
+                                                                    onChange={(e) => updateSubject(subject.id, 'credits', e.target.value)}
+                                                                    className="w-full h-10 px-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-bold outline-none focus:border-purple-500 transition-all"
+                                                                    placeholder="Cr"
+                                                                    disabled={false}
+                                                                />
+                                                            )}
+                                                        </div>
 
-                                                    {/* CIE (out of 50) */}
-                                                    <div className="col-span-3 sm:col-span-2">
-                                                        <div className="relative group/cie">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                max="50"
-                                                                {...getInputModeProps()}
-                                                                onKeyDown={(e) => handleSgpaKeyDown(e, getSgpaRefKey(subject.id, 'cie'))}
-                                                                readOnly={isAuthenticated && (subject.isCIEExpanded || subject.cieFilledFromDashboard)}
-                                                                ref={registerSgpaInputRef(getSgpaRefKey(subject.id, 'cie'))}
-                                                                value={subject.cie}
-                                                                onChange={(e) => handleSgpaMarkChange(e, subject.id, 'cie', 50, getSgpaRefKey(subject.id, 'cie'))}
-                                                                className={`w-full h-10 px-2 rounded-xl border text-sm text-center outline-none transition-all font-black ${subject.cieFilledFromDashboard
+                                                        {/* CIE (out of 50) */}
+                                                        <div className="col-span-3 sm:col-span-2">
+                                                            <div className="relative group/cie">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="50"
+                                                                    {...getInputModeProps()}
+                                                                    onKeyDown={(e) => handleSgpaKeyDown(e, getSgpaRefKey(subject.id, 'cie'))}
+                                                                    readOnly={isAuthenticated && (subject.isCIEExpanded || subject.cieFilledFromDashboard)}
+                                                                    ref={registerSgpaInputRef(getSgpaRefKey(subject.id, 'cie'))}
+                                                                    value={subject.cie}
+                                                                    onChange={(e) => handleSgpaMarkChange(e, subject.id, 'cie', 50, getSgpaRefKey(subject.id, 'cie'))}
+                                                                    className={`w-full h-10 px-2 rounded-xl border text-sm text-center outline-none transition-all font-black ${subject.cieFilledFromDashboard
                                                                         ? 'bg-violet-500/20 border-violet-500/50 text-violet-300 cursor-default'
                                                                         : subject.isEligible === true
                                                                             ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
                                                                             : subject.isEligible === false
                                                                                 ? 'bg-red-500/20 border-red-500/50 text-red-500'
                                                                                 : 'bg-white/5 border-white/10 text-white focus:border-purple-500/50'
-                                                                    }`}
-                                                                placeholder="0-50"
+                                                                        }`}
+                                                                    placeholder="0-50"
+                                                                />
+                                                                {subject.cieFilledFromDashboard && (
+                                                                    <span className="absolute -top-2 -right-1 text-[8px] bg-violet-600 text-white rounded px-1 font-black leading-4">auto</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* SEE (out of 100) */}
+                                                        <div className="col-span-3 sm:col-span-2">
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                max="100"
+                                                                {...getInputModeProps()}
+                                                                onKeyDown={(e) => handleSgpaKeyDown(e, getSgpaRefKey(subject.id, 'see'))}
+                                                                disabled={isAuthenticated && subject.isEligible === false}
+                                                                ref={registerSgpaInputRef(getSgpaRefKey(subject.id, 'see'))}
+                                                                value={subject.see}
+                                                                onChange={(e) => handleSgpaMarkChange(e, subject.id, 'see', 100, getSgpaRefKey(subject.id, 'see'))}
+                                                                className={`w-full h-10 px-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-black outline-none focus:border-purple-500 transition-all ${isAuthenticated && subject.isEligible === false ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
+                                                                placeholder={subject.isEligible === false ? 'NE' : '0-100'}
                                                             />
-                                                            {subject.cieFilledFromDashboard && (
-                                                                <span className="absolute -top-2 -right-1 text-[8px] bg-violet-600 text-white rounded px-1 font-black leading-4">auto</span>
-                                                            )}
+                                                        </div>
+
+                                                        {/* Grade */}
+                                                        <div className="col-span-2 sm:col-span-1 text-center">
+                                                            <div className={`text-[11px] font-black w-10 sm:w-8 mx-auto h-8 flex items-center justify-center rounded-lg border shadow-sm ${subject.isNE ? 'bg-red-500/10 border-red-500/30 text-red-500' : (subject.color ? `bg-white/5 border-white/10 ${subject.color}` : 'bg-white/5 border-white/5 text-white/20')}`}>
+                                                                {subject.grade || '-'}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Points */}
+                                                        <div className="col-span-1 sm:col-span-1 text-center">
+                                                            <div className={`text-xs font-black min-w-8 h-8 flex items-center justify-center rounded-lg ${subject.points !== null ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-white/20 border border-white/5'}`}>
+                                                                {subject.points !== null ? subject.points : '-'}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Remove Button */}
+                                                        <div className="col-span-2 sm:col-span-1 text-center">
+                                                            <button
+                                                                onClick={() => removeSubject(subject.id)}
+                                                                className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/30 text-red-400 transition-all inline-flex items-center justify-center border border-red-500/20"
+                                                                disabled={!isAuthenticated || subjects.length === 1}
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
                                                         </div>
                                                     </div>
 
-                                                    {/* SEE (out of 100) */}
-                                                    <div className="col-span-3 sm:col-span-2">
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            max="100"
-                                                            {...getInputModeProps()}
-                                                            onKeyDown={(e) => handleSgpaKeyDown(e, getSgpaRefKey(subject.id, 'see'))}
-                                                            disabled={isAuthenticated && subject.isEligible === false}
-                                                            ref={registerSgpaInputRef(getSgpaRefKey(subject.id, 'see'))}
-                                                            value={subject.see}
-                                                            onChange={(e) => handleSgpaMarkChange(e, subject.id, 'see', 100, getSgpaRefKey(subject.id, 'see'))}
-                                                            className={`w-full h-10 px-2 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-black outline-none focus:border-purple-500 transition-all ${isAuthenticated && subject.isEligible === false ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}
-                                                            placeholder={subject.isEligible === false ? 'NE' : '0-100'}
-                                                        />
-                                                    </div>
+                                                    {/* Advanced CIE Inputs (Authenticated Only) */}
+                                                    {isAuthenticated && subject.isCIEExpanded && (
+                                                        <div className="px-4 py-4 mt-1 border-t border-white/10 bg-black/20 animate-in slide-in-from-top-4 duration-300">
+                                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="h-8 w-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400">
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                        </svg>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="text-xs font-black text-white tracking-widest uppercase">CIE CALCULATOR</h4>
+                                                                        <p className="text-[10px] text-purple-400 font-bold">{CIE_RULES[detectSubjectType(subject.credits, subject.hasLab)].name}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5">
+                                                                    <button
+                                                                        onClick={() => updateSubject(subject.id, 'hasLab', !subject.hasLab)}
+                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${subject.hasLab ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' : 'bg-white/5 text-white/40 border border-white/10'}`}
+                                                                        disabled={!isAuthenticated}
+                                                                    >
+                                                                        {subject.hasLab ? '✓ LAB INCLUDED' : '+ ADD LAB'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => updateSubject(subject.id, 'isOpenEnded', !subject.isOpenEnded)}
+                                                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${subject.isOpenEnded ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-white/40 border border-white/10'}`}
+                                                                        disabled={!isAuthenticated}
+                                                                    >
+                                                                        {subject.isOpenEnded ? '✓ OPEN ENDED' : '+ ADD OPEN ENDED'}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
 
-                                                    {/* Grade */}
-                                                    <div className="col-span-2 sm:col-span-1 text-center">
-                                                        <div className={`text-[11px] font-black w-10 sm:w-8 mx-auto h-8 flex items-center justify-center rounded-lg border shadow-sm ${subject.isNE ? 'bg-red-500/10 border-red-500/30 text-red-500' : (subject.color ? `bg-white/5 border-white/10 ${subject.color}` : 'bg-white/5 border-white/5 text-white/20')}`}>
-                                                            {subject.grade || '-'}
+                                                            {renderCIEInputs(subject, isLocked)}
                                                         </div>
-                                                    </div>
-
-                                                    {/* Points */}
-                                                    <div className="col-span-1 sm:col-span-1 text-center">
-                                                        <div className={`text-xs font-black min-w-8 h-8 flex items-center justify-center rounded-lg ${subject.points !== null ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-white/5 text-white/20 border border-white/5'}`}>
-                                                            {subject.points !== null ? subject.points : '-'}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Remove Button */}
-                                                    <div className="col-span-2 sm:col-span-1 text-center">
-                                                        <button
-                                                            onClick={() => removeSubject(subject.id)}
-                                                            className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/30 text-red-400 transition-all inline-flex items-center justify-center border border-red-500/20"
-                                                            disabled={!isAuthenticated || subjects.length === 1}
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
+                                                    )}
                                                 </div>
-
-                                                {/* Advanced CIE Inputs (Authenticated Only) */}
-                                                {isAuthenticated && subject.isCIEExpanded && (
-                                                    <div className="px-4 py-4 mt-1 border-t border-white/10 bg-black/20 animate-in slide-in-from-top-4 duration-300">
-                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="h-8 w-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400">
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                                    </svg>
-                                                                </div>
-                                                                <div>
-                                                                    <h4 className="text-xs font-black text-white tracking-widest uppercase">CIE CALCULATOR</h4>
-                                                                    <p className="text-[10px] text-purple-400 font-bold">{CIE_RULES[detectSubjectType(subject.credits, subject.hasLab)].name}</p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-4 bg-white/5 p-2 rounded-xl border border-white/5">
-                                                                <button
-                                                                    onClick={() => updateSubject(subject.id, 'hasLab', !subject.hasLab)}
-                                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${subject.hasLab ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' : 'bg-white/5 text-white/40 border border-white/10'}`}
-                                                                    disabled={!isAuthenticated}
-                                                                >
-                                                                    {subject.hasLab ? '✓ LAB INCLUDED' : '+ ADD LAB'}
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => updateSubject(subject.id, 'isOpenEnded', !subject.isOpenEnded)}
-                                                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all ${subject.isOpenEnded ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-white/5 text-white/40 border border-white/10'}`}
-                                                                    disabled={!isAuthenticated}
-                                                                >
-                                                                    {subject.isOpenEnded ? '✓ OPEN ENDED' : '+ ADD OPEN ENDED'}
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        {renderCIEInputs(subject)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                     </div>
                                 </div>
 
@@ -2305,6 +2527,7 @@ const CGPACalculatorPage = () => {
                     </div>
                 </div>
                 <RulesModal />
+
             </div>
         </div>
     );

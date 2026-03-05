@@ -285,4 +285,4 @@ const ModuleAccordion = ({
     );
 };
 
-export default ModuleAccordion;
+export default React.memo(ModuleAccordion);
