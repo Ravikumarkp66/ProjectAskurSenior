@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Hero from '../components/Hero';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
+import HomeBlogSection from '../components/HomeBlogSection';
 import { Link } from 'react-router-dom';
 
 const HomePage = () => {
@@ -12,6 +13,7 @@ const HomePage = () => {
         <div className="flex flex-col min-h-screen bg-[#0a0a0b] font-outfit">
             <main className="flex-1 overflow-x-hidden">
                 <Hero />
+                <HomeBlogSection />
             </main>
 
             {/* Platform Footer */}

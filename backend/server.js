@@ -118,6 +118,7 @@ app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/discord', require('./routes/discord'));
 // Admin utility routes
 app.use('/api/admin/utils', require('./routes/adminUtilsRoutes').default || require('./routes/adminUtilsRoutes'));
+app.use('/api/articles', require('./routes/articleRoutes'));
 
 // Consolidated Dashboard Summary Route
 const analyticsController = require('./controllers/analyticsController');

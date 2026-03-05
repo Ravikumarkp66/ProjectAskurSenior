@@ -9,9 +9,12 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const AdminCreateArticle = lazy(() => import('./pages/AdminCreateArticle'));
 const CGPACalculatorPage = lazy(() => import('./pages/CGPACalculatorPage'));
 const SubjectContentPage = lazy(() => import('./pages/SubjectContentPage'));
 const QuizPage = lazy(() => import('./pages/QuizPage'));
+const GuidesPage = lazy(() => import('./pages/GuidesPage'));
+const ArticlePage = lazy(() => import('./pages/ArticlePage'));
 const CompleteRegistrationPage = lazy(() => import('./pages/CompleteRegistrationPage'));
 const CompleteProfilePage = lazy(() => import('./pages/CompleteProfilePage'));
 const InterviewExperiencePage = lazy(() => import('./pages/InterviewExperiencePage'));
@@ -138,6 +141,14 @@ function AppContent() {
                                 </AdminRoute>
                             }
                         />
+                        <Route
+                            path="/admin/articles/create"
+                            element={
+                                <AdminRoute>
+                                    <AdminCreateArticle />
+                                </AdminRoute>
+                            }
+                        />
                         <Route path="/calculator" element={<CGPACalculatorPage />} />
                         <Route
                             path="/interview-experiences"
@@ -162,6 +173,8 @@ function AppContent() {
                                 </ProtectedRoute>
                             }
                         />
+                        <Route path="/blog" element={<GuidesPage />} />
+                        <Route path="/blog/:slug" element={<ArticlePage />} />
                         <Route path="/terms" element={<TermsPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="/" element={<HomePage />} />

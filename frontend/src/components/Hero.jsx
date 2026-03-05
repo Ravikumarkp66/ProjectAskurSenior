@@ -143,10 +143,7 @@ export default function Hero() {
                     <div className="nav-links">
                         <a href="#features" onClick={handleExploreFeatures} className="nav-link">Features</a>
                         <Link to="/calculator" className="nav-link nav-link-highlight">CGPA Calculator</Link>
-                        <span className="nav-badge-item">
-                            Interview Experiences
-                            <span className="coming-soon-tag">Coming Soon</span>
-                        </span>
+                        <Link to="/blog" className="nav-link">Blog</Link>
                         {user ? (
                             <Link to="/dashboard" className="nav-btn nav-btn-primary">Dashboard</Link>
                         ) : (

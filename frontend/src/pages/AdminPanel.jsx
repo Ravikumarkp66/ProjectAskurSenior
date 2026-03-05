@@ -5,7 +5,9 @@ import DashboardOverview from './DashboardOverview';
 import UserManagementPage from './UserManagementPage';
 import PaymentManagementPage from './PaymentManagementPage';
 import { apiClient, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
+import { articleAPI } from '../services/articleAPI';
 import { useAuth } from '../utils/hooks';
+import { FileText, Plus } from 'lucide-react';
 
 const AdminPanel = () => {
     const navigate = useNavigate();
@@ -41,6 +43,10 @@ const AdminPanel = () => {
     // Study materials state
     const [subjects, setSubjects] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Articles state
+    const [articles, setArticles] = useState([]);
+    const [articlesLoading, setArticlesLoading] = useState(false);
 
     // Manage content state
     const [manageSubject, setManageSubject] = useState('');
@@ -171,6 +177,18 @@ const AdminPanel = () => {
         }
     };
 
+    const loadArticles = async () => {
+        setArticlesLoading(true);
+        try {
+            const data = await articleAPI.getArticles();
+            setArticles(data || []);
+        } catch (error) {
+            console.error('Failed to load articles:', error);
+        } finally {
+            setArticlesLoading(false);
+        }
+    };
+
     // Study materials functions
     const loadSubjects = async () => {
         try {
@@ -246,6 +264,8 @@ const AdminPanel = () => {
             else if (reviewsActiveTab === 'uploads') loadUserUploads();
         } else if (activeTab === 'materials') {
             loadSubjects();
+        } else if (activeTab === 'articles') {
+            loadArticles();
         }
     }, [activeTab, reviewsActiveTab]);
 
@@ -253,6 +273,8 @@ const AdminPanel = () => {
     useEffect(() => {
         if (activeTab === 'materials') {
             loadSubjects();
+        } else if (activeTab === 'articles') {
+            loadArticles();
         }
     }, []);
 
@@ -735,6 +757,83 @@ const AdminPanel = () => {
                             </div>
                         </>
                     )}
+                </div>
+            )}
+            {activeTab === 'articles' && (
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h1 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                Article Management
+                            </h1>
+                            <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                Create and manage student guides on AskUrSenior
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/admin/articles/create')}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+                        >
+                            <Plus size={18} />
+                            Create Article
+                        </button>
+                    </div>
+
+                    <div className={`mt-8 p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
+                        <h3 className={`text-lg font-semibold mb-6 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                            Published Articles
+                        </h3>
+
+                        {articlesLoading ? (
+                            <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
+                                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                    <span className="ml-2">Loading articles...</span>
+                                </div>
+                            </div>
+                        ) : articles.length === 0 ? (
+                            <div className={`text-center py-12 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                                <FileText className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                                <p>No articles published yet.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {articles.map((article) => (
+                                    <div key={article._id} className={`p-4 rounded-lg border flex items-center justify-between ${isLightMode ? 'bg-gray-50 border-gray-200' : 'bg-gray-700/50 border-gray-600'}`}>
+                                        <div className="flex gap-4 items-center">
+                                            {article.coverImage ? (
+                                                <img src={article.coverImage} alt={article.title} className="w-16 h-16 object-cover rounded-md" />
+                                            ) : (
+                                                <div className="w-16 h-16 bg-slate-700 rounded-md flex items-center justify-center text-slate-400">
+                                                    <FileText size={24} />
+                                                </div>
+                                            )}
+                                            <div>
+                                                <h4 className={`font-semibold text-lg ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                                    {article.title}
+                                                </h4>
+                                                <div className={`text-sm mt-1 flex gap-4 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
+                                                    <span>By {article.author}</span>
+                                                    <span>•</span>
+                                                    <span>{new Date(article.createdAt).toLocaleDateString()}</span>
+                                                    <span>•</span>
+                                                    <span>{article.views || 0} views</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
+                                            className={`px-4 py-2 rounded-md font-medium transition ${isLightMode ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-600 hover:bg-gray-500 text-white'}`}
+                                        >
+                                            View
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </AdminLayout>
