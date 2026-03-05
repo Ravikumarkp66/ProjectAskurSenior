@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-// Use localhost in development, VITE_API_URL in production
+// Dev: use localhost:5000 via Vite proxy
+// Production: use VITE_API_URL if set, otherwise use relative '/api' so vercel.json proxy routes to Render
 const API_BASE_URL = import.meta.env.DEV
     ? 'http://localhost:5000/api'
-    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5000/api');
+    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api');
 
 export const apiClient = axios.create({
     baseURL: API_BASE_URL

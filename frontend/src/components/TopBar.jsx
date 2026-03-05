@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 
-const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) => {
+const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark', onMenuClick }) => {
     const safeProgress = Math.min(100, Math.max(0, Number(progress) || 0));
     const isLightMode = theme === 'light';
     const navigate = useNavigate();
@@ -15,6 +15,14 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark' }) 
             <div className="px-4 sm:px-6 py-4 pl-16 sm:pl-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                        <button
+                            onClick={onMenuClick}
+                            className={`p-2 rounded-lg sm:hidden transition-colors ${isLightMode ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
                         <Logo size="sm" />
                         <div>
                             <p className={`${isLightMode ? 'text-slate-500' : 'text-[#94A3B8]'} text-xs mt-0.5`}>Overall Progress</p>

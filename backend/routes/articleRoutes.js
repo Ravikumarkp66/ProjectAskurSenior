@@ -11,7 +11,10 @@ router.get('/:articleId/comments', articleController.getComments);
 
 // Protected routes (any authenticated user)
 router.post('/:articleId/react', authMiddleware, articleController.reactToArticle);
+router.get('/:articleId/reaction-status', authMiddleware, articleController.getReactionStatus);
 router.post('/:articleId/comments', authMiddleware, articleController.postComment);
+router.put('/comments/:commentId', authMiddleware, articleController.updateComment);
+router.delete('/comments/:commentId', authMiddleware, articleController.deleteComment);
 
 // Admin routes
 router.post('/create', authMiddleware, adminMiddleware, articleController.createArticle);
