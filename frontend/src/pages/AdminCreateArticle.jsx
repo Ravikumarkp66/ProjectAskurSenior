@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash } from 'lucide-react';
 import RichTextEditor from '../components/RichTextEditor';
 import { articleAPI } from '../services/articleAPI';
 import { useAuth } from '../utils/hooks';
@@ -12,7 +13,8 @@ const AdminCreateArticle = () => {
         title: '',
         author: user?.name || '',
         coverImage: '',
-        content: ''
+        content: '',
+        quiz: []
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -24,6 +26,28 @@ const AdminCreateArticle = () => {
 
     const handleContentChange = (content) => {
         setFormData({ ...formData, content });
+    };
+
+    const addQuizQuestion = () => {
+        setFormData({
+            ...formData,
+            quiz: [...formData.quiz, { question: '', options: ['', '', '', ''], correctAnswer: '', explanation: '' }]
+        });
+    };
+
+    const updateQuizQuestion = (index, field, value, optionIndex = null) => {
+        const newQuiz = [...formData.quiz];
+        if (field === 'options' && optionIndex !== null) {
+            newQuiz[index].options[optionIndex] = value;
+        } else {
+            newQuiz[index][field] = value;
+        }
+        setFormData({ ...formData, quiz: newQuiz });
+    };
+
+    const removeQuizQuestion = (index) => {
+        const newQuiz = formData.quiz.filter((_, i) => i !== index);
+        setFormData({ ...formData, quiz: newQuiz });
     };
 
     const handleSubmit = async (e) => {
@@ -143,6 +167,88 @@ const AdminCreateArticle = () => {
                             onChange={handleContentChange}
                         />
                     </div>
+                </div>
+
+                <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold text-white">Interactive Quiz (Optional)</h2>
+                        <button
+                            type="button"
+                            onClick={addQuizQuestion}
+                            className="flex items-center gap-2 bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 py-2 px-4 rounded-lg font-medium transition-colors"
+                        >
+                            <Plus size={16} />
+                            Add Question
+                        </button>
+                    </div>
+
+                    {formData.quiz.length > 0 ? (
+                        <div className="space-y-6">
+                            {formData.quiz.map((q, qIndex) => (
+                                <div key={qIndex} className="bg-slate-900 border border-slate-700 p-4 rounded-lg">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="text-white font-medium">Question {qIndex + 1}</h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeQuizQuestion(qIndex)}
+                                            className="text-red-400 hover:text-red-300 p-1"
+                                        >
+                                            <Trash size={18} />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <input
+                                            type="text"
+                                            value={q.question}
+                                            onChange={(e) => updateQuizQuestion(qIndex, 'question', e.target.value)}
+                                            placeholder="Enter the question here"
+                                            className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                        />
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {q.options.map((opt, optIndex) => (
+                                                <input
+                                                    key={optIndex}
+                                                    type="text"
+                                                    value={opt}
+                                                    onChange={(e) => updateQuizQuestion(qIndex, 'options', e.target.value, optIndex)}
+                                                    placeholder={`Option ${optIndex + 1}`}
+                                                    className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                                />
+                                            ))}
+                                        </div>
+
+                                        <div className="pt-2">
+                                            <label className="text-sm text-slate-400 block mb-2">Select Correct Answer</label>
+                                            <select
+                                                value={q.correctAnswer}
+                                                onChange={(e) => updateQuizQuestion(qIndex, 'correctAnswer', e.target.value)}
+                                                className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                            >
+                                                <option value="">-- Choose correct option --</option>
+                                                {q.options.map((opt, optIndex) => (
+                                                    opt ? <option key={optIndex} value={opt}>{opt}</option> : null
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="pt-2">
+                                            <label className="text-sm text-slate-400 block mb-2">Explanation (Optional)</label>
+                                            <textarea
+                                                value={q.explanation || ''}
+                                                onChange={(e) => updateQuizQuestion(qIndex, 'explanation', e.target.value)}
+                                                placeholder="Explain why this answer is correct..."
+                                                className="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500 min-h-[80px]"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-slate-400 text-sm">No quiz questions added. Click the button above to add an optional quiz to test student knowledge.</p>
+                    )}
                 </div>
             </div>
         </div>

@@ -18,7 +18,7 @@ const articleController = {
     // Admin: Create article
     createArticle: async (req, res) => {
         try {
-            const { title, content, author, coverImage } = req.body;
+            const { title, content, author, coverImage, quiz } = req.body;
 
             if (!title || !content || !author) {
                 return res.status(400).json({ error: 'Title, content, and author are required' });
@@ -32,7 +32,8 @@ const articleController = {
                 content,
                 author,
                 authorId: req.userId,
-                coverImage
+                coverImage,
+                quiz: quiz || []
             });
 
             await article.save();

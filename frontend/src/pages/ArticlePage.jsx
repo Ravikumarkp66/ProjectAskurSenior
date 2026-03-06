@@ -4,6 +4,9 @@ import { ArrowLeft, Clock, User, ThumbsUp, ThumbsDown, Eye, Hash, Calculator, Ex
 import { articleAPI } from '../services/articleAPI';
 import ArticleContent from '../components/ArticleContent';
 import CommentSection from '../components/CommentSection';
+import MCQCard from '../components/MCQCard';
+import BlogQuiz from '../components/BlogQuiz';
+import { Accordion, AccordionItem } from '../components/Accordion';
 import { useAuth } from '../utils/hooks';
 
 const ArticlePage = () => {
@@ -17,6 +20,9 @@ const ArticlePage = () => {
     const [toc, setToc] = useState([]);
     const [processedContent, setProcessedContent] = useState('');
     const [mobileTocOpen, setMobileTocOpen] = useState(false);
+    const [activeSectionId, setActiveSectionId] = useState('');
+    const [completedSections, setCompletedSections] = useState(new Set());
+    const [readingProgress, setReadingProgress] = useState(0);
 
     useEffect(() => {
         const fetchArticle = async () => {
@@ -64,6 +70,62 @@ const ArticlePage = () => {
         fetchArticle();
         window.scrollTo(0, 0);
     }, [slug, isAuthenticated]);
+
+    // Handle scroll progress
+    useEffect(() => {
+        const handleScroll = () => {
+            const totalScroll = document.documentElement.scrollTop;
+            const windowHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scroll = `${(totalScroll / windowHeight) * 100}`;
+            setReadingProgress(Number(scroll));
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Intersection Observer for scroll spy
+    useEffect(() => {
+        if (!toc.length) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    const id = entry.target.getAttribute('id');
+
+                    if (entry.isIntersecting) {
+                        setActiveSectionId(id);
+                    }
+
+                    if (entry.boundingClientRect.top < 0) {
+                        setCompletedSections(prev => {
+                            const newSet = new Set(prev);
+                            newSet.add(id);
+                            return newSet;
+                        });
+                    } else {
+                        // Optional: remove from completed if scrolled back up
+                        setCompletedSections(prev => {
+                            const newSet = new Set(prev);
+                            newSet.delete(id);
+                            return newSet;
+                        });
+                    }
+                });
+            },
+            {
+                rootMargin: '-20% 0px -60% 0px',
+                threshold: 0
+            }
+        );
+
+        toc.forEach(item => {
+            const el = document.getElementById(item.id);
+            if (el) observer.observe(el);
+        });
+
+        return () => observer.disconnect();
+    }, [toc]);
 
     const readTime = useMemo(() => {
         if (!article?.content) return '2 min';
@@ -174,6 +236,14 @@ const ArticlePage = () => {
                 </div>
             </div>
 
+            {/* Reading Progress Bar */}
+            <div className="fixed top-[64px] left-0 right-0 h-1 bg-[#1a1a1e] z-40">
+                <div 
+                    className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-150 ease-out"
+                    style={{ width: `${readingProgress}%` }}
+                />
+            </div>
+
             {mobileTocOpen && (
                 <div className="fixed inset-0 z-[100] bg-[#0a0a0b]/95 backdrop-blur-sm lg:hidden">
                     <div className="p-6 h-full flex flex-col">
@@ -211,27 +281,41 @@ const ArticlePage = () => {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
-                    <aside className="hidden lg:block lg:col-span-3 sticky top-28 self-start h-[calc(100vh-120px)] overflow-y-auto no-scrollbar pr-4">
+                    <aside className="hidden lg:block lg:col-span-3 sticky overflow-y-auto no-scrollbar pr-4 toc-sidebar" style={{ top: '100px', height: 'calc(100vh - 120px)' }}>
                         <div className="space-y-8">
                             <div>
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                     <Hash size={14} />
                                     On this page
                                 </h3>
-                                <nav className="space-y-1">
-                                    {toc.length > 0 ? toc.map((item) => (
-                                        <a
-                                            key={item.id}
-                                            href={`#${item.id}`}
-                                            className={`block py-2 text-sm transition-all duration-200 border-l-2 border-transparent hover:border-purple-500/50 ${item.level === 'h2'
-                                                ? 'text-slate-300 font-bold hover:text-white pl-0'
-                                                : 'text-slate-500 hover:text-white pl-4'
-                                                }`}
-                                        >
-                                            {item.text}
-                                        </a>
-                                    )) : (
-                                        <p className="text-slate-600 text-sm italic">Brief article sections</p>
+                                <nav className="space-y-1 mt-4">
+                                    {toc.length > 0 ? toc.map((item) => {
+                                        const isActive = activeSectionId === item.id;
+                                        const isCompleted = completedSections.has(item.id) && !isActive;
+
+                                        return (
+                                            <a
+                                                key={item.id}
+                                                href={`#${item.id}`}
+                                                className={`flex items-center gap-2 py-2 text-sm transition-all duration-200 
+                                                    ${isActive ? 'text-white font-semibold transform translate-x-1' : 'text-slate-500 hover:text-slate-300'}
+                                                    ${item.level === 'h3' ? 'ml-4' : ''}
+                                                `}
+                                            >
+                                                <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+                                                    {isCompleted ? (
+                                                        <span className="text-green-500">✓</span>
+                                                    ) : isActive ? (
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                    ) : (
+                                                        <div className="w-1 h-1 rounded-full bg-slate-600" />
+                                                    )}
+                                                </div>
+                                                <span className="truncate">{item.text}</span>
+                                            </a>
+                                        );
+                                    }) : (
+                                        <p className="text-slate-600 text-sm italic py-2">Brief article sections</p>
                                     )}
                                 </nav>
                             </div>
@@ -306,9 +390,157 @@ const ArticlePage = () => {
                             </Link>
                         </div>
 
-                        <article className="article-wrapper">
+                        <article className="article-wrapper relative prose prose-invert max-w-none">
                             <ArticleContent content={processedContent || article.content} />
                         </article>
+
+                        {/* Rendering FAQ Section */}
+                        <div id="faq" className="mt-16 lg:mt-20 scroll-mt-24">
+                            <h3 className="text-xl sm:text-2xl font-extrabold text-white mb-2">Still confused about CIE rules?</h3>
+                            <p className="text-slate-400 mb-8 max-w-2xl">
+                                Here are answers to the most common doubts regarding the SIT VTU 2025 scheme.
+                            </p>
+
+                            <Accordion>
+                                <AccordionItem title="What happens if I miss Test-1 or Test-2?">
+                                    <p>If you miss one internal test, you may be allowed to attend a compensatory test at the end of the semester.</p>
+                                    <p className="mt-2 text-slate-400">Requirements:</p>
+                                    <ul className="list-disc pl-5 mt-1 space-y-1">
+                                        <li>Valid reason (Medical, Sports, etc.)</li>
+                                        <li>Faculty approval</li>
+                                        <li>HOD permission</li>
+                                    </ul>
+                                </AccordionItem>
+
+                                <AccordionItem title="What if I miss both Test-1 and Test-2?">
+                                    <p>You can still attend the compensatory test, but:</p>
+                                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                                        <li>It replaces only <span className="text-white font-medium">one</span> test.</li>
+                                        <li>You must score ≥ 40.</li>
+                                        <li>Syllabus includes all topics taught until that date.</li>
+                                    </ul>
+                                </AccordionItem>
+
+                                <AccordionItem title="Can I attend a compensatory quiz?">
+                                    <p>There is no fixed schedule for a compensatory quiz.</p>
+                                    <p className="mt-2">It entirely depends on:</p>
+                                    <ul className="list-disc pl-5 mt-1 space-y-1">
+                                        <li>Faculty approval</li>
+                                        <li>HOD permission</li>
+                                    </ul>
+                                </AccordionItem>
+
+                                <AccordionItem title="My CIE is above 18 but quiz marks are below minimum. Am I eligible?">
+                                    <p className="text-red-400 font-medium">No.</p>
+                                    <p className="mt-2">Each component has its own minimum requirement:</p>
+                                    <ul className="list-none mt-2 space-y-1">
+                                        <li>• Tests ≥ 40</li>
+                                        <li>• Quiz ≥ 16</li>
+                                        <li>• ABL ≥ 16</li>
+                                    </ul>
+                                </AccordionItem>
+
+                                <AccordionItem title="What happens if I miss multiple labs?">
+                                    <p>Lab attendance usually requires ~85%.</p>
+                                    <p className="mt-2 text-slate-400">Missing many labs may make you not eligible for the lab exam.</p>
+                                </AccordionItem>
+
+                                <AccordionItem title="Do all subjects follow the same CIE formula?">
+                                    <p>No.</p>
+                                    <p className="mt-2">There are four types:</p>
+                                    <ul className="list-disc pl-5 mt-1 space-y-1">
+                                        <li>Theory Only</li>
+                                        <li>IPCC</li>
+                                        <li>Lab Only</li>
+                                        <li>Low Theory</li>
+                                    </ul>
+                                    <p className="mt-2 font-medium text-white">All final CIE scores are out of 50.</p>
+                                </AccordionItem>
+                            </Accordion>
+                        </div>
+
+                        {/* Rendering Quiz (either from article or a fallback demo) */}
+                        {(() => {
+                            // First, use the article's specific quiz if it exists
+                            let quizData = article.quiz && article.quiz.length > 0 ? article.quiz : null;
+
+                            // If not, use the custom VTU CIE Quiz data if the title matches, or fallback
+                            if (!quizData) {
+                                quizData = [
+                                    {
+                                        question: "What does CIE stand for?",
+                                        options: ["Continuous Internal Evaluation", "Central Internal Exam", "Course Internal Evaluation", "Continuous Institute Exam"],
+                                        correctAnswer: "Continuous Internal Evaluation",
+                                        explanation: "CIE stands for Continuous Internal Evaluation under the VTU scheme."
+                                    },
+                                    {
+                                        question: "What is the minimum CIE required to be eligible for SEE?",
+                                        options: ["15", "18", "20", "25"],
+                                        correctAnswer: "18",
+                                        explanation: "SIT requires a minimum of 18 out of 50 in CIE to be eligible for the Semester End Exam (SEE)."
+                                    },
+                                    {
+                                        question: "Your final subject marks are calculated as:",
+                                        options: ["CIE only", "SEE only", "CIE + SEE", "Tests + Labs"],
+                                        correctAnswer: "CIE + SEE",
+                                        explanation: "Your final grade is the sum of Continuous Internal Evaluation (CIE) and Semester End Examination (SEE)."
+                                    },
+                                    {
+                                        question: "How many marks does CIE carry in total?",
+                                        options: ["40", "50", "60", "100"],
+                                        correctAnswer: "50",
+                                        explanation: "Under the VTU 2025 scheme, CIE carries a maximum of 50 marks."
+                                    },
+                                    {
+                                        question: "In theory subjects, how many marks do Tests contribute to CIE?",
+                                        options: ["25", "30", "34", "40"],
+                                        correctAnswer: "34",
+                                        explanation: "Tests contribute a maximum of 34 marks to the overall CIE in theory subjects."
+                                    },
+                                    {
+                                        question: "Quiz contributes how many marks to CIE in theory subjects?",
+                                        options: ["6", "8", "10", "16"],
+                                        correctAnswer: "8",
+                                        explanation: "Quizzes are usually evaluated out of a maximum of 8 marks towards the total CIE."
+                                    },
+                                    {
+                                        question: "ABL contributes how many marks to CIE?",
+                                        options: ["8", "10", "12", "16"],
+                                        correctAnswer: "8",
+                                        explanation: "Activity-Based Learning (ABL) contributes 8 marks to the total CIE."
+                                    },
+                                    {
+                                        question: "Minimum combined marks required in Tests (Test1 + Test2)?",
+                                        options: ["30", "35", "40", "45"],
+                                        correctAnswer: "40",
+                                        explanation: "Depending on the grading scheme component rules, usually, tests alone require a certain minimum aggregate."
+                                    },
+                                    {
+                                        question: "You scored 45/50 CIE but your Quiz total is 15/40. What happens?",
+                                        options: ["You are eligible", "You get grace marks", "You are NOT eligible for SEE", "It will be ignored"],
+                                        correctAnswer: "You are NOT eligible for SEE",
+                                        explanation: "Every component has its own minimum requirement. Failing a single component makes you ineligible."
+                                    },
+                                    {
+                                        question: "If you miss Test 1 or Test 2, what can you do?",
+                                        options: ["Nothing can be done", "Attend a compensatory test at the end of the semester with valid reason and HOD approval", "Ignore it", "Only the university decides"],
+                                        correctAnswer: "Attend a compensatory test at the end of the semester with valid reason and HOD approval",
+                                        explanation: "Compensatory tests are usually allowed for valid reasons like medical issues or representing the college, and require HOD approval."
+                                    }
+                                ];
+                            }
+
+                            return (
+                                <div className="mt-16 lg:mt-20">
+                                    <h3 className="text-2xl font-extrabold text-white mb-6">Test Your Knowledge</h3>
+                                    <p className="text-slate-400 mb-8 max-w-2xl">
+                                        Take a quick interactive quiz related to this guide to make sure you understood the key concepts.
+                                    </p>
+
+                                    <BlogQuiz quizData={quizData} />
+                                </div>
+                            );
+                        })()}
 
                         <div className="mt-16 lg:mt-20 py-10 lg:py-12 border-t border-white/5">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12 text-white">

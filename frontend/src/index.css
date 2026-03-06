@@ -76,3 +76,27 @@ body {
 .animate-fade-in {
     animation: fade-in 0.5s ease-out;
 }
+
+/* TOC Sidebar Scroll Spy */
+.toc-sidebar {
+    position: sticky;
+    top: 100px;
+    height: calc(100vh - 120px);
+    overflow-y: auto;
+}
+
+.toc-sidebar li {
+    color: #9ca3af;
+    transition: all 0.2s ease;
+    padding: 6px 0;
+}
+
+.toc-sidebar li.active {
+    color: white;
+    font-weight: 600;
+}
+
+.toc-sidebar li.completed::before {
+    content: '✓ ';
+    color: #22c55e;
+}

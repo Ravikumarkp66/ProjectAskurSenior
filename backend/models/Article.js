@@ -40,7 +40,13 @@ const articleSchema = new mongoose.Schema({
     dislikesCount: {
         type: Number,
         default: 0
-    }
+    },
+    quiz: [{
+        question: String,
+        options: [String],
+        correctAnswer: String,
+        explanation: String
+    }]
 }, { timestamps: true });
 
 // Index for search

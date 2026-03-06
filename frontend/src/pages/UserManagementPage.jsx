@@ -343,7 +343,7 @@ const UserManagementPage = () => {
                                                         </span>
                                                     </div>
                                                     <span className="text-[10px] text-secondary-500 mt-1 pl-3.5">
-                                                        Joined: {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        Joined: {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                 </div>
                                             </td>
