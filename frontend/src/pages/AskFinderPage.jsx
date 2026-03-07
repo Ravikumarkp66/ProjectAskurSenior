@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
 import ProfileModal from '../components/ProfileModal';
 import { apiClient } from '../services/api';
-import { deriveBranchFromUSN, toUiBranch } from '../utils/constants';
+import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJECTS, ISE_4TH_SEM_SUBJECTS, BRANCHES, FIRST_YEAR_SUBJECTS } from '../utils/constants';
 import DocComments from '../components/DocComments';
 import LoginRequiredModal from '../components/LoginRequiredModal';
 import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark } from 'lucide-react';
@@ -41,7 +41,8 @@ const AskFinderPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedSubject, setSelectedSubject] = useState('');
     const [selectedPaperType, setSelectedPaperType] = useState('');
-    const [selectedSemester, setSelectedSemester] = useState('');
+    const [selectedYearLevel, setSelectedYearLevel] = useState('');
+    const [selectedSubSemester, setSelectedSubSemester] = useState('');
     const [selectedYear, setSelectedYear] = useState('');
     const [selectedDocType, setSelectedDocType] = useState('');
     const [sortBy, setSortBy] = useState('newest');
@@ -58,13 +59,15 @@ const AskFinderPage = () => {
 
     // Upload state
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadStep, setUploadStep] = useState(1); // 1: Academic Info, 2: Document Info
+    const [uploadFiles, setUploadFiles] = useState([]);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadLoading, setUploadLoading] = useState(false);
     const [uploadMetadata, setUploadMetadata] = useState({
         subjectName: '',
         subjectCode: '',
-        semester: '',
+        semester: '', // Specific semester (e.g. 3rd Sem)
+        yearLevel: '', // Year Level (e.g. 2nd Year)
         year: '',
         documentType: 'notes',
         paperType: '',
@@ -74,7 +77,8 @@ const AskFinderPage = () => {
         showContributorName: 'false',
         contributorName: '',
         contributorYear: '',
-        contributorBranch: ''
+        contributorBranch: '',
+        branch: ''
     });
 
     const formatSize = (bytes) => {
@@ -126,7 +130,7 @@ const AskFinderPage = () => {
     // Automatic Search when filters change
     useEffect(() => {
             handleSearch();
-    }, [selectedSubject, selectedPaperType, selectedSemester, selectedYear, selectedDocType, sortBy, statusFilter, bookmarksOnly]);
+    }, [selectedSubject, selectedPaperType, selectedYearLevel, selectedSubSemester, selectedYear, selectedDocType, sortBy, statusFilter, bookmarksOnly, currentBranch]);
 
     // Debounced Search when query changes
     useEffect(() => {
@@ -153,10 +157,19 @@ const AskFinderPage = () => {
                 apiClient.get('/documents/subjects'),
                 apiClient.get('/documents/paper-types')
             ]);
-            setSubjects(subjectsRes.data || []);
+            const backendSubjects = subjectsRes.data || [];
+            // Merge backend subjects with known subjects — known ones first, then any new ones from backend
+            const backendNames = backendSubjects.map(s => (s.name || s).toLowerCase());
+            const extraFromBackend = backendSubjects.filter(s => {
+                const n = (s.name || s).toLowerCase();
+                return !ALL_KNOWN_SUBJECTS.some(k => k.name.toLowerCase() === n);
+            });
+            setSubjects([...ALL_KNOWN_SUBJECTS, ...extraFromBackend]);
             setPaperTypes(paperTypesRes.data || []);
         } catch (error) {
             console.error('Failed to fetch metadata:', error);
+            // Fallback to known subjects if backend fails
+            setSubjects(ALL_KNOWN_SUBJECTS);
         }
     };
 
@@ -167,7 +180,11 @@ const AskFinderPage = () => {
             if (searchQuery.trim()) params.append('q', searchQuery.toLowerCase());
             if (selectedSubject) params.append('subject', selectedSubject.toLowerCase());
             if (selectedPaperType) params.append('paperType', selectedPaperType.toLowerCase());
-            if (selectedSemester) params.append('semester', selectedSemester.toLowerCase());
+            if (selectedYearLevel) params.append('yearLevel', selectedYearLevel.toLowerCase());
+            if (selectedSubSemester) params.append('semester', selectedSubSemester.toLowerCase());
+            else if (selectedYearLevel) params.append('semester', selectedYearLevel.toLowerCase());
+            
+            if (currentBranch && selectedYearLevel !== '1st Year') params.append('branch', currentBranch.toLowerCase());
             if (selectedYear) params.append('year', selectedYear.toLowerCase());
             if (selectedDocType) params.append('documentType', selectedDocType.toLowerCase());
             if (sortBy) params.append('sortBy', sortBy);
@@ -193,8 +210,8 @@ const AskFinderPage = () => {
 
     const handleUpload = async (e) => {
         e.preventDefault();
-        if (!uploadFile || !uploadMetadata.subjectName) {
-            alert('Please fill all required fields and select a file');
+        if (uploadFiles.length === 0 || !uploadMetadata.subjectName || !uploadMetadata.yearLevel) {
+            alert('Please fill all required fields and select at least one file');
             return;
         }
 
@@ -203,13 +220,16 @@ const AskFinderPage = () => {
 
         try {
             const formData = new FormData();
-            formData.append('file', uploadFile);
+            // Append multiple files
+            uploadFiles.forEach(file => {
+                formData.append('files', file);
+            });
 
             Object.keys(uploadMetadata).forEach(key => {
                 if (uploadMetadata[key] !== undefined && uploadMetadata[key] !== '') {
                     // Don't lowercase moduleInfo, pageCount or name/year/branch
                     const skipLower = ['moduleInfo', 'pageCount', 'contributorName', 'contributorYear', 'contributorBranch'].includes(key);
-                    const value = skipLower ? uploadMetadata[key] : uploadMetadata[key].toLowerCase();
+                    const value = skipLower ? uploadMetadata[key] : (typeof uploadMetadata[key] === 'string' ? uploadMetadata[key].toLowerCase() : uploadMetadata[key]);
                     formData.append(key, value);
                 }
             });
@@ -221,7 +241,7 @@ const AskFinderPage = () => {
                 },
             });
 
-            alert(user?.isAdmin ? 'Material added successfully!' : 'Thank you! Your contribution has been submitted for admin approval.');
+            alert(user?.isAdmin ? 'Materials added successfully!' : 'Thank you! Your contributions have been submitted for admin approval.');
             setShowUploadModal(false);
             resetUploadForm();
             handleSearch();
@@ -234,11 +254,13 @@ const AskFinderPage = () => {
     };
 
     const resetUploadForm = () => {
-        setUploadFile(null);
+        setUploadFiles([]);
+        setUploadStep(1);
         setUploadMetadata({
-            subjectName: '', subjectCode: '', semester: '', year: '',
+            subjectName: '', subjectCode: '', semester: '', yearLevel: '', year: '',
             documentType: 'notes', tags: '', moduleInfo: '', pageCount: '',
-            showContributorName: 'false', contributorName: '', contributorYear: '', contributorBranch: ''
+            showContributorName: 'false', contributorName: '', contributorYear: '', contributorBranch: '',
+            branch: ''
         });
         setUploadProgress(0);
     };
@@ -299,7 +321,8 @@ const AskFinderPage = () => {
         setSearchQuery('');
         setSelectedSubject('');
         setSelectedPaperType('');
-        setSelectedSemester('');
+        setSelectedYearLevel('');
+        setSelectedSubSemester('');
         setSelectedYear('');
         setSelectedDocType('');
         setSortBy('newest');
@@ -409,7 +432,7 @@ const AskFinderPage = () => {
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
                                 <h3 className={`font-semibold flex items-center gap-2 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>
                                     <Filter size={18} /> Filters
-                                    {(searchQuery || selectedSubject || selectedPaperType || selectedSemester || selectedYear || selectedDocType || sortBy !== 'newest') && (
+                                    {(searchQuery || selectedSubject || selectedPaperType || selectedYearLevel || selectedSubSemester || selectedYear || selectedDocType || sortBy !== 'newest') && (
                                         <button 
                                             onClick={resetFilters}
                                             className="ml-4 text-[11px] font-black text-purple-400 hover:text-white uppercase tracking-widest bg-purple-500/20 hover:bg-purple-600 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all active:scale-95 shadow-lg shadow-purple-500/10"
@@ -496,22 +519,55 @@ const AskFinderPage = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${(selectedYearLevel && selectedYearLevel !== '1st Year') ? (selectedYearLevel === '2nd Year' ? '6' : '5') : '4'} gap-4`}>
                                 <select
-                                    value={selectedSemester}
-                                    onChange={(e) => { setSelectedSemester(e.target.value); }}
+                                    value={selectedYearLevel}
+                                    onChange={(e) => { setSelectedYearLevel(e.target.value); setSelectedSubSemester(''); }}
                                     className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
                                     style={isLightMode
-                                        ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151' }
-                                        : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff' }
+                                        ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                        : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
                                     }
                                 >
-                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">All Years</option>
-                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="1st Year">1st Year</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">Year Level</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="1st Year" title="Physics/Chemistry Cycle">1st Year (Common)</option>
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="2nd Year">2nd Year</option>
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="3rd Year">3rd Year</option>
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="4th Year">4th Year</option>
                                 </select>
+
+                                {selectedYearLevel && selectedYearLevel === '2nd Year' && (
+                                    <select
+                                        value={selectedSubSemester}
+                                        onChange={(e) => { setSelectedSubSemester(e.target.value); }}
+                                        className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                        style={isLightMode
+                                            ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                        }
+                                    >
+                                        <option value="">Semester</option>
+                                        <option value="3rd Sem">3rd Semester</option>
+                                        <option value="4th Sem">4th Semester</option>
+                                    </select>
+                                )}
+
+                                {selectedYearLevel && selectedYearLevel !== '1st Year' && (
+                                    <select
+                                        value={currentBranch}
+                                        onChange={(e) => { setCurrentBranch(e.target.value); handleBranchOverrideChange(e.target.value); }}
+                                        className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                        style={isLightMode
+                                            ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                        }
+                                    >
+                                        <option value="">Select Branch</option>
+                                        {BRANCHES.map(b => (
+                                            <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={b.code} value={b.code}>{b.code} - {b.name}</option>
+                                        ))}
+                                    </select>
+                                )}
 
                                 <select
                                     value={selectedSubject}
@@ -523,8 +579,39 @@ const AskFinderPage = () => {
                                     }
                                 >
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">All Subjects</option>
-                                    {subjects.map((s, i) => (
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={i} value={s.name || s}>{s.name || s}</option>
+                                    
+                                    {selectedYearLevel === '2nd Year' && currentBranch === 'IS' && (
+                                        <>
+                                            {(selectedSubSemester === '' || selectedSubSemester === '3rd Sem') && (
+                                                <optgroup label="3rd Sem (ISE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {ISE_3RD_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`ise3-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {(selectedSubSemester === '' || selectedSubSemester === '4th Sem') && (
+                                                <optgroup label="4th Sem (ISE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {ISE_4TH_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`ise4-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {subjects.filter(s => {
+                                        const name = (s.name || s).toLowerCase();
+                                        // Hide known ISE subjects (handled by optgroup)
+                                        if (ALL_KNOWN_SUBJECTS.some(k => k.name.toLowerCase() === name)) return false;
+                                        // If 2nd, 3rd, or 4th Year selected, hide 1st Year subjects
+                                        const isAdvancedYear = selectedYearLevel && selectedYearLevel !== '1st Year';
+                                        if (isAdvancedYear && FIRST_YEAR_SUBJECTS.some(f => {
+                                            const firstYearName = f.toLowerCase();
+                                            return name.includes(firstYearName) || firstYearName.includes(name);
+                                        })) return false;
+                                        return true;
+                                    }).map((s, i) => (
+                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`extra-${i}`} value={s.name || s}>{s.name || s}</option>
                                     ))}
                                 </select>
 
@@ -721,7 +808,7 @@ const AskFinderPage = () => {
                                             <div className="space-y-1.5 mb-5 block">
                                                 {doc.semester && (
                                                     <p className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                        <span className="font-semibold text-xs uppercase tracking-wider opacity-70">Year:</span> <span className="font-medium">{doc.semester}</span>
+                                                        <span className="font-semibold text-xs uppercase tracking-wider opacity-70">Semester/Year:</span> <span className="font-medium">{doc.yearLevel ? `${doc.yearLevel}${doc.semester ? ` - ${doc.semester}` : ''}` : doc.semester}</span>
                                                     </p>
                                                 )}
                                                 <div className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
@@ -897,7 +984,7 @@ const AskFinderPage = () => {
                                 <h3 className={`text-2xl font-bold mb-3 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>No materials found</h3>
                                 <p className={`mb-8 max-w-md mx-auto ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>We couldn't find any study materials matching your current filters. Try adjusting them or clear all filters.</p>
                                 <button
-                                    onClick={() => { setSearchQuery(''); setSelectedDocType(''); setSelectedPaperType(''); setSelectedSemester(''); setSelectedSubject(''); setSelectedYear(''); handleSearch(); }}
+                                    onClick={resetFilters}
                                     className={`px-8 py-3 rounded-full font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:text-purple-600' : 'bg-white/5 border border-white/10 text-white hover:text-purple-400'}`}
                                 >
                                     Clear all filters
@@ -941,217 +1028,318 @@ const AskFinderPage = () => {
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold tracking-tight">
                                 {user?.isAdmin ? 'Add New Material' : 'Contribute Material'}
+                                <span className="ml-3 text-xs opacity-50 font-normal">Step {uploadStep}/2</span>
                             </h2>
-                            <button onClick={() => setShowUploadModal(false)} className={`p-2 rounded-full transition-colors ${isLightMode ? 'hover:bg-slate-100/80 text-slate-500' : 'hover:bg-white/10 text-slate-400'}`}>
+                            <button onClick={() => { setShowUploadModal(false); resetUploadForm(); }} className={`p-2 rounded-full transition-colors ${isLightMode ? 'hover:bg-slate-100/80 text-slate-500' : 'hover:bg-white/10 text-slate-400'}`}>
                                 <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleUpload}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Subject *</label>
-                                    <select
-                                        required
-                                        value={uploadMetadata.subjectName}
-                                        onChange={(e) => {
-                                            const sub = subjects.find(s => s.name === e.target.value);
-                                            setUploadMetadata({ 
-                                                ...uploadMetadata, 
-                                                subjectName: e.target.value,
-                                                subjectCode: sub?.code || ''
-                                            });
-                                        }}
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    >
-                                        <option value="">Select Subject</option>
-                                        {subjects.map((s, i) => (
-                                            <option key={i} value={s.name}>
-                                                {s.name} {(['Physics', 'Chemistry', 'Mathematics', 'CAED'].includes(s.name)) ? '' : `(${s.code})`}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Subject Code</label>
-                                    <input
-                                        type="text" value={uploadMetadata.subjectCode}
-                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, subjectCode: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Year Level</label>
-                                    <select
-                                        value={uploadMetadata.semester}
-                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, semester: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    >
-                                        <option value="">Select Year</option>
-                                        <option value="1st Year">1st Year</option>
-                                        <option value="2nd Year">2nd Year</option>
-                                        <option value="3rd Year">3rd Year</option>
-                                        <option value="4th Year">4th Year</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Year</label>
-                                    <input
-                                        type="text" value={uploadMetadata.year} placeholder="e.g., 2023"
-                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, year: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Document Type</label>
-                                    <select
-                                        value={uploadMetadata.documentType}
-                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, documentType: e.target.value })}
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    >
-                                        <option value="notes">Notes</option>
-                                        <option value="internals">Internals</option>
-                                        <option value="see">SEE</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Module Info</label>
-                                    <input
-                                        type="text" value={uploadMetadata.moduleInfo}
-                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, moduleInfo: e.target.value })}
-                                        placeholder="e.g., Module 2, M1-M3"
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold mb-2">Page Count</label>
-                                    <input
-                                        type="number" value={uploadMetadata.pageCount}
-                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, pageCount: e.target.value })}
-                                        placeholder="Optional"
-                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="mb-5">
-                                <label className="block text-sm font-semibold mb-2">Tags (comma-separated)</label>
-                                <input
-                                    type="text" value={uploadMetadata.tags}
-                                    onChange={(e) => setUploadMetadata({ ...uploadMetadata, tags: e.target.value })}
-                                    placeholder="e.g., tcp, routing, important"
-                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
-                                />
-                            </div>
-
-                            <div className="mb-8">
-                                <label className="block text-sm font-semibold mb-2">File *</label>
-                                <div className={`relative border-2 border-dashed rounded-2xl p-6 transition-colors ${isLightMode ? 'border-purple-200 bg-purple-50/50 hover:bg-purple-50' : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10'}`}>
-                                    <input
-                                        type="file" required
-                                        onChange={(e) => setUploadFile(e.target.files[0])}
-                                        accept=".pdf,.zip,.rar,.7z"
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    />
-                                    <div className="text-center pointer-events-none flex flex-col items-center justify-center gap-3">
-                                        <div className={`p-3 rounded-full ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                            <Upload size={24} />
+                        <form onSubmit={(e) => { e.preventDefault(); if(uploadStep === 1) setUploadStep(2); else handleUpload(e); }}>
+                            {uploadStep === 1 ? (
+                                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2">Year Level *</label>
+                                            <select
+                                                required
+                                                value={uploadMetadata.yearLevel}
+                                                onChange={(e) => {
+                                                    const y = e.target.value;
+                                                    setUploadMetadata({ 
+                                                        ...uploadMetadata, 
+                                                        yearLevel: y, 
+                                                        semester: y === '1st Year' ? '1st Year' : '',
+                                                        subjectName: '',
+                                                        subjectCode: '' 
+                                                    });
+                                                }}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                            >
+                                                <option value="">Select Year</option>
+                                                <option value="1st Year">1st Year (Common)</option>
+                                                <option value="2nd Year">2nd Year</option>
+                                                <option value="3rd Year">3rd Year</option>
+                                                <option value="4th Year">4th Year</option>
+                                            </select>
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className={`font-semibold ${isLightMode ? 'text-slate-700' : 'text-slate-200'}`}>
-                                                {uploadFile ? uploadFile.name : 'Choose a file or drag it here'}
-                                            </span>
-                                            <span className="text-sm mt-1 text-slate-500 font-medium">Supported formats: PDF, ZIP, RAR, 7z</span>
+
+                                        {uploadMetadata.yearLevel && uploadMetadata.yearLevel !== '1st Year' && (
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2">Branch *</label>
+                                                <select
+                                                    required
+                                                    value={uploadMetadata.branch}
+                                                    onChange={(e) => setUploadMetadata({ ...uploadMetadata, branch: e.target.value, subjectName: '', subjectCode: '' })}
+                                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                >
+                                                    <option value="">Select Branch</option>
+                                                    {BRANCHES.map(b => (
+                                                        <option key={b.code} value={b.code}>{b.code} - {b.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {uploadMetadata.yearLevel === '2nd Year' && (
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2">Semester *</label>
+                                                <select
+                                                    required
+                                                    value={uploadMetadata.semester}
+                                                    onChange={(e) => setUploadMetadata({ ...uploadMetadata, semester: e.target.value, subjectName: '', subjectCode: '' })}
+                                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                >
+                                                    <option value="">Select Semester</option>
+                                                    <option value="3rd Sem">3rd Semester</option>
+                                                    <option value="4th Sem">4th Semester</option>
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2">Subject Name *</label>
+                                            <select
+                                                required
+                                                value={uploadMetadata.subjectName}
+                                                onChange={(e) => {
+                                                    const sub = ALL_KNOWN_SUBJECTS.find(s => s.name === e.target.value)
+                                                             || subjects.find(s => s.name === e.target.value);
+                                                    setUploadMetadata({ 
+                                                        ...uploadMetadata, 
+                                                        subjectName: e.target.value,
+                                                        subjectCode: sub?.code || ''
+                                                    });
+                                                }}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                            >
+                                                <option value="">Select Subject</option>
+                                                <option value="General">General (Multiple Subjects/Papers)</option>
+                                                
+                                                {uploadMetadata.yearLevel === '2nd Year' && uploadMetadata.branch === 'IS' && (
+                                                    <>
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '3rd Sem') && (
+                                                            <optgroup label="3rd Semester (ISE)">
+                                                                {ISE_3RD_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`3-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '4th Sem') && (
+                                                            <optgroup label="4th Semester (ISE)">
+                                                                {ISE_4TH_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`4-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {subjects.filter(s => {
+                                                    const name = (s.name || s).toLowerCase();
+                                                    if (ALL_KNOWN_SUBJECTS.some(k => k.name.toLowerCase() === name)) return false;
+                                                    const isAdvancedYear = uploadMetadata.yearLevel && uploadMetadata.yearLevel !== '1st Year';
+                                                    if (isAdvancedYear && FIRST_YEAR_SUBJECTS.some(f => {
+                                                        const firstYearName = f.toLowerCase();
+                                                        return name.includes(firstYearName) || firstYearName.includes(name);
+                                                    })) return false;
+                                                    return true;
+                                                }).map((s, i) => (
+                                                    <option key={`extra-${i}`} value={s.name || s}>{s.name || s}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2">Subject Code</label>
+                                            <input
+                                                type="text" value={uploadMetadata.subjectCode}
+                                                onChange={(e) => setUploadMetadata({ ...uploadMetadata, subjectCode: e.target.value })}
+                                                placeholder="e.g. 21CS41"
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                            />
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Contributor Section */}
-                            <div className={`mt-6 p-5 rounded-2xl border ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-500/5 border-purple-500/10'}`}>
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="p-2 rounded-lg bg-purple-500 text-white">
-                                        <UserCheck size={18} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-sm font-bold leading-none mb-1">Contributor Credits</h3>
-                                        <p className="text-[10px] opacity-60">Do you want to show your name as a contributor for this material?</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="flex gap-4 mb-4">
-                                    {['true', 'false'].map(val => (
+                                    <div className="flex justify-end pt-5">
                                         <button
-                                            key={val}
-                                            type="button"
-                                            onClick={() => setUploadMetadata(prev => ({ ...prev, showContributorName: val }))}
-                                            className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all border ${
-                                                uploadMetadata.showContributorName === val
-                                                    ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-500/20'
-                                                    : `border-slate-200 ${isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-black/20 hover:bg-white/5'}`
-                                            }`}
+                                            type="submit"
+                                            className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2"
                                         >
-                                            {val === 'true' ? 'Yes, Show Credits' : 'No, Keep Anonymous'}
+                                            Continue <ArrowLeft size={16} className="rotate-180" />
                                         </button>
-                                    ))}
+                                    </div>
                                 </div>
-
-                                {uploadMetadata.showContributorName === 'true' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                            ) : (
+                                <div className="animate-in fade-in slide-in-from-left-4 duration-300">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                                         <div>
-                                            <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Display Name</label>
-                                            <input 
-                                                type="text" 
-                                                placeholder="e.g. John Doe"
-                                                value={uploadMetadata.contributorName}
-                                                onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorName: e.target.value }))}
-                                                className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                            <label className="block text-sm font-semibold mb-2">Document Type</label>
+                                            <select
+                                                value={uploadMetadata.documentType}
+                                                onChange={(e) => setUploadMetadata({ ...uploadMetadata, documentType: e.target.value })}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                            >
+                                                <option value="notes">Notes</option>
+                                                <option value="internals">Internals</option>
+                                                <option value="see">SEE</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2">Paper Year (Optional)</label>
+                                            <input
+                                                type="text" value={uploadMetadata.year} placeholder="e.g., 2023"
+                                                onChange={(e) => setUploadMetadata({ ...uploadMetadata, year: e.target.value })}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Year</label>
-                                            <input 
-                                                type="text" 
-                                                placeholder="e.g. 3rd Year"
-                                                value={uploadMetadata.contributorYear}
-                                                onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorYear: e.target.value }))}
-                                                className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                            <label className="block text-sm font-semibold mb-2">Module Info</label>
+                                            <input
+                                                type="text" value={uploadMetadata.moduleInfo}
+                                                onChange={(e) => setUploadMetadata({ ...uploadMetadata, moduleInfo: e.target.value })}
+                                                placeholder="e.g., Module 2, M1-M3"
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Branch</label>
-                                            <input 
-                                                type="text" 
-                                                placeholder="e.g. CS / AI&DS"
-                                                value={uploadMetadata.contributorBranch}
-                                                onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorBranch: e.target.value }))}
-                                                className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                            <label className="block text-sm font-semibold mb-2">Page Count</label>
+                                            <input
+                                                type="number" value={uploadMetadata.pageCount}
+                                                onChange={(e) => setUploadMetadata({ ...uploadMetadata, pageCount: e.target.value })}
+                                                placeholder="Optional"
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
                                             />
                                         </div>
                                     </div>
-                                )}
-                            </div>
 
-                            <div className={`flex flex-col sm:flex-row gap-3 pt-8 border-t mt-8 ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowUploadModal(false); resetUploadForm(); }}
-                                    className={`flex-1 px-6 py-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md ${isLightMode ? 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700' : 'bg-white/5 border border-white/5 hover:bg-white/10 text-white'}`}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={uploadLoading}
-                                    className="flex-[2] px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-500/20 active:scale-95"
-                                >
-                                    {uploadLoading ? (
-                                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting...</>
-                                    ) : (
-                                        <><Upload size={18} /> {user?.isAdmin ? 'Confirm & Post' : 'Submit Contribution'}</>
-                                    )}
-                                </button>
-                            </div>
+                                    <div className="mb-5">
+                                        <label className="block text-sm font-semibold mb-2">Tags (comma-separated)</label>
+                                        <input
+                                            type="text" value={uploadMetadata.tags}
+                                            onChange={(e) => setUploadMetadata({ ...uploadMetadata, tags: e.target.value })}
+                                            placeholder="e.g., tcp, routing, important"
+                                            className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                        />
+                                    </div>
+
+                                    <div className="mb-6">
+                                        <label className="block text-sm font-semibold mb-2">Select Files (PDF, ZIP, 7z) *</label>
+                                        <div className={`relative border-2 border-dashed rounded-2xl p-6 transition-colors ${isLightMode ? 'border-purple-200 bg-purple-50/50 hover:bg-purple-50' : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10'}`}>
+                                            <input
+                                                type="file" required multiple
+                                                onChange={(e) => setUploadFiles(Array.from(e.target.files))}
+                                                accept=".pdf,.zip,.7z"
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            />
+                                            <div className="text-center pointer-events-none flex flex-col items-center justify-center gap-2">
+                                                <Upload className="text-purple-500 mb-1" size={24} />
+                                                <div className="flex flex-col">
+                                                    <span className={`font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
+                                                        {uploadFiles.length > 0 
+                                                            ? `${uploadFiles.length} file(s) selected` 
+                                                            : 'Click or drag files here'}
+                                                    </span>
+                                                    <span className="text-[10px] opacity-60">You can select multiple PDF files</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {uploadFiles.length > 0 && (
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {uploadFiles.map((f, i) => (
+                                                    <span key={i} className={`text-[10px] px-2 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 truncate max-w-[150px]`}>
+                                                        {f.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Contributor Section */}
+                                    <div className={`mt-6 mb-8 p-5 rounded-2xl border ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-500/5 border-purple-500/10'}`}>
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="p-2 rounded-lg bg-purple-500 text-white">
+                                                <UserCheck size={18} />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-sm font-bold leading-none mb-1">Contributor Credits</h3>
+                                                <p className="text-[10px] opacity-60">Show your name as a contributor for these materials?</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-4 mb-4">
+                                            {['true', 'false'].map(val => (
+                                                <button
+                                                    key={val}
+                                                    type="button"
+                                                    onClick={() => setUploadMetadata(prev => ({ ...prev, showContributorName: val }))}
+                                                    className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all border ${
+                                                        uploadMetadata.showContributorName === val
+                                                            ? 'bg-purple-600 border-purple-600 text-white shadow-lg'
+                                                            : `border-slate-200 ${isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-black/20 hover:bg-white/5'}`
+                                                    }`}
+                                                >
+                                                    {val === 'true' ? 'Yes, Credit Me' : 'Keep Anonymous'}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {uploadMetadata.showContributorName === 'true' && (
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Display Name</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. John Doe"
+                                                        value={uploadMetadata.contributorName}
+                                                        onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorName: e.target.value }))}
+                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Year</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. 3rd Year"
+                                                        value={uploadMetadata.contributorYear}
+                                                        onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorYear: e.target.value }))}
+                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Branch</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="e.g. CS / AI&DS"
+                                                        value={uploadMetadata.contributorBranch}
+                                                        onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorBranch: e.target.value }))}
+                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className={`flex flex-col sm:flex-row gap-3 pt-8 border-t ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setUploadStep(1)}
+                                            className={`flex-1 px-6 py-4 rounded-xl font-bold transition-all ${isLightMode ? 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700' : 'bg-white/5 border border-white/5 hover:bg-white/10 text-white'}`}
+                                        >
+                                            Back
+                                        </button>
+                                        <button
+                                            onClick={handleUpload}
+                                            disabled={uploadLoading}
+                                            className="flex-[2] px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-500/20 active:scale-95"
+                                        >
+                                            {uploadLoading ? (
+                                                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting...</>
+                                            ) : (
+                                                <><Upload size={18} /> Confirm & Post</>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </form>
                     </div>
                 </div>

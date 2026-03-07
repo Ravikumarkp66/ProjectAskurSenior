@@ -272,11 +272,11 @@ router.get('/search', async (req, res) => {
     }
 });
 
-// Upload document
-router.post('/upload', authMiddleware, upload.single('file'), async (req, res) => {
+// Upload document (Multiple Files Support)
+router.post('/upload', authMiddleware, upload.array('files'), async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'No files uploaded' });
         }
 
         const {
@@ -298,45 +298,52 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
 
         // Validate required fields
         if (!subjectName || !documentType) {
-            // Clean up uploaded file if validation fails
-            if (req.file && fs.existsSync(req.file.path)) {
-                fs.unlinkSync(req.file.path);
+            // Clean up uploaded files if validation fails
+            if (req.files) {
+                req.files.forEach(file => {
+                    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                });
             }
             return res.status(400).json({ error: 'Missing required fields: subjectName, documentType' });
         }
 
-        // Upload to S3
-        const s3Key = await uploadToS3(req.file, 'materials');
-
         const isApproved = req.isAdmin; // Auto-approve if uploaded by admin
+        const uploadedDocuments = [];
 
-        // Create document record
-        const document = new Document({
-            fileName: s3Key, // Store S3 key
-            originalName: req.file.originalname,
-            fileUrl: s3Key,
-            fileSize: req.file.size,
-            mimeType: req.file.mimetype,
-            subjectName,
-            subjectCode,
-            semester,
-            year,
-            documentType,
-            paperType,
-            tags,
-            moduleInfo,
-            pageCount,
-            uploadedBy: req.userId,
-            isApproved,
-            contributor: {
-                showName: showContributorName === 'true',
-                name: contributorName,
-                year: contributorYear,
-                branch: contributorBranch
-            }
-        });
+        // Process each file
+        for (const file of req.files) {
+            // Upload to S3
+            const s3Key = await uploadToS3(file, 'materials');
 
-        await document.save();
+            // Create document record
+            const document = new Document({
+                fileName: s3Key,
+                originalName: file.originalname,
+                fileUrl: s3Key,
+                fileSize: file.size,
+                mimeType: file.mimetype,
+                subjectName,
+                subjectCode,
+                semester,
+                year,
+                documentType,
+                paperType,
+                tags,
+                moduleInfo,
+                pageCount,
+                uploadedBy: req.userId,
+                isApproved,
+                contributor: {
+                    showName: showContributorName === 'true',
+                    name: contributorName,
+                    year: contributorYear,
+                    branch: contributorBranch
+                }
+            });
+
+            await document.save();
+            uploadedDocuments.push(document);
+        }
 
         // Update or create subject metadata if it doesn't exist
         await SubjectMetadata.findOneAndUpdate(
@@ -362,18 +369,20 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
         }
 
         res.status(201).json({
-            message: 'Document uploaded successfully',
-            document
+            message: `${uploadedDocuments.length} document(s) uploaded successfully`,
+            documents: uploadedDocuments
         });
     } catch (error) {
-        console.error('Error uploading document:', error);
+        console.error('Error uploading documents:', error);
         
-        // Clean up uploaded file if error occurs
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
+        // Clean up uploaded files if local path exists
+        if (req.files) {
+            req.files.forEach(file => {
+                if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+            });
         }
 
-        res.status(500).json({ error: 'Failed to upload document' });
+        res.status(500).json({ error: 'Failed to upload documents' });
     }
 });
 

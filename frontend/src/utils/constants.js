@@ -1,4 +1,53 @@
 // Branches constant
+export const ISE_3RD_SEM_SUBJECTS = [
+    { code: 'S3MAT1', name: 'Statistics and Probability', credits: 3, hasLab: false, semester: '3rd Sem' },
+    { code: 'S3ISI01', name: 'Digital Circuits and Computer Organization', credits: 4, hasLab: true, semester: '3rd Sem' },
+    { code: 'S3ISI02', name: 'Advanced Web Technology and Internet Applications', credits: 4, hasLab: true, semester: '3rd Sem' },
+    { code: 'S3IS01', name: 'Data Structures', credits: 3, hasLab: false, semester: '3rd Sem' },
+    { code: 'S3ISL01', name: 'Data Structures Laboratory', credits: 1, hasLab: true, semester: '3rd Sem' },
+    { code: 'S3ISES03', name: 'Object Oriented Programming with Java', credits: 3, hasLab: false, semester: '3rd Sem' },
+    { code: 'SHS01', name: 'Social Connect and Responsibility', credits: 1, hasLab: false, semester: '3rd Sem' },
+    { code: 'S3ISA03', name: 'Unix and Shell Programming', credits: 1, hasLab: false, semester: '3rd Sem' },
+];
+
+export const ISE_4TH_SEM_SUBJECTS = [
+    { code: 'S4IS01', name: 'Operating System', credits: 3, hasLab: false, semester: '4th Sem' },
+    { code: 'S4ISI01', name: 'Design and Analysis of Algorithms', credits: 4, hasLab: true, semester: '4th Sem' },
+    { code: 'S4ISI02', name: 'ARM Processor and Microcontroller', credits: 4, hasLab: true, semester: '4th Sem' },
+    { code: 'S4ISL02', name: 'Data Visualization Laboratory', credits: 1, hasLab: true, semester: '4th Sem' },
+    { code: 'S4ISES01', name: 'Discrete Mathematical Structures', credits: 3, hasLab: false, semester: '4th Sem' },
+    { code: 'S4CCA01', name: 'Biology for Engineers', credits: 3, hasLab: false, semester: '4th Sem' },
+    { code: 'SHS02', name: 'Universal Human Values Course', credits: 1, hasLab: false, semester: '4th Sem' },
+    { code: 'S4ISA02', name: 'Mobile Application Development', credits: 1, hasLab: false, semester: '4th Sem' },
+    { code: 'S4ISA04', name: 'Natural Language Processing', credits: 1, hasLab: false, semester: '4th Sem' },
+];
+
+export const ALL_KNOWN_SUBJECTS = [
+    ...ISE_3RD_SEM_SUBJECTS,
+    ...ISE_4TH_SEM_SUBJECTS,
+];
+
+export const FIRST_YEAR_SUBJECTS = [
+    'Engineering Physics', 'Physics', '18PHY', '22PHY', '21PHY', 'Scientific Foundations of Health', 'Health',
+    'Engineering Chemistry', 'Chemistry', '18CHE', '22CHE', '21CHE',
+    'Mathematics-I', 'Maths-I', 'Math-I', '18MAT11', '21MAT11', '22MAT11',
+    'Mathematics-II', 'Maths-II', 'Math-II', '18MAT21', '21MAT21', '22MAT21',
+    'CAED', 'Graphics', 'Engineering Drawing', 'Computer Aided Engineering Drawing',
+    'C Programming', 'Problem Solving through C', 'CPS', 'PPS', 'Python Programming', 'Structured Programming in C',
+    'Basic Electrical', 'Electrical Engineering', 'BEE',
+    'Basic Electronics', 'Electronics Engineering', 'ELN', 'Introduction to Electronics', 'Fundamentals of Electronics',
+    'Mechanical Engineering', 'Elements of Mechanical', 'EME', 'Applied Mechanics', 'Mechanics',
+    'Civil Engineering', 'Elements of Civil', 'CIV',
+    'English', 'Technical English', 'Communication Skills', 'Soft Skills',
+    'Kannada', 'Kali Kannada', 'Arivu Kannada',
+    'Environmental Studies', 'EVS',
+    'Constitution of India', 'CIP', 'Indian Constitution', 'Engineering Ethics',
+    'Innovation and Design Thinking',
+    'Introduction to AI', 'Cyber Security',
+    'Building Materials', 'Concrete Technology', 'Essentials of Information Technology', 'IT'
+];
+
+
 export const BRANCHES = [
     { code: 'CV', name: 'Civil Engineering' },
     { code: 'CS', name: 'Computer Science and Engineering' },
