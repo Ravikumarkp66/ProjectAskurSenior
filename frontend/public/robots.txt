@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://project-askur-senior.vercel.app/sitemap.xml
