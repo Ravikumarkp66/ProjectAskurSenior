@@ -17,7 +17,7 @@ const GuidesPage = lazy(() => import('./pages/GuidesPage'));
 const ArticlePage = lazy(() => import('./pages/ArticlePage'));
 const CompleteRegistrationPage = lazy(() => import('./pages/CompleteRegistrationPage'));
 const CompleteProfilePage = lazy(() => import('./pages/CompleteProfilePage'));
-const InterviewExperiencePage = lazy(() => import('./pages/InterviewExperiencePage'));
+
 const PaymentPage = lazy(() => import('./pages/PaymentPage'));
 const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
 const PricingSection = lazy(() => import('./components/PricingSection'));
@@ -153,14 +153,7 @@ function AppContent() {
                             }
                         />
                         <Route path="/calculator" element={<CGPACalculatorPage />} />
-                        <Route
-                            path="/interview-experiences"
-                            element={
-                                <ProtectedRoute>
-                                    <InterviewExperiencePage />
-                                </ProtectedRoute>
-                            }
-                        />
+
                         <Route path="/subject/:subjectId/content"
                             element={
                                 <ProtectedRoute>

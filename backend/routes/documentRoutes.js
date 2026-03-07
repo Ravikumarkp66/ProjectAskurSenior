@@ -111,6 +111,87 @@ router.get('/paper-types', async (req, res) => {
     }
 });
 
+// Get autocomplete suggestions based on documents actually present
+router.get('/suggestions', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) {
+            return res.json({ subjects: [], papers: [], notes: [] });
+        }
+
+        const query = q.toLowerCase();
+        const regex = new RegExp(query, 'i');
+
+        // Only search approved documents
+        const approvedCriteria = { isApproved: true };
+
+        // Get unique subjects that match the query
+        const subjects = await Document.aggregate([
+            { $match: { 
+                $and: [
+                    approvedCriteria,
+                    { $or: [
+                        { subjectName: regex },
+                        { subjectCode: regex }
+                    ]}
+                ]
+            }},
+            { $group: { 
+                _id: { name: "$subjectName", code: "$subjectCode" }
+            }},
+            { $limit: 5 },
+            { $project: { _id: 0, name: "$_id.name", code: "$_id.code" } }
+        ]);
+
+        // Get matching document titles for papers (filtered by documentType: 'see' or 'internals')
+        const papers = await Document.find({
+            ...approvedCriteria,
+            documentType: { $in: ['see', 'internals'] },
+            $or: [
+                { originalName: regex },
+                { subjectName: regex },
+                { subjectCode: regex }
+            ]
+        })
+        .select('originalName subjectName subjectCode documentType')
+        .limit(4)
+        .lean();
+
+        // Get matching document titles for notes (filtered by documentType: 'notes')
+        const notes = await Document.find({
+            ...approvedCriteria,
+            documentType: 'notes',
+            $or: [
+                { originalName: regex },
+                { subjectName: regex },
+                { subjectCode: regex },
+                { tags: regex }
+            ]
+        })
+        .select('originalName subjectName subjectCode moduleInfo')
+        .limit(4)
+        .lean();
+
+        res.json({
+            subjects,
+            papers: papers.map(p => ({ 
+                name: p.originalName, 
+                code: p.subjectCode,
+                type: p.documentType 
+            })),
+            notes: notes.map(n => ({ 
+                name: n.originalName, 
+                code: n.subjectCode,
+                module: n.moduleInfo 
+            }))
+        });
+
+    } catch (error) {
+        console.error('Suggestions error:', error);
+        res.status(500).json({ error: 'Failed to fetch suggestions' });
+    }
+});
+
 // Search documents
 router.get('/search', async (req, res) => {
     try {

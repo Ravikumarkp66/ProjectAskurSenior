@@ -1,17 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, FileText } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { apiClient } from '../services/api';
 
 const HomeAskFinderSection = () => {
     const navigate = useNavigate();
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [placeholderIndex, setPlaceholderIndex] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
+    const [suggestions, setSuggestions] = useState({ subjects: [], papers: [], notes: [] });
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchRef = useRef(null);
+    const inputRef = useRef(null);
+
+    const placeholders = [
+        "Search by topic, exam, or tags...",
+        "Search Data Structures",
+        "Search 22CS41",
+        "Search PYQs",
+        "Search Mathematics notes",
+        "Search DBMS Papers"
+    ];
+
+    // Auto changing placeholder
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Suggestions Logic
+    useEffect(() => {
+        if (!searchQuery.trim() || searchQuery.length < 2) {
+            setSuggestions({ subjects: [], papers: [], notes: [] });
+            setShowSuggestions(false);
+            return;
+        }
+
+        const fetchSuggestions = async () => {
+            try {
+                const response = await apiClient.get(`/documents/suggestions?q=${encodeURIComponent(searchQuery)}`);
+                setSuggestions(response.data);
+                setShowSuggestions(true);
+                setSelectedIndex(-1);
+            } catch (error) {
+                console.error('Failed to fetch suggestions:', error);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const handleSearch = (e) => {
-        e.preventDefault();
-        // Navigate to ASK+ Finder page, maybe we can't pass query in URL easily if not set up,
-        // but we can just navigate to the page if they submit.
-        navigate('/ask-finder');
+        e?.preventDefault();
+        const query = searchQuery || placeholders[placeholderIndex].replace('Search ', '');
+        navigate(`/ask-finder?search=${encodeURIComponent(query)}`);
+        setShowSuggestions(false);
+    };
+
+    const handleKeyDown = (e) => {
+        const totalItems = suggestions.subjects.length + suggestions.papers.length + suggestions.notes.length;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => (prev + 1) % totalItems);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => (prev - 1 + totalItems) % totalItems);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            const allItems = [...suggestions.subjects, ...suggestions.papers, ...suggestions.notes];
+            const item = allItems[selectedIndex];
+            navigate(`/ask-finder?search=${encodeURIComponent(item.name)}`);
+            setShowSuggestions(false);
+        } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+            inputRef.current?.blur();
+        }
     };
 
     return (
@@ -39,24 +108,117 @@ const HomeAskFinderSection = () => {
                             Access a vast repository of previous year questions, curated notes, and study materials shared by seniors who've been exactly where you are.
                         </p>
                         
-                        <form onSubmit={handleSearch} className="relative max-w-md mx-auto md:mx-0 group">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <Search size={20} className="text-slate-500 group-focus-within:text-purple-400 transition-colors" />
-                            </div>
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search by topic, exam, or tags..."
-                                className="w-full bg-[#141416]/50 border border-white/10 rounded-full py-4 pl-12 pr-32 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all shadow-lg backdrop-blur-sm shadow-purple-900/10"
-                            />
-                            <button
-                                type="submit"
-                                className="absolute inset-y-2 right-2 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-all shadow-md active:scale-95 flex items-center gap-2"
-                            >
-                                Find
-                            </button>
-                        </form>
+                        <div className="relative max-w-sm md:max-w-md mx-auto md:mx-0 transition-all duration-300 ease-out" ref={searchRef} style={{ width: searchFocused ? '120%' : '100%', maxWidth: '100%' }}>
+                            <form onSubmit={handleSearch} className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <Search size={20} className={`transition-colors duration-300 ${searchFocused ? 'text-purple-400' : 'text-slate-500'}`} />
+                                </div>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onFocus={() => setSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={placeholders[placeholderIndex]}
+                                    className={`w-full bg-[#141416]/50 border rounded-full py-4 pl-12 pr-32 text-white focus:outline-none transition-all duration-300 backdrop-blur-sm ${
+                                        searchFocused
+                                        ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-[0_0_20px_rgba(139,92,246,0.2)]'
+                                        : 'border-white/10 shadow-lg shadow-purple-900/10'
+                                    }`}
+                                />
+                                <button
+                                    type="submit"
+                                    className="absolute inset-y-2 right-2 px-6 bg-purple-600 hover:bg-purple-700 text-white rounded-full font-medium transition-all shadow-md active:scale-95 flex items-center gap-2"
+                                >
+                                    Find
+                                </button>
+                            </form>
+
+                            {/* Suggestions Dropdown */}
+                            <AnimatePresence>
+                                {searchFocused && showSuggestions && (suggestions.subjects.length > 0 || suggestions.papers.length > 0 || suggestions.notes.length > 0) && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                        className="absolute top-full left-0 right-0 mt-3 bg-[#141416]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[60]"
+                                    >
+                                        <div className="max-h-[350px] overflow-y-auto p-2 custom-scrollbar">
+                                            {/* Subjects */}
+                                            {suggestions.subjects.length > 0 && (
+                                                <div className="mb-3">
+                                                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">Subjects</div>
+                                                    <div className="space-y-1">
+                                                        {suggestions.subjects.map((s, idx) => {
+                                                            const itemIdx = idx;
+                                                            return (
+                                                                <button
+                                                                    key={`hs-s-${idx}`}
+                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(s.name)}`); setShowSuggestions(false); }}
+                                                                    className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-purple-600 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Search size={12} className={selectedIndex === itemIdx ? 'text-white' : 'text-purple-400'} />
+                                                                        <span className="text-sm font-bold truncate">{s.name}</span>
+                                                                    </div>
+                                                                    <span className="text-[10px] opacity-50 font-mono">{s.code}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Papers */}
+                                            {suggestions.papers.length > 0 && (
+                                                <div className="mb-3">
+                                                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-left">Papers</div>
+                                                    <div className="space-y-1">
+                                                        {suggestions.papers.map((p, idx) => {
+                                                            const itemIdx = suggestions.subjects.length + idx;
+                                                            return (
+                                                                <button
+                                                                    key={`hs-p-${idx}`}
+                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(p.name)}`); setShowSuggestions(false); }}
+                                                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    <FileText size={12} className={selectedIndex === itemIdx ? 'text-white' : 'text-emerald-400'} />
+                                                                    <span className="text-sm font-bold truncate">{p.name}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Notes */}
+                                            {suggestions.notes.length > 0 && (
+                                                <div className="text-left">
+                                                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">Notes</div>
+                                                    <div className="space-y-1">
+                                                        {suggestions.notes.map((n, idx) => {
+                                                            const itemIdx = suggestions.subjects.length + suggestions.papers.length + idx;
+                                                            return (
+                                                                <button
+                                                                    key={`hs-n-${idx}`}
+                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(n.name)}`); setShowSuggestions(false); }}
+                                                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-amber-600 text-white' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    <div className="w-3 h-3 border-2 border-amber-400 rounded-sm" />
+                                                                    <span className="text-sm font-bold truncate">{n.name}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                     
                     {/* Right: Visual / CTA Cards */}

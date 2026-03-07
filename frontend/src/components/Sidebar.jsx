@@ -548,27 +548,9 @@ const Sidebar = ({
                             {!isCollapsed && <span className="text-sm font-semibold">Dashboard</span>}
                         </button>
 
-                        <button
-                            onClick={() => navigate('/ask-finder?bookmarks=true')}
-                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
-                            title="Saved Materials"
-                        >
-                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                            </svg>
-                            {!isCollapsed && <span className="text-sm font-semibold">Saved Materials</span>}
-                        </button>
 
-                        <button
-                            onClick={() => navigate('/interview-experiences')}
-                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
-                            title="Interview Experiences"
-                        >
-                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
-                            </svg>
-                            {!isCollapsed && <span className="text-sm font-semibold text-left">Interview Experiences</span>}
-                        </button>
+
+
 
 
 

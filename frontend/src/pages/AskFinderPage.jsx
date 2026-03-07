@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
 import ProfileModal from '../components/ProfileModal';
 import { apiClient } from '../services/api';
@@ -7,7 +8,6 @@ import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJEC
 import DocComments from '../components/DocComments';
 import LoginRequiredModal from '../components/LoginRequiredModal';
 import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 const AskFinderPage = () => {
     const navigate = useNavigate();
@@ -131,6 +131,89 @@ const AskFinderPage = () => {
     useEffect(() => {
             handleSearch();
     }, [selectedSubject, selectedPaperType, selectedYearLevel, selectedSubSemester, selectedYear, selectedDocType, sortBy, statusFilter, bookmarksOnly, currentBranch]);
+
+    // Pro Search state
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [placeholderIndex, setPlaceholderIndex] = useState(0);
+    const [suggestions, setSuggestions] = useState({ subjects: [], papers: [], notes: [] });
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchRef = useRef(null);
+    const inputRef = useRef(null);
+
+    const placeholders = [
+        "Search subject, code, topic...",
+        "Search Data Structures",
+        "Search 22CS41",
+        "Search PYQs",
+        "Search Mathematics notes",
+        "Search DBMS Papers"
+    ];
+
+    // Auto changing placeholder
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Keyboard shortcut '/'
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                inputRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Suggestions Logic
+    useEffect(() => {
+        if (!searchQuery.trim() || searchQuery.length < 2) {
+            setSuggestions({ subjects: [], papers: [], notes: [] });
+            setShowSuggestions(false);
+            return;
+        }
+
+        const fetchSuggestions = async () => {
+            try {
+                const response = await apiClient.get(`/documents/suggestions?q=${encodeURIComponent(searchQuery)}`);
+                setSuggestions(response.data);
+                setShowSuggestions(true);
+                setSelectedIndex(-1);
+            } catch (error) {
+                console.error('Failed to fetch suggestions:', error);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const handleKeyDown = (e) => {
+        const totalItems = suggestions.subjects.length + suggestions.papers.length + suggestions.notes.length;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => (prev + 1) % totalItems);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => (prev - 1 + totalItems) % totalItems);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            // Get the item at selectedIndex
+            const allItems = [...suggestions.subjects, ...suggestions.papers, ...suggestions.notes];
+            const item = allItems[selectedIndex];
+            setSearchQuery(item.name);
+            setShowSuggestions(false);
+        } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+            inputRef.current?.blur();
+        }
+    };
 
     // Debounced Search when query changes
     useEffect(() => {
@@ -410,21 +493,140 @@ const AskFinderPage = () => {
                             </p>
 
                             {/* Search Bar */}
-                            <form onSubmit={(e) => e.preventDefault()} className="max-w-4xl mx-auto relative group">
-                                <div className="absolute inset-y-0 left-0 pl-12 flex items-center pointer-events-none">
-                                    <Search size={22} className={`transition-colors ${isLightMode ? 'text-slate-400 group-focus-within:text-purple-600' : 'text-slate-500 group-focus-within:text-purple-400'}`} />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search by topic, exam, tags..."
-                                    className={`w-full border rounded-full py-5 pl-24 pr-10 focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-xl backdrop-blur-md shadow-purple-900/10 text-lg
-                                        ${isLightMode
-                                            ? 'bg-white border-slate-200 text-slate-900 focus:ring-purple-500/50'
-                                            : 'bg-[#141416]/70 border-white/5 text-white focus:ring-purple-500/50 focus:border-purple-500'}`}
-                                />
-                            </form>
+                            <div className="relative max-w-4xl mx-auto transition-all duration-300 ease-out z-50 px-4 sm:px-0" ref={searchRef} style={{ width: searchFocused ? '100%' : '90%', maxWidth: '850px' }}>
+                                <form onSubmit={(e) => e.preventDefault()} className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-8 flex items-center pointer-events-none">
+                                        <Search size={22} className={`transition-colors duration-300 ${isLightMode ? (searchFocused ? 'text-purple-600' : 'text-slate-400') : (searchFocused ? 'text-purple-400' : 'text-slate-500')}`} />
+                                    </div>
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onFocus={() => setSearchFocused(true)}
+                                        onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                                        onKeyDown={handleKeyDown}
+                                        placeholder={placeholders[placeholderIndex]}
+                                        className={`w-full border rounded-full py-5 pl-20 pr-10 outline-none transition-all duration-300 shadow-xl backdrop-blur-md text-lg
+                                            ${isLightMode
+                                                ? `bg-white border-slate-200 text-slate-900 ${searchFocused ? 'ring-4 ring-purple-500/10 border-purple-500 shadow-purple-500/5' : 'shadow-slate-200/50'}`
+                                                : `bg-[#141416]/70 border-white/5 text-white ${searchFocused ? 'ring-4 ring-purple-500/20 border-purple-500 shadow-purple-900/40' : 'shadow-purple-900/10'}`
+                                            }`}
+                                    />
+                                    <div className="absolute inset-y-0 right-6 flex items-center pointer-events-none">
+                                        {!searchFocused && searchQuery === '' && (
+                                            <kbd className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-slate-500">
+                                                <span>/</span>
+                                            </kbd>
+                                        )}
+                                    </div>
+                                </form>
+
+                                {/* Suggestions Dropdown */}
+                                <AnimatePresence>
+                                    {searchFocused && showSuggestions && (suggestions.subjects.length > 0 || suggestions.papers.length > 0 || suggestions.notes.length > 0) && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            className={`absolute top-full left-0 right-0 mt-3 border rounded-3xl shadow-2xl overflow-hidden z-[100] ${isLightMode ? 'bg-white border-slate-200 shadow-slate-200/50' : 'bg-[#141416]/95 border-white/10 shadow-black/50 backdrop-blur-2xl'}`}
+                                        >
+                                            <div className="max-h-[400px] overflow-y-auto p-3 custom-scrollbar">
+                                                {/* Subjects */}
+                                                {suggestions.subjects.length > 0 && (
+                                                    <div className="mb-4 text-left">
+                                                        <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                            Subjects
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            {suggestions.subjects.map((s, idx) => {
+                                                                const itemIdx = idx;
+                                                                return (
+                                                                    <button
+                                                                        key={`as-s-${idx}`}
+                                                                        onClick={() => { setSearchQuery(s.name); setShowSuggestions(false); }}
+                                                                        className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-purple-600 text-white shadow-lg' : isLightMode ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-3">
+                                                                            <Search size={14} className={selectedIndex === itemIdx ? 'text-white' : 'text-purple-400'} />
+                                                                            <span className="text-sm font-bold truncate">{s.name}</span>
+                                                                        </div>
+                                                                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${selectedIndex === itemIdx ? 'bg-white/20 border-white/30 text-white' : isLightMode ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-500'}`}>{s.code}</span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* PYQs */}
+                                                {suggestions.papers.length > 0 && (
+                                                    <div className="mb-4 text-left">
+                                                        <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                            Past Year Papers
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            {suggestions.papers.map((p, idx) => {
+                                                                const itemIdx = suggestions.subjects.length + idx;
+                                                                return (
+                                                                    <button
+                                                                        key={`as-p-${idx}`}
+                                                                        onClick={() => { setSearchQuery(p.name); setShowSuggestions(false); }}
+                                                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-emerald-600 text-white shadow-lg' : isLightMode ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                    >
+                                                                        <FileText size={14} className={selectedIndex === itemIdx ? 'text-white' : 'text-emerald-400'} />
+                                                                        <div className="flex flex-col items-start overflow-hidden">
+                                                                            <span className="text-sm font-bold truncate">{p.name}</span>
+                                                                            <span className={`text-[10px] ${selectedIndex === itemIdx ? 'text-emerald-100' : 'text-slate-500'}`}>Official University Paper</span>
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Notes */}
+                                                {suggestions.notes.length > 0 && (
+                                                    <div className="text-left">
+                                                        <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                            Curated Notes
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            {suggestions.notes.map((n, idx) => {
+                                                                const itemIdx = suggestions.subjects.length + suggestions.papers.length + idx;
+                                                                return (
+                                                                    <button
+                                                                        key={`as-n-${idx}`}
+                                                                        onClick={() => { setSearchQuery(n.name); setShowSuggestions(false); }}
+                                                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-amber-600 text-white shadow-lg' : isLightMode ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                    >
+                                                                        <div className="w-3.5 h-3.5 border-2 border-amber-400 rounded-sm" />
+                                                                        <div className="flex flex-col items-start overflow-hidden">
+                                                                            <span className="text-sm font-bold truncate">{n.name}</span>
+                                                                            <span className={`text-[10px] ${selectedIndex === itemIdx ? 'text-amber-100' : 'text-slate-500'}`}>Handwritten Study Material</span>
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className={`p-3 border-t flex items-center justify-between text-[10px] font-bold ${isLightMode ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-white/5 border-white/5 text-slate-500'}`}>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">↑↓</kbd> Navigate</span>
+                                                    <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> Select</span>
+                                                </div>
+                                                <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">Esc</kbd> Close</span>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         </div>
 
                         {/* Filters Section */}

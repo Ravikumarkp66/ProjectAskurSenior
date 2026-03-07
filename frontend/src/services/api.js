@@ -184,11 +184,7 @@ export const userUploadAPI = {
         apiClient.delete(`/user-uploads/${uploadId}`)
 };
 
-// Interview Experience API
-export const interviewExperienceAPI = {
-    getExperiences: (params) => apiClient.get('/interview-experiences', { params }),
-    addBulkExperiences: (data) => apiClient.post('/interview-experiences/bulk', data)
-};
+
 
 // Payment API
 export const paymentAPI = {

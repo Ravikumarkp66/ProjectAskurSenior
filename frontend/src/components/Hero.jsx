@@ -1,19 +1,110 @@
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, FileText } from 'lucide-react';
 import { useAuth } from '../utils/hooks';
+import { apiClient } from '../services/api';
 import Logo from './Logo';
 import './Hero.css';
 
 export default function Hero() {
     const { user, logout } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [placeholderIndex, setPlaceholderIndex] = useState(0);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [suggestions, setSuggestions] = useState({ subjects: [], papers: [], notes: [] });
+    const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchRef = useRef(null);
+    const inputRef = useRef(null);
     const navigate = useNavigate();
+
+    const placeholders = [
+        "Search subject, code, topic...",
+        "Search Data Structures",
+        "Search 22CS41",
+        "Search PYQs",
+        "Search Mathematics notes",
+        "Search DBMS Papers"
+    ];
+
+    // Auto changing placeholder
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Keyboard shortcut '/'
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                inputRef.current?.focus();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Suggestions Logic
+    useEffect(() => {
+        if (!searchQuery.trim() || searchQuery.length < 2) {
+            setSuggestions({ subjects: [], papers: [], notes: [] });
+            setShowSuggestions(false);
+            return;
+        }
+
+        const fetchSuggestions = async () => {
+            try {
+                const response = await apiClient.get(`/documents/suggestions?q=${encodeURIComponent(searchQuery)}`);
+                setSuggestions(response.data);
+                setShowSuggestions(true);
+                setSelectedIndex(-1);
+            } catch (error) {
+                console.error('Failed to fetch suggestions:', error);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 300);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const handleSearch = (e) => {
+        e?.preventDefault();
+        const query = searchQuery || placeholders[placeholderIndex].replace('Search ', '');
+        navigate(`/ask-finder?search=${encodeURIComponent(query)}`);
+        setShowSuggestions(false);
+    };
 
     const handleLogout = () => {
         logout();
         setUserMenuOpen(false);
         navigate('/');
+    };
+
+    const handleKeyDown = (e) => {
+        const totalItems = suggestions.subjects.length + suggestions.papers.length + suggestions.notes.length;
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setSelectedIndex(prev => (prev + 1) % totalItems);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setSelectedIndex(prev => (prev - 1 + totalItems) % totalItems);
+        } else if (e.key === 'Enter' && selectedIndex >= 0) {
+            e.preventDefault();
+            // Get the item at selectedIndex
+            const allItems = [...suggestions.subjects, ...suggestions.papers, ...suggestions.notes];
+            const item = allItems[selectedIndex];
+            navigate(`/ask-finder?search=${encodeURIComponent(item.name)}`);
+            setShowSuggestions(false);
+        } else if (e.key === 'Escape') {
+            setShowSuggestions(false);
+            inputRef.current?.blur();
+        }
     };
 
     return (
@@ -31,24 +122,20 @@ export default function Hero() {
                         <Logo size="md" />
                     </Link>
                     <div className="nav-links flex items-center gap-4">
-                        <Link to="/calculator" className="nav-link nav-link-highlight hidden md:flex items-center gap-1.5">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                            CGPA Calculator
-                        </Link>
                         <Link to="/ask-finder" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all border border-purple-500/20">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                             Materials
                         </Link>
-                        <Link to="/blog" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-all border border-indigo-500/20">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                            </svg>
-                            Blog
-                        </Link>
+                        {user && (
+                            <Link to="/dashboard" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                                </svg>
+                                Dashboard
+                            </Link>
+                        )}
                         {user ? (
                             <div className="relative">
                                 <button
@@ -82,25 +169,26 @@ export default function Hero() {
                                             </div>
                                             <div className="p-2 space-y-1">
                                                 <Link
-                                                    to="/dashboard"
+                                                    to="/calculator"
                                                     onClick={() => setUserMenuOpen(false)}
                                                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                                     </svg>
-                                                    Dashboard
+                                                    CGPA Calculator
                                                 </Link>
                                                 <Link
-                                                    to="/ask-finder?bookmarks=true"
+                                                    to="/blog"
                                                     onClick={() => setUserMenuOpen(false)}
                                                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all"
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                                                     </svg>
-                                                    Saved Materials
+                                                    Blogs
                                                 </Link>
+
                                                 <div className="border-t border-white/5 my-1" />
                                                 <button
                                                     onClick={handleLogout}
@@ -141,23 +229,152 @@ export default function Hero() {
                             Access curated notes, previous year question papers, and academic tools built specifically for SIT students.
                         </p>
 
-                        <form onSubmit={(e) => { e.preventDefault(); navigate(`/ask-finder?search=${encodeURIComponent(e.target.search.value)}`); }} className="relative max-w-2xl mx-auto mb-8 group">
-                            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                <svg className="w-6 h-6 text-slate-500 group-focus-within:text-purple-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            </div>
-                            <input
-                                type="text"
-                                name="search"
-                                placeholder="Search subject, code, topic..."
-                                className="w-full bg-[#141416]/80 backdrop-blur-xl border border-white/10 rounded-full py-4 md:py-5 pl-14 pr-36 text-white text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all shadow-2xl shadow-purple-900/20"
-                            />
-                            <button
-                                type="submit"
-                                className="absolute inset-y-2 right-2 px-6 md:px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-full font-bold text-sm md:text-base transition-all shadow-lg active:scale-95 flex items-center gap-2"
-                            >
-                                Search
-                            </button>
-                        </form>
+                        <div className="relative max-w-2xl mx-auto mb-8 transition-all duration-300 ease-out" ref={searchRef} style={{ width: searchFocused ? '100%' : '90%', maxWidth: '720px' }}>
+                            <form onSubmit={handleSearch} className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                                    <svg className={`w-6 h-6 transition-colors duration-300 ${searchFocused ? 'text-purple-400' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onFocus={() => setSearchFocused(true)}
+                                    onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder={placeholders[placeholderIndex]}
+                                    className={`w-full bg-[#141416]/80 backdrop-blur-xl border rounded-full py-4 md:py-5 pl-14 pr-36 text-white text-base md:text-lg outline-none transition-all duration-300 ${
+                                        searchFocused 
+                                        ? 'border-purple-500 ring-4 ring-purple-500/20 shadow-[0_0_30px_rgba(139,92,246,0.2)]' 
+                                        : 'border-white/10 shadow-2xl shadow-purple-900/10'
+                                    }`}
+                                />
+                                <div className="absolute inset-y-2 right-2 flex items-center gap-2">
+                                    {!searchFocused && searchQuery === '' && (
+                                        <kbd className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-slate-500 mr-2">
+                                            <span>/</span>
+                                        </kbd>
+                                    )}
+                                    <button
+                                        type="submit"
+                                        className="h-full px-6 md:px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-full font-bold text-sm md:text-base transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                    >
+                                        Search
+                                    </button>
+                                </div>
+                            </form>
+
+                            {/* Suggestions Dropdown */}
+                            <AnimatePresence>
+                                {searchFocused && showSuggestions && (suggestions.subjects.length > 0 || suggestions.papers.length > 0 || suggestions.notes.length > 0) && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 10 }}
+                                        className="absolute top-full left-0 right-0 mt-3 bg-[#141416]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[60]"
+                                    >
+                                        <div className="max-h-[400px] overflow-y-auto p-3 custom-scrollbar">
+                                            {/* Subjects Category */}
+                                            {suggestions.subjects.length > 0 && (
+                                                <div className="mb-4">
+                                                    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                        Subjects
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        {suggestions.subjects.map((s, idx) => {
+                                                            const itemIdx = idx;
+                                                            return (
+                                                                <button
+                                                                    key={`s-${idx}`}
+                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(s.name)}`); setShowSuggestions(false); }}
+                                                                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Search size={14} className={selectedIndex === itemIdx ? 'text-white' : 'text-purple-400'} />
+                                                                        <span className="text-sm font-bold truncate">{s.name}</span>
+                                                                    </div>
+                                                                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${selectedIndex === itemIdx ? 'bg-white/20 border-white/30 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{s.code}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* PYQs Category */}
+                                            {suggestions.papers.length > 0 && (
+                                                <div className="mb-4 text-left">
+                                                    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        Past Year Papers
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        {suggestions.papers.map((p, idx) => {
+                                                            const itemIdx = suggestions.subjects.length + idx;
+                                                            return (
+                                                                <button
+                                                                    key={`p-${idx}`}
+                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(p.name)}`); setShowSuggestions(false); }}
+                                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                                                        <FileText size={14} className="text-emerald-400" />
+                                                                    </div>
+                                                                    <div className="flex flex-col items-start overflow-hidden">
+                                                                        <span className="text-sm font-bold truncate">{p.name}</span>
+                                                                        <span className={`text-[10px] ${selectedIndex === itemIdx ? 'text-emerald-100' : 'text-slate-500'}`}>Official University Paper</span>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Notes Category */}
+                                            {suggestions.notes.length > 0 && (
+                                                <div className="text-left">
+                                                    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                        Curated Notes
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        {suggestions.notes.map((n, idx) => {
+                                                            const itemIdx = suggestions.subjects.length + suggestions.papers.length + idx;
+                                                            return (
+                                                                <button
+                                                                    key={`n-${idx}`}
+                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(n.name)}`); setShowSuggestions(false); }}
+                                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                                                        <div className="w-3.5 h-3.5 border-2 border-amber-400 rounded-sm" />
+                                                                    </div>
+                                                                    <div className="flex flex-col items-start overflow-hidden">
+                                                                        <span className="text-sm font-bold truncate">{n.name}</span>
+                                                                        <span className={`text-[10px] ${selectedIndex === itemIdx ? 'text-amber-100' : 'text-slate-500'}`}>Handwritten / PDF Study Material</span>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-3 bg-white/5 border-t border-white/5 flex items-center justify-between text-[10px] font-bold text-slate-500">
+                                            <div className="flex items-center gap-3">
+                                                <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">ΓåæΓåô</kbd> Navigate</span>
+                                                <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> Select</span>
+                                            </div>
+                                            <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">Esc</kbd> Close</span>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
 
                         <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-slate-400 mb-4">
                             <span className="font-semibold text-slate-500">Popular:</span>
