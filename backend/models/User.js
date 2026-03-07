@@ -88,6 +88,10 @@ const userSchema = new mongoose.Schema(
             enum: ['active', 'suspended'],
             default: 'active'
         },
+        bookmarks: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Document'
+        }],
         createdAt: {
             type: Date,
             default: Date.now

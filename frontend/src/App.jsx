@@ -23,6 +23,7 @@ const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage'));
 const PricingSection = lazy(() => import('./components/PricingSection'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const AskFinderPage = lazy(() => import('./pages/AskFinderPage'));
 
 // Generic loading fallback for Suspense
 // Simple loading fallback for Suspense to reduce initial bundle size and complexity
@@ -90,9 +91,11 @@ function AppContent() {
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<LoginPage initialMode="register" />} />
+                        {/* UPGRADE_SECTION_HIDDEN: Uncomment these routes to restore subscription/upgrade features
                         <Route path="/subscription" element={<SubscriptionPage />} />
                         <Route path="/pricing" element={<PricingSection user={user} />} />
                         <Route path="/upgrade" element={<PaymentPage user={user} />} />
+                        */}
                         <Route
                             path="/complete-registration"
                             element={
@@ -177,6 +180,7 @@ function AppContent() {
                         <Route path="/blog/:slug" element={<ArticlePage />} />
                         <Route path="/terms" element={<TermsPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
+                        <Route path="/ask-finder" element={<AskFinderPage />} />
                         <Route path="/" element={<HomePage />} />
                         {/* Catch-all route for unmatched paths */}
                         <Route path="*" element={<Navigate to="/" replace />} />

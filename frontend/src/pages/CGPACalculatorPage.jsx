@@ -4,6 +4,7 @@ import { useAuth } from '../utils/hooks';
 import { subjectAPI } from '../services/api';
 import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../utils/constants';
 import { getAllCIEResults } from '../utils/cieEngine';
+import LoginRequiredModal from '../components/LoginRequiredModal';
 
 // Universal CIE Rule Engine
 const CIE_RULES = {
@@ -212,15 +213,11 @@ const CGPACalculatorPage = () => {
     const [semesters, setSemesters] = useState([
         { id: 1, sem: 1, sgpa: '', credits: '' }
     ]);
+    const [showLoginModal, setShowLoginModal] = useState(false);
 
     const isPremium = user?.subscription === 'askplus' || user?.role === 'premium' || user?.isAdmin;
 
-    // Redirect to login if not authenticated
-    useEffect(() => {
-        if (!authLoading && !isAuthenticated) {
-            navigate('/login');
-        }
-    }, [authLoading, isAuthenticated, navigate]);
+    // Simplified rules check - always accessible
 
     // Branch and Cycle selection
     const [selectedBranch, setSelectedBranch] = useState('');
@@ -1392,18 +1389,21 @@ const CGPACalculatorPage = () => {
     };
 
     const updateSubject = (id, field, value) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSubjects(prev => prev.map(s =>
             s.id === id ? { ...s, [field]: value } : s
         ));
     };
 
     const toggleCIE = (id) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSubjects(prev => prev.map(s =>
             s.id === id ? { ...s, isCIEExpanded: !s.isCIEExpanded } : s
         ));
     };
 
     const updateCIE = (id, field, value, index = null) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         // Hard max per field to prevent over-entry
         const FIELD_MAX = {
             test1: 50, test2: 50,
@@ -1434,6 +1434,7 @@ const CGPACalculatorPage = () => {
     };
 
     const addCIEItem = (id, field) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSubjects(prev => prev.map(s => {
             if (s.id !== id) return s;
             const newCieMarks = { ...s.cieMarks };
@@ -1445,6 +1446,7 @@ const CGPACalculatorPage = () => {
     };
 
     const removeCIEItem = (id, field, index) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSubjects(prev => prev.map(s => {
             if (s.id !== id) return s;
             const newCieMarks = { ...s.cieMarks };
@@ -1571,6 +1573,7 @@ const CGPACalculatorPage = () => {
     };
 
     const addSubject = () => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         const newId = Math.max(...subjects.map(s => s.id), 0) + 1;
         setSubjects(prev => [...prev, {
             id: newId,
@@ -1594,34 +1597,40 @@ const CGPACalculatorPage = () => {
     };
 
     const removeSubject = (id) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         if (subjects.length > 1) {
             setSubjects(prev => prev.filter(s => s.id !== id));
         }
     };
 
     const resetSubjects = () => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSubjects(prev => prev.map(s => ({ ...s, cie: '', see: '' })));
     };
 
     const addSemester = () => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         const newId = Math.max(...semesters.map(s => s.id), 0) + 1;
         const nextSemNumber = Math.max(...semesters.map(s => s.sem), 0) + 1;
         setSemesters(prev => [...prev, { id: newId, sem: nextSemNumber, sgpa: '', credits: '' }]);
     };
 
     const removeSemester = (id) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         if (semesters.length > 1) {
             setSemesters(prev => prev.filter(s => s.id !== id));
         };
     };
 
     const updateSemester = (id, field, value) => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSemesters(prev => prev.map(s =>
             s.id === id ? { ...s, [field]: value } : s
         ));
     };
 
     const resetSemesters = () => {
+        if (!isAuthenticated) return setShowLoginModal(true);
         setSemesters([{ id: 1, sem: 1, sgpa: '', credits: '' }]);
     };
 
@@ -1848,7 +1857,7 @@ const CGPACalculatorPage = () => {
                 <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
+                            onClick={() => navigate('/')}
                             className="h-10 w-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
                         >
                             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2038,7 +2047,9 @@ const CGPACalculatorPage = () => {
                                         )}
 
                                         {sgpaResult.subjects.map((subject, index) => {
-                                            const isLocked = index > 0 && !isPremium;
+                                            // UPGRADE_SECTION_HIDDEN: Restore lock behavior when subscription returns
+                                            // const isLocked = index > 0 && !isPremium;
+                                            const isLocked = false;
                                             return (
                                                 <div
                                                     key={subject.id}
@@ -2529,6 +2540,13 @@ const CGPACalculatorPage = () => {
                 <RulesModal />
 
             </div>
+            {/* Login Required Modal */}
+            <LoginRequiredModal 
+                isOpen={showLoginModal} 
+                onClose={() => setShowLoginModal(false)}
+                featureName="Calculator Features"
+                description="Sign in to save your results, use the advanced CIE calculator, and access all analysis features."
+            />
         </div>
     );
 };

@@ -1,129 +1,19 @@
-import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
 import Logo from './Logo';
 import './Hero.css';
 
-const ArrowRightIcon = ({ size = 18 }) => (
-    <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-    >
-        <path
-            d="M5 12h14m0 0l-6-6m6 6l-6 6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        />
-    </svg>
-);
-
-const features = [
-    {
-        title: 'Study Notes',
-        description: 'Comprehensive, well-organized notes for every subject. Find what you need instantly.',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M9 5a2 2 0 012-2h2a2 2 0 012 2v0a2 2 0 01-2 2h-2a2 2 0 01-2-2v0z" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
-    },
-    {
-        title: 'Previous Year Questions',
-        description: 'Practice with curated PYQs to boost your exam confidence and performance.',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 7h8M8 11h6M8 15h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
-    },
-    {
-        title: 'CGPA Calculator',
-        description: 'Calculate your SGPA and CGPA instantly. Plan your academic targets with precision.',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M8 6h8M8 10h4M14 10h2M8 14h2M14 14h2M8 18h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
-    },
-    {
-        title: 'Progress Tracking',
-        description: 'Monitor your study progress across modules with detailed analytics and insights.',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M7 12l3-3 4 4 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <circle cx="7" cy="12" r="1" fill="currentColor" />
-                <circle cx="10" cy="9" r="1" fill="currentColor" />
-                <circle cx="14" cy="13" r="1" fill="currentColor" />
-                <circle cx="19" cy="8" r="1" fill="currentColor" />
-            </svg>
-        )
-    },
-    {
-        title: 'Smart Notifications',
-        description: 'Stay updated with exam schedules, assignment deadlines, and important announcements.',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
-    },
-    {
-        title: 'Interview Experiences',
-        description: 'Real insights from seniors who cracked top companies. Learn from their journey.',
-        icon: (
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M21 21v-2a4 4 0 00-3-3.87" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
-    }
-];
-
-const stats = [
-    { value: '2,000+', label: 'Active Students' },
-    { value: '500+', label: 'Study Materials' },
-    { value: '50+', label: 'Subjects Covered' },
-    { value: '4.9', label: 'User Rating' }
-];
-
-const containerVariants = {
-    hidden: {},
-    visible: {
-        transition: { staggerChildren: 0.1 }
-    }
-};
-
-const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }
-};
-
-// Optimization: Ensure images are lazy loaded and use WebP where possible
-// Note: Hero currently uses mostly inline SVGs which are excellent for performance.
-
 export default function Hero() {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const navigate = useNavigate();
 
-    const handleExploreFeatures = (e) => {
-        e.preventDefault();
-        const el = document.getElementById('features');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const handleLogout = () => {
+        logout();
+        setUserMenuOpen(false);
+        navigate('/');
     };
 
     return (
@@ -140,12 +30,92 @@ export default function Hero() {
                     <Link to="/" className="nav-logo">
                         <Logo size="md" />
                     </Link>
-                    <div className="nav-links">
-                        <a href="#features" onClick={handleExploreFeatures} className="nav-link">Features</a>
-                        <Link to="/calculator" className="nav-link nav-link-highlight">CGPA Calculator</Link>
-                        <Link to="/blog" className="nav-link">Blog</Link>
+                    <div className="nav-links flex items-center gap-4">
+                        <Link to="/calculator" className="nav-link nav-link-highlight hidden md:flex items-center gap-1.5">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            CGPA Calculator
+                        </Link>
+                        <Link to="/ask-finder" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all border border-purple-500/20">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            Materials
+                        </Link>
+                        <Link to="/blog" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-all border border-indigo-500/20">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                            </svg>
+                            Blog
+                        </Link>
                         {user ? (
-                            <Link to="/dashboard" className="nav-btn nav-btn-primary">Dashboard</Link>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setUserMenuOpen(v => !v)}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:border-purple-500/30 transition-all group"
+                                    title="Account"
+                                >
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-xs font-black uppercase">
+                                        {(user?.name || user?.usn || 'U').charAt(0)}
+                                    </div>
+                                    <span className="text-slate-300 text-sm font-semibold hidden md:inline max-w-[80px] truncate">
+                                        {user?.name || user?.usn}
+                                    </span>
+                                    <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                {userMenuOpen && (
+                                    <>
+                                        {/* Backdrop */}
+                                        <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                                        {/* Dropdown */}
+                                        <div className="absolute right-0 top-full mt-2 w-52 z-50 rounded-2xl border border-white/10 bg-[#141416]/95 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <div className="px-4 py-3 border-b border-white/5">
+                                                <p className="text-xs font-black uppercase tracking-widest text-purple-400">
+                                                    {user?.isAdmin ? 'Admin' : 'Student'}
+                                                </p>
+                                                <p className="text-sm font-bold text-white truncate mt-0.5">{user?.name || user?.usn}</p>
+                                                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                                            </div>
+                                            <div className="p-2 space-y-1">
+                                                <Link
+                                                    to="/dashboard"
+                                                    onClick={() => setUserMenuOpen(false)}
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                                                    </svg>
+                                                    Dashboard
+                                                </Link>
+                                                <Link
+                                                    to="/ask-finder?bookmarks=true"
+                                                    onClick={() => setUserMenuOpen(false)}
+                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                                    </svg>
+                                                    Saved Materials
+                                                </Link>
+                                                <div className="border-t border-white/5 my-1" />
+                                                <button
+                                                    onClick={handleLogout}
+                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                                    </svg>
+                                                    Sign Out
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         ) : (
                             <>
                                 <Link to="/login" className="nav-link">Sign In</Link>
@@ -157,309 +127,58 @@ export default function Hero() {
             </nav>
 
             {/* Hero Section */}
-            <section className="hero-section">
-                <motion.div
-                    className="hero-content"
-                    initial="hidden"
-                    animate="visible"
-                    variants={containerVariants}
-                >
-                    <motion.div className="hero-badge" variants={itemVariants}>
-                        <span className="badge-pulse" />
-                        <span>Trusted by 2,000+ Students</span>
-                    </motion.div>
-
-                    <motion.div className="hero-logo-container mb-8" variants={itemVariants}>
-                        <Logo size="xl" className="justify-center" />
-                    </motion.div>
-
-                    <motion.h1 className="hero-title pt-4" variants={itemVariants}>
-                        Your Complete
-                        <br />
-                        <span className="gradient-text">Academic Companion</span>
-                    </motion.h1>
-
-                    <motion.p className="hero-description" variants={itemVariants}>
-                        Master your studies with comprehensive notes, curated PYQs, smart CGPA tracking,
-                        and real interview experiences. Everything you need to excel—built for students, by students.
-                    </motion.p>
-
-                    <motion.div className="availability-banner" variants={itemVariants}>
-                        <div className="availability-item available">
-                            <svg viewBox="0 0 24 24" fill="none">
-                                <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            <span>1st Year Materials Available Now</span>
-                        </div>
-                    </motion.div>
-
-                    <motion.div className="hero-actions" variants={itemVariants}>
-                        {user ? (
-                            <Link to="/dashboard" className="btn btn-primary">
-                                Go to Dashboard
-                                <ArrowRightIcon />
-                            </Link>
-                        ) : (
-                            <>
-                                <Link to="/signup" className="btn btn-primary">
-                                    Start Learning Free
-                                    <ArrowRightIcon />
-                                </Link>
-                                <a href="#features" onClick={handleExploreFeatures} className="btn btn-ghost">
-                                    Explore Features
-                                </a>
-                            </>
-                        )}
-                    </motion.div>
-
-                    <motion.div className="hero-stats" variants={itemVariants}>
-                        {stats.map((stat, i) => (
-                            <div key={i} className="stat-item">
-                                <span className="stat-value">{stat.value}</span>
-                                <span className="stat-label">{stat.label}</span>
-                            </div>
-                        ))}
-                    </motion.div>
-                </motion.div>
-            </section>
-
-            {/* Features Section */}
-            <section className="features-section" id="features">
-                <div className="section-container">
+            <section className="relative z-10 pt-28 md:pt-36 pb-6 md:pb-8 px-6 flex flex-col items-center justify-center">
+                <div className="max-w-4xl mx-auto w-full text-center">
                     <motion.div
-                        className="section-header"
                         initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        <span className="section-tag">Features</span>
-                        <h2 className="section-title">
-                            Everything you need to <span className="gradient-text">excel</span>
-                        </h2>
-                        <p className="section-description">
-                            A comprehensive toolkit designed to simplify your academic journey and maximize your success.
+                        <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight font-[Outfit]">
+                            Find Notes, PYQs and Study Materials for <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">SIT</span> Students
+                        </h1>
+                        <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
+                            Access curated notes, previous year question papers, and academic tools built specifically for SIT students.
                         </p>
-                    </motion.div>
 
-                    <motion.div
-                        className="features-grid"
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        variants={containerVariants}
-                    >
-                        {features.map((feature, i) => (
-                            <motion.div
-                                key={i}
-                                className="feature-card glass-card"
-                                variants={itemVariants}
-                                whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                        <form onSubmit={(e) => { e.preventDefault(); navigate(`/ask-finder?search=${encodeURIComponent(e.target.search.value)}`); }} className="relative max-w-2xl mx-auto mb-8 group">
+                            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                                <svg className="w-6 h-6 text-slate-500 group-focus-within:text-purple-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            </div>
+                            <input
+                                type="text"
+                                name="search"
+                                placeholder="Search subject, code, topic..."
+                                className="w-full bg-[#141416]/80 backdrop-blur-xl border border-white/10 rounded-full py-4 md:py-5 pl-14 pr-36 text-white text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all shadow-2xl shadow-purple-900/20"
+                            />
+                            <button
+                                type="submit"
+                                className="absolute inset-y-2 right-2 px-6 md:px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-full font-bold text-sm md:text-base transition-all shadow-lg active:scale-95 flex items-center gap-2"
                             >
-                                <div className="feature-icon">
-                                    {feature.icon}
-                                </div>
-                                <h3 className="feature-title">{feature.title}</h3>
-                                <p className="feature-description">{feature.description}</p>
-                                <div className="feature-glow" />
-                            </motion.div>
-                        ))}
-                    </motion.div>
-                </div>
-            </section>
+                                Search
+                            </button>
+                        </form>
 
-            {/* About Section */}
-            <section className="about-section" id="about">
-                <div className="section-container">
-                    <motion.div
-                        className="about-content"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <div className="about-text">
-                            <span className="section-tag">Academic Tools</span>
-                            <h2 className="section-title">
-                                Smart <span className="gradient-text">CGPA Calculator</span>
-                            </h2>
-                            <p className="section-description">
-                                Tired of manual calculations? Login to use our SGPA and CGPA calculator
-                                to track your academic performance instantly.
-                            </p>
-                            <div className="about-features">
-                                <Link to="/calculator" className="btn btn-primary mb-6 inline-flex">
-                                    Open Calculator
-                                    <ArrowRightIcon />
-                                </Link>
-                                <div className="about-feature">
-                                    <div className="about-feature-icon">
-                                        <svg viewBox="0 0 24 24" fill="none">
-                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </div>
-                                    <span>Curated study materials</span>
-                                </div>
-                                <div className="about-feature">
-                                    <div className="about-feature-icon">
-                                        <svg viewBox="0 0 24 24" fill="none">
-                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </div>
-                                    <span>Track your progress</span>
-                                </div>
-                                <div className="about-feature">
-                                    <div className="about-feature-icon">
-                                        <svg viewBox="0 0 24 24" fill="none">
-                                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </div>
-                                    <span>100% free to use</span>
-                                </div>
-                            </div>
+                        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-slate-400 mb-4">
+                            <span className="font-semibold text-slate-500">Popular:</span>
+                            <button onClick={()=>navigate('/ask-finder?search=Chemistry')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Chemistry</button>
+                            <button onClick={()=>navigate('/ask-finder?search=Electrical')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Electrical</button>
+                            <button onClick={()=>navigate('/ask-finder?search=Mathematics')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Mathematics</button>
                         </div>
-                        <div className="about-visual glass-card">
-                            <div className="visual-content">
-                                <div className="visual-stat">
-                                    <span className="visual-number gradient-text">98%</span>
-                                    <span className="visual-label">Student Satisfaction</span>
-                                </div>
-                                <div className="visual-bar-group">
-                                    <div className="visual-bar">
-                                        <span>Notes Quality</span>
-                                        <div className="bar-track"><div className="bar-fill" style={{ width: '95%' }}></div></div>
-                                    </div>
-                                    <div className="visual-bar">
-                                        <span>Ease of Use</span>
-                                        <div className="bar-track"><div className="bar-fill" style={{ width: '92%' }}></div></div>
-                                    </div>
-                                    <div className="visual-bar">
-                                        <span>Exam Readiness</span>
-                                        <div className="bar-track"><div className="bar-fill" style={{ width: '88%' }}></div></div>
-                                    </div>
-                                </div>
+
+                        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 text-sm md:text-base font-semibold text-slate-300 bg-white/5 py-4 px-6 md:px-8 rounded-2xl border border-white/10 inline-flex backdrop-blur-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
+                                Search real exam papers
                             </div>
-                        </div>
-                    </motion.div>
-                </div>
-            </section>
-
-            {/* Platform Features Section */}
-            <section className="platform-section">
-                <div className="section-container">
-                    <motion.div
-                        className="section-header"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <span className="section-tag">Platform</span>
-                        <h2 className="section-title">
-                            Advanced features that <span className="gradient-text">set us apart</span>
-                        </h2>
-                        <p className="section-description">
-                            Beyond basic study materials, we provide intelligent tools that adapt to your learning journey.
-                        </p>
-                    </motion.div>
-
-                    <motion.div
-                        className="platform-features"
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        variants={containerVariants}
-                    >
-                        <motion.div className="platform-feature glass-card" variants={itemVariants}>
-                            <div className="platform-feature-header">
-                                <div className="platform-icon">
-                                    <svg viewBox="0 0 24 24" fill="none">
-                                        <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="1.5" />
-                                        <path d="M2 17l10 5 10-5" stroke="currentColor" strokeWidth="1.5" />
-                                        <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.5" />
-                                    </svg>
-                                </div>
-                                <h3>Smart Organization</h3>
+                            <div className="flex items-center gap-3">
+                                <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
+                                Notes shared by seniors
                             </div>
-                            <p>AI-powered content organization that learns from your study patterns and preferences.</p>
-                            <ul className="feature-benefits">
-                                <li>Auto-categorized materials</li>
-                                <li>Personalized recommendations</li>
-                                <li>Quick search & filtering</li>
-                            </ul>
-                        </motion.div>
-
-                        <motion.div className="platform-feature glass-card" variants={itemVariants}>
-                            <div className="platform-feature-header">
-                                <div className="platform-icon">
-                                    <svg viewBox="0 0 24 24" fill="none">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-                                        <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                                        <circle cx="12" cy="17" r="0.5" fill="currentColor" />
-                                    </svg>
-                                </div>
-                                <h3>Community Support</h3>
+                            <div className="flex items-center gap-3">
+                                <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
+                                SIT accurate CGPA calculator
                             </div>
-                            <p>Connect with peers, get help from seniors, and contribute to a collaborative learning environment.</p>
-                            <ul className="feature-benefits">
-                                <li>Peer feedback system</li>
-                                <li>Quality content reviews</li>
-                                <li>Bug reporting & fixes</li>
-                            </ul>
-                        </motion.div>
-
-                        <motion.div className="platform-feature glass-card" variants={itemVariants}>
-                            <div className="platform-feature-header">
-                                <div className="platform-icon">
-                                    <svg viewBox="0 0 24 24" fill="none">
-                                        <path d="M12 20h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                                        <path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4 12.5-12.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                </div>
-                                <h3>Admin Moderation</h3>
-                            </div>
-                            <p>Quality-controlled content with admin oversight ensures reliable, accurate study materials.</p>
-                            <ul className="feature-benefits">
-                                <li>Verified study materials</li>
-                                <li>Content quality assurance</li>
-                                <li>Regular updates & maintenance</li>
-                            </ul>
-                        </motion.div>
-                    </motion.div>
-                </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className="cta-section">
-                <div className="section-container">
-                    <motion.div
-                        className="cta-card glass-card"
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <div className="cta-glow" />
-                        <div className="cta-content">
-                            <h2 className="cta-title">
-                                Ready to ace your <span className="gradient-text">academics?</span>
-                            </h2>
-                            <p className="cta-description">
-                                Join thousands of students who are already using ASK+ to achieve their academic goals.
-                                Start your journey today—completely free.
-                            </p>
-                            {!user && (
-                                <Link to="/signup" className="btn btn-primary btn-lg">
-                                    Get Started Now
-                                    <ArrowRightIcon />
-                                </Link>
-                            )}
-                            {user && (
-                                <Link to="/dashboard" className="btn btn-primary btn-lg">
-                                    Continue Learning
-                                    <ArrowRightIcon />
-                                </Link>
-                            )}
                         </div>
                     </motion.div>
                 </div>

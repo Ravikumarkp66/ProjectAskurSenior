@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { ChevronRight, CheckCircle, XCircle, Calculator, RefreshCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ChevronRight, CheckCircle, XCircle, Calculator, RefreshCcw, Lock, LogIn, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../utils/hooks';
+import LoginRequiredModal from './LoginRequiredModal';
 
 const BlogQuiz = ({ quizData }) => {
     // Limit to max 10 questions (as requested)
@@ -11,6 +13,9 @@ const BlogQuiz = ({ quizData }) => {
     const [score, setScore] = useState(0);
     const [isFinished, setIsFinished] = useState(false);
     const [showExplanation, setShowExplanation] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
 
     if (!questions || questions.length === 0) return null;
 
@@ -20,6 +25,10 @@ const BlogQuiz = ({ quizData }) => {
     const progress = Math.round((currentIndex / questions.length) * 100);
 
     const handleOptionSelect = (option) => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
         if (selectedOption) return; // Prevent changing answer
 
         setSelectedOption(option);
@@ -199,6 +208,13 @@ const BlogQuiz = ({ quizData }) => {
                     </button>
                 </div>
             )}
+            {/* Login Required Modal */}
+            <LoginRequiredModal 
+                isOpen={showLoginModal} 
+                onClose={() => setShowLoginModal(false)}
+                featureName="Interactive Quizzes"
+                description="Sign in to participate in quizzes, track your performance, and unlock expert academic guides."
+            />
         </div>
     );
 };

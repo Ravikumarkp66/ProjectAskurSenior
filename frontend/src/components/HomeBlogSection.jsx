@@ -38,7 +38,7 @@ const HomeBlogSection = () => {
     }
 
     return (
-        <section className="py-24 bg-[#0a0a0b] relative z-10 border-t border-white/5 font-sans">
+        <section className="py-12 md:py-16 bg-[#0a0a0b] relative z-10 border-t border-white/5 font-sans">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
                     <div>
@@ -46,7 +46,7 @@ const HomeBlogSection = () => {
                             Latest Articles & Guides
                         </h2>
                         <p className="text-slate-400 text-lg max-w-2xl font-outfit">
-                            Stay updated with recent news, helpful college guides, and tips published by our team.
+                            Helpful academic guides, exam preparation tips, and insights written for SIT students.
                         </p>
                     </div>
 

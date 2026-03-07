@@ -131,11 +131,13 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                         <p className={`text-sm mt-1 flex items-center gap-2 ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
                             {subject.code}
                         </p>
+                        {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore lock text on gated subjects
                         {isLocked && (
                             <p className={`text-[11px] font-medium mt-1.5 ${isLightMode ? 'text-purple-600' : 'text-purple-400'}`}>
                                 Limited Access – Upgrade to unlock all modules
                             </p>
                         )}
+                        */}
                     </div>
 
                     <div className="sm:mr-4 flex items-center gap-2">
@@ -158,13 +160,14 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                     </div>
 
                     <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-4 sm:gap-8">
-                        <div className={`flex flex-col gap-2 w-full sm:w-auto sm:min-w-[160px] ${isLocked ? 'opacity-80' : ''}`}>
+                        <div className={`flex flex-col gap-2 w-full sm:w-auto sm:min-w-[160px]`}>
                             <ProgressBar progress={progress} height={12} theme={theme} />
                             <p className="text-xs text-slate-500 text-right">
                                 {completedQuestions}/{totalQuestions}
                             </p>
                         </div>
 
+                        {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore lock icon for gated subjects
                         {isLocked ? (
                             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800/80 border border-purple-500/30 text-purple-400">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,15 +175,16 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                                 </svg>
                             </div>
                         ) : (
-                            <svg
-                                className={`w-6 h-6 text-primary-600 transition-transform ${expanded ? 'rotate-180' : ''}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
-                            </svg>
-                        )}
+                        */}
+                        <svg
+                            className={`w-6 h-6 text-primary-600 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
+                        </svg>
+                        {/* )} */}
                     </div>
                 </button>
 
@@ -192,23 +196,20 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                         {/* Action Buttons */}
                         <div className="mb-6 space-y-3">
                             {/* CIE Calculator Button → opens Modal */}
+                            {/* UPGRADE_SECTION_HIDDEN: Original locked version — restore when subscription returns
+                            isLocked navigates to /subscription, shows lock icon and "Upgrade Required" badge
+                            */}
                             <button
                                 type="button"
                                 onClick={e => {
                                     e.stopPropagation();
-                                    if (isLocked) {
-                                        navigate('/subscription');
-                                    } else {
-                                        setShowCIECalculator(!showCIECalculator);
-                                    }
+                                    setShowCIECalculator(!showCIECalculator);
                                 }}
-                                className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition group ${isLocked ? (
-                                    isLightMode ? 'bg-slate-50 border-slate-200 hover:border-purple-300' : 'bg-dark-100 border-white/5 hover:border-purple-500/30'
-                                ) : (
+                                className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition group ${
                                     isLightMode
                                         ? 'bg-gradient-to-r from-violet-50 to-purple-50 border-violet-200 hover:border-violet-400 hover:shadow-md'
                                         : 'bg-gradient-to-r from-violet-600/10 to-purple-600/10 border-violet-500/30 hover:border-violet-400 hover:shadow-lg hover:shadow-violet-500/10'
-                                )}`}
+                                }`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`p-2.5 rounded-lg ${isLightMode ? 'bg-violet-100' : 'bg-violet-600/20'}`}>
@@ -217,14 +218,11 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                                         </svg>
                                     </div>
                                     <div className="text-left relative">
-                                        {isLocked && (
-                                            <span className="absolute -top-3 -right-24 bg-purple-500/20 text-purple-400 text-[9px] font-bold px-1.5 py-0.5 rounded border border-purple-500/30">Upgrade Required</span>
-                                        )}
                                         <h4 className={`font-semibold text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>
                                             Analyze CIE
                                         </h4>
                                         <p className={`text-xs ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
-                                            {isLocked ? 'Premium Feature' : showCIECalculator
+                                            {showCIECalculator
                                                 ? 'Close Analyzer'
                                                 : cieResult
                                                     ? `Score: ${cieResult.cie}/${cieResult.cieMax ?? 50} · ${cieResult.isEligible ? 'Eligible ✓' : 'Not Eligible ✗'}`
@@ -232,16 +230,9 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                                         </p>
                                     </div>
                                 </div>
-
-                                {isLocked ? (
-                                    <svg className={`w-4 h-4 ${isLightMode ? 'text-purple-500' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                    </svg>
-                                ) : (
-                                    <svg className={`w-4 h-4 transition-transform ${showCIECalculator ? 'rotate-90' : ''} ${isLightMode ? 'text-violet-500' : 'text-violet-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                )}
+                                <svg className={`w-4 h-4 transition-transform ${showCIECalculator ? 'rotate-90' : ''} ${isLightMode ? 'text-violet-500' : 'text-violet-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                             </button>
 
                             {/* CIE Calculator Modal (Rendered inside SubjectCard but will be fixed via CSS) */}

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
@@ -549,6 +549,17 @@ const Sidebar = ({
                         </button>
 
                         <button
+                            onClick={() => navigate('/ask-finder?bookmarks=true')}
+                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
+                            title="Saved Materials"
+                        >
+                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                            {!isCollapsed && <span className="text-sm font-semibold">Saved Materials</span>}
+                        </button>
+
+                        <button
                             onClick={() => navigate('/interview-experiences')}
                             className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
                             title="Interview Experiences"
@@ -558,6 +569,9 @@ const Sidebar = ({
                             </svg>
                             {!isCollapsed && <span className="text-sm font-semibold text-left">Interview Experiences</span>}
                         </button>
+
+
+
 
                         <button
                             onClick={() => navigate('/calculator')}
@@ -571,7 +585,7 @@ const Sidebar = ({
                         </button>
                     </div>
 
-                    {/* Billing/Plan Zone */}
+                    {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore Subscription sidebar link
                     <div className="pt-2 border-t border-white/5 space-y-1">
                         <button
                             onClick={() => navigate('/subscription')}
@@ -591,6 +605,7 @@ const Sidebar = ({
                             )}
                         </button>
                     </div>
+                    */}
 
                     {/* Contribution Zone */}
                     <div className="pt-2 border-t border-white/5 space-y-1">
@@ -706,7 +721,7 @@ const Sidebar = ({
                                     </button>
                                 )}
 
-                                {/* Upgrade button for free users only (not admin) */}
+                                {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore Upgrade button in profile dropdown
                                 {user?.subscription === 'free' && !user?.isAdmin && (
                                     <button
                                         type="button"
@@ -723,6 +738,7 @@ const Sidebar = ({
                                         <span>Upgrade to ASK+</span>
                                     </button>
                                 )}
+                                */}
 
                                 <button
                                     type="button"

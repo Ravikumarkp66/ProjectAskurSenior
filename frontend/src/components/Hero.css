@@ -23,16 +23,15 @@
 
 /* Landing Page Container */
 .landing-page {
-    min-height: 100vh;
+    position: relative;
     background: var(--bg-primary);
     color: var(--text-primary);
-    position: relative;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 /* Background Layers */
 .bg-gradient-layer {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background:
         radial-gradient(ellipse 80% 50% at 50% -20%, var(--glow-indigo), transparent),
@@ -42,7 +41,7 @@
 }
 
 .bg-grid-pattern {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background-image:
         linear-gradient(var(--border-glass) 1px, transparent 1px),
@@ -56,7 +55,7 @@
 }
 
 .bg-glow {
-    position: fixed;
+    position: absolute;
     width: 600px;
     height: 600px;
     border-radius: 50%;
@@ -74,7 +73,7 @@
 
 .bg-glow-2 {
     background: var(--glow-indigo);
-    bottom: -300px;
+    top: 0;
     right: -100px;
 }
 

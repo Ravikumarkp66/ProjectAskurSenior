@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { articleAPI } from '../services/articleAPI';
 import { useAuth } from '../utils/hooks';
-import { Send, User as UserIcon, MessageSquare, MoreVertical, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Send, User as UserIcon, MessageSquare, Edit2, Trash2, X, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const CommentSection = ({ articleId }) => {
@@ -14,11 +14,7 @@ const CommentSection = ({ articleId }) => {
     const [editContent, setEditContent] = useState('');
     const { isAuthenticated, user } = useAuth();
 
-    useEffect(() => {
-        fetchComments();
-    }, [articleId]);
-
-    const fetchComments = async () => {
+    const fetchComments = useCallback(async () => {
         try {
             const data = await articleAPI.getComments(articleId);
             setComments(data);
@@ -27,7 +23,11 @@ const CommentSection = ({ articleId }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [articleId]);
+
+    useEffect(() => {
+        fetchComments();
+    }, [fetchComments]);
 
     const handlePostComment = async (e) => {
         e.preventDefault();

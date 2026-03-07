@@ -194,6 +194,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                             Academic Stats
                         </button>
+                        {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore Current Plan tab in profile modal
                         <button
                             onClick={() => setActiveTab('subscription')}
                             className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition flex items-center gap-3 ${activeTab === 'subscription'
@@ -204,6 +205,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" /></svg>
                             Current Plan
                         </button>
+                        */}
                     </div>
 
                     {/* Main Content Area */}
@@ -409,71 +411,13 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                             </div>
                         )}
 
+                        {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore subscription tab content
                         {activeTab === 'subscription' && (
                             <div className="animate-fadeIn max-w-xl space-y-6">
-                                <div className={`p-6 rounded-2xl border ${isLightMode ? 'bg-white border-gray-100' : 'bg-gray-800/40 border-gray-700'} relative overflow-hidden`}>
-                                    <div className="flex justify-between items-start relative z-10">
-                                        <div>
-                                            <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>Current Plan</p>
-                                            <h3 className={`text-3xl font-black ${user?.subscription === 'askplus' ? 'text-blue-500' : (isLightMode ? 'text-gray-900' : 'text-white')}`}>
-                                                {user?.subscription === 'askplus' ? 'ASK+' : 'FREE'}
-                                            </h3>
-                                        </div>
-                                        {user?.subscription === 'askplus' && (
-                                            <div className="bg-blue-500 text-white p-2 rounded-xl shadow-lg shadow-blue-500/20">
-                                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5M19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z" /></svg>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {user?.subscription === 'askplus' ? (
-                                        <div className="mt-8 space-y-4 relative z-10">
-                                            <div className={`p-4 rounded-xl ${isLightMode ? 'bg-blue-50' : 'bg-blue-900/10'} border border-blue-500/20`}>
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <p className={`text-xs font-bold ${isLightMode ? 'text-blue-700' : 'text-blue-400'}`}>Valid Until</p>
-                                                        <p className={`text-sm font-semibold ${isLightMode ? 'text-blue-900' : 'text-blue-200'}`}>
-                                                            {new Date(user.subscriptionExpiry).toLocaleDateString(undefined, { dateStyle: 'long' })}
-                                                        </p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className={`text-xs font-bold ${isLightMode ? 'text-blue-700' : 'text-blue-400'}`}>Time Left</p>
-                                                        <p className="text-xl font-black text-blue-500">
-                                                            {Math.max(0, Math.ceil((new Date(user.subscriptionExpiry) - new Date()) / (1000 * 60 * 60 * 24)))} Days
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div className={`p-3 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-900/50'} flex items-center gap-3`}>
-                                                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className={`text-[11px] font-bold ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Premium Notes</span>
-                                                </div>
-                                                <div className={`p-3 rounded-xl ${isLightMode ? 'bg-gray-50' : 'bg-gray-900/50'} flex items-center gap-3`}>
-                                                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className={`text-[11px] font-bold ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>Interview Exp.</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="mt-8 space-y-4 relative z-10">
-                                            <p className={`text-sm ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                Upgrade to ASK+ to unlock previous year questions, placement experiences, and premium notes.
-                                            </p>
-                                            <button
-                                                onClick={() => { onClose(); window.location.href = '/subscription'; }}
-                                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 hover:scale-[1.02] transition active:scale-95"
-                                            >
-                                                Upgrade to ASK+
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Abstract background pattern */}
-                                    <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
-                                </div>
+                                ... (subscription plan display and upgrade button)
                             </div>
                         )}
+                        */}
 
                         {activeTab === 'stats' && (
                             <div className="animate-fadeIn">

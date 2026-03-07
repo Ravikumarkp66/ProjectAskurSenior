@@ -4,7 +4,6 @@ import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../utils/hooks';
 
 import { authAPI } from '../services/api';
-import { deriveBranchFromUSN, toBackendBranch, validateUSN } from '../utils/constants';
 import Hero from '../components/Hero';
 import AuthSuccess from '../components/AuthSuccess';
 import Logo from '../components/Logo';
@@ -14,13 +13,7 @@ import PrivacyModal from '../components/PrivacyModal';
 const LoginPage = ({ initialMode = 'login' }) => {
     const navigate = useNavigate();
     const { login, isAuthenticated, loading: authLoading, user } = useAuth();
-    const [formData, setFormData] = useState({
-        usn: '',
-        password: '',
-        confirmPassword: '',
-        email: ''
-    });
-    const [mode, setMode] = useState(initialMode === 'register' ? 'register' : 'login'); // 'login', 'register', or 'admin'
+    const mode = initialMode === 'register' ? 'register' : 'login'; // 'login', 'register', or 'admin'
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
@@ -40,22 +33,6 @@ const LoginPage = ({ initialMode = 'login' }) => {
     }, [navigate, isAuthenticated, authLoading, user]);
 
     const isAdmin = mode === 'admin';
-    const isLogin = mode === 'login';
-
-    // Clear form when mode changes
-    const handleModeChange = (newMode) => {
-        setMode(newMode);
-        setFormData({ usn: '', password: '', confirmPassword: '', email: '' });
-        setError('');
-    };
-
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value
-        }));
-    };
 
     const handleSuccess = (user, token, message, targetPath) => {
         setSuccessMessage(message);
@@ -84,78 +61,6 @@ const LoginPage = ({ initialMode = 'login' }) => {
             handleSuccess(user, token, message || 'Successfully logged in with Google', '/dashboard');
         } catch (err) {
             setError(err.response?.data?.error || 'Google Login failed. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        setLoading(true);
-
-        try {
-            const { usn, email, password, confirmPassword } = formData;
-
-            if (isAdmin) {
-                if (!email || !password) {
-                    setError('Email and password are required');
-                    setLoading(false);
-                    return;
-                }
-                const response = await authAPI.adminLogin({ email, password });
-                const { token, user } = response.data;
-                handleSuccess(user, token, 'Successfully logged in as Admin', '/admin');
-                return;
-            }
-
-            const branch = deriveBranchFromUSN(usn);
-            if (!usn || !password) {
-                setError('USN and password are required');
-                setLoading(false);
-                return;
-            }
-            if (!validateUSN(usn)) {
-                setError('Invalid USN format (e.g., VTM22CS001)');
-                setLoading(false);
-                return;
-            }
-            if (!branch) {
-                setError('Unable to detect branch from USN');
-                setLoading(false);
-                return;
-            }
-
-            if (mode === 'login') {
-                const response = await authAPI.login({ usn, password, branch: toBackendBranch(branch) });
-                const { token, user } = response.data;
-                handleSuccess(user, token, 'Successfully logged in to Ask+', '/dashboard');
-            } else {
-                if (!email) {
-                    setError('Email is required for registration');
-                    setLoading(false);
-                    return;
-                }
-                if (password.length < 6) {
-                    setError('Password must be at least 6 characters');
-                    setLoading(false);
-                    return;
-                }
-                if (password !== confirmPassword) {
-                    setError('Passwords do not match');
-                    setLoading(false);
-                    return;
-                }
-                const response = await authAPI.register({ usn, email, password, branch: toBackendBranch(branch) });
-                const { token, user } = response.data;
-                handleSuccess(user, token, 'Account created successfully!', '/dashboard');
-            }
-        } catch (err) {
-            const rawMessage = err.response?.data?.error || 'Authentication failed. Please try again.';
-            const normalizedMessage = /verify|otp/i.test(rawMessage)
-                ? 'Invalid credentials. Please try again.'
-                : rawMessage;
-            setError(normalizedMessage);
         } finally {
             setLoading(false);
         }

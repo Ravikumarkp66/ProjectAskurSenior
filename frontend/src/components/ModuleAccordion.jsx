@@ -58,28 +58,17 @@ const ModuleAccordion = ({
 
     return (
         <div
-            className={`border rounded-lg mb-3 overflow-hidden shadow-sm transition ${isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-dark-100'
-                } ${isLockedModule ? 'opacity-80 hover:border-purple-500/30 hover:shadow-md cursor-pointer' : ''}`}
+            className={`border rounded-lg mb-3 overflow-hidden shadow-sm transition ${isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-dark-100'}`}
         >
+            {/* UPGRADE_SECTION_HIDDEN: isLockedModule outer div had: ${isLockedModule ? 'opacity-80 hover:border-purple-500/30 hover:shadow-md cursor-pointer' : ''} */}
             <div
                 role="button"
                 tabIndex={0}
-                onClick={(e) => {
-                    if (isLockedModule) {
-                        e.stopPropagation();
-                        navigate('/subscription');
-                    } else {
-                        setExpanded(!expanded);
-                    }
-                }}
+                onClick={() => setExpanded(!expanded)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        if (isLockedModule) {
-                            navigate('/subscription');
-                        } else {
-                            setExpanded(!expanded);
-                        }
+                        setExpanded(!expanded);
                     }
                 }}
                 className={`w-full px-4 py-3 min-h-11 transition flex flex-col sm:flex-row sm:items-center items-start sm:justify-between gap-3 cursor-pointer outline-none focus:ring-1 focus:ring-purple-500/30 ${isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-dark-100 hover:bg-dark-50'
@@ -88,11 +77,13 @@ const ModuleAccordion = ({
                 <div className="w-full sm:flex-1">
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
+                            {/* UPGRADE_SECTION_HIDDEN: Uncomment to show lock icon on locked modules
                             {isLockedModule && (
                                 <svg className={`w-4 h-4 shrink-0 ${isLightMode ? 'text-purple-500' : 'text-purple-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                             )}
+                            */}
                             <span className={`font-semibold block text-left ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>{module.title}</span>
                         </div>
                     </div>
@@ -188,6 +179,7 @@ const ModuleAccordion = ({
                     >
                         {completed}/{total}
                     </span>
+                    {/* UPGRADE_SECTION_HIDDEN: Uncomment to show lock/chevron toggle based on isLockedModule
                     {isLockedModule ? (
                         <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800/80 border border-purple-500/30 text-purple-400 shrink-0">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -195,15 +187,16 @@ const ModuleAccordion = ({
                             </svg>
                         </div>
                     ) : (
-                        <svg
-                            className={`w-5 h-5 text-primary-600 transition-transform ${expanded ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
-                        </svg>
-                    )}
+                    */}
+                    <svg
+                        className={`w-5 h-5 text-primary-600 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
+                    </svg>
+                    {/* )} */}
                 </div>
             </div>
 

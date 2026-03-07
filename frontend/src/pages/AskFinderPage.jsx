@@ -1,0 +1,1215 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../utils/hooks';
+import ProfileModal from '../components/ProfileModal';
+import { apiClient } from '../services/api';
+import { deriveBranchFromUSN, toUiBranch } from '../utils/constants';
+import DocComments from '../components/DocComments';
+import LoginRequiredModal from '../components/LoginRequiredModal';
+import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const AskFinderPage = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, isAuthenticated, loading: authLoading, updateUser } = useAuth();
+
+    // Theme & Layout state
+    const [theme, setTheme] = useState(() => {
+        try {
+            return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark';
+        } catch {
+            return 'dark';
+        }
+    });
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [branchOverride, setBranchOverride] = useState(() => {
+        try {
+            return localStorage.getItem('branchOverride') || '';
+        } catch {
+            return '';
+        }
+    });
+    const [currentBranch, setCurrentBranch] = useState(
+        branchOverride || deriveBranchFromUSN(user?.usn) || toUiBranch(user?.currentBranch) || 'CS'
+    );
+
+    const isLightMode = theme === 'light';
+
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedSubject, setSelectedSubject] = useState('');
+    const [selectedPaperType, setSelectedPaperType] = useState('');
+    const [selectedSemester, setSelectedSemester] = useState('');
+    const [selectedYear, setSelectedYear] = useState('');
+    const [selectedDocType, setSelectedDocType] = useState('');
+    const [sortBy, setSortBy] = useState('newest');
+    const [statusFilter, setStatusFilter] = useState('all'); // 'all' (approved only) or 'pending' (admin review)
+    const [bookmarksOnly, setBookmarksOnly] = useState(false);
+    const [showLoginModal, setShowLoginModal] = useState(false);
+
+    // Data state
+    const [documents, setDocuments] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [subjects, setSubjects] = useState([]);
+    const [paperTypes, setPaperTypes] = useState([]);
+    const [searchSummary, setSearchSummary] = useState({ total: 0, notes: 0, see: 0, internals: 0 });
+
+    // Upload state
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadLoading, setUploadLoading] = useState(false);
+    const [uploadMetadata, setUploadMetadata] = useState({
+        subjectName: '',
+        subjectCode: '',
+        semester: '',
+        year: '',
+        documentType: 'notes',
+        paperType: '',
+        tags: '',
+        moduleInfo: '',
+        pageCount: '',
+        showContributorName: 'false',
+        contributorName: '',
+        contributorYear: '',
+        contributorBranch: ''
+    });
+
+    const formatSize = (bytes) => {
+        if (!bytes) return '0.00 MB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    };
+
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState('');
+    const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
+    const [editingId, setEditingId] = useState(null);
+    const [editValue, setEditValue] = useState('');
+    const [editingDocTypeId, setEditingDocTypeId] = useState(null);
+
+    useEffect(() => {
+        const sync = () => {
+            try {
+                setTheme(localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark');
+            } catch {
+                setTheme('dark');
+            }
+        };
+        window.addEventListener('uiThemeChange', sync);
+        window.addEventListener('storage', sync);
+        return () => {
+            window.removeEventListener('uiThemeChange', sync);
+            window.removeEventListener('storage', sync);
+        };
+    }, []);
+
+    // Read ?bookmarks=true from URL on page load
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('bookmarks') === 'true') {
+            if (isAuthenticated) {
+                setBookmarksOnly(true);
+            } else {
+                // If not logged in and they try the bookmarks link, show login modal
+                setShowLoginModal(true);
+            }
+        }
+    }, [location.search, isAuthenticated]);
+
+    useEffect(() => {
+        // Fetch metadata for all users so filters are populated
+        fetchMetadata();
+    }, []);
+
+    // Automatic Search when filters change
+    useEffect(() => {
+            handleSearch();
+    }, [selectedSubject, selectedPaperType, selectedSemester, selectedYear, selectedDocType, sortBy, statusFilter, bookmarksOnly]);
+
+    // Debounced Search when query changes
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            handleSearch();
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    const handleBranchOverrideChange = (nextBranch) => {
+        const value = (nextBranch || '').toString();
+        setBranchOverride(value);
+        try {
+            if (value) localStorage.setItem('branchOverride', value);
+            else localStorage.removeItem('branchOverride');
+        } catch { }
+        if (value) setCurrentBranch(value);
+    };
+
+    const fetchMetadata = async () => {
+        try {
+            const [subjectsRes, paperTypesRes] = await Promise.all([
+                apiClient.get('/documents/subjects'),
+                apiClient.get('/documents/paper-types')
+            ]);
+            setSubjects(subjectsRes.data || []);
+            setPaperTypes(paperTypesRes.data || []);
+        } catch (error) {
+            console.error('Failed to fetch metadata:', error);
+        }
+    };
+
+    const handleSearch = async () => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (searchQuery.trim()) params.append('q', searchQuery.toLowerCase());
+            if (selectedSubject) params.append('subject', selectedSubject.toLowerCase());
+            if (selectedPaperType) params.append('paperType', selectedPaperType.toLowerCase());
+            if (selectedSemester) params.append('semester', selectedSemester.toLowerCase());
+            if (selectedYear) params.append('year', selectedYear.toLowerCase());
+            if (selectedDocType) params.append('documentType', selectedDocType.toLowerCase());
+            if (sortBy) params.append('sortBy', sortBy);
+            
+            if (user?.isAdmin && statusFilter === 'pending') {
+                params.append('adminView', 'true');
+                params.append('status', 'pending');
+            }
+            if (bookmarksOnly) {
+                params.append('bookmarksOnly', 'true');
+            }
+
+            const response = await apiClient.get(`/documents/search?${params.toString()}`);
+            setDocuments(response.data.documents || response.data || []);
+            setSearchSummary(response.data.summary || { total: 0, notes: 0, see: 0, internals: 0 });
+        } catch (error) {
+            console.error('Search failed:', error);
+            setDocuments([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpload = async (e) => {
+        e.preventDefault();
+        if (!uploadFile || !uploadMetadata.subjectName) {
+            alert('Please fill all required fields and select a file');
+            return;
+        }
+
+        setUploadLoading(true);
+        setUploadProgress(0);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', uploadFile);
+
+            Object.keys(uploadMetadata).forEach(key => {
+                if (uploadMetadata[key] !== undefined && uploadMetadata[key] !== '') {
+                    // Don't lowercase moduleInfo, pageCount or name/year/branch
+                    const skipLower = ['moduleInfo', 'pageCount', 'contributorName', 'contributorYear', 'contributorBranch'].includes(key);
+                    const value = skipLower ? uploadMetadata[key] : uploadMetadata[key].toLowerCase();
+                    formData.append(key, value);
+                }
+            });
+
+            await apiClient.post('/documents/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                onUploadProgress: (progressEvent) => {
+                    setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+                },
+            });
+
+            alert(user?.isAdmin ? 'Material added successfully!' : 'Thank you! Your contribution has been submitted for admin approval.');
+            setShowUploadModal(false);
+            resetUploadForm();
+            handleSearch();
+        } catch (error) {
+            console.error('Upload failed:', error);
+            alert('Upload failed: ' + (error.response?.data?.error || error.message));
+        } finally {
+            setUploadLoading(false);
+        }
+    };
+
+    const resetUploadForm = () => {
+        setUploadFile(null);
+        setUploadMetadata({
+            subjectName: '', subjectCode: '', semester: '', year: '',
+            documentType: 'notes', tags: '', moduleInfo: '', pageCount: '',
+            showContributorName: 'false', contributorName: '', contributorYear: '', contributorBranch: ''
+        });
+        setUploadProgress(0);
+    };
+
+    const handleDownload = async (documentId) => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            const response = await apiClient.get(`/documents/${documentId}/download`);
+            const downloadUrl = response.data.downloadUrl;
+            window.location.href = downloadUrl;
+        } catch (error) {
+            console.error('Download failed:', error);
+            alert('Download failed to generate link');
+        }
+    };
+
+    const handlePreview = async (documentId) => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            const response = await apiClient.get(`/documents/${documentId}/preview-url`);
+            const previewUrl = response.data.previewUrl;
+            setPreviewUrl(previewUrl);
+            setShowPreviewModal(true);
+        } catch (error) {
+            console.error('Preview failed:', error);
+            alert('Failed to generate preview link');
+        }
+    };
+
+    const handleDocDelete = async (documentId) => {
+        try {
+            await apiClient.delete(`/documents/${documentId}`);
+            setConfirmingDeleteId(null);
+            handleSearch();
+        } catch (error) {
+            console.error('Delete failed:', error);
+            alert('Failed to delete document: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    const handleApprove = async (documentId) => {
+        try {
+            await apiClient.post(`/documents/${documentId}/approve`);
+            handleSearch();
+        } catch (error) {
+            console.error('Approve failed:', error);
+            alert('Approval failed');
+        }
+    };
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setSelectedSubject('');
+        setSelectedPaperType('');
+        setSelectedSemester('');
+        setSelectedYear('');
+        setSelectedDocType('');
+        setSortBy('newest');
+    };
+
+    const handleUpdateFileName = async (documentId) => {
+        if (!editValue.trim()) return;
+        try {
+            await apiClient.patch(`/documents/${documentId}`, { originalName: editValue });
+            setEditingId(null);
+            handleSearch();
+        } catch (error) {
+            console.error('Update failed:', error);
+            alert('Update failed: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    const handleUpdateDocumentType = async (documentId, newType) => {
+        try {
+            await apiClient.patch(`/documents/${documentId}`, { documentType: newType });
+            setEditingDocTypeId(null);
+            handleSearch();
+        } catch (error) {
+            console.error('Update failed:', error);
+            alert('Update failed: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    const handleLike = async (documentId) => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            await apiClient.post(`/documents/${documentId}/like`);
+            // Update local state to show the like immediately
+            setDocuments(prev => prev.map(doc => {
+                if (doc._id === documentId) {
+                    const isLiked = doc.likes?.includes(user._id);
+                    const newLikes = isLiked 
+                        ? doc.likes.filter(id => id !== user._id)
+                        : [...(doc.likes || []), user._id];
+                    return { ...doc, likes: newLikes };
+                }
+                return doc;
+            }));
+        } catch (error) {
+            console.error('Like failed:', error);
+        }
+    };
+
+    const handleBookmark = async (documentId) => {
+        if (!isAuthenticated) {
+            setShowLoginModal(true);
+            return;
+        }
+        try {
+            const response = await apiClient.post(`/documents/${documentId}/bookmark`);
+            if (response.data.bookmarks && updateUser) {
+                updateUser({ ...user, bookmarks: response.data.bookmarks });
+            }
+        } catch (error) {
+            console.error('Bookmark failed:', error);
+        }
+    };
+
+    if (authLoading) return <div className="min-h-screen bg-[#0a0a0b]" />;
+
+    return (
+        <div className={`min-h-screen ${isLightMode ? 'bg-slate-50 text-slate-900' : 'bg-[#0a0a0b] text-white font-outfit'} flex flex-col pt-12`}>
+            <main className="flex-1 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+
+                <Link to="/" className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 mb-4 font-medium transition-colors">
+                    <ArrowLeft size={16} />
+                    <span>Back to Home</span>
+                </Link>
+
+                {/* Header Section (Blog-like) */}
+                <div className="mb-12 text-center mt-4">
+                            <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 mb-4 tracking-tight">
+                                ASK+ Finder
+                            </h1>
+                            <p className={`text-lg max-w-2xl mx-auto mb-8 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                Search and download study materials, PYQs, test papers, and notes shared by seniors.
+                            </p>
+
+                            {/* Search Bar */}
+                            <form onSubmit={(e) => e.preventDefault()} className="max-w-4xl mx-auto relative group">
+                                <div className="absolute inset-y-0 left-0 pl-12 flex items-center pointer-events-none">
+                                    <Search size={22} className={`transition-colors ${isLightMode ? 'text-slate-400 group-focus-within:text-purple-600' : 'text-slate-500 group-focus-within:text-purple-400'}`} />
+                                </div>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search by topic, exam, tags..."
+                                    className={`w-full border rounded-full py-5 pl-24 pr-10 focus:outline-none focus:ring-2 focus:border-transparent transition-all shadow-xl backdrop-blur-md shadow-purple-900/10 text-lg
+                                        ${isLightMode
+                                            ? 'bg-white border-slate-200 text-slate-900 focus:ring-purple-500/50'
+                                            : 'bg-[#141416]/70 border-white/5 text-white focus:ring-purple-500/50 focus:border-purple-500'}`}
+                                />
+                            </form>
+                        </div>
+
+                        {/* Filters Section */}
+                        <div className={`mb-10 p-5 rounded-2xl border transition-all ${isLightMode ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#141416]/60 border-white/5 backdrop-blur-sm'}`}>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-4">
+                                <h3 className={`font-semibold flex items-center gap-2 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>
+                                    <Filter size={18} /> Filters
+                                    {(searchQuery || selectedSubject || selectedPaperType || selectedSemester || selectedYear || selectedDocType || sortBy !== 'newest') && (
+                                        <button 
+                                            onClick={resetFilters}
+                                            className="ml-4 text-[11px] font-black text-purple-400 hover:text-white uppercase tracking-widest bg-purple-500/20 hover:bg-purple-600 px-3 py-1.5 rounded-full border border-purple-500/30 transition-all active:scale-95 shadow-lg shadow-purple-500/10"
+                                        >
+                                            Clear All Filters
+                                        </button>
+                                    )}
+                                </h3>
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                                    <div className="flex items-center gap-2 group/sort flex-1 sm:flex-none min-w-[150px]">
+                                        <TrendingUp size={18} className={`flex-shrink-0 transition-colors ${isLightMode ? 'text-slate-400 group-focus-within/sort:text-purple-500' : 'text-purple-400 group-focus-within/sort:text-purple-300'}`} />
+                                        <select
+                                            value={sortBy}
+                                            onChange={(e) => setSortBy(e.target.value)}
+                                            className={`w-full text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-all pr-8`}
+                                            style={isLightMode
+                                                ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                                : { background: '#141416', borderColor: 'rgba(255,255,255,0.1)', color: '#cbd5e1', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                            }
+                                        >
+                                            <option style={{background: isLightMode ? '#fff' : '#141416'}} value="newest">Sort By: Newest</option>
+                                            <option style={{background: isLightMode ? '#fff' : '#141416'}} value="most-downloaded">Sort By: Popular</option>
+                                            <option style={{background: isLightMode ? '#fff' : '#141416'}} value="most-liked">Sort By: Most Liked</option>
+                                            <option style={{background: isLightMode ? '#fff' : '#141416'}} value="size-asc">Sort By: Smallest MB</option>
+                                            <option style={{background: isLightMode ? '#fff' : '#141416'}} value="size-desc">Sort By: Largest MB</option>
+                                            <option style={{background: isLightMode ? '#fff' : '#141416'}} value="recently-updated">Sort By: Last Updated</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Saved Items — always visible */}
+                                    <button
+                                        onClick={() => {
+                                            if (!isAuthenticated) return setShowLoginModal(true);
+                                            setBookmarksOnly(!bookmarksOnly);
+                                        }}
+                                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
+                                            bookmarksOnly
+                                                ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/30'
+                                                : `hover:bg-purple-500/10 hover:border-purple-500/30 ${isLightMode ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400'}`
+                                        }`}
+                                        title={bookmarksOnly ? "Exit Saved Items" : "View Saved Items"}
+                                    >
+                                        <Bookmark size={16} fill={bookmarksOnly ? "currentColor" : "none"} />
+                                        <span className="hidden sm:inline">Saved Items</span>
+                                    </button>
+
+                                    {user?.isAdmin ? (
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setStatusFilter(statusFilter === 'all' ? 'pending' : 'all')}
+                                                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
+                                                    statusFilter === 'pending'
+                                                        ? 'bg-amber-500/20 border-amber-500/40 text-amber-500 shadow-lg shadow-amber-500/10'
+                                                        : `hover:bg-purple-500/10 ${isLightMode ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400'}`
+                                                }`}
+                                            >
+                                                {statusFilter === 'pending' ? <Clock size={16} /> : <ShieldCheck size={16} />}
+                                                {statusFilter === 'pending' ? 'Exit Queue' : 'Review Queue'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setUploadMetadata(prev => ({ ...prev, showContributorName: 'false' }));
+                                                    setShowUploadModal(true);
+                                                }}
+                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md active:scale-95"
+                                            >
+                                                <Upload size={16} />
+                                                Add Material
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => {
+                                                if (!isAuthenticated) return setShowLoginModal(true);
+                                                setUploadMetadata(prev => ({ ...prev, showContributorName: 'true' }));
+                                                setShowUploadModal(true);
+                                            }}
+                                            className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs sm:text-sm font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-500/20 active:scale-95"
+                                        >
+                                            <UserCheck size={18} />
+                                            <span className="hidden sm:inline">Contribute</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <select
+                                    value={selectedSemester}
+                                    onChange={(e) => { setSelectedSemester(e.target.value); }}
+                                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                    style={isLightMode
+                                        ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151' }
+                                        : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff' }
+                                    }
+                                >
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">All Years</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="1st Year">1st Year</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="2nd Year">2nd Year</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="3rd Year">3rd Year</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="4th Year">4th Year</option>
+                                </select>
+
+                                <select
+                                    value={selectedSubject}
+                                    onChange={(e) => { setSelectedSubject(e.target.value); }}
+                                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                    style={isLightMode
+                                        ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151' }
+                                        : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff' }
+                                    }
+                                >
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">All Subjects</option>
+                                    {subjects.map((s, i) => (
+                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={i} value={s.name || s}>{s.name || s}</option>
+                                    ))}
+                                </select>
+
+                                <select
+                                    value={selectedDocType}
+                                    onChange={(e) => { setSelectedDocType(e.target.value); }}
+                                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                    style={isLightMode
+                                        ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151' }
+                                        : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff' }
+                                    }
+                                >
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">All Types</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="notes">Notes</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="internals">Internals</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="see">SEE</option>
+                                </select>
+
+                                <select
+                                    value={selectedYear}
+                                    onChange={(e) => { setSelectedYear(e.target.value); }}
+                                    className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                    style={isLightMode
+                                        ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151' }
+                                        : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff' }
+                                    }
+                                >
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">Batch / Year</option>
+                                    {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={year} value={year}>{year}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Results Count & Breakdown */}
+                        {!loading && documents.length > 0 && (
+                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <div className="flex items-center gap-2">
+                                    <div className={`h-8 w-1 bg-purple-500 rounded-full`}></div>
+                                    <h2 className={`text-xl font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
+                                        Found <span className="text-purple-500">{searchSummary.total}</span> Materials
+                                    </h2>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {searchSummary.notes > 0 && (
+                                        <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                            Notes: {searchSummary.notes}
+                                        </span>
+                                    )}
+                                    {searchSummary.see > 0 && (
+                                        <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                            SEE: {searchSummary.see}
+                                        </span>
+                                    )}
+                                    {searchSummary.internals > 0 && (
+                                        <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                            Internals: {searchSummary.internals}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Content Grid */}
+                        {loading ? (
+                            <div className="flex justify-center items-center py-20">
+                                <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                            </div>
+                        ) : documents.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
+                                {documents.slice(0, 10).map((doc) => (
+                                    <div key={doc._id} className={`rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden flex flex-col group
+                                        ${isLightMode
+                                            ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
+                                            : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
+                                    >
+                                        <div className="p-6 flex-1">
+                                            <div className="flex justify-between items-start mb-4">
+                                                <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 group-hover:rotate-3 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                    <FileText size={20} />
+                                                </div>
+                                                <div className="flex items-center gap-1.5 ml-auto mr-2">
+                                                    <div className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleLike(doc._id); }}
+                                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all active:scale-90 ${
+                                                                doc.likes?.includes(user?._id)
+                                                                    ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                                                    : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
+                                                            }`}
+                                                        >
+                                                            <Heart size={14} className={doc.likes?.includes(user?._id) ? 'fill-current' : ''} />
+                                                            <span className="text-[10px] font-black">{doc.likes?.length || 0}</span>
+                                                        </button>
+                                                        <div className={`w-px h-3 mx-1 ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleBookmark(doc._id); }}
+                                                            className={`p-1.5 rounded-lg transition-all active:scale-90 ${
+                                                                user?.bookmarks?.includes(doc._id)
+                                                                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                                                                    : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
+                                                            }`}
+                                                            title="Bookmark Document"
+                                                        >
+                                                            <Bookmark size={14} className={user?.bookmarks?.includes(doc._id) ? 'fill-current' : ''} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1 ml-4">
+                                                    {user?.isAdmin && (
+                                                        <div className="relative mb-2">
+                                                            {confirmingDeleteId === doc._id ? (
+                                                                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-1.5 rounded-lg animate-in fade-in zoom-in duration-200">
+                                                                    <span className="text-[10px] font-bold text-red-500 px-1">WANT TO ERASE?</span>
+                                                                    <button 
+                                                                        onClick={() => handleDocDelete(doc._id)}
+                                                                        className="bg-red-500 text-white p-1 rounded hover:bg-red-600 transition-colors"
+                                                                        title="Confirm Delete"
+                                                                    >
+                                                                        <Trash2 size={12} fill="white" />
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => setConfirmingDeleteId(null)}
+                                                                        className={`p-1 rounded hover:bg-slate-200 transition-colors ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                        title="Cancel"
+                                                                    >
+                                                                        <X size={12} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={(e) => { e.stopPropagation(); setConfirmingDeleteId(doc._id); }}
+                                                                    className={`p-2 rounded-lg transition-all hover:bg-red-500/10 hover:text-red-500 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                    title="Delete Document"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {editingDocTypeId === doc._id ? (
+                                                        <select
+                                                            autoFocus
+                                                            value={doc.documentType}
+                                                            onChange={(e) => handleUpdateDocumentType(doc._id, e.target.value)}
+                                                            onBlur={() => setEditingDocTypeId(null)}
+                                                            className={`text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-wider border focus:outline-none 
+                                                                ${isLightMode ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0a0a0b] border-white/10 text-white'}`}
+                                                        >
+                                                            <option value="notes">Notes</option>
+                                                            <option value="internals">Internals</option>
+                                                            <option value="see">SEE</option>
+                                                        </select>
+                                                    ) : (
+                                                        <div 
+                                                            onClick={() => user?.isAdmin && setEditingDocTypeId(doc._id)}
+                                                            className={`relative group cursor-pointer ${user?.isAdmin ? 'hover:scale-105 transition-transform' : ''}`}
+                                                        >
+                                                            {doc.documentType === 'notes' && (
+                                                                <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm block">
+                                                                    Notes
+                                                                </span>
+                                                            )}
+                                                            {doc.documentType === 'see' && (
+                                                                <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm block">
+                                                                    SEE
+                                                                </span>
+                                                            )}
+                                                            {doc.documentType === 'internals' && (
+                                                                <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm block">
+                                                                    Internals
+                                                                </span>
+                                                            )}
+                                                            {user?.isAdmin && (
+                                                                <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-purple-500 text-white rounded-full p-0.5 shadow-lg">
+                                                                    <Edit size={8} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {!doc.isApproved && (
+                                                    <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-md shadow-lg animate-pulse border border-amber-400">
+                                                        Review Pending
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <h3 className={`text-xl font-bold mb-3 capitalize leading-tight ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
+                                                {doc.subjectName}
+                                            </h3>
+
+                                            <div className="space-y-1.5 mb-5 block">
+                                                {doc.semester && (
+                                                    <p className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                        <span className="font-semibold text-xs uppercase tracking-wider opacity-70">Year:</span> <span className="font-medium">{doc.semester}</span>
+                                                    </p>
+                                                )}
+                                                <div className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                    <span className="font-semibold text-xs uppercase tracking-wider opacity-70">File:</span> 
+                                                    {editingId === doc._id ? (
+                                                        <div className="flex items-center gap-1 flex-1">
+                                                            <input 
+                                                                type="text"
+                                                                value={editValue}
+                                                                onChange={(e) => setEditValue(e.target.value)}
+                                                                className={`flex-1 px-2 py-1 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-purple-500 ${isLightMode ? 'bg-white border-slate-300' : 'bg-[#0a0a0b] border-white/10'}`}
+                                                                autoFocus
+                                                            />
+                                                            <button onClick={() => handleUpdateFileName(doc._id)} className="text-emerald-500 hover:text-emerald-600">
+                                                                <Check size={14} />
+                                                            </button>
+                                                            <button onClick={() => setEditingId(null)} className="text-red-500 hover:text-red-600">
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 group/file">
+                                                            <span className="font-medium truncate max-w-[150px]" title={doc.originalName}>{doc.originalName}</span>
+                                                            {user?.isAdmin && (
+                                                                <button 
+                                                                    onClick={() => { setEditingId(doc._id); setEditValue(doc.originalName); }}
+                                                                    className={`opacity-0 group-hover/file:opacity-100 transition-opacity p-1 rounded hover:bg-purple-500/10 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                    title="Edit filename"
+                                                                >
+                                                                    <Edit size={12} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {doc.contributor?.showName && (
+                                                    <div className={`mt-3 p-2.5 rounded-xl border flex items-center gap-2.5 ${isLightMode ? 'bg-purple-50/50 border-purple-100 text-purple-700' : 'bg-purple-500/10 border-purple-500/20 text-purple-300'}`}>
+                                                        <div className={`p-1.5 rounded-lg ${isLightMode ? 'bg-white text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                            <UserCheck size={14} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-[10px] uppercase font-black tracking-tighter opacity-60 leading-none mb-1">Contributor</span>
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                                <span className="text-xs font-bold leading-none">{doc.contributor.name}</span>
+                                                                {(doc.contributor.year || doc.contributor.branch) && (
+                                                                    <span className="text-[10px] opacity-70 leading-none">
+                                                                        ({[doc.contributor.year, doc.contributor.branch].filter(Boolean).join(' • ')})
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-2">
+                                                {doc.subjectCode && (
+                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'}`}>
+                                                        CODE: {doc.subjectCode}
+                                                    </span>
+                                                )}
+                                                {doc.paperType && (
+                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-purple-50 text-purple-600' : 'bg-purple-500/10 text-purple-400'}`}>
+                                                        TYPE: {doc.paperType}
+                                                    </span>
+                                                )}
+                                                {doc.moduleInfo && (
+                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-amber-500/10 text-amber-600' : 'bg-amber-500/10 text-amber-400'}`}>
+                                                        MOD: {doc.moduleInfo}
+                                                    </span>
+                                                )}
+                                                {doc.pageCount > 0 && (
+                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                                                        PAGES: {doc.pageCount}
+                                                    </span>
+                                                )}
+                                                {doc.tags && (
+                                                    <div className="w-full flex flex-wrap gap-2 mt-1 items-center">
+                                                        <span className={`text-[9px] font-black uppercase tracking-tighter opacity-50 ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>Tags:</span>
+                                                        {doc.tags.split(',').map((tag, index) => (
+                                                            <span key={index} className={`px-2.5 py-1 text-[10px] font-semibold tracking-wide rounded-md ${isLightMode ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'}`}>
+                                                                #{tag.trim()}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className={`p-4 border-t flex flex-col gap-3 ${isLightMode ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/20'}`}>
+                                            {!doc.isApproved && user?.isAdmin ? (
+                                                <div className="w-full space-y-3">
+                                                    <button
+                                                        onClick={() => handlePreview(doc._id)}
+                                                        className={`w-full flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-bold transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                                    >
+                                                        <Eye size={18} />
+                                                        Preview Content
+                                                    </button>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <button
+                                                            onClick={() => handleApprove(doc._id)}
+                                                            className="flex justify-center items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all shadow-md active:scale-95"
+                                                        >
+                                                            <Check size={18} />
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDocDelete(doc._id)}
+                                                            className="flex justify-center items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all shadow-md active:scale-95"
+                                                        >
+                                                            <X size={18} />
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 gap-3 w-full">
+                                                    <button
+                                                        onClick={() => handlePreview(doc._id)}
+                                                        className={`flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                                    >
+                                                        <Eye size={18} />
+                                                        Preview
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDownload(doc._id)}
+                                                        disabled={!doc.isApproved}
+                                                        className={`flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-lg font-bold transition-all shadow-md active:scale-95 ${!doc.isApproved ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 hover:shadow-lg'}`}
+                                                    >
+                                                        <div className="flex flex-col items-center">
+                                                            <Download size={18} />
+                                                            <span className="text-[9px] opacity-80 mt-0.5">{formatSize(doc.fileSize)}</span>
+                                                        </div>
+                                                        Get
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {/* Search for More Card */}
+                                <div className={`rounded-2xl border border-dashed flex flex-col items-center justify-center p-8 text-center transition-all hover:bg-purple-500/5 group/cta
+                                    ${isLightMode 
+                                        ? 'bg-slate-50 border-slate-300 hover:border-purple-300' 
+                                        : 'bg-white/5 border-white/10 hover:border-purple-500/30'}`}
+                                >
+                                    <div className={`p-5 rounded-full mb-6 transition-all group-hover/cta:scale-110 group-hover/cta:rotate-12 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                        <Search size={32} />
+                                    </div>
+                                    <h4 className={`text-xl font-bold mb-3 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
+                                        Didn't find what you're looking for?
+                                    </h4>
+                                    <p className={`text-sm mb-6 leading-relaxed ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        We have hundreds of materials! Type a subject name or code in the search bar to find exactly what you need.
+                                    </p>
+                                    <button 
+                                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                        className="text-sm font-black text-purple-500 uppercase tracking-widest hover:underline flex items-center gap-2"
+                                    >
+                                        Scroll to Search <ArrowLeft size={14} className="rotate-90" />
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className={`text-center py-20 px-6 rounded-3xl border border-dashed ${isLightMode ? 'bg-slate-50/50 border-slate-300' : 'bg-[#141416]/20 border-white/10'}`}>
+                                <div className="text-slate-500 mb-5 flex justify-center">
+                                    <div className={`p-6 rounded-full ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`}>
+                                        <Search size={40} className="opacity-50" />
+                                    </div>
+                                </div>
+                                <h3 className={`text-2xl font-bold mb-3 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>No materials found</h3>
+                                <p className={`mb-8 max-w-md mx-auto ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>We couldn't find any study materials matching your current filters. Try adjusting them or clear all filters.</p>
+                                <button
+                                    onClick={() => { setSearchQuery(''); setSelectedDocType(''); setSelectedPaperType(''); setSelectedSemester(''); setSelectedSubject(''); setSelectedYear(''); handleSearch(); }}
+                                    className={`px-8 py-3 rounded-full font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:text-purple-600' : 'bg-white/5 border border-white/10 text-white hover:text-purple-400'}`}
+                                >
+                                    Clear all filters
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Global Discussion Section */}
+                        <div className="mt-20 max-w-4xl mx-auto">
+                            <div className={`p-8 rounded-3xl border ${isLightMode ? 'bg-white border-slate-200 shadow-xl shadow-purple-500/5' : 'bg-[#141416]/50 border-white/5 shadow-2xl shadow-black/50'}`}>
+                                <div className="flex flex-col items-center text-center mb-10">
+                                    <div className={`p-4 rounded-2xl mb-4 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                        <MessageSquare size={32} />
+                                    </div>
+                                    <h2 className={`text-3xl font-black tracking-tight mb-3 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
+                                        Community Discussion
+                                    </h2>
+                                    <p className={`text-slate-500 max-w-md ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        Found something helpful? Have a question about these materials? Join the conversation below.
+                                    </p>
+                                </div>
+                                <DocComments documentId="ask-finder-global" user={user} isLightMode={isLightMode} />
+                            </div>
+                        </div>
+                    </main>
+
+            <ProfileModal
+                show={showProfileModal}
+                onClose={() => setShowProfileModal(false)}
+                user={user}
+                updateUser={updateUser}
+                theme={theme}
+            />
+
+            {/* Upload Modal */}
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 font-outfit">
+                    <div className={`rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border shadow-2xl animate-fade-in
+                        ${isLightMode ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#141416] border-white/10 text-white'}`}
+                    >
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold tracking-tight">
+                                {user?.isAdmin ? 'Add New Material' : 'Contribute Material'}
+                            </h2>
+                            <button onClick={() => setShowUploadModal(false)} className={`p-2 rounded-full transition-colors ${isLightMode ? 'hover:bg-slate-100/80 text-slate-500' : 'hover:bg-white/10 text-slate-400'}`}>
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpload}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Subject *</label>
+                                    <select
+                                        required
+                                        value={uploadMetadata.subjectName}
+                                        onChange={(e) => {
+                                            const sub = subjects.find(s => s.name === e.target.value);
+                                            setUploadMetadata({ 
+                                                ...uploadMetadata, 
+                                                subjectName: e.target.value,
+                                                subjectCode: sub?.code || ''
+                                            });
+                                        }}
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    >
+                                        <option value="">Select Subject</option>
+                                        {subjects.map((s, i) => (
+                                            <option key={i} value={s.name}>
+                                                {s.name} {(['Physics', 'Chemistry', 'Mathematics', 'CAED'].includes(s.name)) ? '' : `(${s.code})`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Subject Code</label>
+                                    <input
+                                        type="text" value={uploadMetadata.subjectCode}
+                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, subjectCode: e.target.value })}
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Year Level</label>
+                                    <select
+                                        value={uploadMetadata.semester}
+                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, semester: e.target.value })}
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    >
+                                        <option value="">Select Year</option>
+                                        <option value="1st Year">1st Year</option>
+                                        <option value="2nd Year">2nd Year</option>
+                                        <option value="3rd Year">3rd Year</option>
+                                        <option value="4th Year">4th Year</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Year</label>
+                                    <input
+                                        type="text" value={uploadMetadata.year} placeholder="e.g., 2023"
+                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, year: e.target.value })}
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Document Type</label>
+                                    <select
+                                        value={uploadMetadata.documentType}
+                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, documentType: e.target.value })}
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    >
+                                        <option value="notes">Notes</option>
+                                        <option value="internals">Internals</option>
+                                        <option value="see">SEE</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Module Info</label>
+                                    <input
+                                        type="text" value={uploadMetadata.moduleInfo}
+                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, moduleInfo: e.target.value })}
+                                        placeholder="e.g., Module 2, M1-M3"
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold mb-2">Page Count</label>
+                                    <input
+                                        type="number" value={uploadMetadata.pageCount}
+                                        onChange={(e) => setUploadMetadata({ ...uploadMetadata, pageCount: e.target.value })}
+                                        placeholder="Optional"
+                                        className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mb-5">
+                                <label className="block text-sm font-semibold mb-2">Tags (comma-separated)</label>
+                                <input
+                                    type="text" value={uploadMetadata.tags}
+                                    onChange={(e) => setUploadMetadata({ ...uploadMetadata, tags: e.target.value })}
+                                    placeholder="e.g., tcp, routing, important"
+                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                />
+                            </div>
+
+                            <div className="mb-8">
+                                <label className="block text-sm font-semibold mb-2">File *</label>
+                                <div className={`relative border-2 border-dashed rounded-2xl p-6 transition-colors ${isLightMode ? 'border-purple-200 bg-purple-50/50 hover:bg-purple-50' : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10'}`}>
+                                    <input
+                                        type="file" required
+                                        onChange={(e) => setUploadFile(e.target.files[0])}
+                                        accept=".pdf,.zip,.rar,.7z"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                    <div className="text-center pointer-events-none flex flex-col items-center justify-center gap-3">
+                                        <div className={`p-3 rounded-full ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                            <Upload size={24} />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className={`font-semibold ${isLightMode ? 'text-slate-700' : 'text-slate-200'}`}>
+                                                {uploadFile ? uploadFile.name : 'Choose a file or drag it here'}
+                                            </span>
+                                            <span className="text-sm mt-1 text-slate-500 font-medium">Supported formats: PDF, ZIP, RAR, 7z</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Contributor Section */}
+                            <div className={`mt-6 p-5 rounded-2xl border ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-500/5 border-purple-500/10'}`}>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 rounded-lg bg-purple-500 text-white">
+                                        <UserCheck size={18} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold leading-none mb-1">Contributor Credits</h3>
+                                        <p className="text-[10px] opacity-60">Do you want to show your name as a contributor for this material?</p>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex gap-4 mb-4">
+                                    {['true', 'false'].map(val => (
+                                        <button
+                                            key={val}
+                                            type="button"
+                                            onClick={() => setUploadMetadata(prev => ({ ...prev, showContributorName: val }))}
+                                            className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all border ${
+                                                uploadMetadata.showContributorName === val
+                                                    ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-500/20'
+                                                    : `border-slate-200 ${isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-black/20 hover:bg-white/5'}`
+                                            }`}
+                                        >
+                                            {val === 'true' ? 'Yes, Show Credits' : 'No, Keep Anonymous'}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {uploadMetadata.showContributorName === 'true' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2">
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Display Name</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="e.g. John Doe"
+                                                value={uploadMetadata.contributorName}
+                                                onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorName: e.target.value }))}
+                                                className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Year</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="e.g. 3rd Year"
+                                                value={uploadMetadata.contributorYear}
+                                                onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorYear: e.target.value }))}
+                                                className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold uppercase opacity-60 mb-2">Branch</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="e.g. CS / AI&DS"
+                                                value={uploadMetadata.contributorBranch}
+                                                onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorBranch: e.target.value }))}
+                                                className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className={`flex flex-col sm:flex-row gap-3 pt-8 border-t mt-8 ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowUploadModal(false); resetUploadForm(); }}
+                                    className={`flex-1 px-6 py-4 rounded-xl font-bold transition-all shadow-sm hover:shadow-md ${isLightMode ? 'bg-white border border-slate-200 hover:bg-slate-50 text-slate-700' : 'bg-white/5 border border-white/5 hover:bg-white/10 text-white'}`}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={uploadLoading}
+                                    className="flex-[2] px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-500/20 active:scale-95"
+                                >
+                                    {uploadLoading ? (
+                                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting...</>
+                                    ) : (
+                                        <><Upload size={18} /> {user?.isAdmin ? 'Confirm & Post' : 'Submit Contribution'}</>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* Preview Modal */}
+            {showPreviewModal && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[200] p-4 animate-fade-in">
+                    <div className={`relative w-full max-w-5xl h-[90vh] flex flex-col rounded-3xl overflow-hidden border shadow-[0_0_50px_-12px_rgba(168,85,247,0.4)]
+                        ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0f0f12] border-white/10'}`}
+                    >
+                        {/* Header */}
+                        <div className={`p-4 flex justify-between items-center border-b ${isLightMode ? 'bg-slate-50/80 border-slate-200' : 'bg-white/5 border-white/5'}`}>
+                            <div className="items-center gap-3 hidden sm:flex">
+                                <div className={`p-2 rounded-lg ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                    <Eye size={20} />
+                                </div>
+                                <h3 className={`font-bold ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>Document Preview</h3>
+                            </div>
+                            <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+                                <button
+                                    onClick={() => window.open(previewUrl, '_blank')}
+                                    className={`p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95 flex items-center gap-2 text-sm font-bold flex-1 sm:flex-none justify-center
+                                        ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                    title="Open in new tab"
+                                >
+                                    <ExternalLink size={20} />
+                                    <span>Pop Out</span>
+                                </button>
+                                <button
+                                    onClick={() => { setShowPreviewModal(false); setPreviewUrl(''); }}
+                                    className={`p-2.5 rounded-xl transition-all hover:scale-105 active:scale-95
+                                        ${isLightMode ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-white/10 text-slate-300 hover:bg-white/20'}`}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 bg-black/20">
+                            <iframe
+                                src={`${previewUrl}#toolbar=1`}
+                                className="w-full h-full border-none"
+                                title="Document Preview"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Login Required Modal */}
+            <LoginRequiredModal 
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                featureName="Premium Study Materials"
+                description="Sign in to download this material, save it for later, and access our complete question bank."
+            />
+        </div>
+    );
+};
+
+export default AskFinderPage;

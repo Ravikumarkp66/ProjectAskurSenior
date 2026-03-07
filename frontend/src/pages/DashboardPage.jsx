@@ -173,8 +173,10 @@ const DashboardPage = () => {
             );
         })
         .map((subject, index) => {
-            const isPremium = user?.subscription === 'askplus' || user?.role === 'premium' || user?.isAdmin;
-            const isLocked = index > 0 && !isPremium;
+            // UPGRADE_SECTION_HIDDEN: Restore isLocked gating when subscription feature returns
+            // const isPremium = user?.subscription === 'askplus' || user?.role === 'premium' || user?.isAdmin;
+            // const isLocked = index > 0 && !isPremium;
+            const isLocked = false; // All subjects unlocked while subscription is hidden
             return (
                 <SubjectCard
                     key={subject._id}
