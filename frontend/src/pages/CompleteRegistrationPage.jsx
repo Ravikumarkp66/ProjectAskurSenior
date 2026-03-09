@@ -53,7 +53,8 @@ const CompleteRegistrationPage = () => {
             return;
         }
 
-        if (!/^[a-z0-9]{8,12}$/i.test(formData.usn)) {
+        const trimmedUSN = formData.usn.trim();
+        if (!/^[a-z0-9]{8,12}$/i.test(trimmedUSN)) {
             setError('Invalid USN format');
             return;
         }
@@ -72,7 +73,7 @@ const CompleteRegistrationPage = () => {
 
         try {
             const response = await authAPI.completeGoogleRegistration({
-                usn: formData.usn,
+                usn: trimmedUSN,
                 password: formData.password
             });
 

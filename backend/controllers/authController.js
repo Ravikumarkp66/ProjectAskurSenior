@@ -21,8 +21,10 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
+        const trimmedUSN = usn.trim();
+
         // Check if user already exists
-        const existingUser = await User.findOne({ $or: [{ usn }, { email }] });
+        const existingUser = await User.findOne({ $or: [{ usn: trimmedUSN.toUpperCase() }, { email: email.toLowerCase().trim() }] });
         if (existingUser) {
             return res.status(400).json({ error: 'User already exists' });
         }
@@ -32,7 +34,7 @@ const registerUser = async (req, res) => {
 
         // Create new user
         const user = new User({
-            usn: usn.toUpperCase(),
+            usn: trimmedUSN.toUpperCase(),
             email: email.toLowerCase(),
             password,
             branch,
@@ -71,7 +73,8 @@ const loginUser = async (req, res) => {
         }
 
         // Find user by USN
-        const user = await User.findOne({ usn: usn.toUpperCase() });
+        const trimmedUSN = usn.trim();
+        const user = await User.findOne({ usn: trimmedUSN.toUpperCase() });
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -343,13 +346,15 @@ const completeGoogleRegistration = async (req, res) => {
             return res.status(400).json({ error: 'USN, Username, and Branch are required' });
         }
 
+        const trimmedUSN = usn.trim();
+
         // Validate USN format
-        if (!/^[a-z0-9]{8,12}$/i.test(usn)) {
+        if (!/^[a-z0-9]{8,12}$/i.test(trimmedUSN)) {
             return res.status(400).json({ error: 'Invalid USN format' });
         }
 
         // Check if USN already exists
-        const existingUsn = await User.findOne({ usn: usn.toUpperCase() });
+        const existingUsn = await User.findOne({ usn: trimmedUSN.toUpperCase() });
         if (existingUsn && existingUsn._id.toString() !== userId) {
             return res.status(400).json({ error: 'USN already registered' });
         }
@@ -370,7 +375,7 @@ const completeGoogleRegistration = async (req, res) => {
         }
 
         // Update user with USN, username, branch, and mark registration complete
-        user.usn = usn.toUpperCase();
+        user.usn = trimmedUSN.toUpperCase();
         user.username = username.toLowerCase();
         user.branch = branch;
         user.currentBranch = branch;

@@ -48,8 +48,8 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
         e.preventDefault();
         setProfileMessage({ type: '', text: '' });
 
-        // Validate USN format if provided
-        if (profileForm.usn && !/^[A-Z0-9]{8,12}$/i.test(profileForm.usn)) {
+        const trimmedUSN = profileForm.usn ? profileForm.usn.trim() : '';
+        if (trimmedUSN && !/^[A-Z0-9]{8,12}$/i.test(trimmedUSN)) {
             setProfileMessage({ type: 'error', text: 'USN must be 8-12 alphanumeric characters' });
             return;
         }
@@ -64,7 +64,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
 
             const profileRes = await authAPI.updateProfile({
                 name: profileForm.name,
-                usn: profileForm.usn,
+                usn: trimmedUSN,
                 bio: profileForm.bio,
                 socialLinks: {
                     linkedin: profileForm.linkedin,

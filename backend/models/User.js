@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema(
             unique: true,
             sparse: true,
             uppercase: true,
+            trim: true,
             match: /^[a-z0-9]{8,12}$/i
         },
         username: {
