@@ -144,6 +144,73 @@ const ISE_4TH_SEM_SUBJECTS = [
     { code: 'SMC01 / SMC02 / SMC03', name: 'NSS / PE / Yoga', credits: 0, hasLab: false }
 ];
 
+const CSE_3RD_SEM_SUBJECTS = [
+    { code: '3SMA4TC', name: 'Statistics and Probability', credits: 4, hasLab: false },
+    { code: '3SCS01', name: 'Operating Systems', credits: 3, hasLab: false },
+    { code: '3SCS02', name: 'Digital Circuits and Computer Organization', credits: 3, hasLab: false },
+    { code: '3SCS03', name: 'Data Structures and Applications', credits: 3, hasLab: false },
+    { code: '3SCSL01', name: 'Data Structures Laboratory', credits: 1, hasLab: true },
+    { code: '3ESC01', name: 'Engineering Science Course', credits: 3, hasLab: false },
+    { code: '3UHV01', name: 'Social Connect and Responsibility', credits: 1, hasLab: false },
+    { code: 'AEC03', name: 'Ability Enhancement Course III', credits: 1, hasLab: false }
+];
+
+const CSE_4TH_SEM_SUBJECTS = [
+    { code: '4SCS01', name: 'Design and Analysis of Algorithms', credits: 3, hasLab: false },
+    { code: '4SCS02', name: 'Microcontroller and Embedded Systems', credits: 3, hasLab: false },
+    { code: '4SCS03', name: 'Theory of Computation', credits: 3, hasLab: false },
+    { code: '4SCSL01', name: 'Design and Analysis of Algorithms Laboratory', credits: 1, hasLab: true },
+    { code: '4ESC01', name: 'Engineering Science Course', credits: 3, hasLab: false },
+    { code: '4BSC01', name: 'Biology for Engineers', credits: 3, hasLab: false },
+    { code: '4UHV01', name: 'Universal Human Values', credits: 1, hasLab: false },
+    { code: 'AEC04', name: 'Ability Enhancement Course IV', credits: 1, hasLab: false }
+];
+
+const CSE_5TH_SEM_SUBJECTS = [
+    { code: '5SCS01', name: 'Software Engineering and Project Management', credits: 3, hasLab: false },
+    { code: '5SCS02', name: 'Database Management System', credits: 3, hasLab: false },
+    { code: '5SCS03', name: 'Artificial Intelligence and Machine Learning', credits: 3, hasLab: false },
+    { code: '5SCSL01', name: 'Data Science with Python Lab', credits: 1, hasLab: true },
+    {
+        code: 'PEC1',
+        name: 'Professional Elective I',
+        credits: 3,
+        hasLab: false,
+        isElective: true,
+        options: [
+            { name: 'Compiler Design', code: '5CSPE01' },
+            { name: 'Software Testing', code: '5CSPE02' },
+            { name: 'Computer Graphics and Image Processing', code: '5CSPE03' },
+            { name: 'Information Retrieval', code: '5CSPE04' }
+        ]
+    },
+    { code: 'PROJ01', name: 'Mini Project / Extension Survey Project', credits: 2, hasLab: false },
+    { code: 'HS05', name: 'Research Methodology and IPR', credits: 2, hasLab: false },
+    { code: 'HS06', name: 'Environmental Studies', credits: 2, hasLab: false }
+];
+
+const CSE_6TH_SEM_SUBJECTS = [
+    { code: '6SCS01', name: 'Computer Networks', credits: 3, hasLab: false },
+    { code: '6SCS02', name: 'Internet of Things', credits: 3, hasLab: false },
+    {
+        code: 'PEC2',
+        name: 'Professional Elective II',
+        credits: 3,
+        hasLab: false,
+        isElective: true,
+        options: [
+            { name: 'High Performance Computing', code: '6CSPE01' },
+            { name: 'Blockchain Technology', code: '6CSPE02' },
+            { name: 'Cloud Computing', code: '6CSPE03' },
+            { name: 'Cryptography and Network Security', code: '6CSPE04' }
+        ]
+    },
+    { code: 'OEC1', name: 'Open Elective', credits: 3, hasLab: false },
+    { code: 'PROJ02', name: 'Major Project Phase I', credits: 2, hasLab: false },
+    { code: '6SCSL01', name: 'Mobile Application Development Lab', credits: 1, hasLab: true },
+    { code: 'AEC06', name: 'Aptitude Related Analytical Skill', credits: 1, hasLab: false }
+];
+
 // Confetti Particle System for Subject Eligibility
 const triggerSubjectConfetti = (canvas) => {
     if (!canvas) return;
@@ -727,44 +794,20 @@ const CGPACalculatorPage = () => {
             setSubjects([]);
             setSubjectsError('');
 
-            // Handle III Sem (ISE) pre-filled subjects locally
-            if (activeTab === 'sgpa' && selectedCycle === '3' && (selectedBranch === 'IS' || selectedBranch === 'ISE')) {
-                const storedCIE = getAllCIEResults();
-                setSubjects(
-                    ISE_3RD_SEM_SUBJECTS.map((s, index) => {
-                        const prefilledCIE = storedCIE[s.code] || null;
-                        return {
-                            id: index + 1,
-                            name: s.name,
-                            code: s.code,
-                            credits: s.credits,
-                            hasLab: s.hasLab,
-                            isOpenEnded: false,
-                            cie: prefilledCIE ? String(prefilledCIE.cie) : '',
-                            see: '',
-                            isCIEExpanded: false,
-                            cieFilledFromDashboard: !!prefilledCIE,
-                            cieMarks: prefilledCIE?.cieMarks || {
-                                test1: '', test2: '',
-                                quiz1: '', quiz2: '',
-                                abl1: '', abl2: '',
-                                labs: [''],
-                                labTests: [''],
-                                openEnded: ''
-                            },
-                            isEligible: prefilledCIE ? prefilledCIE.isEligible : null
-                        };
-                    })
-                );
-                setLoadingSubjects(false);
-                return;
-            }
+            // Local handling for pre-filled semesters
+            const prefilledMap = {
+                'IS': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS },
+                'ISE': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS },
+                'CS': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS },
+                'CSE': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS }
+            };
 
-            // Handle IV Sem (ISE) pre-filled subjects locally
-            if (activeTab === 'sgpa' && selectedCycle === '4' && (selectedBranch === 'IS' || selectedBranch === 'ISE')) {
+            const branchMap = prefilledMap[selectedBranch];
+            if (activeTab === 'sgpa' && branchMap && branchMap[selectedCycle]) {
+                const prefilledList = branchMap[selectedCycle];
                 const storedCIE = getAllCIEResults();
                 setSubjects(
-                    ISE_4TH_SEM_SUBJECTS.map((s, index) => {
+                    prefilledList.map((s, index) => {
                         const prefilledCIE = storedCIE[s.code] || null;
                         return {
                             id: index + 1,
@@ -773,8 +816,8 @@ const CGPACalculatorPage = () => {
                             credits: s.credits,
                             hasLab: s.hasLab,
                             isOpenEnded: false,
-                            options: s.options || null,
                             isElective: s.isElective || false,
+                            options: s.options || null,
                             cie: prefilledCIE ? String(prefilledCIE.cie) : '',
                             see: '',
                             isCIEExpanded: false,
@@ -795,12 +838,17 @@ const CGPACalculatorPage = () => {
                 return;
             }
 
-            // Explicitly handle "Under Progress" semesters (5-8)
-            if (['5', '6', '7', '8'].includes(selectedCycle)) {
-                setSubjects([]);
-                setSubjectsError(`🚧 ${selectedCycle}th Sem is currently under progress! We are working hard to bring it to you soon! ✨`);
-                setLoadingSubjects(false);
-                return;
+            // Explicitly handle "Under Progress" semesters (7-8 or other branches)
+            if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(selectedCycle)) {
+                // If it wasn't prefilled above, it's either from backend or 🚧
+                if (selectedCycle === '1' || selectedCycle === '2' || selectedCycle === 'P' || selectedCycle === 'C') {
+                    // This part will fall through to the API call below
+                } else {
+                    setSubjects([]);
+                    setSubjectsError(`Curriculum details for ${selectedCycle}${isNaN(selectedCycle) ? '' : 'th Semester'} ${selectedBranch} are still being updated.`);
+                    setLoadingSubjects(false);
+                    return;
+                }
             }
 
             setLoadingSubjects(true);
@@ -1975,8 +2023,8 @@ const CGPACalculatorPage = () => {
                                     )}
                                 </div>
 
-                                {/* III Sem (ISE) Header */}
-                                {activeTab === 'sgpa' && selectedCycle === '3' && (selectedBranch === 'IS' || selectedBranch === 'ISE') && (
+                                {/* Local Prefilled Header */}
+                                {activeTab === 'sgpa' && branchMap && branchMap[selectedCycle] && (
                                     <div className="rounded-2xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 p-4">
                                         <div className="flex items-center gap-3">
                                             <div className="p-2 bg-blue-600 rounded-lg shadow-lg shadow-blue-600/20">
@@ -1985,7 +2033,9 @@ const CGPACalculatorPage = () => {
                                                 </svg>
                                             </div>
                                             <div>
-                                                <h3 className="text-sm font-black text-white uppercase tracking-tight">III Semester - Information Science</h3>
+                                                <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                                                    {selectedCycle}{isNaN(selectedCycle) ? '' : 'th Semester'} - {selectedBranch === 'CS' || selectedBranch === 'CSE' ? 'Computer Science' : 'Information Science'}
+                                                </h3>
                                                 <p className="text-[10px] text-blue-300 font-bold uppercase opacity-60">Subjects pre-filled based on departmental curriculum</p>
                                             </div>
                                         </div>

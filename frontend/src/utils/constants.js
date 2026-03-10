@@ -10,6 +10,17 @@ export const ISE_3RD_SEM_SUBJECTS = [
     { code: 'S3ISA03', name: 'Unix and Shell Programming', credits: 1, hasLab: false, semester: '3rd Sem' },
 ];
 
+export const CSE_3RD_SEM_SUBJECTS = [
+    { code: '3SMA4TC', name: 'Statistics and Probability', credits: 4, semester: '3rd Sem' },
+    { code: '3SCS01', name: 'Operating Systems', credits: 3, semester: '3rd Sem' },
+    { code: '3SCS02', name: 'Digital Circuits and Computer Organization', credits: 3, semester: '3rd Sem' },
+    { code: '3SCS03', name: 'Data Structures and Applications', credits: 3, semester: '3rd Sem' },
+    { code: '3SCSL01', name: 'Data Structures Laboratory', credits: 1, semester: '3rd Sem', hasLab: true },
+    { code: '3ESC01', name: 'Engineering Science Course', credits: 3, semester: '3rd Sem' },
+    { code: '3UHV01', name: 'Social Connect and Responsibility', credits: 1, semester: '3rd Sem' },
+    { code: 'AEC03', name: 'Ability Enhancement Course III', credits: 1, semester: '3rd Sem' },
+];
+
 export const ISE_4TH_SEM_SUBJECTS = [
     { code: 'S4IS01', name: 'Operating System', credits: 3, hasLab: false, semester: '4th Sem' },
     { code: 'S4ISI01', name: 'Design and Analysis of Algorithms', credits: 4, hasLab: true, semester: '4th Sem' },
@@ -22,9 +33,53 @@ export const ISE_4TH_SEM_SUBJECTS = [
     { code: 'S4ISA04', name: 'Natural Language Processing', credits: 1, hasLab: false, semester: '4th Sem' },
 ];
 
+export const CSE_4TH_SEM_SUBJECTS = [
+    { code: '4SCS01', name: 'Design and Analysis of Algorithms', credits: 3, semester: '4th Sem' },
+    { code: '4SCS02', name: 'Microcontroller and Embedded Systems', credits: 3, semester: '4th Sem' },
+    { code: '4SCS03', name: 'Theory of Computation', credits: 3, semester: '4th Sem' },
+    { code: '4SCSL01', name: 'Design and Analysis of Algorithms Laboratory', credits: 1, semester: '4th Sem', hasLab: true },
+    { code: '4ESC01', name: 'Engineering Science Course', credits: 3, semester: '4th Sem' },
+    { code: '4BSC01', name: 'Biology for Engineers', credits: 3, semester: '4th Sem' },
+    { code: '4UHV01', name: 'Universal Human Values', credits: 1, semester: '4th Sem' },
+    { code: 'AEC04', name: 'Ability Enhancement Course IV', credits: 1, semester: '4th Sem' },
+];
+
+export const CSE_5TH_SEM_SUBJECTS = [
+    { code: '5SCS01', name: 'Software Engineering and Project Management', credits: 3, semester: '5th Sem' },
+    { code: '5SCS02', name: 'Database Management System', credits: 3, semester: '5th Sem' },
+    { code: '5SCS03', name: 'Artificial Intelligence and Machine Learning', credits: 3, semester: '5th Sem' },
+    { code: '5SCSL01', name: 'Data Science with Python Lab', credits: 1, semester: '5th Sem', hasLab: true },
+    { code: 'PEC1', name: 'Professional Elective I', credits: 3, semester: '5th Sem' },
+    { code: '5CSPE01', name: 'Compiler Design', credits: 3, semester: '5th Sem' },
+    { code: '5CSPE02', name: 'Software Testing', credits: 3, semester: '5th Sem' },
+    { code: '5CSPE03', name: 'Computer Graphics and Image Processing', credits: 3, semester: '5th Sem' },
+    { code: '5CSPE04', name: 'Information Retrieval', credits: 3, semester: '5th Sem' },
+    { code: 'PROJ01', name: 'Mini Project / Extension Survey Project', credits: 2, semester: '5th Sem' },
+    { code: 'HS05', name: 'Research Methodology and IPR', credits: 2, semester: '5th Sem' },
+    { code: 'HS06', name: 'Environmental Studies', credits: 2, semester: '5th Sem' },
+];
+
+export const CSE_6TH_SEM_SUBJECTS = [
+    { code: '6SCS01', name: 'Computer Networks', credits: 3, semester: '6th Sem' },
+    { code: '6SCS02', name: 'Internet of Things', credits: 3, semester: '6th Sem' },
+    { code: 'PEC2', name: 'Professional Elective II', credits: 3, semester: '6th Sem' },
+    { code: '6CSPE01', name: 'High Performance Computing', credits: 3, semester: '6th Sem' },
+    { code: '6CSPE02', name: 'Blockchain Technology', credits: 3, semester: '6th Sem' },
+    { code: '6CSPE03', name: 'Cloud Computing', credits: 3, semester: '6th Sem' },
+    { code: '6CSPE04', name: 'Cryptography and Network Security', credits: 3, semester: '6th Sem' },
+    { code: 'OEC1', name: 'Open Elective', credits: 3, semester: '6th Sem' },
+    { code: 'PROJ02', name: 'Major Project Phase I', credits: 2, semester: '6th Sem' },
+    { code: '6SCSL01', name: 'Mobile Application Development Lab', credits: 1, semester: '6th Sem', hasLab: true },
+    { code: 'AEC06', name: 'Aptitude Related Analytical Skill', credits: 1, semester: '6th Sem' },
+];
+
 export const ALL_KNOWN_SUBJECTS = [
     ...ISE_3RD_SEM_SUBJECTS,
     ...ISE_4TH_SEM_SUBJECTS,
+    ...CSE_3RD_SEM_SUBJECTS,
+    ...CSE_4TH_SEM_SUBJECTS,
+    ...CSE_5TH_SEM_SUBJECTS,
+    ...CSE_6TH_SEM_SUBJECTS,
 ];
 
 export const FIRST_YEAR_SUBJECTS = [

@@ -686,22 +686,7 @@ const Sidebar = ({
                                     <span>My Profile</span>
                                 </button>
 
-                                {user?.isAdmin && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowProfileMenu(false);
-                                            navigate('/admin');
-                                        }}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold ${sidebarClasses.itemHover} transition`}
-                                        title="Admin Panel"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <span>Admin Panel</span>
-                                    </button>
-                                )}
+
 
                                 {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore Upgrade button in profile dropdown
                                 {user?.subscription === 'free' && !user?.isAdmin && (

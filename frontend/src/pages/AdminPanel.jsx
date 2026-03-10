@@ -21,7 +21,7 @@ const AdminPanel = () => {
         }
     }, [isAdmin, navigate]);
 
-    const [activeTab, setActiveTab] = useState('reviews');
+    const [activeTab, setActiveTab] = useState('users');
 
     // Reviews state
     const [reviewsActiveTab, setReviewsActiveTab] = useState('feedback');
@@ -40,19 +40,13 @@ const AdminPanel = () => {
     const [userUploadsError, setUserUploadsError] = useState('');
     const [userUploadActionId, setUserUploadActionId] = useState('');
 
-    // Study materials state
-    const [subjects, setSubjects] = useState([]);
-    const [loading, setLoading] = useState(true);
+
 
     // Articles state
     const [articles, setArticles] = useState([]);
     const [articlesLoading, setArticlesLoading] = useState(false);
 
-    // Manage content state
-    const [manageSubject, setManageSubject] = useState('');
-    const [uploadedContent, setUploadedContent] = useState([]);
-    const [loadingContent, setLoadingContent] = useState(false);
-    const [deletingContent, setDeletingContent] = useState('');
+
 
     const [theme] = useState(() => {
         try {
@@ -111,7 +105,7 @@ const AdminPanel = () => {
     const markBugAsResolved = async (bugId) => {
         setResolvingId(bugId);
         try {
-            await apiClient.patch(`/bugs/${bugId}`, { status: 'resolved' });
+            await apiClient.patch(`/bugs/${bugId}/status`, { status: 'resolved' });
             setBugItems(prev => prev.map(bug =>
                 bug._id === bugId ? { ...bug, status: 'resolved' } : bug
             ));
@@ -189,71 +183,7 @@ const AdminPanel = () => {
         }
     };
 
-    // Study materials functions
-    const loadSubjects = async () => {
-        try {
-            // Load from ALL branches and cycles - admin should see EVERYTHING
-            const allBranches = ['CS', 'IS', 'EC', 'EE', 'ME', 'CV', 'CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML', 'DS', 'CSBS', 'IT', 'CI', 'BT', 'IM', 'CH', 'ET', 'EI'];
-            const cycles = ['P', 'C'];
-            let allSubjects = [];
 
-            console.log('Loading subjects from all branches for admin panel...');
-
-            // Load subjects from all branches and cycles
-            const promises = [];
-            for (const branch of allBranches) {
-                for (const cycle of cycles) {
-                    promises.push(
-                        subjectAPI.getSubjectsByBranch(branch, cycle)
-                            .then(response => ({ branch, cycle, subjects: response.data || [] }))
-                            .catch(() => ({ branch, cycle, subjects: [] })) // Silent fail
-                    );
-                }
-            }
-
-            const results = await Promise.all(promises);
-
-            // Combine all results and track all branches for each subject code
-            results.forEach(({ branch, cycle, subjects }) => {
-                subjects.forEach(subject => {
-                    const existingSubject = allSubjects.find(s => s.code === subject.code);
-                    if (!existingSubject) {
-                        allSubjects.push({
-                            code: subject.code,
-                            name: subject.name,
-                            credits: subject.credits,
-                            modules: subject.modules || [],
-                            branches: [`${branch}(${cycle})`] // Track branch and cycle
-                        });
-                    } else {
-                        // Add branch-cycle combination to existing subject
-                        const branchCycle = `${branch}(${cycle})`;
-                        if (!existingSubject.branches.includes(branchCycle)) {
-                            existingSubject.branches.push(branchCycle);
-                        }
-                        // Update modules if this version has more modules
-                        if (subject.modules && subject.modules.length > existingSubject.modules.length) {
-                            existingSubject.modules = subject.modules;
-                        }
-                    }
-                });
-            });
-
-            // Sort by subject name for better UX
-            allSubjects.sort((a, b) => a.name.localeCompare(b.name));
-
-            setSubjects(allSubjects);
-
-            console.log(`Loaded ${allSubjects.length} unique subjects across all branches:`,
-                allSubjects.map(s => `${s.code}: ${s.branches.join(', ')}`));
-
-        } catch (error) {
-            console.error('Error loading subjects:', error);
-            setSubjects([]);
-        } finally {
-            setLoading(false);
-        }
-    };
 
 
     // Load data on mount and tab change
@@ -262,104 +192,16 @@ const AdminPanel = () => {
             if (reviewsActiveTab === 'feedback') loadFeedback();
             else if (reviewsActiveTab === 'bugs') loadBugs();
             else if (reviewsActiveTab === 'uploads') loadUserUploads();
-        } else if (activeTab === 'materials') {
-            loadSubjects();
         } else if (activeTab === 'articles') {
             loadArticles();
         }
     }, [activeTab, reviewsActiveTab]);
 
-    // Initial load on component mount
-    useEffect(() => {
-        if (activeTab === 'materials') {
-            loadSubjects();
-        } else if (activeTab === 'articles') {
+        if (activeTab === 'articles') {
             loadArticles();
         }
-    }, []);
 
-    const manageSubjectData = subjects.find(s => s.code === manageSubject);
 
-    // Load uploaded content for a subject
-    const loadUploadedContent = async (subjectCode) => {
-        if (!subjectCode) return;
-
-        setLoadingContent(true);
-        try {
-            const response = await subjectAPI.getSubjectsByCode(subjectCode);
-            const subjectsWithCode = response.data || [];
-
-            if (subjectsWithCode.length > 0) {
-                // Get first subject as reference (all should have same content)
-                const subject = subjectsWithCode[0];
-                const contentList = [];
-
-                ['notes', 'pyqs', 'questionBanks', 'syllabus', 'resources'].forEach(type => {
-                    if (subject[type] && subject[type].length > 0) {
-                        subject[type].forEach(item => {
-                            const displayType = type === 'pyqs'
-                                ? 'PYQs'
-                                : type === 'questionBanks'
-                                    ? 'Question Banks'
-                                    : type === 'syllabus'
-                                        ? 'Syllabus'
-                                        : type === 'resources'
-                                            ? 'Resources'
-                                            : 'Notes';
-                            contentList.push({
-                                ...item,
-                                contentType: type,
-                                level: 'subject',
-                                displayType
-                            });
-                        });
-                    }
-                });
-
-                setUploadedContent(contentList);
-            } else {
-                setUploadedContent([]);
-            }
-        } catch (error) {
-            console.error('Error loading content:', error);
-            alert('Failed to load uploaded content');
-        } finally {
-            setLoadingContent(false);
-        }
-    };
-
-    // Delete content from all branches
-    const handleDeleteContent = async (content) => {
-        if (!confirm(`Are you sure you want to delete "${content.title}" from ALL branches?\n\nThis action cannot be undone.`)) {
-            return;
-        }
-
-        setDeletingContent(content._id);
-        try {
-            await uploadAPI.bulkDeleteSubjectContent(
-                manageSubject,
-                content.contentType,
-                content.title
-            );
-
-            alert('Content deleted successfully from all branches!');
-            loadUploadedContent(manageSubject);
-        } catch (error) {
-            console.error('Error deleting content:', error);
-            alert(error.response?.data?.error || 'Failed to delete content');
-        } finally {
-            setDeletingContent('');
-        }
-    };
-
-    // Load content when manage subject changes
-    useEffect(() => {
-        if (manageSubject) {
-            loadUploadedContent(manageSubject);
-        } else {
-            setUploadedContent([]);
-        }
-    }, [manageSubject]);
 
     if (!isAdmin) {
         return null;
@@ -367,7 +209,7 @@ const AdminPanel = () => {
 
     return (
         <AdminLayout activeTab={activeTab} onTabChange={setActiveTab}>
-            {activeTab === 'dashboard' && <DashboardOverview />}
+
             {activeTab === 'users' && <UserManagementPage />}
             {activeTab === 'payments' && <PaymentManagementPage />}
             {activeTab === 'reviews' && (
@@ -479,45 +321,113 @@ const AdminPanel = () => {
                                     No bug reports yet
                                 </div>
                             )}
-                            {bugItems.map((item) => (
-                                <div key={item._id} className={`p-4 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                                <h3 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                                    {item.title}
-                                                </h3>
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'resolved'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-yellow-100 text-yellow-800'
-                                                    }`}>
-                                                    {item.status}
-                                                </span>
-                                            </div>
-                                            <p className={`mt-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                                {item.description}
-                                            </p>
-                                            <div className={`text-sm mt-2 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                                <p>From: {item.user?.usn || 'Unknown user'}</p>
-                                                <p>Page: {item.pageUrl}</p>
-                                                <p>Date: {new Date(item.createdAt).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-                                        {item.status !== 'resolved' && (
-                                            <button
-                                                onClick={() => markBugAsResolved(item._id)}
-                                                disabled={resolvingId === item._id}
-                                                className={`ml-4 px-3 py-1 text-sm font-medium rounded-md transition ${isLightMode
-                                                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                                    : 'bg-green-900/30 text-green-400 hover:bg-green-900/50'
-                                                    } disabled:opacity-50`}
-                                            >
-                                                {resolvingId === item._id ? 'Resolving...' : 'Mark Resolved'}
-                                            </button>
-                                        )}
+                            <div className="space-y-8">
+                                {/* Active Bugs Section */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className={`text-lg font-bold flex items-center gap-2 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
+                                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                            Active Bug Reports
+                                            <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 ml-2">
+                                                {bugItems.filter(item => item.status !== 'resolved').length} Pending
+                                            </span>
+                                        </h3>
                                     </div>
+                                    
+                                    {bugItems.filter(item => item.status !== 'resolved').length === 0 ? (
+                                        <div className={`p-8 text-center rounded-xl border border-dashed ${isLightMode ? 'bg-gray-50 border-gray-200 text-gray-500' : 'bg-gray-800/20 border-gray-700 text-gray-400'}`}>
+                                            All bugs have been squashed! No pending reports.
+                                        </div>
+                                    ) : (
+                                        <div className="grid gap-4">
+                                            {bugItems.filter(item => item.status !== 'resolved').map((item) => (
+                                                <div key={item._id} className={`p-5 rounded-xl border shadow-sm transition-all hover:shadow-md ${isLightMode ? 'bg-white border-slate-200' : 'bg-slate-800/40 border-slate-700 hover:border-slate-600'}`}>
+                                                    <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                                                    Issue #{item._id.slice(-4)}
+                                                                </span>
+                                                                <span className={`text-[10px] uppercase font-bold tracking-wider ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                                    {new Date(item.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                </span>
+                                                            </div>
+                                                            <h4 className={`text-base font-bold mb-1 truncate ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                                                                {item.title}
+                                                            </h4>
+                                                            <p className={`text-sm leading-relaxed mb-4 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                                {item.description}
+                                                            </p>
+                                                            <div className="flex flex-wrap items-center gap-4 text-[11px] pt-3 border-t border-slate-200/10">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-[8px]">
+                                                                        {(item.user?.usn || 'U').charAt(0)}
+                                                                    </div>
+                                                                    <span className={isLightMode ? 'text-slate-700 font-semibold' : 'text-slate-300 font-semibold'}>{item.user?.usn || 'Unknown'}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <svg className="w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                                                                    <span className="opacity-60 truncate max-w-[200px]">{item.pageUrl}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => markBugAsResolved(item._id)}
+                                                            disabled={resolvingId === item._id}
+                                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all active:scale-95 whitespace-nowrap ${isLightMode
+                                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20'
+                                                                : 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/40'
+                                                            } disabled:opacity-50`}
+                                                        >
+                                                            {resolvingId === item._id ? (
+                                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            ) : (
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>
+                                                            )}
+                                                            {resolvingId === item._id ? 'Squashing...' : 'Resolve'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
+
+                                {/* Solved Bugs Section */}
+                                {bugItems.filter(item => item.status === 'resolved').length > 0 && (
+                                    <div className="space-y-4 pt-4 border-t border-slate-200/10">
+                                        <h3 className={`text-lg font-bold flex items-center gap-2 ${isLightMode ? 'text-gray-900' : 'text-slate-400'}`}>
+                                            <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            Solved Bugs
+                                            <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-500 border border-slate-500/20 ml-2">
+                                                {bugItems.filter(item => item.status === 'resolved').length} Fixed
+                                            </span>
+                                        </h3>
+                                        
+                                        <div className="grid gap-3 opacity-60 hover:opacity-100 transition-opacity">
+                                            {bugItems.filter(item => item.status === 'resolved').map((item) => (
+                                                <div key={item._id} className={`p-4 rounded-xl border border-dashed transition-all ${isLightMode ? 'bg-slate-50/50 border-slate-200' : 'bg-slate-800/20 border-slate-700'}`}>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <h4 className={`text-sm font-bold truncate line-through ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                                    {item.title}
+                                                                </h4>
+                                                                <span className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase tracking-tight bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                                                    Fixed
+                                                                </span>
+                                                            </div>
+                                                            <p className={`text-[11px] truncate ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                                Reported by {item.user?.usn || 'Unknown'} on {new Date(item.createdAt).toLocaleDateString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -619,146 +529,7 @@ const AdminPanel = () => {
                 </div>
             )}
 
-            {activeTab === 'materials' && (
-                <div className="space-y-6">
-                    <div>
-                        <h1 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                            Study Materials Management
-                        </h1>
-                        <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                            Manage study materials across all subjects
-                        </p>
-                    </div>
 
-                    {loading ? (
-                        <div className={`text-center py-12 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            <div className="flex items-center justify-center gap-2 mb-4">
-                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce"></div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                            <p>Loading subjects and study materials...</p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Manage Uploaded Content Section */}
-                            <div className={`mt-8 p-6 rounded-lg border ${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'}`}>
-                                <h3 className={`text-lg font-semibold mb-4 ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                    Manage Uploaded Content
-                                    <span className={`block text-sm font-normal mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                        View and delete content from all branches
-                                    </span>
-                                </h3>
-
-                                <div className="mb-4">
-                                    <label className={`block text-sm font-medium mb-2 ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`}>
-                                        Select Subject to Manage
-                                    </label>
-                                    <select
-                                        value={manageSubject}
-                                        onChange={(e) => setManageSubject(e.target.value)}
-                                        className={`w-full px-3 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${isLightMode
-                                            ? 'bg-white border-gray-300 text-gray-900'
-                                            : 'bg-gray-700 border-gray-600 text-white'
-                                            }`}
-                                    >
-                                        <option value="">Select a subject to view content</option>
-                                        {subjects.map((subject) => (
-                                            <option key={subject.code} value={subject.code}>
-                                                {subject.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {loadingContent && (
-                                    <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                                            <span className="ml-2">Loading content...</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {manageSubject && !loadingContent && uploadedContent.length === 0 && (
-                                    <div className={`text-center py-8 ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                        No content uploaded yet for this subject
-                                    </div>
-                                )}
-
-                                {manageSubject && !loadingContent && uploadedContent.length > 0 && (
-                                    <div className="space-y-3">
-                                        {manageSubjectData && (
-                                            <div className={`text-sm mb-4 p-3 rounded ${isLightMode ? 'bg-blue-50 text-blue-700' : 'bg-blue-900/30 text-blue-300'}`}>
-                                                <strong>Branches:</strong> {manageSubjectData.branches.join(', ')}
-                                                <br />
-                                                <strong>Total Content:</strong> {uploadedContent.length} items
-                                            </div>
-                                        )}
-
-                                        {uploadedContent.map((content) => (
-                                            <div
-                                                key={content._id}
-                                                className={`p-4 rounded-lg border flex items-start justify-between ${isLightMode ? 'bg-gray-50 border-gray-200' : 'bg-gray-700/50 border-gray-600'
-                                                    }`}
-                                            >
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className={`px-2 py-1 text-xs font-semibold rounded ${content.displayType === 'Notes' ? 'bg-green-100 text-green-800' :
-                                                            content.displayType === 'PYQs' ? 'bg-purple-100 text-purple-800' :
-                                                                content.displayType === 'Question Banks' ? 'bg-blue-100 text-blue-800' :
-                                                                    'bg-orange-100 text-orange-800'
-                                                            }`}>
-                                                            {content.displayType}
-                                                        </span>
-                                                    </div>
-                                                    <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                                        {content.title}
-                                                    </h4>
-                                                    {content.description && (
-                                                        <p className={`text-sm mt-1 ${isLightMode ? 'text-gray-600' : 'text-gray-400'}`}>
-                                                            {content.description}
-                                                        </p>
-                                                    )}
-                                                    <p className={`text-xs mt-2 ${isLightMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                                                        Uploaded: {new Date(content.createdAt).toLocaleDateString()}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    onClick={() => handleDeleteContent(content)}
-                                                    disabled={deletingContent === content._id}
-                                                    className={`ml-4 px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${deletingContent === content._id
-                                                        ? 'bg-gray-400 cursor-not-allowed'
-                                                        : isLightMode
-                                                            ? 'bg-red-600 hover:bg-red-700 text-white'
-                                                            : 'bg-red-500 hover:bg-red-600 text-white'
-                                                        } disabled:opacity-50`}
-                                                >
-                                                    {deletingContent === content._id ? (
-                                                        <>
-                                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                            <span>Deleting...</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                            <span>Delete</span>
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    )}
-                </div>
-            )}
             {activeTab === 'articles' && (
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">

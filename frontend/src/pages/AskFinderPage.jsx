@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
 import ProfileModal from '../components/ProfileModal';
 import { apiClient } from '../services/api';
-import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJECTS, ISE_4TH_SEM_SUBJECTS, BRANCHES, FIRST_YEAR_SUBJECTS } from '../utils/constants';
+import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJECTS, ISE_4TH_SEM_SUBJECTS, CSE_3RD_SEM_SUBJECTS, CSE_4TH_SEM_SUBJECTS, CSE_5TH_SEM_SUBJECTS, CSE_6TH_SEM_SUBJECTS, BRANCHES, FIRST_YEAR_SUBJECTS } from '../utils/constants';
 import DocComments from '../components/DocComments';
 import LoginRequiredModal from '../components/LoginRequiredModal';
 import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark } from 'lucide-react';
@@ -189,8 +189,7 @@ const AskFinderPage = () => {
             }
         };
 
-        const timer = setTimeout(fetchSuggestions, 300);
-        return () => clearTimeout(timer);
+        fetchSuggestions();
     }, [searchQuery]);
 
     const handleKeyDown = (e) => {
@@ -217,11 +216,7 @@ const AskFinderPage = () => {
 
     // Debounced Search when query changes
     useEffect(() => {
-        const timer = setTimeout(() => {
-            handleSearch();
-        }, 500); // 500ms debounce
-
-        return () => clearTimeout(timer);
+        handleSearch();
     }, [searchQuery]);
 
     const handleBranchOverrideChange = (nextBranch) => {
@@ -754,6 +749,22 @@ const AskFinderPage = () => {
                                     </select>
                                 )}
 
+                                {selectedYearLevel && selectedYearLevel === '3rd Year' && (
+                                    <select
+                                        value={selectedSubSemester}
+                                        onChange={(e) => { setSelectedSubSemester(e.target.value); }}
+                                        className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
+                                        style={isLightMode
+                                            ? { background: '#f8fafc', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '1rem' }
+                                        }
+                                    >
+                                        <option value="">Semester</option>
+                                        <option value="5th Sem">5th Semester</option>
+                                        <option value="6th Sem">6th Semester</option>
+                                    </select>
+                                )}
+
                                 {selectedYearLevel && selectedYearLevel !== '1st Year' && (
                                     <select
                                         value={currentBranch}
@@ -795,6 +806,44 @@ const AskFinderPage = () => {
                                                 <optgroup label="4th Sem (ISE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
                                                     {ISE_4TH_SEM_SUBJECTS.map((s, i) => (
                                                         <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`ise4-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {selectedYearLevel === '2nd Year' && currentBranch === 'CS' && (
+                                        <>
+                                            {(selectedSubSemester === '' || selectedSubSemester === '3rd Sem') && (
+                                                <optgroup label="3rd Sem (CSE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {CSE_3RD_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`cse3-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {(selectedSubSemester === '' || selectedSubSemester === '4th Sem') && (
+                                                <optgroup label="4th Sem (CSE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {CSE_4TH_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`cse4-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {selectedYearLevel === '3rd Year' && currentBranch === 'CS' && (
+                                        <>
+                                            {(selectedSubSemester === '' || selectedSubSemester === '5th Sem') && (
+                                                <optgroup label="5th Sem (CSE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {CSE_5TH_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`cse5-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {(selectedSubSemester === '' || selectedSubSemester === '6th Sem') && (
+                                                <optgroup label="6th Sem (CSE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {CSE_6TH_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`cse6-${i}`} value={s.name}>{s.name}</option>
                                                     ))}
                                                 </optgroup>
                                             )}

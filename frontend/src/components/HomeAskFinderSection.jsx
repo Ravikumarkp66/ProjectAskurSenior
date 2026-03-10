@@ -51,8 +51,7 @@ const HomeAskFinderSection = () => {
             }
         };
 
-        const timer = setTimeout(fetchSuggestions, 300);
-        return () => clearTimeout(timer);
+        fetchSuggestions();
     }, [searchQuery]);
 
     const handleSearch = (e) => {
