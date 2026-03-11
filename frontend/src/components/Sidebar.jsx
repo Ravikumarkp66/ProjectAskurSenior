@@ -505,13 +505,8 @@ const Sidebar = ({
                                     </svg>
                                 </div>
                                 <div>
-                                <h1 className={`text-xl font-extrabold leading-tight ${sidebarClasses.accent}`}>AskUrSenior</h1>
-                                <div className="flex items-center gap-2">
+                                    <h1 className={`text-xl font-extrabold leading-tight ${sidebarClasses.accent}`}>AskUrSenior</h1>
                                     <p className="text-[11px] text-gray-400/70 -mt-0.5">Academic Tracker</p>
-                                    <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-500 text-[9px] font-bold uppercase tracking-wider border border-amber-500/30 animate-pulse">
-                                        Testing Mode
-                                    </span>
-                                </div>
                                 </div>
                             </div>
                         </div>
