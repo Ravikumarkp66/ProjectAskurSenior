@@ -211,6 +211,14 @@ const CSE_6TH_SEM_SUBJECTS = [
     { code: 'AEC06', name: 'Aptitude Related Analytical Skill', credits: 1, hasLab: false }
 ];
 
+const PREFILLED_CURRICULUM = {
+    'IS': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS },
+    'ISE': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS },
+    'CS': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS },
+    'CSE': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS }
+};
+
+
 // Confetti Particle System for Subject Eligibility
 const triggerSubjectConfetti = (canvas) => {
     if (!canvas) return;
@@ -289,6 +297,8 @@ const CGPACalculatorPage = () => {
     // Branch and Cycle selection
     const [selectedBranch, setSelectedBranch] = useState('');
     const [selectedCycle, setSelectedCycle] = useState('P');
+    const branchMap = PREFILLED_CURRICULUM[selectedBranch];
+
     const [loadingSubjects, setLoadingSubjects] = useState(false);
     const [subjectsError, setSubjectsError] = useState('');
     const [showRulesModal, setShowRulesModal] = useState(false);
@@ -795,14 +805,7 @@ const CGPACalculatorPage = () => {
             setSubjectsError('');
 
             // Local handling for pre-filled semesters
-            const prefilledMap = {
-                'IS': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS },
-                'ISE': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS },
-                'CS': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS },
-                'CSE': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS }
-            };
 
-            const branchMap = prefilledMap[selectedBranch];
             if (activeTab === 'sgpa' && branchMap && branchMap[selectedCycle]) {
                 const prefilledList = branchMap[selectedCycle];
                 const storedCIE = getAllCIEResults();
