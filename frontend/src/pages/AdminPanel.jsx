@@ -197,9 +197,7 @@ const AdminPanel = () => {
         }
     }, [activeTab, reviewsActiveTab]);
 
-        if (activeTab === 'articles') {
-            loadArticles();
-        }
+
 
 
 

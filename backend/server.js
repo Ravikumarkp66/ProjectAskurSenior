@@ -114,6 +114,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/discord', require('./routes/discord'));
 // Admin utility routes
