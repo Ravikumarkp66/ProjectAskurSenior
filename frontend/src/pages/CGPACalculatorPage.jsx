@@ -144,6 +144,31 @@ const ISE_4TH_SEM_SUBJECTS = [
     { code: 'SMC01 / SMC02 / SMC03', name: 'NSS / PE / Yoga', credits: 0, hasLab: false }
 ];
 
+const ISE_5TH_SEM_SUBJECTS = [
+    { code: 'HSIS01', name: 'Software Engineering and Project Management', credits: 3, hasLab: false },
+    { code: 'S5IS01', name: 'Artificial Intelligence and Machine Learning (Integrated)', credits: 4, hasLab: true },
+    { code: 'S5IS02', name: 'Database Management System (Integrated)', credits: 4, hasLab: true },
+    { code: 'S5ISL01', name: 'Design Thinking and User Experience Lab', credits: 1, hasLab: true },
+    { code: 'S5ISPEC011', name: 'Data Communication', credits: 3, hasLab: false },
+    { code: 'S6ISMP', name: 'Mini Project / Extension Survey Project', credits: 2, hasLab: false },
+    { code: 'AEC', name: 'Research Methodology and IPR', credits: 3, hasLab: false },
+    { code: 'HS06', name: 'Environmental Studies', credits: 2, hasLab: false },
+    { code: 'HS', name: 'Soft Skills', credits: 0, hasLab: false },
+    { code: 'SMC01 / SMC02 / SMC03', name: 'NSS / PE / Yoga', credits: 0, hasLab: false }
+];
+
+const ISE_6TH_SEM_SUBJECTS = [
+    { code: 'S6IS01', name: 'Big Data Analytics (Integrated)', credits: 4, hasLab: true },
+    { code: 'S6IS02', name: 'Computer Networks', credits: 4, hasLab: true },
+    { code: 'S6ISPEC021', name: 'AWS Cloud', credits: 3, hasLab: false },
+    { code: 'S6ISPEC022', name: 'Generative AI and Prompt Engineering', credits: 3, hasLab: false },
+    { code: 'OECX', name: 'Open Elective Course-I', credits: 3, hasLab: false },
+    { code: 'S6ISMP-I', name: 'Major Project Phase-I', credits: 2, hasLab: false },
+    { code: 'PCCL', name: 'Computer Networks Laboratory', credits: 1, hasLab: true },
+    { code: 'ARAS', name: 'Aptitude Related Analytical Skill', credits: 1, hasLab: false },
+    { code: 'SMC01 / SMC02 / SMC03', name: 'NSS / PE / Yoga', credits: 0, hasLab: false }
+];
+
 const CSE_3RD_SEM_SUBJECTS = [
     { code: '3SMA4TC', name: 'Statistics and Probability', credits: 4, hasLab: false },
     { code: '3SCS01', name: 'Operating Systems', credits: 3, hasLab: false },
@@ -805,6 +830,12 @@ const CGPACalculatorPage = () => {
             setSubjectsError('');
 
             // Local handling for pre-filled semesters
+            const prefilledMap = {
+                'IS': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS, '5': ISE_5TH_SEM_SUBJECTS, '6': ISE_6TH_SEM_SUBJECTS },
+                'ISE': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS, '5': ISE_5TH_SEM_SUBJECTS, '6': ISE_6TH_SEM_SUBJECTS },
+                'CS': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS },
+                'CSE': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS }
+            };
 
             if (activeTab === 'sgpa' && branchMap && branchMap[selectedCycle]) {
                 const prefilledList = branchMap[selectedCycle];

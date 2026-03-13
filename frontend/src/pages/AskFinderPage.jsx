@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
 import ProfileModal from '../components/ProfileModal';
 import { apiClient } from '../services/api';
-import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJECTS, ISE_4TH_SEM_SUBJECTS, CSE_3RD_SEM_SUBJECTS, CSE_4TH_SEM_SUBJECTS, CSE_5TH_SEM_SUBJECTS, CSE_6TH_SEM_SUBJECTS, BRANCHES, FIRST_YEAR_SUBJECTS } from '../utils/constants';
+import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJECTS, ISE_4TH_SEM_SUBJECTS, ISE_5TH_SEM_SUBJECTS, ISE_6TH_SEM_SUBJECTS, CSE_3RD_SEM_SUBJECTS, CSE_4TH_SEM_SUBJECTS, CSE_5TH_SEM_SUBJECTS, CSE_6TH_SEM_SUBJECTS, BRANCHES, FIRST_YEAR_SUBJECTS } from '../utils/constants';
 import DocComments from '../components/DocComments';
 import LoginRequiredModal from '../components/LoginRequiredModal';
-import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark } from 'lucide-react';
+import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark, Trophy, Info } from 'lucide-react';
 
 const AskFinderPage = () => {
     const navigate = useNavigate();
@@ -78,7 +78,8 @@ const AskFinderPage = () => {
         contributorName: '',
         contributorYear: '',
         contributorBranch: '',
-        branch: ''
+        branch: '',
+        usn: user?.usn || ''
     });
 
     const formatSize = (bytes) => {
@@ -92,6 +93,28 @@ const AskFinderPage = () => {
     const [editingId, setEditingId] = useState(null);
     const [editValue, setEditValue] = useState('');
     const [editingDocTypeId, setEditingDocTypeId] = useState(null);
+    const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+    const [leaderboardData, setLeaderboardData] = useState([]);
+    const [fetchingLeaderboard, setFetchingLeaderboard] = useState(false);
+    const [showRules, setShowRules] = useState(false);
+
+    const fetchLeaderboard = async () => {
+        setFetchingLeaderboard(true);
+        try {
+            const response = await apiClient.get('/leaderboard');
+            setLeaderboardData(response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch leaderboard:', error);
+        } finally {
+            setFetchingLeaderboard(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showLeaderboardModal) {
+            fetchLeaderboard();
+        }
+    }, [showLeaderboardModal]);
 
     useEffect(() => {
         const sync = () => {
@@ -131,6 +154,10 @@ const AskFinderPage = () => {
     useEffect(() => {
             handleSearch();
     }, [selectedSubject, selectedPaperType, selectedYearLevel, selectedSubSemester, selectedYear, selectedDocType, sortBy, statusFilter, bookmarksOnly, currentBranch]);
+
+    useEffect(() => {
+        fetchLeaderboard();
+    }, []);
 
     // Pro Search state
     const [searchFocused, setSearchFocused] = useState(false);
@@ -312,12 +339,16 @@ const AskFinderPage = () => {
                 }
             });
 
-            await apiClient.post('/documents/upload', formData, {
+            const response = await apiClient.post('/documents/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 onUploadProgress: (progressEvent) => {
                     setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
                 },
             });
+
+            if (response.data.updatedUser && updateUser) {
+                updateUser(response.data.updatedUser);
+            }
 
             alert(user?.isAdmin ? 'Materials added successfully!' : 'Thank you! Your contributions have been submitted for admin approval.');
             setShowUploadModal(false);
@@ -338,7 +369,8 @@ const AskFinderPage = () => {
             subjectName: '', subjectCode: '', semester: '', yearLevel: '', year: '',
             documentType: 'notes', tags: '', moduleInfo: '', pageCount: '',
             showContributorName: 'false', contributorName: '', contributorYear: '', contributorBranch: '',
-            branch: ''
+            branch: '',
+            usn: user?.usn || ''
         });
         setUploadProgress(0);
     };
@@ -389,6 +421,7 @@ const AskFinderPage = () => {
         try {
             await apiClient.post(`/documents/${documentId}/approve`);
             handleSearch();
+            fetchLeaderboard();
         } catch (error) {
             console.error('Approve failed:', error);
             alert('Approval failed');
@@ -676,6 +709,20 @@ const AskFinderPage = () => {
                                         <span className="hidden sm:inline">Saved Items</span>
                                     </button>
 
+                                    {/* Leaderboard Button */}
+                                    <button
+                                        onClick={() => setShowLeaderboardModal(true)}
+                                        className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
+                                            isLightMode 
+                                                ? 'bg-white border-slate-200 text-slate-600 hover:bg-yellow-50 hover:border-yellow-200' 
+                                                : 'bg-white/5 border-white/10 text-slate-400 hover:bg-yellow-500/10 hover:border-yellow-500/30'
+                                        }`}
+                                        title="View Leaderboard"
+                                    >
+                                        <Trophy size={16} className="text-yellow-500" />
+                                        <span className="hidden sm:inline">Leaderboard</span>
+                                    </button>
+
                                     {user?.isAdmin ? (
                                         <div className="flex items-center gap-2">
                                             <button
@@ -812,6 +859,25 @@ const AskFinderPage = () => {
                                         </>
                                     )}
 
+                                    {selectedYearLevel === '3rd Year' && currentBranch === 'IS' && (
+                                        <>
+                                            {(selectedSubSemester === '' || selectedSubSemester === '5th Sem') && (
+                                                <optgroup label="5th Sem (ISE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {ISE_5TH_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`ise5-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                            {(selectedSubSemester === '' || selectedSubSemester === '6th Sem') && (
+                                                <optgroup label="6th Sem (ISE)" style={{ background: isLightMode ? '#fff' : '#0a0a0b' }}>
+                                                    {ISE_6TH_SEM_SUBJECTS.map((s, i) => (
+                                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`ise6-${i}`} value={s.name}>{s.name}</option>
+                                                    ))}
+                                                </optgroup>
+                                            )}
+                                        </>
+                                    )}
+
                                     {selectedYearLevel === '2nd Year' && currentBranch === 'CS' && (
                                         <>
                                             {(selectedSubSemester === '' || selectedSubSemester === '3rd Sem') && (
@@ -897,351 +963,370 @@ const AskFinderPage = () => {
                                 </select>
                             </div>
                         </div>
-
-                        {/* Results Count & Breakdown */}
-                        {!loading && documents.length > 0 && (
-                            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                <div className="flex items-center gap-2">
-                                    <div className={`h-8 w-1 bg-purple-500 rounded-full`}></div>
-                                    <h2 className={`text-xl font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
-                                        Found <span className="text-purple-500">{searchSummary.total}</span> Materials
-                                    </h2>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    {searchSummary.notes > 0 && (
-                                        <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                                            Notes: {searchSummary.notes}
-                                        </span>
-                                    )}
-                                    {searchSummary.see > 0 && (
-                                        <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                            SEE: {searchSummary.see}
-                                        </span>
-                                    )}
-                                    {searchSummary.internals > 0 && (
-                                        <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                                            Internals: {searchSummary.internals}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Content Grid */}
-                        {loading ? (
-                            <div className="flex justify-center items-center py-20">
-                                <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
-                            </div>
-                        ) : documents.length > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                                {documents.slice(0, 10).map((doc) => (
-                                    <div key={doc._id} className={`rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden flex flex-col group
-                                        ${isLightMode
-                                            ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
-                                            : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
-                                    >
-                                        <div className="p-6 flex-1">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 group-hover:rotate-3 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                                    <FileText size={20} />
-                                                </div>
-                                                <div className="flex items-center gap-1.5 ml-auto mr-2">
-                                                    <div className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleLike(doc._id); }}
-                                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all active:scale-90 ${
-                                                                doc.likes?.includes(user?._id)
-                                                                    ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
-                                                                    : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
-                                                            }`}
-                                                        >
-                                                            <Heart size={14} className={doc.likes?.includes(user?._id) ? 'fill-current' : ''} />
-                                                            <span className="text-[10px] font-black">{doc.likes?.length || 0}</span>
-                                                        </button>
-                                                        <div className={`w-px h-3 mx-1 ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                                        <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleBookmark(doc._id); }}
-                                                            className={`p-1.5 rounded-lg transition-all active:scale-90 ${
-                                                                user?.bookmarks?.includes(doc._id)
-                                                                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
-                                                                    : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
-                                                            }`}
-                                                            title="Bookmark Document"
-                                                        >
-                                                            <Bookmark size={14} className={user?.bookmarks?.includes(doc._id) ? 'fill-current' : ''} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col items-end gap-1 ml-4">
-                                                    {user?.isAdmin && (
-                                                        <div className="relative mb-2">
-                                                            {confirmingDeleteId === doc._id ? (
-                                                                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-1.5 rounded-lg animate-in fade-in zoom-in duration-200">
-                                                                    <span className="text-[10px] font-bold text-red-500 px-1">WANT TO ERASE?</span>
-                                                                    <button 
-                                                                        onClick={() => handleDocDelete(doc._id)}
-                                                                        className="bg-red-500 text-white p-1 rounded hover:bg-red-600 transition-colors"
-                                                                        title="Confirm Delete"
-                                                                    >
-                                                                        <Trash2 size={12} fill="white" />
-                                                                    </button>
-                                                                    <button 
-                                                                        onClick={() => setConfirmingDeleteId(null)}
-                                                                        className={`p-1 rounded hover:bg-slate-200 transition-colors ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                        title="Cancel"
-                                                                    >
-                                                                        <X size={12} />
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <button 
-                                                                    onClick={(e) => { e.stopPropagation(); setConfirmingDeleteId(doc._id); }}
-                                                                    className={`p-2 rounded-lg transition-all hover:bg-red-500/10 hover:text-red-500 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                    title="Delete Document"
-                                                                >
-                                                                    <Trash2 size={16} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {editingDocTypeId === doc._id ? (
-                                                        <select
-                                                            autoFocus
-                                                            value={doc.documentType}
-                                                            onChange={(e) => handleUpdateDocumentType(doc._id, e.target.value)}
-                                                            onBlur={() => setEditingDocTypeId(null)}
-                                                            className={`text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-wider border focus:outline-none 
-                                                                ${isLightMode ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0a0a0b] border-white/10 text-white'}`}
-                                                        >
-                                                            <option value="notes">Notes</option>
-                                                            <option value="internals">Internals</option>
-                                                            <option value="see">SEE</option>
-                                                        </select>
-                                                    ) : (
-                                                        <div 
-                                                            onClick={() => user?.isAdmin && setEditingDocTypeId(doc._id)}
-                                                            className={`relative group cursor-pointer ${user?.isAdmin ? 'hover:scale-105 transition-transform' : ''}`}
-                                                        >
-                                                            {doc.documentType === 'notes' && (
-                                                                <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm block">
-                                                                    Notes
-                                                                </span>
-                                                            )}
-                                                            {doc.documentType === 'see' && (
-                                                                <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm block">
-                                                                    SEE
-                                                                </span>
-                                                            )}
-                                                            {doc.documentType === 'internals' && (
-                                                                <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm block">
-                                                                    Internals
-                                                                </span>
-                                                            )}
-                                                            {user?.isAdmin && (
-                                                                <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-purple-500 text-white rounded-full p-0.5 shadow-lg">
-                                                                    <Edit size={8} />
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {!doc.isApproved && (
-                                                    <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-md shadow-lg animate-pulse border border-amber-400">
-                                                        Review Pending
-                                                    </div>
+                        {/* Layout Wrapper: Results + Sidebar */}
+                        <div className="flex flex-col lg:flex-row gap-8 items-start">
+                            {/* Main Content Area */}
+                            <div className="flex-1 w-full order-2 lg:order-1">
+                                {loading ? (
+                                    <div className="flex justify-center items-center py-20">
+                                        <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
+                                    </div>
+                                ) : documents.length > 0 ? (
+                                    <>
+                                        {/* Results Count & Breakdown */}
+                                        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`h-8 w-1 bg-purple-500 rounded-full`}></div>
+                                                <h2 className={`text-xl font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
+                                                    Found <span className="text-purple-500">{searchSummary.total}</span> Materials
+                                                </h2>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {searchSummary.notes > 0 && (
+                                                    <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                                                        Notes: {searchSummary.notes}
+                                                    </span>
+                                                )}
+                                                {searchSummary.see > 0 && (
+                                                    <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                                        SEE: {searchSummary.see}
+                                                    </span>
+                                                )}
+                                                {searchSummary.internals > 0 && (
+                                                    <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                                        Internals: {searchSummary.internals}
+                                                    </span>
                                                 )}
                                             </div>
+                                        </div>
 
-                                            <h3 className={`text-xl font-bold mb-3 capitalize leading-tight ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
-                                                {doc.subjectName}
-                                            </h3>
-
-                                            <div className="space-y-1.5 mb-5 block">
-                                                {doc.semester && (
-                                                    <p className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                        <span className="font-semibold text-xs uppercase tracking-wider opacity-70">Semester/Year:</span> <span className="font-medium">{doc.yearLevel ? `${doc.yearLevel}${doc.semester ? ` - ${doc.semester}` : ''}` : doc.semester}</span>
-                                                    </p>
-                                                )}
-                                                <div className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                    <span className="font-semibold text-xs uppercase tracking-wider opacity-70">File:</span> 
-                                                    {editingId === doc._id ? (
-                                                        <div className="flex items-center gap-1 flex-1">
-                                                            <input 
-                                                                type="text"
-                                                                value={editValue}
-                                                                onChange={(e) => setEditValue(e.target.value)}
-                                                                className={`flex-1 px-2 py-1 text-xs rounded border focus:outline-none focus:ring-1 focus:ring-purple-500 ${isLightMode ? 'bg-white border-slate-300' : 'bg-[#0a0a0b] border-white/10'}`}
-                                                                autoFocus
-                                                            />
-                                                            <button onClick={() => handleUpdateFileName(doc._id)} className="text-emerald-500 hover:text-emerald-600">
-                                                                <Check size={14} />
-                                                            </button>
-                                                            <button onClick={() => setEditingId(null)} className="text-red-500 hover:text-red-600">
-                                                                <X size={14} />
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 group/file">
-                                                            <span className="font-medium truncate max-w-[150px]" title={doc.originalName}>{doc.originalName}</span>
-                                                            {user?.isAdmin && (
-                                                                <button 
-                                                                    onClick={() => { setEditingId(doc._id); setEditValue(doc.originalName); }}
-                                                                    className={`opacity-0 group-hover/file:opacity-100 transition-opacity p-1 rounded hover:bg-purple-500/10 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                    title="Edit filename"
-                                                                >
-                                                                    <Edit size={12} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {doc.contributor?.showName && (
-                                                    <div className={`mt-3 p-2.5 rounded-xl border flex items-center gap-2.5 ${isLightMode ? 'bg-purple-50/50 border-purple-100 text-purple-700' : 'bg-purple-500/10 border-purple-500/20 text-purple-300'}`}>
-                                                        <div className={`p-1.5 rounded-lg ${isLightMode ? 'bg-white text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                                            <UserCheck size={14} />
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] uppercase font-black tracking-tighter opacity-60 leading-none mb-1">Contributor</span>
-                                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                                <span className="text-xs font-bold leading-none">{doc.contributor.name}</span>
-                                                                {(doc.contributor.year || doc.contributor.branch) && (
-                                                                    <span className="text-[10px] opacity-70 leading-none">
-                                                                        ({[doc.contributor.year, doc.contributor.branch].filter(Boolean).join(' • ')})
-                                                                    </span>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+                                            {documents.map((doc) => (
+                                                <div key={doc._id} className={`rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden flex flex-col group
+                                                    ${isLightMode
+                                                        ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
+                                                        : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
+                                                >
+                                                    <div className="p-6 flex-1">
+                                                        <div className="flex justify-between items-start mb-4">
+                                                            <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 group-hover:rotate-3 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                                <FileText size={20} />
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 ml-auto mr-2">
+                                                                <div className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); handleLike(doc._id); }}
+                                                                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all active:scale-90 ${
+                                                                            doc.likes?.includes(user?._id)
+                                                                                ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                                                                : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
+                                                                        }`}
+                                                                    >
+                                                                        <Heart size={14} className={doc.likes?.includes(user?._id) ? 'fill-current' : ''} />
+                                                                        <span className="text-[10px] font-black">{doc.likes?.length || 0}</span>
+                                                                    </button>
+                                                                    <div className={`w-px h-3 mx-1 ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); handleBookmark(doc._id); }}
+                                                                        className={`p-1.5 rounded-lg transition-all active:scale-90 ${
+                                                                            user?.bookmarks?.includes(doc._id)
+                                                                                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                                                                                : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
+                                                                        }`}
+                                                                        title="Bookmark Document"
+                                                                    >
+                                                                        <Bookmark size={14} className={user?.bookmarks?.includes(doc._id) ? 'fill-current' : ''} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col items-end gap-1 ml-4">
+                                                                {user?.isAdmin && (
+                                                                    <div className="relative mb-2">
+                                                                        {confirmingDeleteId === doc._id ? (
+                                                                            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-1.5 rounded-lg animate-in fade-in zoom-in duration-200">
+                                                                                <span className="text-[10px] font-bold text-red-500 px-1">WANT TO ERASE?</span>
+                                                                                <button 
+                                                                                    onClick={() => handleDocDelete(doc._id)}
+                                                                                    className="bg-red-500 text-white p-1 rounded hover:bg-red-600 transition-colors"
+                                                                                    title="Confirm Delete"
+                                                                                >
+                                                                                    <Trash2 size={12} fill="white" />
+                                                                                </button>
+                                                                                <button 
+                                                                                    onClick={() => setConfirmingDeleteId(null)}
+                                                                                    className={`p-1 rounded hover:bg-slate-200 transition-colors ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                                    title="Cancel"
+                                                                                >
+                                                                                    <X size={12} />
+                                                                                </button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <button 
+                                                                                onClick={(e) => { e.stopPropagation(); setConfirmingDeleteId(doc._id); }}
+                                                                                className={`p-2 rounded-lg transition-all hover:bg-red-500/10 hover:text-red-500 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                                title="Delete Document"
+                                                                            >
+                                                                                <Trash2 size={16} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {editingDocTypeId === doc._id ? (
+                                                                    <select
+                                                                        autoFocus
+                                                                        value={doc.documentType}
+                                                                        onChange={(e) => handleUpdateDocumentType(doc._id, e.target.value)}
+                                                                        onBlur={() => setEditingDocTypeId(null)}
+                                                                        className={`text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-wider border focus:outline-none 
+                                                                            ${isLightMode ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0a0a0b] border-white/10 text-white'}`}
+                                                                    >
+                                                                        <option value="notes">Notes</option>
+                                                                        <option value="internals">Internals</option>
+                                                                        <option value="see">SEE</option>
+                                                                    </select>
+                                                                ) : (
+                                                                    <div 
+                                                                        onClick={() => user?.isAdmin && setEditingDocTypeId(doc._id)}
+                                                                        className={`relative group cursor-pointer ${user?.isAdmin ? 'hover:scale-105 transition-transform' : ''}`}
+                                                                    >
+                                                                        {doc.documentType === 'notes' && (
+                                                                            <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm block">
+                                                                                Notes
+                                                                            </span>
+                                                                        )}
+                                                                        {doc.documentType === 'see' && (
+                                                                            <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm block">
+                                                                                SEE
+                                                                            </span>
+                                                                        )}
+                                                                        {doc.documentType === 'internals' && (
+                                                                            <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm block">
+                                                                                Internals
+                                                                            </span>
+                                                                        )}
+                                                                        {user?.isAdmin && (
+                                                                            <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-purple-500 text-white rounded-full p-0.5 shadow-lg">
+                                                                                <Edit size={8} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </div>
+                                                            {!doc.isApproved && (
+                                                                <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-md shadow-lg animate-pulse border border-amber-400">
+                                                                    Review Pending
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <h3 className={`text-xl font-bold mb-3 capitalize leading-tight ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
+                                                            {doc.subjectName}
+                                                        </h3>
+
+                                                        <div className="space-y-1.5 mb-5 block">
+                                                            {doc.semester && (
+                                                                <p className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                                    <span className="font-semibold text-xs uppercase tracking-wider opacity-70">Semester/Year:</span> <span className="font-medium">{doc.yearLevel ? `${doc.yearLevel}${doc.semester ? ` - ${doc.semester}` : ''}` : doc.semester}</span>
+                                                                </p>
+                                                            )}
+                                                            <div className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                                <span className="font-semibold text-xs uppercase tracking-wider opacity-70">File:</span> 
+                                                                <span className="font-medium truncate max-w-[150px]" title={doc.originalName}>{doc.originalName}</span>
+                                                            </div>
+                                                            {doc.contributor?.showName && (
+                                                                <div className={`mt-3 p-2.5 rounded-xl border flex items-center gap-2.5 ${isLightMode ? 'bg-purple-50/50 border-purple-100 text-purple-700' : 'bg-purple-500/10 border-purple-500/20 text-purple-300'}`}>
+                                                                    <div className={`p-1.5 rounded-lg ${isLightMode ? 'bg-white text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                                        <UserCheck size={14} />
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[10px] uppercase font-black tracking-tighter opacity-60 leading-none mb-1">Contributor</span>
+                                                                        <span className="text-xs font-bold leading-none">{doc.contributor.name}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {doc.subjectCode && (
+                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'}`}>
+                                                                    CODE: {doc.subjectCode}
+                                                                </span>
+                                                            )}
+                                                            {doc.paperType && (
+                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-purple-50 text-purple-600' : 'bg-purple-500/10 text-purple-400'}`}>
+                                                                    TYPE: {doc.paperType}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                )}
-                                            </div>
 
-                                            <div className="flex flex-wrap gap-2">
-                                                {doc.subjectCode && (
-                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'}`}>
-                                                        CODE: {doc.subjectCode}
-                                                    </span>
-                                                )}
-                                                {doc.paperType && (
-                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-purple-50 text-purple-600' : 'bg-purple-500/10 text-purple-400'}`}>
-                                                        TYPE: {doc.paperType}
-                                                    </span>
-                                                )}
-                                                {doc.moduleInfo && (
-                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-amber-500/10 text-amber-600' : 'bg-amber-500/10 text-amber-400'}`}>
-                                                        MOD: {doc.moduleInfo}
-                                                    </span>
-                                                )}
-                                                {doc.pageCount > 0 && (
-                                                    <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-emerald-500/10 text-emerald-600' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                                                        PAGES: {doc.pageCount}
-                                                    </span>
-                                                )}
-                                                {doc.tags && (
-                                                    <div className="w-full flex flex-wrap gap-2 mt-1 items-center">
-                                                        <span className={`text-[9px] font-black uppercase tracking-tighter opacity-50 ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>Tags:</span>
-                                                        {doc.tags.split(',').map((tag, index) => (
-                                                            <span key={index} className={`px-2.5 py-1 text-[10px] font-semibold tracking-wide rounded-md ${isLightMode ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-purple-500/10 text-purple-300 border border-purple-500/20'}`}>
-                                                                #{tag.trim()}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className={`p-4 border-t flex flex-col gap-3 ${isLightMode ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/20'}`}>
-                                            {!doc.isApproved && user?.isAdmin ? (
-                                                <div className="w-full space-y-3">
-                                                    <button
-                                                        onClick={() => handlePreview(doc._id)}
-                                                        className={`w-full flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-bold transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
-                                                    >
-                                                        <Eye size={18} />
-                                                        Preview Content
-                                                    </button>
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <button
-                                                            onClick={() => handleApprove(doc._id)}
-                                                            className="flex justify-center items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold transition-all shadow-md active:scale-95"
-                                                        >
-                                                            <Check size={18} />
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDocDelete(doc._id)}
-                                                            className="flex justify-center items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-all shadow-md active:scale-95"
-                                                        >
-                                                            <X size={18} />
-                                                            Reject
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-2 gap-3 w-full">
-                                                    <button
-                                                        onClick={() => handlePreview(doc._id)}
-                                                        className={`flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
-                                                    >
-                                                        <Eye size={18} />
-                                                        Preview
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDownload(doc._id)}
-                                                        disabled={!doc.isApproved}
-                                                        className={`flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-lg font-bold transition-all shadow-md active:scale-95 ${!doc.isApproved ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 hover:shadow-lg'}`}
-                                                    >
-                                                        <div className="flex flex-col items-center">
-                                                            <Download size={18} />
-                                                            <span className="text-[9px] opacity-80 mt-0.5">{formatSize(doc.fileSize)}</span>
+                                                    <div className={`p-4 border-t flex flex-col gap-3 ${isLightMode ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/20'}`}>
+                                                        <div className="grid grid-cols-2 gap-3 w-full">
+                                                            <button
+                                                                onClick={() => handlePreview(doc._id)}
+                                                                className={`flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
+                                                            >
+                                                                <Eye size={18} />
+                                                                Preview
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDownload(doc._id)}
+                                                                disabled={!doc.isApproved}
+                                                                className={`flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-lg font-bold transition-all shadow-md active:scale-95 ${!doc.isApproved ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 hover:shadow-lg'}`}
+                                                            >
+                                                                <Download size={18} />
+                                                                Get
+                                                            </button>
                                                         </div>
-                                                        Get
-                                                    </button>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                                            ))}
 
-                                {/* Search for More Card */}
-                                <div className={`rounded-2xl border border-dashed flex flex-col items-center justify-center p-8 text-center transition-all hover:bg-purple-500/5 group/cta
-                                    ${isLightMode 
-                                        ? 'bg-slate-50 border-slate-300 hover:border-purple-300' 
-                                        : 'bg-white/5 border-white/10 hover:border-purple-500/30'}`}
-                                >
-                                    <div className={`p-5 rounded-full mb-6 transition-all group-hover/cta:scale-110 group-hover/cta:rotate-12 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                        <Search size={32} />
+                                            {/* Search for More Card */}
+                                            <div className={`rounded-2xl border border-dashed flex flex-col items-center justify-center p-8 text-center transition-all hover:bg-purple-500/5 group/cta
+                                                ${isLightMode 
+                                                    ? 'bg-slate-50 border-slate-300 hover:border-purple-300' 
+                                                    : 'bg-white/5 border-white/10 hover:border-purple-500/30'}`}
+                                            >
+                                                <div className={`p-5 rounded-full mb-6 transition-all group-hover/cta:scale-110 group-hover/cta:rotate-12 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                    <Search size={32} />
+                                                </div>
+                                                <h4 className={`text-xl font-bold mb-3 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
+                                                    Need more?
+                                                </h4>
+                                                <p className="text-sm mb-6 opacity-60">Try refining your search!</p>
+                                                <button 
+                                                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                                    className="text-xs font-black text-purple-500 uppercase tracking-widest hover:underline"
+                                                >
+                                                    Back to Top
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className={`text-center py-20 px-6 rounded-3xl border border-dashed ${isLightMode ? 'bg-slate-50/50 border-slate-300' : 'bg-[#141416]/20 border-white/10'}`}>
+                                        <div className="text-slate-500 mb-5 flex justify-center">
+                                            <div className={`p-6 rounded-full ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`}>
+                                                <Search size={40} className="opacity-50" />
+                                            </div>
+                                        </div>
+                                        <h3 className={`text-2xl font-bold mb-3 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>No materials found</h3>
+                                        <p className={`mb-8 max-w-md mx-auto ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>Try adjusting your filters or search terms.</p>
+                                        <button
+                                            onClick={resetFilters}
+                                            className={`px-8 py-3 rounded-full font-semibold transition-all shadow-md ${isLightMode ? 'bg-white border border-slate-200 text-slate-700' : 'bg-white/5 border border-white/10 text-white'}`}
+                                        >
+                                            Clear Filters
+                                        </button>
                                     </div>
-                                    <h4 className={`text-xl font-bold mb-3 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
-                                        Didn't find what you're looking for?
-                                    </h4>
-                                    <p className={`text-sm mb-6 leading-relaxed ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                        We have hundreds of materials! Type a subject name or code in the search bar to find exactly what you need.
+                                )}
+                            </div>
+
+                            {/* Sidebar: Top Performers */}
+                            <aside className="w-full lg:w-80 shrink-0 space-y-6 order-1 lg:order-2">
+                                <div className={`p-6 rounded-3xl border transition-all ${isLightMode ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#141416]/50 border-white/5'}`}>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                                                <Trophy size={20} />
+                                            </div>
+                                            <h3 className={`font-black tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Top Performers</h3>
+                                        </div>
+                                        <button 
+                                            onClick={() => setShowLeaderboardModal(true)}
+                                            className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${isLightMode ? 'border-slate-200 text-slate-500 hover:bg-slate-50' : 'border-white/5 text-slate-400 hover:bg-white/5'}`}
+                                        >
+                                            View All
+                                        </button>
+                                    </div>
+
+                                    {fetchingLeaderboard ? (
+                                        <div className="space-y-4 py-4">
+                                            {[1, 2, 3].map(i => (
+                                                <div key={i} className="flex items-center gap-4 animate-pulse">
+                                                    <div className="w-10 h-10 rounded-xl bg-white/5"></div>
+                                                    <div className="flex-1 space-y-2">
+                                                        <div className="h-3 w-20 bg-white/5 rounded"></div>
+                                                        <div className="h-2 w-12 bg-white/5 rounded"></div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (leaderboardData || []).length === 0 ? (
+                                        <div className="py-8 text-center" key="lb-empty">
+                                            <p className="text-xs text-slate-500 font-bold mb-1">No contributors yet</p>
+                                            <p className="text-[10px] text-slate-600">Be the first to perform!</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4" key="lb-list">
+                                            {leaderboardData.slice(0, 3).map((performer, idx) => (
+                                                <div 
+                                                    key={idx}
+                                                    className={`group p-3 rounded-2xl border transition-all flex items-center gap-4 ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-white/5 border-white/5 hover:border-purple-500/30'}`}
+                                                >
+                                                    <div className="relative">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs uppercase ${
+                                                            idx === 0 ? 'bg-yellow-500/20 text-yellow-500' :
+                                                            idx === 1 ? 'bg-slate-400/20 text-slate-400' :
+                                                            'bg-amber-700/20 text-amber-700'
+                                                        }`}>
+                                                            {performer.usn?.includes(' ') 
+                                                                ? performer.usn.split(' ').map(n => n[0]).join('').slice(0, 2)
+                                                                : performer.usn?.length > 5 ? performer.usn.slice(-3) : (performer.usn || '??')}
+                                                        </div>
+                                                        <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black border-2 ${
+                                                            idx === 0 ? 'bg-yellow-500 text-yellow-900 border-white' :
+                                                            idx === 1 ? 'bg-slate-300 text-slate-800 border-white' :
+                                                            'bg-amber-600 text-amber-100 border-white'
+                                                        }`}>
+                                                            {idx + 1}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-xs font-black truncate ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>{performer.usn}</p>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-[10px] font-bold text-slate-500 uppercase">{performer.uploads} Uploads</span>
+                                                            <div className={`w-1 h-1 rounded-full ${isLightMode ? 'bg-slate-300' : 'bg-white/10'}`}></div>
+                                                            <span className="text-[10px] font-black text-purple-500">{performer.score} Pts</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            
+                                            <div className={`mt-4 p-4 rounded-2xl border flex flex-col gap-3 ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-500/10 border-purple-500/20'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <Info size={12} className="text-purple-500" />
+                                                    <p className="text-[10px] font-black text-purple-500 uppercase tracking-wider">How to top?</p>
+                                                </div>
+                                                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                                                    Contribute verified materials to earn points. Each approved upload equals 10 points. 
+                                                </p>
+                                                <button 
+                                                    onClick={() => setShowUploadModal(true)}
+                                                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black transition-all"
+                                                >
+                                                    Start Contributing
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Branch Spotlight */}
+                                <div className={`p-6 rounded-3xl border border-dashed ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-[#141416]/20 border-white/5'}`}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
+                                            <Heart size={16} className="fill-current" />
+                                        </div>
+                                        <h4 className={`font-black text-sm ${isLightMode ? 'text-slate-800' : 'text-white'}`}>Contribute & Shine</h4>
+                                    </div>
+                                    <p className="text-slate-500 text-xs leading-relaxed mb-4 font-medium">
+                                        Make ASK+ the best study resource. Your name/USN will be featured across the platform!
                                     </p>
-                                    <button 
-                                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                        className="text-sm font-black text-purple-500 uppercase tracking-widest hover:underline flex items-center gap-2"
-                                    >
-                                        Scroll to Search <ArrowLeft size={14} className="rotate-90" />
-                                    </button>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className={`text-center py-20 px-6 rounded-3xl border border-dashed ${isLightMode ? 'bg-slate-50/50 border-slate-300' : 'bg-[#141416]/20 border-white/10'}`}>
-                                <div className="text-slate-500 mb-5 flex justify-center">
-                                    <div className={`p-6 rounded-full ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`}>
-                                        <Search size={40} className="opacity-50" />
-                                    </div>
-                                </div>
-                                <h3 className={`text-2xl font-bold mb-3 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>No materials found</h3>
-                                <p className={`mb-8 max-w-md mx-auto ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>We couldn't find any study materials matching your current filters. Try adjusting them or clear all filters.</p>
-                                <button
-                                    onClick={resetFilters}
-                                    className={`px-8 py-3 rounded-full font-semibold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:text-purple-600' : 'bg-white/5 border border-white/10 text-white hover:text-purple-400'}`}
-                                >
-                                    Clear all filters
-                                </button>
-                            </div>
-                        )}
+                            </aside>
+                        </div>
 
                         {/* Global Discussion Section */}
                         <div className="mt-20 max-w-4xl mx-auto">
@@ -1332,7 +1417,7 @@ const AskFinderPage = () => {
                                             </div>
                                         )}
 
-                                        {uploadMetadata.yearLevel === '2nd Year' && (
+                                        {(uploadMetadata.yearLevel === '2nd Year' || uploadMetadata.yearLevel === '3rd Year') && (
                                             <div>
                                                 <label className="block text-sm font-semibold mb-2">Semester *</label>
                                                 <select
@@ -1342,8 +1427,17 @@ const AskFinderPage = () => {
                                                     className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
                                                 >
                                                     <option value="">Select Semester</option>
-                                                    <option value="3rd Sem">3rd Semester</option>
-                                                    <option value="4th Sem">4th Semester</option>
+                                                    {uploadMetadata.yearLevel === '2nd Year' ? (
+                                                        <>
+                                                            <option value="3rd Sem">3rd Semester</option>
+                                                            <option value="4th Sem">4th Semester</option>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <option value="5th Sem">5th Semester</option>
+                                                            <option value="6th Sem">6th Semester</option>
+                                                        </>
+                                                    )}
                                                 </select>
                                             </div>
                                         )}
@@ -1380,6 +1474,63 @@ const AskFinderPage = () => {
                                                             <optgroup label="4th Semester (ISE)">
                                                                 {ISE_4TH_SEM_SUBJECTS.map((s, i) => (
                                                                     <option key={`4-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {uploadMetadata.yearLevel === '2nd Year' && uploadMetadata.branch === 'CS' && (
+                                                    <>
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '3rd Sem') && (
+                                                            <optgroup label="3rd Semester (CSE)">
+                                                                {CSE_3RD_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`cse3-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '4th Sem') && (
+                                                            <optgroup label="4th Semester (CSE)">
+                                                                {CSE_4TH_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`cse4-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {uploadMetadata.yearLevel === '3rd Year' && uploadMetadata.branch === 'CS' && (
+                                                    <>
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '5th Sem') && (
+                                                            <optgroup label="5th Semester (CSE)">
+                                                                {CSE_5TH_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`cse5-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '6th Sem') && (
+                                                            <optgroup label="6th Semester (CSE)">
+                                                                {CSE_6TH_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`cse6-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                {uploadMetadata.yearLevel === '3rd Year' && uploadMetadata.branch === 'IS' && (
+                                                    <>
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '5th Sem') && (
+                                                            <optgroup label="5th Semester (ISE)">
+                                                                {ISE_5TH_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`5-${i}`} value={s.name}>{s.name}</option>
+                                                                ))}
+                                                            </optgroup>
+                                                        )}
+                                                        {(uploadMetadata.semester === '' || uploadMetadata.semester === '6th Sem') && (
+                                                            <optgroup label="6th Semester (ISE)">
+                                                                {ISE_6TH_SEM_SUBJECTS.map((s, i) => (
+                                                                    <option key={`6-${i}`} value={s.name}>{s.name}</option>
                                                                 ))}
                                                             </optgroup>
                                                         )}
@@ -1567,6 +1718,25 @@ const AskFinderPage = () => {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {!user?.usn && (
+                                            <div className="mt-6 pt-4 border-t border-purple-500/10 animate-in fade-in slide-in-from-top-2">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Trophy size={14} className="text-yellow-500" />
+                                                    <label className="text-[10px] font-bold uppercase opacity-60">Your USN (Required for Leaderboard) *</label>
+                                                </div>
+                                                <input 
+                                                    type="text" 
+                                                    required
+                                                    placeholder="e.g. 1SI21CS001"
+                                                    value={uploadMetadata.usn}
+                                                    maxLength={10}
+                                                    onChange={(e) => setUploadMetadata(prev => ({ ...prev, usn: e.target.value.toUpperCase() }))}
+                                                    className={`w-full px-4 py-3 text-sm font-black rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                />
+                                                <p className="text-[10px] text-purple-500 mt-2 font-medium">This will be linked to your account for all future contributions.</p>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className={`flex flex-col sm:flex-row gap-3 pt-8 border-t ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
@@ -1647,6 +1817,217 @@ const AskFinderPage = () => {
                 featureName="Premium Study Materials"
                 description="Sign in to download this material, save it for later, and access our complete question bank."
             />
+
+            {/* Leaderboard Modal */}
+            <AnimatePresence>
+                {showLeaderboardModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[250] p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className={`relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl overflow-hidden border shadow-2xl ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0f0f12] border-white/10'}`}
+                        >
+                            {/* Header */}
+                            <div className={`p-6 flex justify-between items-center border-b ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-black/20 border-white/5'}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-yellow-500/10 text-yellow-500">
+                                        <Trophy size={24} />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h2 className={`text-xl font-black tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Leaderboard</h2>
+                                            <button 
+                                                onClick={() => setShowRules(!showRules)}
+                                                className={`p-1 rounded-full transition-colors ${isLightMode ? 'hover:bg-slate-200 text-slate-400' : 'hover:bg-white/5 text-slate-400'}`}
+                                            >
+                                                <Info size={16} />
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium">Top contributors of ASK+ Finder</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setShowLeaderboardModal(false)}
+                                    className={`p-2 rounded-xl transition-all ${isLightMode ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'}`}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Rules Callout */}
+                            <AnimatePresence>
+                                {showRules && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className={`${isLightMode ? 'bg-purple-50 border-b border-purple-100 text-slate-600' : 'bg-purple-500/10 border-b border-purple-500/20 text-slate-300'} overflow-hidden`}
+                                    >
+                                        <div className="p-5 text-sm">
+                                            <h3 className="font-bold text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-2">
+                                                <Info size={14} /> Scoring Rules
+                                            </h3>
+                                            <ul className="space-y-1.5 text-xs opacity-80">
+                                                <li>• Every uploaded material earns <span className="font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500">10 points</span></li>
+                                                <li>• <span className="font-bold">Score = uploads × 10</span></li>
+                                                <li>• Only verified (approved) uploads count toward your rank</li>
+                                                <li>• Updates automatically when new materials are approved</li>
+                                                <li>• Only USN is displayed for privacy and competition</li>
+                                            </ul>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                                {fetchingLeaderboard ? (
+                                    <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                        <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+                                        <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Calculating Ranks...</p>
+                                    </div>
+                                ) : (leaderboardData || []).length === 0 ? (
+                                    <div className="text-center py-20">
+                                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${isLightMode ? 'bg-slate-100 text-slate-400' : 'bg-white/5 text-slate-600'}`}>
+                                            <Trophy size={32} />
+                                        </div>
+                                        <p className="text-slate-400 font-bold">No contributions yet.</p>
+                                        <p className="text-xs text-slate-500 mt-2">Be the first to contribute and top the board!</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Top 3 Highlight */}
+                                        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-10 items-end px-2 sm:px-4">
+                                            {/* 2nd Place */}
+                                            {leaderboardData[1] ? (
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="relative">
+                                                        <div className="w-14 sm:w-16 h-14 sm:h-16 rounded-2xl bg-gradient-to-br from-slate-300 to-slate-500 flex items-center justify-center shadow-lg border-2 border-slate-200">
+                                                            <span className="text-white font-black text-[10px] sm:text-xs">{leaderboardData[1].usn?.length > 5 ? leaderboardData[1].usn.slice(-3) : (leaderboardData[1].usn || '??')}</span>
+                                                        </div>
+                                                        <div className="absolute -top-2 -right-2 bg-slate-300 text-slate-800 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shadow-md border border-white/20">2</div>
+                                                    </div>
+                                                    <div className="text-center w-full">
+                                                        <p className={`text-[10px] font-black truncate ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>{leaderboardData[1].usn}</p>
+                                                        <p className={`text-xs font-black ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{leaderboardData[1].score} pts</p>
+                                                    </div>
+                                                </div>
+                                            ) : <div />}
+
+                                            {/* 1st Place */}
+                                            {leaderboardData[0] ? (
+                                                <div className="flex flex-col items-center gap-4">
+                                                    <Trophy size={28} className="text-yellow-500 animate-bounce" />
+                                                    <div className="relative">
+                                                        <div className="w-16 sm:w-20 h-16 sm:h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center shadow-[0_0_30px_-5px_rgba(234,179,8,0.4)] border-2 border-yellow-300">
+                                                            <span className="text-white font-black text-xs sm:text-sm">{leaderboardData[0].usn?.length > 5 ? leaderboardData[0].usn.slice(-3) : (leaderboardData[0].usn || '??')}</span>
+                                                        </div>
+                                                        <div className="absolute -top-2 -right-2 bg-yellow-400 text-yellow-900 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shadow-md border border-white/20">1</div>
+                                                    </div>
+                                                    <div className="text-center w-full">
+                                                        <p className="text-[10px] sm:text-xs font-black text-yellow-500 truncate">{leaderboardData[0].usn}</p>
+                                                        <p className={`text-sm font-black ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{leaderboardData[0].score} pts</p>
+                                                    </div>
+                                                </div>
+                                            ) : <div />}
+
+                                            {/* 3rd Place */}
+                                            {leaderboardData[2] ? (
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="relative">
+                                                        <div className="w-14 sm:w-16 h-14 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-600 to-orange-800 flex items-center justify-center shadow-lg border-2 border-amber-500">
+                                                            <span className="text-white font-black text-[10px] sm:text-xs">{leaderboardData[2].usn?.length > 5 ? leaderboardData[2].usn.slice(-3) : (leaderboardData[2].usn || '??')}</span>
+                                                        </div>
+                                                        <div className="absolute -top-2 -right-2 bg-amber-600 text-amber-100 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shadow-md border border-white/20">3</div>
+                                                    </div>
+                                                    <div className="text-center w-full">
+                                                        <p className={`text-[10px] font-black truncate ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>{leaderboardData[2].usn}</p>
+                                                        <p className={`text-xs font-black ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{leaderboardData[2].score} pts</p>
+                                                    </div>
+                                                </div>
+                                            ) : <div />}
+                                        </div>
+
+                                        {/* Full Leaderboard Table */}
+                                        <div className={`rounded-2xl border overflow-hidden ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
+                                            <table className="w-full text-left border-collapse">
+                                                <thead>
+                                                    <tr className={`text-[10px] font-black uppercase tracking-widest ${isLightMode ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-slate-400'}`}>
+                                                        <th className="px-4 py-3">Rank</th>
+                                                        <th className="px-4 py-3">User (USN)</th>
+                                                        <th className="px-4 py-3">Uploads</th>
+                                                        <th className="px-4 py-3 text-right">Score</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className={`divide-y ${isLightMode ? 'divide-slate-200' : 'divide-white/5'}`}>
+                                                    {leaderboardData.map((row, idx) => {
+                                                        const isCurrentUser = user && row.usn === user.usn;
+                                                        return (
+                                                            <tr 
+                                                                key={row._id || idx} 
+                                                                className={`transition-colors ${isCurrentUser ? (isLightMode ? 'bg-purple-100' : 'bg-purple-500/10') : (isLightMode ? 'hover:bg-white' : 'hover:bg-white/5')}`}
+                                                            >
+                                                                <td className="px-4 py-3.5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className={`text-xs font-black ${idx < 3 ? 'text-yellow-500' : 'text-slate-400'}`}>
+                                                                            #{idx + 1}
+                                                                        </span>
+                                                                        {idx === 0 && <Trophy size={12} className="text-yellow-500" />}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-3.5">
+                                                                    <span className={`text-xs font-bold ${isCurrentUser ? 'text-purple-500' : (isLightMode ? 'text-slate-700' : 'text-slate-300')}`}>
+                                                                        {row.usn}
+                                                                        {isCurrentUser && <span className="ml-2 text-[8px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-500 uppercase font-bold">You</span>}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-3.5">
+                                                                    <span className={`text-xs font-bold ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>{row.uploads}</span>
+                                                                </td>
+                                                                <td className="px-4 py-3.5 text-right">
+                                                                    <span className={`text-xs font-black ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{row.score}</span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Footer / User Rank */}
+                            {user && !fetchingLeaderboard && (leaderboardData || []).length > 0 && (
+                                <div className={`p-4 sm:p-5 flex justify-between items-center px-6 sm:px-8 border-t ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-600 border-purple-500'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${isLightMode ? 'bg-purple-600 text-white' : 'bg-white/20 text-white'}`}>
+                                            {(() => {
+                                                const rank = leaderboardData.findIndex(r => r.usn === user.usn);
+                                                return rank !== -1 ? `#${rank + 1}` : '-';
+                                            })()}
+                                        </div>
+                                        <div>
+                                            <p className={`text-[10px] font-bold uppercase leading-none mb-1 ${isLightMode ? 'text-purple-600' : 'text-purple-200'}`}>Your Ranking</p>
+                                            <p className={`text-xs font-black leading-none ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{user.usn}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className={`text-[10px] font-bold uppercase leading-none mb-1 ${isLightMode ? 'text-purple-600' : 'text-purple-200'}`}>Current Score</p>
+                                        <p className={`text-sm font-black leading-none ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{user.score || 0} pts</p>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

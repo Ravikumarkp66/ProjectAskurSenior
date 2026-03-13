@@ -59,6 +59,19 @@ export const CSE_5TH_SEM_SUBJECTS = [
     { code: 'HS06', name: 'Environmental Studies', credits: 2, semester: '5th Sem' },
 ];
 
+export const ISE_5TH_SEM_SUBJECTS = [
+    { code: 'HSIS01', name: 'Software Engineering and Project Management', credits: 3, semester: '5th Sem' },
+    { code: 'S5IS01', name: 'Artificial Intelligence and Machine Learning (Integrated)', credits: 4, hasLab: true, semester: '5th Sem' },
+    { code: 'S5IS02', name: 'Database Management System (Integrated)', credits: 4, hasLab: true, semester: '5th Sem' },
+    { code: 'S5ISL01', name: 'Design Thinking and User Experience Lab', credits: 1, hasLab: true, semester: '5th Sem' },
+    { code: 'S5ISPEC011', name: 'Data Communication', credits: 3, semester: '5th Sem' },
+    { code: 'S6ISMP', name: 'Mini Project / Extension Survey Project', credits: 2, semester: '5th Sem' },
+    { code: 'AEC', name: 'Research Methodology and IPR', credits: 3, semester: '5th Sem' },
+    { code: 'HS06', name: 'Environmental Studies', credits: 2, semester: '5th Sem' },
+    { code: 'HS', name: 'Soft Skills', credits: 0, semester: '5th Sem' },
+    { code: 'SMC01/02/03', name: 'NSS / Physical Education / Yoga', credits: 0, semester: '5th Sem' },
+];
+
 export const CSE_6TH_SEM_SUBJECTS = [
     { code: '6SCS01', name: 'Computer Networks', credits: 3, semester: '6th Sem' },
     { code: '6SCS02', name: 'Internet of Things', credits: 3, semester: '6th Sem' },
@@ -73,9 +86,23 @@ export const CSE_6TH_SEM_SUBJECTS = [
     { code: 'AEC06', name: 'Aptitude Related Analytical Skill', credits: 1, semester: '6th Sem' },
 ];
 
+export const ISE_6TH_SEM_SUBJECTS = [
+    { code: 'S6IS01', name: 'Big Data Analytics (Integrated)', credits: 4, hasLab: true, semester: '6th Sem' },
+    { code: 'S6IS02', name: 'Computer Networks', credits: 4, semester: '6th Sem' },
+    { code: 'S6ISPEC021', name: 'AWS Cloud', credits: 3, semester: '6th Sem' },
+    { code: 'S6ISPEC022', name: 'Generative AI and Prompt Engineering', credits: 3, semester: '6th Sem' },
+    { code: 'OECX', name: 'Open Elective Course-I', credits: 3, semester: '6th Sem' },
+    { code: 'S6ISMP-I', name: 'Major Project Phase-I', credits: 2, semester: '6th Sem' },
+    { code: 'PCCL', name: 'Computer Networks Laboratory', credits: 1, hasLab: true, semester: '6th Sem' },
+    { code: 'ARAS', name: 'Aptitude Related Analytical Skill', credits: 1, semester: '6th Sem' },
+    { code: 'SMC01/02/03', name: 'NSS / Physical Education / Yoga', credits: 0, semester: '6th Sem' },
+];
+
 export const ALL_KNOWN_SUBJECTS = [
     ...ISE_3RD_SEM_SUBJECTS,
     ...ISE_4TH_SEM_SUBJECTS,
+    ...ISE_5TH_SEM_SUBJECTS,
+    ...ISE_6TH_SEM_SUBJECTS,
     ...CSE_3RD_SEM_SUBJECTS,
     ...CSE_4TH_SEM_SUBJECTS,
     ...CSE_5TH_SEM_SUBJECTS,
