@@ -6,6 +6,7 @@ const { generateSignedUrl } = require("../utils/getSignedUrl");
 const authMiddleware = require("../middleware/auth");
 const adminMiddleware = require("../middleware/admin");
 const UserUpload = require("../models/UserUpload");
+const User = require("../models/User");
 const Subject = require("../models/Subject");
 const { createContentNotification } = require("../controllers/notificationController");
 const cacheInvalidator = require("../utils/cacheInvalidator");
@@ -148,6 +149,14 @@ router.post("/:uploadId/approve", authMiddleware, adminMiddleware, async (req, r
         uploadItem.approvedBy = req.userId;
         uploadItem.approvedAt = new Date();
         await uploadItem.save();
+
+        // Update contributor score
+        const contributor = await User.findById(uploadItem.uploadedBy);
+        if (contributor) {
+            contributor.uploads = (contributor.uploads || 0) + 1;
+            contributor.score = contributor.uploads * 10;
+            await contributor.save();
+        }
 
         await createContentNotification({
             contentType,

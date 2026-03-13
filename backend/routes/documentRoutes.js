@@ -374,8 +374,22 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
             showContributorName,
             contributorName,
             contributorYear,
-            contributorBranch
+            contributorBranch,
+            usn
         } = req.body;
+
+        // Update user USN if not already set
+        const User = require('../models/User');
+        const currentUser = await User.findById(req.userId);
+        let updatedUser = null;
+        if (currentUser && !currentUser.usn && usn) {
+            // Check if USN is already taken
+            const existingUSN = await User.findOne({ usn: usn.toUpperCase() });
+            if (!existingUSN) {
+                currentUser.usn = usn.toUpperCase();
+                updatedUser = await currentUser.save();
+            }
+        }
 
         // Validate required fields
         if (!subjectName || !documentType) {
@@ -437,6 +451,7 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
             { upsert: true, new: true }
         );
 
+
         // Update or create paper type metadata if provided
         if (paperType) {
             await PaperType.findOneAndUpdate(
@@ -451,7 +466,8 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
 
         res.status(201).json({
             message: `${uploadedDocuments.length} document(s) uploaded successfully`,
-            documents: uploadedDocuments
+            documents: uploadedDocuments,
+            updatedUser: updatedUser
         });
     } catch (error) {
         console.error('Error uploading documents:', error);
@@ -601,8 +617,19 @@ router.post('/:id/approve', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        document.isApproved = true;
-        await document.save();
+        if (!document.isApproved) {
+            document.isApproved = true;
+            await document.save();
+
+            // Increment user's score and uploads count only if the uploader is NOT an admin
+            const User = require('../models/User');
+            const uploader = await User.findById(document.uploadedBy);
+            if (uploader && !uploader.isAdmin) {
+                uploader.uploads += 1;
+                uploader.score += 10;
+                await uploader.save();
+            }
+        }
 
         res.json({ success: true, message: 'Document approved successfully', document });
     } catch (error) {
