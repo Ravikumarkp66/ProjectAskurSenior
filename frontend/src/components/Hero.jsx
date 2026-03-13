@@ -16,6 +16,7 @@ export default function Hero() {
     const [suggestions, setSuggestions] = useState({ subjects: [], papers: [], notes: [] });
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const searchRef = useRef(null);
     const inputRef = useRef(null);
     const navigate = useNavigate();
@@ -115,12 +116,12 @@ export default function Hero() {
             <div className="bg-glow bg-glow-2" />
 
             {/* Navigation */}
-            <nav className="landing-nav">
+            <nav className="landing-nav px-4 py-3 md:px-6 md:py-4">
                 <div className="nav-container">
                     <Link to="/" className="nav-logo">
-                        <Logo size="md" />
+                        <Logo size="md" className="scale-90 sm:scale-100 origin-left" />
                     </Link>
-                    <div className="nav-links flex items-center gap-4">
+                    <div className="nav-links desktop-only hidden md:flex items-center gap-4">
                         <Link to="/ask-finder" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all border border-purple-500/20">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -222,7 +223,78 @@ export default function Hero() {
                             </>
                         )}
                     </div>
+
+                    {/* Mobile Navigation Actions */}
+                    <div className="flex md:hidden items-center">
+                        <button 
+                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                            className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white transition-all"
+                            aria-label="Toggle Menu"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {mobileMenuOpen ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                )}
+                            </svg>
+                        </button>
+                    </div>
                 </div>
+
+                {/* Mobile Menu Drawer */}
+                <AnimatePresence>
+                    {mobileMenuOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="md:hidden border-t border-white/5 bg-[#030712]/95 backdrop-blur-xl overflow-hidden"
+                        >
+                            <div className="flex flex-col gap-2 p-4">
+                                <Link to="/ask-finder" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl bg-purple-500/10 text-purple-400 font-bold border border-purple-500/10">
+                                    <Search size={18} /> Materials Finder
+                                </Link>
+                                <Link to="/calculator" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-slate-300 font-bold transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                    CGPA Calculator
+                                </Link>
+                                <Link to="/blog" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 text-slate-300 font-bold transition-all">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+                                    Guides & Blogs
+                                </Link>
+                                
+                                <div className="border-t border-white/5 my-2" />
+                                
+                                {user ? (
+                                    <>
+                                        <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/10">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" /></svg>
+                                            Dashboard
+                                        </Link>
+                                        <button onClick={handleLogout} className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/10 text-red-400 font-bold transition-all">
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                            Sign Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <div className="mt-4">
+                                        <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center gap-3 p-5 rounded-3xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black text-lg shadow-2xl shadow-purple-900/40 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-2.24 5.36-7.84 5.36-4.8 0-8.72-3.92-8.72-8.72s3.92-8.72 8.72-8.72c2.72 0 4.56 1.12 5.6 2.16l2.56-2.56C18.16 1.12 15.52 0 12.48 0 5.6 0 0 5.6 0 12.48s5.6 12.48 12.48 12.48c7.2 0 12-5.04 12-12.24 0-.8-.08-1.44-.24-2.08h-11.76z"/>
+                                            </svg>
+                                            Continue with Google
+                                        </Link>
+                                        <p className="text-[10px] text-slate-500 text-center mt-4 px-6 leading-relaxed">
+                                            By continuing, you'll be able to sign in or create a new account automatically.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </nav>
 
             {/* Hero Section */}
