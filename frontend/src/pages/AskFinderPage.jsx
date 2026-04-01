@@ -1161,7 +1161,7 @@ const AskFinderPage = () => {
                                                     </div>
 
                                                     <div className={`p-4 border-t flex flex-col gap-3 ${isLightMode ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/20'}`}>
-                                                        <div className="grid grid-cols-2 gap-3 w-full">
+                                                        <div className={`grid gap-3 w-full ${user?.isAdmin && !doc.isApproved ? 'grid-cols-3' : 'grid-cols-2'}`}>
                                                             <button
                                                                 onClick={() => handlePreview(doc._id)}
                                                                 className={`flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
@@ -1177,6 +1177,15 @@ const AskFinderPage = () => {
                                                                 <Download size={18} />
                                                                 Get
                                                             </button>
+                                                            {user?.isAdmin && !doc.isApproved && (
+                                                                <button
+                                                                    onClick={() => handleApprove(doc._id)}
+                                                                    className="flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-lg font-bold transition-all shadow-md active:scale-95 bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg"
+                                                                >
+                                                                    <Check size={18} />
+                                                                    Approve
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
