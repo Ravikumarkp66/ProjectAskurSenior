@@ -830,21 +830,14 @@ const CGPACalculatorPage = () => {
             setSubjectsError('');
 
             // Local handling for pre-filled semesters
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> feature-ask+finder
+
             const prefilledMap = {
                 'IS': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS, '5': ISE_5TH_SEM_SUBJECTS, '6': ISE_6TH_SEM_SUBJECTS },
                 'ISE': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS, '5': ISE_5TH_SEM_SUBJECTS, '6': ISE_6TH_SEM_SUBJECTS },
                 'CS': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS },
                 'CSE': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS }
             };
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/dev
->>>>>>> feature-ask+finder
+
 
             if (activeTab === 'sgpa' && branchMap && branchMap[selectedCycle]) {
                 const prefilledList = branchMap[selectedCycle];
@@ -2634,8 +2627,8 @@ const CGPACalculatorPage = () => {
 
             </div>
             {/* Login Required Modal */}
-            <LoginRequiredModal 
-                isOpen={showLoginModal} 
+            <LoginRequiredModal
+                isOpen={showLoginModal}
                 onClose={() => setShowLoginModal(false)}
                 featureName="Calculator Features"
                 description="Sign in to save your results, use the advanced CIE calculator, and access all analysis features."
