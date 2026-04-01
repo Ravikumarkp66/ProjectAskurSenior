@@ -65,21 +65,63 @@ const DocComments = ({ documentId, user, isLightMode }) => {
     };
 
     const handleToggleReaction = async (commentId, type) => {
+        if (!user) return;
+
+        // Optimistically update local state
+        setComments(prev => prev.map(comment => {
+            if (comment._id !== commentId) return comment;
+
+            const userId = (user?._id || user?.id)?.toString();
+            if (!userId) return comment;
+
+            const likes = Array.isArray(comment.likes) ? comment.likes.map(id => id.toString()) : [];
+            const unlikes = Array.isArray(comment.unlikes) ? comment.unlikes.map(id => id.toString()) : [];
+
+            if (type === 'like') {
+                const likedIdx = likes.indexOf(userId);
+                if (likedIdx > -1) {
+                    likes.splice(likedIdx, 1);
+                } else {
+                    likes.push(userId);
+                    // Remove from unlikes if present
+                    const unlikedIdx = unlikes.indexOf(userId);
+                    if (unlikedIdx > -1) unlikes.splice(unlikedIdx, 1);
+                }
+            } else if (type === 'unlike') {
+                const unlikedIdx = unlikes.indexOf(userId);
+                if (unlikedIdx > -1) {
+                    unlikes.splice(unlikedIdx, 1);
+                } else {
+                    unlikes.push(userId);
+                    // Remove from likes if present
+                    const likedIdx = likes.indexOf(userId);
+                    if (likedIdx > -1) likes.splice(likedIdx, 1);
+                }
+            }
+
+            return { ...comment, likes, unlikes };
+        }));
+
         try {
             await apiClient.post(`/comments/${commentId}/react`, { type });
-            fetchComments();
+            // Re-fetch to ensure sync with server state (e.g. if others reacted too)
+            fetchComments(); 
         } catch (error) {
             console.error('Reaction failed:', error);
+            // Rollback on error
+            fetchComments();
         }
     };
 
     const renderComment = (comment, isReply = false) => {
         const isAuthor = user?._id === comment.userId?._id;
         const isAdmin = user?.isAdmin;
-        const reactionsCount = comment.likes?.length || 0;
-        const unlikedCount = comment.unlikes?.length || 0;
-        const hasLiked = comment.likes?.includes(user?._id);
-        const hasUnliked = comment.unlikes?.includes(user?._id);
+        const reactionsCount = Array.isArray(comment.likes) ? comment.likes.length : 0;
+        const unlikedCount = Array.isArray(comment.unlikes) ? comment.unlikes.length : 0;
+        
+        const userId = (user?._id || user?.id)?.toString();
+        const hasLiked = userId && Array.isArray(comment.likes) && comment.likes.some(id => id.toString() === userId);
+        const hasUnliked = userId && Array.isArray(comment.unlikes) && comment.unlikes.some(id => id.toString() === userId);
 
         return (
             <div key={comment._id} className={`group ${isReply ? 'ml-6 border-l-2 pl-4 mt-3' : 'mt-4 border-b pb-4'} ${isLightMode ? 'border-slate-100' : 'border-white/5'}`}>
@@ -133,19 +175,19 @@ const DocComments = ({ documentId, user, isLightMode }) => {
                             <div className="flex items-center gap-1.5">
                                 <button 
                                     onClick={() => handleToggleReaction(comment._id, 'like')}
-                                    className={`p-1 rounded transition-colors ${hasLiked ? 'text-emerald-500' : 'opacity-40 hover:opacity-100'}`}
+                                    className={`p-1 rounded transition-all duration-300 ${hasLiked ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)] scale-125' : 'opacity-40 hover:opacity-100'}`}
                                 >
                                     <ThumbsUp size={12} className={hasLiked ? 'fill-current' : ''} />
                                 </button>
-                                <span className="text-[10px] font-bold opacity-60">{reactionsCount}</span>
+                                <span className={`text-[10px] font-bold transition-all ${hasLiked ? 'text-emerald-500 opacity-100 scale-110' : 'opacity-60'}`}>{reactionsCount}</span>
                                 
                                 <button 
                                     onClick={() => handleToggleReaction(comment._id, 'unlike')}
-                                    className={`p-1 rounded transition-colors ${hasUnliked ? 'text-red-500' : 'opacity-40 hover:opacity-100'}`}
+                                    className={`p-1 rounded transition-all duration-300 ${hasUnliked ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)] scale-125' : 'opacity-40 hover:opacity-100'}`}
                                 >
                                     <ThumbsDown size={12} className={hasUnliked ? 'fill-current' : ''} />
                                 </button>
-                                <span className="text-[10px] font-bold opacity-60">{unlikedCount}</span>
+                                <span className={`text-[10px] font-bold transition-all ${hasUnliked ? 'text-red-500 opacity-100 scale-110' : 'opacity-60'}`}>{unlikedCount}</span>
                             </div>
 
                             <button 

@@ -135,31 +135,40 @@ const DashboardPage = () => {
     }, []);
 
     const handleQuestionToggle = useCallback(async (data) => {
-        try {
-            await subjectAPI.markQuestionCompleted(data);
+        // Step 1: Optimistically update local state for immediate feedback
+        setSubjects((prevSubjects) => prevSubjects.map((subject) => {
+            if (subject._id === data.subjectId) {
+                const updatedModules = subject.modules.map((module) => {
+                    if (module.moduleNumber === data.moduleNumber) {
+                        const updatedQuestions = module.questions.map((question) => {
+                            if (question._id === data.questionId) {
+                                return { ...question, completed: !question.completed };
+                            }
+                            return question;
+                        });
+                        return { ...module, questions: updatedQuestions };
+                    }
+                    return module;
+                });
+                return { ...subject, modules: updatedModules };
+            }
+            return subject;
+        }));
 
-            setSubjects((prevSubjects) => prevSubjects.map((subject) => {
-                if (subject._id === data.subjectId) {
-                    const updatedModules = subject.modules.map((module) => {
-                        if (module.moduleNumber === data.moduleNumber) {
-                            const updatedQuestions = module.questions.map((question) => {
-                                if (question._id === data.questionId) {
-                                    return { ...question, completed: !question.completed };
-                                }
-                                return question;
-                            });
-                            return { ...module, questions: updatedQuestions };
-                        }
-                        return module;
-                    });
-                    return { ...subject, modules: updatedModules };
-                }
-                return subject;
-            }));
+        try {
+            // Step 2: Trigger API call in the background
+            await subjectAPI.markQuestionCompleted(data);
         } catch (error) {
             console.error('Error updating question:', error);
+            // Rollback on failure: Re-fetch subjects to ensure data consistency
+            try {
+                const subjectsRes = await subjectAPI.getSubjectsByBranch(currentBranch, cycle);
+                setSubjects(subjectsRes.data);
+            } catch (err) {
+                console.error('Rollback fetch failed:', err);
+            }
         }
-    }, []);
+    }, [currentBranch, cycle]);
 
     const overallProgress = useMemo(() => calculateProgress(subjects), [subjects]);
 

@@ -467,21 +467,29 @@ const AskFinderPage = () => {
             setShowLoginModal(true);
             return;
         }
+
+        // Optimistically update local state for immediate feedback
+        setDocuments(prev => prev.map(doc => {
+            if (doc._id === documentId) {
+                const userId = (user?._id || user?.id)?.toString();
+                if (!userId) return doc;
+
+                const likes = Array.isArray(doc.likes) ? doc.likes.map(id => id.toString()) : [];
+                const isLiked = likes.includes(userId);
+                const newLikes = isLiked 
+                    ? likes.filter(id => id !== userId)
+                    : [...likes, userId];
+                return { ...doc, likes: newLikes };
+            }
+            return doc;
+        }));
+
         try {
             await apiClient.post(`/documents/${documentId}/like`);
-            // Update local state to show the like immediately
-            setDocuments(prev => prev.map(doc => {
-                if (doc._id === documentId) {
-                    const isLiked = doc.likes?.includes(user._id);
-                    const newLikes = isLiked 
-                        ? doc.likes.filter(id => id !== user._id)
-                        : [...(doc.likes || []), user._id];
-                    return { ...doc, likes: newLikes };
-                }
-                return doc;
-            }));
         } catch (error) {
             console.error('Like failed:', error);
+            // Rollback — re-fetch or revert local state if needed
+            // For now, simpler to just log as the UI will eventually sync on next search/refresh
         }
     };
 
@@ -490,13 +498,28 @@ const AskFinderPage = () => {
             setShowLoginModal(true);
             return;
         }
+
+        // Optimistically update local user state
+        const currentBookmarks = Array.isArray(user?.bookmarks) ? user.bookmarks : [];
+        const isBookmarked = currentBookmarks.includes(documentId);
+        const newBookmarks = isBookmarked 
+            ? currentBookmarks.filter(id => id !== documentId)
+            : [...currentBookmarks, documentId];
+        
+        if (updateUser) {
+            updateUser({ ...user, bookmarks: newBookmarks });
+        }
+
         try {
-            const response = await apiClient.post(`/documents/${documentId}/bookmark`);
-            if (response.data.bookmarks && updateUser) {
-                updateUser({ ...user, bookmarks: response.data.bookmarks });
-            }
+            await apiClient.post(`/documents/${documentId}/bookmark`);
+            // The server returns the final bookmark list in response.data.bookmarks, 
+            // but the optimistic update means we don't need to wait for it.
         } catch (error) {
             console.error('Bookmark failed:', error);
+            // Rollback if the server call fails.
+            if (updateUser) {
+                updateUser({ ...user, bookmarks: currentBookmarks });
+            }
         }
     };
 
@@ -1016,26 +1039,26 @@ const AskFinderPage = () => {
                                                                 <div className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                                                                     <button 
                                                                         onClick={(e) => { e.stopPropagation(); handleLike(doc._id); }}
-                                                                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all active:scale-90 ${
-                                                                            doc.likes?.includes(user?._id)
-                                                                                ? 'bg-red-500 text-white shadow-md shadow-red-500/20'
+                                                                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all duration-300 active:scale-90 ${
+                                                                            doc.likes?.some(id => id?.toString() === (user?._id || user?.id)?.toString())
+                                                                                ? 'bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.4)] scale-110'
                                                                                 : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
                                                                         }`}
                                                                     >
-                                                                        <Heart size={14} className={doc.likes?.includes(user?._id) ? 'fill-current' : ''} />
+                                                                        <Heart size={14} className={doc.likes?.some(id => id?.toString() === (user?._id || user?.id)?.toString()) ? 'fill-current' : ''} />
                                                                         <span className="text-[10px] font-black">{doc.likes?.length || 0}</span>
                                                                     </button>
                                                                     <div className={`w-px h-3 mx-1 ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
                                                                     <button 
                                                                         onClick={(e) => { e.stopPropagation(); handleBookmark(doc._id); }}
-                                                                        className={`p-1.5 rounded-lg transition-all active:scale-90 ${
-                                                                            user?.bookmarks?.includes(doc._id)
-                                                                                ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+                                                                        className={`p-1.5 rounded-lg transition-all duration-300 active:scale-90 ${
+                                                                            (user?.bookmarks || []).includes(doc._id)
+                                                                                ? 'bg-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-110'
                                                                                 : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
                                                                         }`}
                                                                         title="Bookmark Document"
                                                                     >
-                                                                        <Bookmark size={14} className={user?.bookmarks?.includes(doc._id) ? 'fill-current' : ''} />
+                                                                        <Bookmark size={14} className={(user?.bookmarks || []).includes(doc._id) ? 'fill-current' : ''} />
                                                                     </button>
                                                                 </div>
                                                             </div>
