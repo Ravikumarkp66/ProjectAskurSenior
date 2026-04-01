@@ -118,3 +118,11 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+
+.handwritten {
+    font-family: 'Caveat', cursive;
+    font-size: 22px; /* Slightly larger as Caveat runs small */
+    line-height: 1.8;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.08); /* Premium subtle glow */
+}

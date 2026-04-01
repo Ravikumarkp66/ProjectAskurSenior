@@ -67,33 +67,33 @@ const CreatorSection = () => {
                         </h2>
 
                         <div className="space-y-6 max-w-xl">
-                            <p className="text-lg text-slate-300 font-medium leading-relaxed">
+                            <p className="handwritten text-slate-300 font-medium">
                                 Hey, I’m <span className="text-white font-bold underline decoration-purple-500/50 decoration-2 underline-offset-4">Ravikumar KP</span> — a BE student in Information Science and Engineering at <span className="text-purple-400">Siddaganga Institute of Technology, Tumkur.</span>
                             </p>
                             
-                            <p className="text-slate-400 leading-relaxed">
+                            <p className="handwritten text-slate-400">
                                 I’m the creator and founder of <span className="text-white font-bold">AskUrSenior</span> — a growing student community that has already helped <span className="text-white font-bold underline decoration-purple-500/20">1000+ students</span>, especially from the 2028 and 2029 graduating batches, understand the college curriculum and study smarter.
                             </p>
 
-                            <p className="text-slate-400 leading-relaxed italic">
+                            <p className="handwritten text-slate-400 italic">
                                 What started as a small idea is now something many students rely on — something I personally wish I had when I first joined college.
                             </p>
 
                             <div className="py-4 border-l-2 border-purple-500/30 pl-6 my-8 bg-white/5 rounded-r-2xl">
-                                <p className="text-2xl font-black text-white mb-2 tracking-tighter">
+                                <p className="handwritten text-3xl font-bold text-white mb-2 tracking-tighter shadow-purple-500/10">
                                     Skills &gt;&gt;&gt; CGPA.
                                 </p>
-                                <p className="text-sm text-slate-500 leading-relaxed">
+                                <p className="handwritten text-sm text-slate-400">
                                     But I also understood a harsh reality — you still need a minimum CGPA to even get shortlisted in most companies.
                                 </p>
                             </div>
 
-                            <p className="text-slate-400 leading-relaxed font-medium">
+                            <p className="handwritten text-slate-300 font-medium leading-relaxed">
                                 That’s exactly why I built AskUrSenior. <br />
                                 Not just to study more — but to <span className="text-purple-400">study smarter, faster, and with clarity.</span>
                             </p>
 
-                            <p className="text-slate-500 leading-relaxed italic border-t border-white/5 pt-6 text-sm">
+                            <p className="handwritten text-slate-400 italic border-t border-white/5 pt-6 text-lg">
                                 "I wanted to create the platform I wished I had in my first year — a place where every SIT student can find what they need in seconds."
                             </p>
                         </div>
