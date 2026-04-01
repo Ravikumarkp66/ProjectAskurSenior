@@ -3,6 +3,7 @@ import Hero from '../components/Hero';
 import TermsModal from '../components/TermsModal';
 import PrivacyModal from '../components/PrivacyModal';
 import HomeBlogSection from '../components/HomeBlogSection';
+import CreatorSection from '../components/CreatorSection';
 import HomeProductShowcase from '../components/HomeProductShowcase';
 import { Link } from 'react-router-dom';
 
@@ -16,38 +17,8 @@ const HomePage = () => {
                 <Hero />
                 <HomeProductShowcase />
                 <HomeBlogSection />
+                <CreatorSection />
                 
-                {/* CTA Section - Premium Banner */}
-                <section className="relative py-24 px-6 overflow-hidden">
-                    {/* Glow blobs */}
-                    <div className="absolute inset-0 pointer-events-none">
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-purple-600/20 rounded-full blur-[100px]" />
-                        <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[300px] h-[200px] bg-indigo-600/15 rounded-full blur-[80px]" />
-                    </div>
-                    <div className="relative max-w-4xl mx-auto text-center">
-                        {/* Badge */}
-                        <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-1.5 text-purple-400 text-xs font-bold uppercase tracking-widest mb-6">
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
-                            Free for all SIT students
-                        </div>
-                        <h2 className="text-4xl md:text-6xl font-extrabold font-outfit text-white mb-5 leading-tight">
-                            Start studying<br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400">smarter today</span>
-                        </h2>
-                        <p className="text-lg text-slate-400 mb-10 max-w-xl mx-auto">
-                            Search notes, calculate your CIE, and explore academic guides — all in one place.
-                        </p>
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <Link to="/ask-finder" className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-8 py-4 rounded-full font-bold text-base transition-all shadow-2xl shadow-purple-900/50 hover:shadow-purple-900/70 hover:scale-[1.02] active:scale-95">
-                                Explore Materials <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                            </Link>
-                            <Link to="/calculator" className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white px-8 py-4 rounded-full font-bold text-base transition-all">
-                                Try CIE Calculator
-                            </Link>
-                        </div>
-                    </div>
-                </section>
-
                 {/* Trust Section - Icon Cards */}
                 <section className="py-16 px-6 border-t border-white/5 bg-[#0d0d0f]">
                     <div className="max-w-5xl mx-auto">
