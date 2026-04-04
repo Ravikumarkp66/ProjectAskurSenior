@@ -24,6 +24,10 @@ const authMiddleware = async (req, res, next) => {
         req.userBranch = decoded.branch;
         req.currentBranch = decoded.currentBranch;
         req.isAdmin = !!decoded.isAdmin;
+
+        // Background update of lastActive for real-time analytics
+        User.findByIdAndUpdate(decoded.userId, { lastActive: new Date() }).catch(() => {});
+
         next();
     } catch (error) {
         return res.status(401).json({ error: 'Invalid or expired token' });

@@ -69,7 +69,8 @@ exports.getOverviewAnalytics = async (req, res) => {
             totalFiles,
             pendingUploads,
             totalSubjects,
-            uploadsThisMonth
+            uploadsThisMonth,
+            liveUsers: await User.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } })
         };
 
         console.log("Overview analytics result:", result);
@@ -325,7 +326,7 @@ exports.getUserListAnalytics = async (req, res) => {
         const countPipeline = [...pipeline];
         pipeline.push({ $skip: skip }, { $limit: parseInt(limit) });
 
-        const [users, totalResult, activeSubscriptions, pendingPayments, expiringSoon] = await Promise.all([
+        const [users, totalResult, activeSubscriptions, pendingPayments, expiringSoon, liveUsers] = await Promise.all([
             User.aggregate(pipeline),
             User.aggregate([...countPipeline, { $count: "count" }]),
             User.countDocuments({ subscription: "askplus" }),
@@ -333,7 +334,8 @@ exports.getUserListAnalytics = async (req, res) => {
             User.countDocuments({
                 subscription: "askplus",
                 subscriptionExpiry: { $gte: now, $lte: next7Days }
-            })
+            }),
+            User.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } })
         ]);
 
         const total = totalResult.length > 0 ? totalResult[0].count : 0;
@@ -348,7 +350,8 @@ exports.getUserListAnalytics = async (req, res) => {
                 totalUsers: totalUsersCount,
                 activeSubscriptions,
                 pendingPayments,
-                expiringSoon
+                expiringSoon,
+                liveUsers
             }
         });
     } catch (err) {

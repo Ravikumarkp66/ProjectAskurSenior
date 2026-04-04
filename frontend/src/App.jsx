@@ -9,6 +9,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+import { authAPI } from './services/api';
 const AdminCreateArticle = lazy(() => import('./pages/AdminCreateArticle'));
 const CGPACalculatorPage = lazy(() => import('./pages/CGPACalculatorPage'));
 const SubjectContentPage = lazy(() => import('./pages/SubjectContentPage'));
@@ -79,7 +80,22 @@ function AppContent() {
 
     const shouldShowWatermark = pathname === '/calculator' || pathname.startsWith('/result') || pathname.startsWith('/pdf');
 
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
+    
+    // Global Heartbeat System
+    React.useEffect(() => {
+        if (!isAuthenticated) return;
+        
+        // Initial heartbeat
+        authAPI.heartbeat().catch(() => {});
+        
+        const interval = setInterval(() => {
+            authAPI.heartbeat().catch(() => {});
+        }, 30000); // Heartbeat every 30 seconds
+        
+        return () => clearInterval(interval);
+    }, [isAuthenticated]);
+
     return (
         <div className="relative">
             {shouldShowWatermark && (

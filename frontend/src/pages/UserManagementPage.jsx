@@ -27,7 +27,8 @@ const UserManagementPage = () => {
         totalUsers: 0,
         activeSubscriptions: 0,
         pendingPayments: 0,
-        expiringSoon: 0
+        expiringSoon: 0,
+        liveUsers: 0
     });
 
     const [theme] = useState(() => {
@@ -62,6 +63,12 @@ const UserManagementPage = () => {
         const timer = setTimeout(loadUsers, 300);
         return () => clearTimeout(timer);
     }, [search, roleFilter, sortBy, currentPage, loadUsers, filter]);
+
+    // Auto-refresh summary data every 30 seconds
+    useEffect(() => {
+        const interval = setInterval(loadUsers, 30000);
+        return () => clearInterval(interval);
+    }, [loadUsers]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -151,9 +158,10 @@ const UserManagementPage = () => {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard label="Total Users" value={summary.totalUsers} colorClass={isLightMode ? 'text-blue-600' : 'text-blue-400'} />
                 <StatCard label="Active ASK+" value={summary.activeSubscriptions} colorClass={isLightMode ? 'text-amber-600' : 'text-amber-400'} />
+                <StatCard label="Live Users" value={summary.liveUsers} colorClass={isLightMode ? 'text-emerald-600' : 'text-emerald-400'} />
                 <StatCard label="Pending Payments" value={summary.pendingPayments} colorClass={isLightMode ? 'text-purple-600' : 'text-purple-400'} />
                 <StatCard label="Expiring Soon" value={summary.expiringSoon} colorClass={isLightMode ? 'text-red-600' : 'text-red-400'} />
             </div>

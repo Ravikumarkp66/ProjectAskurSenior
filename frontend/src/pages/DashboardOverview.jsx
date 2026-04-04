@@ -27,6 +27,10 @@ const DashboardOverview = () => {
 
     useEffect(() => {
         loadAllAnalytics();
+        
+        // Auto-refresh analytics every 30 seconds
+        const interval = setInterval(loadAllAnalytics, 30000);
+        return () => clearInterval(interval);
     }, []);
 
     const loadAllAnalytics = async () => {
@@ -131,8 +135,9 @@ const DashboardOverview = () => {
                 )}
 
                 {/* Overview Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6">
                     <AnalyticsCard icon={FaUsers} label="Total Users" value={stats?.totalUsers || 0} isLoading={loading} isLightMode={isLightMode} color="blue" />
+                    <AnalyticsCard icon={FaChartLine} label="Live Users" value={stats?.liveUsers || 0} isLoading={loading} isLightMode={isLightMode} color="emerald" pulse={true} />
                     <AnalyticsCard icon={FaCloudUploadAlt} label="User Uploads" value={stats?.userUploadCount || 0} isLoading={loading} isLightMode={isLightMode} color="emerald" />
                     <AnalyticsCard icon={FaFileAlt} label="Total Files" value={stats?.totalFiles || 0} isLoading={loading} isLightMode={isLightMode} color="purple" />
                     <AnalyticsCard icon={FaHourglassHalf} label="Pending Approval" value={stats?.pendingUploads || 0} isLoading={loading} isLightMode={isLightMode} color="amber" />

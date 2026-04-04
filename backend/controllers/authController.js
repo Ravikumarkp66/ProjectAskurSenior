@@ -98,6 +98,10 @@ const loginUser = async (req, res) => {
 
         const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
 
+        user.lastLogin = new Date();
+        user.lastActive = new Date();
+        await user.save();
+
         res.json({
             message: 'Login successful',
             token,
@@ -108,7 +112,6 @@ const loginUser = async (req, res) => {
                 branch: user.branch,
                 currentBranch: user.currentBranch,
                 isAdmin: !!user.isAdmin,
-                registrationComplete: true,
                 registrationComplete: true
             }
         });
@@ -180,6 +183,10 @@ const adminLogin = async (req, res) => {
         }
 
         const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
+
+        user.lastLogin = new Date();
+        user.lastActive = new Date();
+        await user.save();
 
         res.json({
             message: 'Admin login successful',
@@ -297,6 +304,10 @@ const googleLogin = async (req, res) => {
 
         const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
 
+        user.lastLogin = new Date();
+        user.lastActive = new Date();
+        await user.save();
+
         res.json({
             message: 'Successfully logged in with Google',
             token: tokenJwt,
@@ -411,6 +422,15 @@ const completeGoogleRegistration = async (req, res) => {
     }
 };
 
+const heartbeat = async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.userId, { lastActive: new Date() });
+        res.status(200).json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -421,6 +441,7 @@ module.exports = {
     googleLogin,
     completeGoogleRegistration,
     discordCallback,
+    heartbeat,
     ADMIN_EMAILS
 };
 

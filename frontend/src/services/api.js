@@ -69,7 +69,8 @@ export const authAPI = {
         headers: { 'Content-Type': 'multipart/form-data' }
     }),
     changePassword: (data) => apiClient.put('/auth/change-password', data),
-    switchBranch: (data) => apiClient.post('/auth/switch-branch', data)
+    switchBranch: (data) => apiClient.post('/auth/switch-branch', data),
+    heartbeat: () => apiClient.post('/auth/heartbeat')
 };
 
 // Subject API with caching
