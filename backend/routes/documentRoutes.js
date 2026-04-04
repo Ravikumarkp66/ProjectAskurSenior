@@ -276,14 +276,21 @@ router.get('/search', async (req, res) => {
         const isAdminView = req.query.adminView === 'true' && verifiedAdmin;
         if (!isAdminView) {
             searchCriteria.isApproved = true;
+            searchCriteria.isDeleted = { $ne: true };
         } else {
             // Admin is viewing, they can filter by status if they want
             if (req.query.status === 'pending') {
                 searchCriteria.isApproved = false;
+                searchCriteria.isDeleted = { $ne: true };
             } else if (req.query.status === 'approved') {
                 searchCriteria.isApproved = true;
+                searchCriteria.isDeleted = { $ne: true };
+            } else if (req.query.status === 'deleted') {
+                searchCriteria.isDeleted = true;
+            } else {
+                // Default admin view: everything not in recycle bin
+                searchCriteria.isDeleted = { $ne: true };
             }
-            // If they don't specify, they see all (both approved and pending) in 'Review Queue' context
         }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -578,7 +585,7 @@ router.post('/:id/like', authMiddleware, async (req, res) => {
     }
 });
 
-// Delete document (Admin only)
+// Delete/Recycle document (Admin only - default to Soft Delete)
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         if (!req.isAdmin) {
@@ -590,18 +597,65 @@ router.delete('/:id', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        // Delete from S3 first
+        // Soft delete: set brand new deletedAt timestamp
+        document.isDeleted = true;
+        document.deletedAt = new Date();
+        await document.save();
+
+        res.json({ success: true, message: 'Document moved to Recycle Bin' });
+    } catch (error) {
+        console.error('Error recycling document:', error);
+        res.status(500).json({ error: 'Failed to recycle document' });
+    }
+});
+
+// Restore document (Admin only)
+router.post('/:id/restore', authMiddleware, async (req, res) => {
+    try {
+        if (!req.isAdmin) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const document = await Document.findById(req.params.id);
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        document.isDeleted = false;
+        document.deletedAt = null;
+        await document.save();
+
+        res.json({ success: true, message: 'Document restored successfully', document });
+    } catch (error) {
+        console.error('Error restoring document:', error);
+        res.status(500).json({ error: 'Failed to restore document' });
+    }
+});
+
+// Permanent Delete document (Admin only)
+router.delete('/:id/permanent', authMiddleware, async (req, res) => {
+    try {
+        if (!req.isAdmin) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const document = await Document.findById(req.params.id);
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+
+        // Delete from S3 only if it's a permanent delete
         if (document.fileName) {
-            await deleteFromS3(document.fileName);
+            try { await deleteFromS3(document.fileName); } catch (e) { console.error('S3 delete fail', e); }
         }
 
         // Delete from database
         await Document.findByIdAndDelete(req.params.id);
 
-        res.json({ success: true, message: 'Document deleted successfully' });
+        res.json({ success: true, message: 'Document permanently deleted' });
     } catch (error) {
-        console.error('Error deleting document:', error);
-        res.status(500).json({ error: 'Failed to delete document' });
+        console.error('Error permanently deleting document:', error);
+        res.status(500).json({ error: 'Failed to permanently delete document' });
     }
 });
 

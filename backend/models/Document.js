@@ -105,6 +105,16 @@ const documentSchema = new mongoose.Schema({
         name: { type: String, trim: true },
         year: { type: String, trim: true },
         branch: { type: String, trim: true }
+    },
+    
+    // Deletion tracking
+    isDeleted: {
+        type: Boolean,
+        default: false,
+        index: true
+    },
+    deletedAt: {
+        type: Date
     }
 }, {
     timestamps: true

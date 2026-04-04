@@ -87,6 +87,22 @@ const AskFinderPage = () => {
         return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     };
 
+    const getTimeAgo = (date) => {
+        if (!date) return 'Recently';
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        let interval = seconds / 31536000;
+        if (interval > 1) return Math.floor(interval) + " years ago";
+        interval = seconds / 2592000;
+        if (interval > 1) return Math.floor(interval) + " months ago";
+        interval = seconds / 86400;
+        if (interval > 1) return Math.floor(interval) + " days ago";
+        interval = seconds / 3600;
+        if (interval > 1) return Math.floor(interval) + " hours ago";
+        interval = seconds / 60;
+        if (interval > 1) return Math.floor(interval) + " minutes ago";
+        return Math.floor(seconds) + " seconds ago";
+    };
+
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [previewUrl, setPreviewUrl] = useState('');
     const [confirmingDeleteId, setConfirmingDeleteId] = useState(null);
@@ -98,6 +114,9 @@ const AskFinderPage = () => {
     const [fetchingLeaderboard, setFetchingLeaderboard] = useState(false);
     const [showRules, setShowRules] = useState(false);
     const [pendingUploadsCount, setPendingUploadsCount] = useState(0);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingDoc, setEditingDoc] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const fetchLeaderboard = async () => {
         setFetchingLeaderboard(true);
@@ -320,9 +339,14 @@ const AskFinderPage = () => {
             if (selectedDocType) params.append('documentType', selectedDocType.toLowerCase());
             if (sortBy) params.append('sortBy', sortBy);
             
-            if (user?.isAdmin && statusFilter === 'pending') {
-                params.append('adminView', 'true');
-                params.append('status', 'pending');
+            if (user?.isAdmin) {
+                if (statusFilter === 'pending') {
+                    params.append('adminView', 'true');
+                    params.append('status', 'pending');
+                } else if (statusFilter === 'deleted') {
+                    params.append('adminView', 'true');
+                    params.append('status', 'deleted');
+                }
             }
             if (bookmarksOnly) {
                 params.append('bookmarksOnly', 'true');
@@ -775,7 +799,7 @@ const AskFinderPage = () => {
                                     {user?.isAdmin ? (
                                         <div className="flex items-center gap-2">
                                             <button
-                                                onClick={() => setStatusFilter(statusFilter === 'all' ? 'pending' : 'all')}
+                                                onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
                                                 className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
                                                     statusFilter === 'pending'
                                                         ? 'bg-amber-500/20 border-amber-500/40 text-amber-500 shadow-lg shadow-amber-500/10'
@@ -790,6 +814,18 @@ const AskFinderPage = () => {
                                                         {pendingUploadsCount}
                                                     </span>
                                                 )}
+                                            </button>
+                                            <button
+                                                onClick={() => setStatusFilter(statusFilter === 'deleted' ? 'all' : 'deleted')}
+                                                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border ${
+                                                    statusFilter === 'deleted'
+                                                        ? 'bg-red-500/20 border-red-500/40 text-red-500 shadow-lg shadow-red-500/10'
+                                                        : `hover:bg-red-500/10 ${isLightMode ? 'bg-white border-slate-200 text-slate-600' : 'bg-white/5 border-white/10 text-slate-400'}`
+                                                }`}
+                                                title="View Recently Deleted"
+                                            >
+                                                <Trash2 size={16} />
+                                                <span>{statusFilter === 'deleted' ? 'Exit Bin' : 'Recycle Bin'}</span>
                                             </button>
                                             <button
                                                 onClick={() => {
@@ -1056,195 +1092,291 @@ const AskFinderPage = () => {
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
-                                            {documents.map((doc) => (
-                                                <div key={doc._id} className={`rounded-2xl border transition-all hover:-translate-y-1 hover:shadow-xl overflow-hidden flex flex-col group
-                                                    ${isLightMode
-                                                        ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
-                                                        : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
-                                                >
-                                                    <div className="p-6 flex-1">
-                                                        <div className="flex justify-between items-start mb-4">
-                                                            <div className={`p-3 rounded-xl transition-transform group-hover:scale-110 group-hover:rotate-3 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                                                <FileText size={20} />
-                                                            </div>
-                                                            <div className="flex items-center gap-1.5 ml-auto mr-2">
-                                                                <div className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                                                                    <button 
-                                                                        onClick={(e) => { e.stopPropagation(); handleLike(doc._id); }}
-                                                                        className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-all duration-300 active:scale-90 ${
-                                                                            doc.likes?.some(id => id?.toString() === (user?._id || user?.id)?.toString())
-                                                                                ? 'bg-red-500 text-white shadow-[0_0_12px_rgba(239,68,68,0.4)] scale-110'
-                                                                                : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
-                                                                        }`}
-                                                                    >
-                                                                        <Heart size={14} className={doc.likes?.some(id => id?.toString() === (user?._id || user?.id)?.toString()) ? 'fill-current' : ''} />
-                                                                        <span className="text-[10px] font-black">{doc.likes?.length || 0}</span>
-                                                                    </button>
-                                                                    <div className={`w-px h-3 mx-1 ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                                                    <button 
-                                                                        onClick={(e) => { e.stopPropagation(); handleBookmark(doc._id); }}
-                                                                        className={`p-1.5 rounded-lg transition-all duration-300 active:scale-90 ${
-                                                                            (user?.bookmarks || []).includes(doc._id)
-                                                                                ? 'bg-amber-500 text-white shadow-[0_0_12px_rgba(245,158,11,0.4)] scale-110'
-                                                                                : `hover:bg-slate-200/50 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`
-                                                                        }`}
-                                                                        title="Bookmark Document"
-                                                                    >
-                                                                        <Bookmark size={14} className={(user?.bookmarks || []).includes(doc._id) ? 'fill-current' : ''} />
-                                                                    </button>
+                                            {documents.map((doc) => {
+                                                const isAdminReviewCard = user?.isAdmin && statusFilter === 'pending';
+
+                                                if (isAdminReviewCard) {
+                                                    return (
+                                                        <div key={doc._id} className={`rounded-3xl border p-6 transition-all hover:shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500
+                                                            ${isLightMode 
+                                                                ? 'bg-white border-amber-200/60 shadow-lg shadow-amber-500/5' 
+                                                                : 'bg-[#141416] border-amber-500/10 shadow-lg shadow-black/50'}`}
+                                                        >
+                                                            {/* Header section - Focus on Title and Status */}
+                                                            <div className="flex justify-between items-start gap-4">
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+                                                                            <FileText size={18} />
+                                                                        </div>
+                                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border
+                                                                            ${isLightMode ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-400'}`}>
+                                                                            {doc.documentType || 'Doc'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <h3 className={`text-xl font-bold leading-tight line-clamp-2 ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
+                                                                        {doc.subjectName}
+                                                                        {doc.subjectCode && <span className="ml-2 text-sm opacity-40 font-mono">({doc.subjectCode})</span>}
+                                                                    </h3>
+                                                                </div>
+                                                                <div className="px-3 py-1 rounded-full bg-amber-500 text-[#0a0a0b] text-[10px] font-black uppercase tracking-tighter animate-pulse shadow-lg shadow-amber-500/20">
+                                                                    Pending Review
                                                                 </div>
                                                             </div>
-                                                            <div className="flex flex-col items-end gap-1 ml-4">
-                                                                {user?.isAdmin && (
-                                                                    <div className="relative mb-2">
-                                                                        {confirmingDeleteId === doc._id ? (
-                                                                            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-1.5 rounded-lg animate-in fade-in zoom-in duration-200">
-                                                                                <span className="text-[10px] font-bold text-red-500 px-1">WANT TO ERASE?</span>
-                                                                                <button 
-                                                                                    onClick={() => handleDocDelete(doc._id)}
-                                                                                    className="bg-red-500 text-white p-1 rounded hover:bg-red-600 transition-colors"
-                                                                                    title="Confirm Delete"
-                                                                                >
-                                                                                    <Trash2 size={12} fill="white" />
-                                                                                </button>
-                                                                                <button 
-                                                                                    onClick={() => setConfirmingDeleteId(null)}
-                                                                                    className={`p-1 rounded hover:bg-slate-200 transition-colors ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                                    title="Cancel"
-                                                                                >
-                                                                                    <X size={12} />
-                                                                                </button>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <button 
-                                                                                onClick={(e) => { e.stopPropagation(); setConfirmingDeleteId(doc._id); }}
-                                                                                className={`p-2 rounded-lg transition-all hover:bg-red-500/10 hover:text-red-500 ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                                title="Delete Document"
-                                                                            >
-                                                                                <Trash2 size={16} />
-                                                                            </button>
-                                                                        )}
+
+                                                            {/* Information body - Fast processing info */}
+                                                            <div className={`space-y-3 p-4 rounded-2xl ${isLightMode ? 'bg-slate-50' : 'bg-white/[0.02]'}`}>
+                                                                <div>
+                                                                    <p className="text-[11px] uppercase font-black tracking-widest opacity-40 mb-1">Uploaded By</p>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">
+                                                                            {(doc.contributor?.name || 'U').charAt(0).toUpperCase()}
+                                                                        </div>
+                                                                        <span className="text-sm font-bold opacity-80">
+                                                                            {doc.contributor?.name || 'Anonymous User'} 
+                                                                            {doc.usn && <span className="ml-1.5 opacity-50 font-mono text-xs">({doc.usn})</span>}
+                                                                        </span>
                                                                     </div>
-                                                                )}
-                                                                {editingDocTypeId === doc._id ? (
-                                                                    <select
-                                                                        autoFocus
-                                                                        value={doc.documentType}
-                                                                        onChange={(e) => handleUpdateDocumentType(doc._id, e.target.value)}
-                                                                        onBlur={() => setEditingDocTypeId(null)}
-                                                                        className={`text-[10px] font-bold px-2 py-1.5 rounded-lg uppercase tracking-wider border focus:outline-none 
-                                                                            ${isLightMode ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0a0a0b] border-white/10 text-white'}`}
-                                                                    >
-                                                                        <option value="notes">Notes</option>
-                                                                        <option value="internals">Internals</option>
-                                                                        <option value="see">SEE</option>
-                                                                    </select>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    <div>
+                                                                        <p className="text-[11px] uppercase font-black tracking-widest opacity-40 mb-1">Context</p>
+                                                                        <p className="text-xs font-bold">{doc.yearLevel} • {doc.semester || 'N/A'}</p>
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-[11px] uppercase font-black tracking-widest opacity-40 mb-1">File Source</p>
+                                                                        <p className="text-xs font-mono opacity-60 truncate max-w-[120px]" title={doc.originalName}>{doc.originalName}</p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="pt-2 flex items-center gap-3 text-[10px] font-bold opacity-40 border-t border-white/5">
+                                                                    <span className="flex items-center gap-1"><Download size={10} /> {formatSize(doc.fileSize)}</span>
+                                                                    <span>•</span>
+                                                                    <span className="flex items-center gap-1"><Clock size={10} /> {getTimeAgo(doc.createdAt)}</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Action buttons hierarchy */}
+                                                            <div className="mt-auto pt-4 border-t border-white/5">
+                                                                {confirmingDeleteId === doc._id ? (
+                                                                    <div className="grid grid-cols-2 gap-3 animate-in fade-in zoom-in duration-200">
+                                                                        <button 
+                                                                            onClick={() => { setConfirmingDeleteId(null); handleDocDelete(doc._id); }}
+                                                                            className="py-3 rounded-xl bg-red-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-500/20"
+                                                                        >
+                                                                            Confirm Reject
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={() => setConfirmingDeleteId(null)}
+                                                                            className={`py-3 rounded-xl font-bold text-xs uppercase tracking-widest border transition-all ${isLightMode ? 'bg-white border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                                                                        >
+                                                                            Cancel
+                                                                        </button>
+                                                                    </div>
                                                                 ) : (
-                                                                    <div 
-                                                                        onClick={() => user?.isAdmin && setEditingDocTypeId(doc._id)}
-                                                                        className={`relative group cursor-pointer ${user?.isAdmin ? 'hover:scale-105 transition-transform' : ''}`}
-                                                                    >
-                                                                        {doc.documentType === 'notes' && (
-                                                                            <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm block">
-                                                                                Notes
-                                                                            </span>
-                                                                        )}
-                                                                        {doc.documentType === 'see' && (
-                                                                            <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm block">
-                                                                                SEE
-                                                                            </span>
-                                                                        )}
-                                                                        {doc.documentType === 'internals' && (
-                                                                            <span className="text-[10px] font-bold px-3 py-1.5 rounded-lg uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm block">
-                                                                                Internals
-                                                                            </span>
-                                                                        )}
-                                                                        {user?.isAdmin && (
-                                                                            <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-purple-500 text-white rounded-full p-0.5 shadow-lg">
-                                                                                <Edit size={8} />
-                                                                            </div>
-                                                                        )}
+                                                                    <div className="grid grid-cols-3 gap-2">
+                                                                        <button
+                                                                            onClick={() => handlePreview(doc._id)}
+                                                                            className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl border transition-all hover:bg-white/5 ${isLightMode ? 'border-slate-200 text-slate-600' : 'border-white/10 text-slate-400'}`}
+                                                                        >
+                                                                            <Eye size={16} />
+                                                                            <span className="text-[10px] font-bold uppercase tracking-tighter">Preview</span>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleApprove(doc._id)}
+                                                                            className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-emerald-600 text-white font-bold transition-all hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                                                                        >
+                                                                            <Check size={16} />
+                                                                            <span className="text-[10px] font-bold uppercase tracking-tighter">Approve</span>
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => setConfirmingDeleteId(doc._id)}
+                                                                            className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-rose-600/10 border border-rose-600/20 text-rose-500 font-bold transition-all hover:bg-rose-600 hover:text-white"
+                                                                        >
+                                                                            <X size={16} />
+                                                                            <span className="text-[10px] font-bold uppercase tracking-tighter">Reject</span>
+                                                                        </button>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            {!doc.isApproved && (
-                                                                <div className="absolute top-2 right-2 bg-amber-500 text-white text-[8px] font-black uppercase px-2 py-1 rounded-md shadow-lg animate-pulse border border-amber-400">
-                                                                    Review Pending
-                                                                </div>
-                                                            )}
                                                         </div>
+                                                    );
+                                                }
 
-                                                        <h3 className={`text-xl font-bold mb-3 capitalize leading-tight ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
-                                                            {doc.subjectName}
-                                                        </h3>
-
-                                                        <div className="space-y-1.5 mb-5 block">
-                                                            {doc.semester && (
-                                                                <p className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                                    <span className="font-semibold text-xs uppercase tracking-wider opacity-70">Semester/Year:</span> <span className="font-medium">{doc.yearLevel ? `${doc.yearLevel}${doc.semester ? ` - ${doc.semester}` : ''}` : doc.semester}</span>
-                                                                </p>
-                                                            )}
-                                                            <div className={`text-sm flex items-center gap-2 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                                <span className="font-semibold text-xs uppercase tracking-wider opacity-70">File:</span> 
-                                                                <span className="font-medium truncate max-w-[150px]" title={doc.originalName}>{doc.originalName}</span>
+                                                return (
+                                                    <div key={doc._id} className={`rounded-3xl border transition-all hover:-translate-y-2 hover:shadow-2xl overflow-hidden flex flex-col group
+                                                        ${isLightMode
+                                                            ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
+                                                            : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
+                                                    >
+                                                        <div className="p-7 flex-1 flex flex-col relative">
+                                                            {/* Top Right: Combined Tag & Status Layer */}
+                                                            <div className="absolute top-7 right-7 flex items-center gap-2.5">
+                                                                {user?.isAdmin && (
+                                                                    <div className="flex items-center gap-1 opacity-30 group-hover:opacity-100 transition-all">
+                                                                        <button 
+                                                                            onClick={(e) => { 
+                                                                                e.stopPropagation(); 
+                                                                                setEditingDoc(doc);
+                                                                                setShowEditModal(true);
+                                                                            }}
+                                                                            className={`p-1.5 rounded-lg transition-all hover:bg-purple-500 hover:text-white ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                        >
+                                                                            <Edit size={12} />
+                                                                        </button>
+                                                                        <button 
+                                                                            onClick={(e) => { e.stopPropagation(); setConfirmingDeleteId(doc._id); }}
+                                                                            className={`p-1.5 rounded-lg transition-all hover:bg-red-500 hover:text-white ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                                                        >
+                                                                            <Trash2 size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                                {doc.documentType === 'notes' && (
+                                                                    <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm transition-transform group-hover:scale-105">
+                                                                        Notes
+                                                                    </span>
+                                                                )}
+                                                                {doc.documentType === 'see' && (
+                                                                    <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm transition-transform group-hover:scale-105">
+                                                                        SEE
+                                                                    </span>
+                                                                )}
+                                                                {doc.documentType === 'internals' && (
+                                                                    <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm transition-transform group-hover:scale-105">
+                                                                        Internal
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                            {doc.contributor?.showName && (
-                                                                <div className={`mt-3 p-2.5 rounded-xl border flex items-center gap-2.5 ${isLightMode ? 'bg-purple-50/50 border-purple-100 text-purple-700' : 'bg-purple-500/10 border-purple-500/20 text-purple-300'}`}>
-                                                                    <div className={`p-1.5 rounded-lg ${isLightMode ? 'bg-white text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                                                        <UserCheck size={14} />
+
+                                                            {/* Header Layout - Balanced Alignment */}
+                                                            <div className="flex gap-4 mb-6">
+                                                                <div className={`p-2 h-fit rounded-xl border shrink-0 transition-all group-hover:rotate-6 ${
+                                                                    doc.documentType === 'see' 
+                                                                    ? (isLightMode ? 'bg-red-50 text-red-600 border-red-100' : 'bg-red-500/10 text-red-400 border-red-500/20')
+                                                                    : (isLightMode ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-blue-500/10 text-blue-400 border-blue-500/20')
+                                                                }`}>
+                                                                    <FileText size={18} />
+                                                                </div>
+                                                                
+                                                                <div className="flex-1 pr-20 min-h-[48px]">
+                                                                    <h3 className={`text-lg font-bold leading-tight mb-1 capitalize line-clamp-2 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
+                                                                        {doc.subjectName}
+                                                                    </h3>
+                                                                    <p className={`text-[11px] font-bold opacity-30 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
+                                                                        {doc.yearLevel} {doc.subjectCode && ` • ${doc.subjectCode.toUpperCase()}`}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Content Body - Clean & Bold Filename */}
+                                                            <div className="space-y-4 mb-8">
+                                                                <p className={`text-sm font-bold line-clamp-1 py-1 transition-colors ${isLightMode ? 'text-slate-800 hover:text-purple-600' : 'text-white/90 hover:text-purple-400'}`} title={doc.originalName}>
+                                                                    {doc.originalName}
+                                                                </p>
+                                                                
+                                                                {doc.contributor?.showName && (
+                                                                    <div className="flex items-center gap-2 transition-all group-hover:translate-x-1">
+                                                                        <UserCheck size={12} className="opacity-20" />
+                                                                        <span className={`text-[11px] font-bold ${isLightMode ? 'text-slate-500' : 'text-slate-500'}`}>
+                                                                            By <span className={`transition-colors ${isLightMode ? 'text-slate-900' : 'text-slate-300'}`}>{doc.contributor.name}</span>
+                                                                        </span>
                                                                     </div>
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-[10px] uppercase font-black tracking-tighter opacity-60 leading-none mb-1">Contributor</span>
-                                                                        <span className="text-xs font-bold leading-none">{doc.contributor.name}</span>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Subtle Smart Footer */}
+                                                            {confirmingDeleteId === doc._id && user?.isAdmin ? (
+                                                                <div className="mt-auto pt-4 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
+                                                                    <button 
+                                                                        onClick={() => { setConfirmingDeleteId(null); handleDocDelete(doc._id); }}
+                                                                        className="flex-1 py-2 bg-red-500 text-white text-[10px] font-black uppercase rounded-lg hover:bg-red-600 shadow-lg shadow-red-500/20"
+                                                                    >
+                                                                        Confirm Delete
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => setConfirmingDeleteId(null)}
+                                                                        className={`ml-2 px-4 py-2 border rounded-lg text-[10px] font-bold ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/5 opacity-40">
+                                                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.1em]">
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            <span className={isLightMode ? 'text-slate-900' : 'text-white'}>
+                                                                                {doc.fileSize > 0 ? formatSize(doc.fileSize) : '—'}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span className="w-1 h-1 rounded-full bg-current opacity-20"></span>
+                                                                        <span>
+                                                                            Updated {getTimeAgo(doc.createdAt)}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                         </div>
 
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {doc.subjectCode && (
-                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'}`}>
-                                                                    CODE: {doc.subjectCode}
-                                                                </span>
-                                                            )}
-                                                            {doc.paperType && (
-                                                                <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${isLightMode ? 'bg-purple-50 text-purple-600' : 'bg-purple-500/10 text-purple-400'}`}>
-                                                                    TYPE: {doc.paperType}
-                                                                </span>
+                                                        {/* Modern Actions Block - High Logic Handling */}
+                                                        <div className={`p-5 mt-auto border-t flex items-center gap-2.5 ${isLightMode ? 'bg-slate-50/50 border-slate-100' : 'bg-black/10 border-white/5'}`}>
+                                                            {statusFilter === 'deleted' ? (
+                                                                <>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await userUploadAPI.restoreUpload(doc._id);
+                                                                                handleSearch();
+                                                                            } catch (e) {
+                                                                                alert("Restore failed");
+                                                                            }
+                                                                        }}
+                                                                        className={`flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-emerald-600 text-white transition-all hover:bg-emerald-700 hover:shadow-xl shadow-emerald-500/20 active:scale-95`}
+                                                                    >
+                                                                        <ArrowLeft size={14} strokeWidth={3} />
+                                                                        Restore Material
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (window.confirm("Permanently delete this material? This cannot be undone.")) {
+                                                                                try {
+                                                                                    await userUploadAPI.permanentDeleteUpload(doc._id);
+                                                                                    handleSearch();
+                                                                                } catch (e) {
+                                                                                    alert("Permanent delete failed");
+                                                                                }
+                                                                            }
+                                                                        }}
+                                                                        className={`px-4 py-2.5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all`}
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handlePreview(doc._id)}
+                                                                        className={`px-4 py-2.5 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all 
+                                                                            ${isLightMode 
+                                                                                ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:shadow-md' 
+                                                                                : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:shadow-lg shadow-black/20'}`}
+                                                                    >
+                                                                        Preview
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDownload(doc._id)}
+                                                                        className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-purple-600 text-white transition-all hover:bg-purple-700 hover:shadow-xl hover:shadow-purple-600/30 active:scale-95"
+                                                                    >
+                                                                        <Download size={14} strokeWidth={3} />
+                                                                        Download
+                                                                    </button>
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
-
-                                                    <div className={`p-4 border-t flex flex-col gap-3 ${isLightMode ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/20'}`}>
-                                                        <div className={`grid gap-3 w-full ${user?.isAdmin && !doc.isApproved ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                                                            <button
-                                                                onClick={() => handlePreview(doc._id)}
-                                                                className={`flex justify-center items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50' : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'}`}
-                                                            >
-                                                                <Eye size={18} />
-                                                                Preview
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDownload(doc._id)}
-                                                                disabled={!doc.isApproved}
-                                                                className={`flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-lg font-bold transition-all shadow-md active:scale-95 ${!doc.isApproved ? 'bg-slate-600 opacity-50 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 hover:shadow-lg'}`}
-                                                            >
-                                                                <Download size={18} />
-                                                                Get
-                                                            </button>
-                                                            {user?.isAdmin && !doc.isApproved && (
-                                                                <button
-                                                                    onClick={() => handleApprove(doc._id)}
-                                                                    className="flex justify-center items-center gap-2 px-4 py-2.5 text-white rounded-lg font-bold transition-all shadow-md active:scale-95 bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg"
-                                                                >
-                                                                    <Check size={18} />
-                                                                    Approve
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
 
                                             {/* Search for More Card */}
                                             <div className={`rounded-2xl border border-dashed flex flex-col items-center justify-center p-8 text-center transition-all hover:bg-purple-500/5 group/cta
@@ -2090,6 +2222,164 @@ const AskFinderPage = () => {
                             )}
                         </motion.div>
                     </motion.div>
+                )}
+            </AnimatePresence>
+            {/* Administrative Edit Modal */}
+            <AnimatePresence>
+                {showEditModal && editingDoc && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowEditModal(false)}
+                            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className={`relative w-full max-w-xl rounded-3xl border shadow-2xl overflow-hidden ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#1a1b1e] border-white/5'}`}
+                        >
+                            {/* Modal Header */}
+                            <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
+                                        <Edit size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className={`text-lg font-black tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Edit Material</h3>
+                                        <p className="text-xs opacity-50 font-medium">Update document metadata and properties</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowEditModal(false)}
+                                    className={`p-2 rounded-xl border transition-all ${isLightMode ? 'border-slate-100 hover:bg-slate-50' : 'border-white/5 hover:bg-white/5'}`}
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Subject Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={editingDoc.subjectName}
+                                            onChange={(e) => setEditingDoc({...editingDoc, subjectName: e.target.value})}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            placeholder="e.g. Mathematics"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Subject Code</label>
+                                        <input 
+                                            type="text" 
+                                            value={editingDoc.subjectCode}
+                                            onChange={(e) => setEditingDoc({...editingDoc, subjectCode: e.target.value.toUpperCase()})}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            placeholder="e.g. 21MAT31"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Document Type</label>
+                                        <select 
+                                            value={editingDoc.documentType}
+                                            onChange={(e) => setEditingDoc({...editingDoc, documentType: e.target.value})}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                        >
+                                            <option value="notes">Notes</option>
+                                            <option value="see">SEE (Semester End)</option>
+                                            <option value="internals">Internals</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Semester</label>
+                                        <input 
+                                            type="text" 
+                                            value={editingDoc.semester}
+                                            onChange={(e) => setEditingDoc({...editingDoc, semester: e.target.value})}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            placeholder="e.g. 3rd Sem"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Year Level</label>
+                                        <input 
+                                            type="text" 
+                                            value={editingDoc.yearLevel}
+                                            onChange={(e) => setEditingDoc({...editingDoc, yearLevel: e.target.value})}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            placeholder="e.g. 2nd Year"
+                                        />
+                                    </div>
+
+                                    <div className="col-span-2 space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">File Display Name</label>
+                                        <input 
+                                            type="text" 
+                                            value={editingDoc.originalName}
+                                            onChange={(e) => setEditingDoc({...editingDoc, originalName: e.target.value})}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            placeholder="FileName.pdf"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className={`p-6 border-t flex items-center gap-3 ${isLightMode ? 'bg-slate-50' : 'bg-white/[0.02] border-white/5'}`}>
+                                <button 
+                                    onClick={() => setShowEditModal(false)}
+                                    className={`flex-1 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100' : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'}`}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    onClick={async () => {
+                                        setIsSaving(true);
+                                        try {
+                                            await userUploadAPI.updateUpload(editingDoc._id, {
+                                                subjectName: editingDoc.subjectName,
+                                                subjectCode: editingDoc.subjectCode,
+                                                documentType: editingDoc.documentType,
+                                                semester: editingDoc.semester,
+                                                yearLevel: editingDoc.yearLevel,
+                                                originalName: editingDoc.originalName
+                                            });
+                                            setShowEditModal(false);
+                                            handleSearch(); // Refresh list
+                                        } catch (err) {
+                                            console.error("Save failed", err);
+                                            alert("Failed to update document");
+                                        } finally {
+                                            setIsSaving(false);
+                                        }
+                                    }}
+                                    disabled={isSaving}
+                                    className="flex-[2] py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-purple-600/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check size={16} strokeWidth={3} />
+                                            <span>Save Changes</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

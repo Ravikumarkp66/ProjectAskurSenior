@@ -181,7 +181,16 @@ export const userUploadAPI = {
     approveUpload: (uploadId) =>
         apiClient.post(`/user-uploads/${uploadId}/approve`),
     deleteUpload: (uploadId) =>
-        apiClient.delete(`/user-uploads/${uploadId}`)
+        apiClient.delete(`/user-uploads/${uploadId}`),
+    // Admin management methods
+    getUploadById: (uploadId) =>
+        apiClient.get(`/documents/${uploadId}`),
+    updateUpload: (uploadId, data) =>
+        apiClient.patch(`/documents/${uploadId}`, data),
+    restoreUpload: (uploadId) =>
+        apiClient.post(`/documents/${uploadId}/restore`),
+    permanentDeleteUpload: (uploadId) =>
+        apiClient.delete(`/documents/${uploadId}/permanent`)
 };
 
 
