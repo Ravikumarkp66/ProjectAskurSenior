@@ -49,15 +49,16 @@ const CreatorSection = () => {
             </div>
 
             <div className="max-w-7xl mx-auto relative z-10">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
                     
                     {/* Left Content */}
+                    {/* TEXT — order-2 on mobile (below image), order-1 on desktop (left) */}
                     <motion.div 
                         initial={{ opacity: 0, x: -30 }}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="space-y-8"
+                        className="w-full md:w-1/2 space-y-8 order-2 md:order-1 text-center md:text-left"
                     >
                         <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] font-outfit">
                             Built by a student,<br />
@@ -98,7 +99,7 @@ const CreatorSection = () => {
                             </p>
                         </div>
 
-                        <div className="pt-8 flex flex-col gap-6">
+                        <div className="pt-8 flex flex-col gap-6 items-center md:items-start">
                             {/* LinkedIn Profile Badge - Large Version */}
                             <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md px-6 py-3 rounded-full w-fit border border-white/10 shadow-[0_0_20px_rgba(59,130,246,0.15)] hover:border-blue-500/30 transition-all group/badge group-hover:scale-105 active:scale-95 cursor-pointer">
                                 <img 
@@ -131,24 +132,26 @@ const CreatorSection = () => {
                         </div>
                     </motion.div>
 
-                    {/* Right Image Container (40% width equivalent in grid) */}
+                    {/* IMAGE — order-1 on mobile (first), order-2 on desktop (right) */}
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.9 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.8, delay: 0.2 }}
-                        className="relative flex justify-center items-center"
+                        className="w-full md:w-1/2 relative flex justify-center items-center order-1 md:order-2 mt-0 md:mt-0"
                     >
                         {/* Glow Behind Image */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-purple-600/20 to-indigo-600/20 rounded-[2rem] blur-2xl -rotate-6 scale-95" />
                         
                         {/* Premium Image Wrapper with Gradient Border */}
-                        <div className="relative p-1.5 bg-gradient-to-br from-purple-600 to-blue-500 rounded-[24px] group shadow-2xl flex items-center justify-center overflow-hidden">
-                            <div className="relative bg-[#0a0a0b] rounded-[22px] overflow-hidden">
+                        <div className="relative p-1.5 bg-gradient-to-br from-purple-600 to-blue-500 rounded-[24px] group shadow-2xl flex items-center justify-center overflow-hidden w-full max-w-[420px]">
+                            <div className="relative bg-[#0a0a0b] rounded-[22px] overflow-hidden w-full">
                                 <ImageWithFallback 
                                     src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/creator-section/DocScanner+Apr+20%2C+2022+9-12+AM_LE_upscale_prime_cleanup.jpg"
                                     alt="Creator of AskUrSenior"
                                 />
+                                {/* Gradient overlay from bottom — pro level polish */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
                                 {/* Soft transition at bottom */}
                                 <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0a0a0b] via-transparent to-transparent opacity-60 pointer-events-none" />
                             </div>
