@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
 import ProfileModal from '../components/ProfileModal';
-import { apiClient } from '../services/api';
+import { apiClient, userUploadAPI } from '../services/api';
 import { deriveBranchFromUSN, toUiBranch, ALL_KNOWN_SUBJECTS, ISE_3RD_SEM_SUBJECTS, ISE_4TH_SEM_SUBJECTS, ISE_5TH_SEM_SUBJECTS, ISE_6TH_SEM_SUBJECTS, CSE_3RD_SEM_SUBJECTS, CSE_4TH_SEM_SUBJECTS, CSE_5TH_SEM_SUBJECTS, CSE_6TH_SEM_SUBJECTS, BRANCHES, FIRST_YEAR_SUBJECTS } from '../utils/constants';
 import DocComments from '../components/DocComments';
 import LoginRequiredModal from '../components/LoginRequiredModal';
@@ -97,6 +97,7 @@ const AskFinderPage = () => {
     const [leaderboardData, setLeaderboardData] = useState([]);
     const [fetchingLeaderboard, setFetchingLeaderboard] = useState(false);
     const [showRules, setShowRules] = useState(false);
+    const [pendingUploadsCount, setPendingUploadsCount] = useState(0);
 
     const fetchLeaderboard = async () => {
         setFetchingLeaderboard(true);
@@ -144,6 +145,31 @@ const AskFinderPage = () => {
             }
         }
     }, [location.search, isAuthenticated]);
+
+    // Fetch pending uploads count for admin badge (from both systems)
+    useEffect(() => {
+        const fetchPendingCount = async () => {
+            if (user?.isAdmin) {
+                try {
+                    const [docsRes, uploadsRes] = await Promise.all([
+                        apiClient.get('/documents/search?status=pending&adminView=true'),
+                        userUploadAPI.getUploads('pending')
+                    ]);
+                    
+                    const docsCount = docsRes?.data?.documents?.length || (Array.isArray(docsRes?.data) ? docsRes.data.length : 0);
+                    const uploadsCount = uploadsRes?.data?.items?.length || (Array.isArray(uploadsRes?.data) ? uploadsRes.data.length : 0);
+                    
+                    setPendingUploadsCount(docsCount + uploadsCount);
+                } catch (error) {
+                    console.error('Failed to fetch pending count:', error);
+                }
+            }
+        };
+
+        fetchPendingCount();
+        const interval = setInterval(fetchPendingCount, 120000);
+        return () => clearInterval(interval);
+    }, [user?.isAdmin, statusFilter]);
 
     useEffect(() => {
         // Fetch metadata for all users so filters are populated
@@ -757,7 +783,13 @@ const AskFinderPage = () => {
                                                 }`}
                                             >
                                                 {statusFilter === 'pending' ? <Clock size={16} /> : <ShieldCheck size={16} />}
-                                                {statusFilter === 'pending' ? 'Exit Queue' : 'Review Queue'}
+                                                <span>{statusFilter === 'pending' ? 'Exit Queue' : 'Review Queue'}</span>
+                                                
+                                                {statusFilter !== 'pending' && pendingUploadsCount > 0 && (
+                                                    <span className="ml-1.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white animate-pulse shadow-lg shadow-red-500/20">
+                                                        {pendingUploadsCount}
+                                                    </span>
+                                                )}
                                             </button>
                                             <button
                                                 onClick={() => {

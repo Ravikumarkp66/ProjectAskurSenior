@@ -589,24 +589,7 @@ const Sidebar = ({
                     </div>
                     */}
 
-                    {/* Contribution Zone */}
-                    <div className="pt-2 border-t border-white/5 space-y-1">
-                        <button
-                            onClick={() => (user?.isAdmin ? setShowAdminUploadModal(true) : setShowUserUploadModal(true))}
-                            className={`${isCollapsed ? 'justify-center' : ''} w-full flex items-center gap-3 p-3 rounded-xl transition ${sidebarClasses.panel} ${sidebarClasses.panelHover}`}
-                            title="Upload Materials"
-                        >
-                            <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
-                            </svg>
-                            {!isCollapsed && (
-                                <div className="text-left">
-                                    <p className="text-sm font-semibold">Upload Materials</p>
-                                    <p className="text-[10px] text-slate-500">Contribute & review</p>
-                                </div>
-                            )}
-                        </button>
-                    </div>
+
                 </nav>
 
                 {/* Profile (bottom) */}
