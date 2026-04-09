@@ -6,6 +6,3 @@ build/
 *.log
 .vscode/
 .idea/
-mobile/
-tmp/
-backend/tmp/
