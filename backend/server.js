@@ -59,13 +59,26 @@ app.use('/uploads', express.static('uploads'));
 
 // CORS: allow only configured frontend origin in production
 const corsOptions = {
-    origin: process.env.NODE_ENV === 'production'
-        ? [
+    origin: (origin, callback) => {
+        const allowedOrigins = [
             process.env.FRONTEND_URL,
             'https://askursenior.vercel.app',
-            'https://project-askur-senior.vercel.app'
-        ].filter(Boolean)
-        : true,
+            'https://project-askur-senior.vercel.app',
+            'https://askursenior.onrender.com'
+        ].filter(Boolean);
+        
+        // Allow requests with no origin (like mobile apps) or if in development
+        if (!origin || process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.error('CORS blocked origin:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     optionsSuccessStatus: 200
 };
@@ -90,6 +103,14 @@ mongoose
         // Redis is disabled - continuing without cache
         console.log('Running without Redis cache');
 
+        // Start server only after DB connection
+        const PORT = process.env.PORT || 5000;
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+            console.log(`⏰ Started at: ${new Date().toISOString()}`);
+        });
+
         // Seed database only in development
         if (process.env.NODE_ENV !== 'production') {
             try {
@@ -101,7 +122,8 @@ mongoose
     })
     .catch((err) => {
         console.error('MongoDB connection error:', err);
-        process.exit(1);
+        // On Render, we want to let it retry or fail fast
+        setTimeout(() => process.exit(1), 5000);
     });
 
 // Routes
@@ -163,13 +185,7 @@ app.use('*', (req, res) => {
     });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📝 Environment: ${process.env.NODE_ENV}`);
-    console.log(`⏰ Started at: ${new Date().toISOString()}`);
-});
+
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

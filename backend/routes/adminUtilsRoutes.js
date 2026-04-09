@@ -1,9 +1,8 @@
-import express from "express";
-import User from "../models/User.js";
+const express = require('express');
+const User = require('../models/User');
 
 const router = express.Router();
 
-// Set all users' subscription to 'free' (admin utility)
 // Set all non-admin users' subscription to 'free' (admin utility)
 router.patch("/set-all-free", async (req, res) => {
   try {
@@ -14,4 +13,4 @@ router.patch("/set-all-free", async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;
