@@ -6,6 +6,7 @@ import WatermarkStamp from './components/common/WatermarkStamp';
 
 // Lazy load pages for code splitting
 const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
@@ -69,7 +70,7 @@ const AdminRoute = ({ children }) => {
         );
     }
 
-    if (!isAuthenticated) return <Navigate to="/login" />;
+    if (!isAuthenticated) return <Navigate to="/admin/login" />;
     if (!user?.isAdmin) return <Navigate to="/dashboard" />;
     return children;
 };
@@ -107,6 +108,7 @@ function AppContent() {
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<LoginPage initialMode="register" />} />
+                        <Route path="/admin/login" element={<AdminLoginPage />} />
                         {/* UPGRADE_SECTION_HIDDEN: Uncomment these routes to restore subscription/upgrade features
                         <Route path="/subscription" element={<SubscriptionPage />} />
                         <Route path="/pricing" element={<PricingSection user={user} />} />

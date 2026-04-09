@@ -200,10 +200,10 @@ router.get('/search', async (req, res) => {
             subject,
             paperType,
             semester,
+            yearLevel,
+            branch,
             documentType,
             sortBy = 'newest',
-            page = 1,
-            limit = 20
         } = req.query;
 
         // Build search criteria
@@ -236,6 +236,57 @@ router.get('/search', async (req, res) => {
         if (semester) {
             searchCriteria.semester = new RegExp(`^${semester}$`, 'i');
         }
+        // yearLevel maps to semester ranges since yearLevel is NOT stored in Document —
+        // only semester is stored (e.g. "3rd Sem", "4th Sem", "1st Year")
+        if (yearLevel && !semester) {
+            const yl = yearLevel.toLowerCase().trim();
+            const semesterMap = {
+                '1st year':  ['1st Year', '1st Sem', '2nd Sem'],
+                '2nd year':  ['3rd Sem', '4th Sem'],
+                '3rd year':  ['5th Sem', '6th Sem'],
+                '4th year':  ['7th Sem', '8th Sem'],
+            };
+            const semValues = semesterMap[yl];
+            if (semValues) {
+                // Case-insensitive $in match
+                searchCriteria.semester = { $in: semValues.map(s => new RegExp(`^${s}$`, 'i')) };
+            }
+        }
+        // Branch Filter Logic
+        if (branch) {
+            const b = branch.toLowerCase().trim();
+            const isCommonSearch = b === 'all' || b === 'common' || b === 'common to all';
+            
+            const branchQuery = isCommonSearch 
+                ? { branch: { $in: [/^all$/i, /^common$/i, /^common to all$/i] } }
+                : { 
+                    $or: [
+                        { branch: new RegExp(`^${b}$`, 'i') }, 
+                        { branch: /^all$/i }, 
+                        { branch: /^common$/i },
+                        { branch: /^common to all$/i },
+                        { branch: { $in: [null, ''] } }
+                    ]
+                };
+
+            if (searchCriteria.$or) {
+                // searchQuery already using $or, wrap it with $and
+                const existingOr = searchCriteria.$or;
+                delete searchCriteria.$or;
+                searchCriteria.$and = [
+                    { $or: existingOr },
+                    branchQuery
+                ];
+            } else {
+                // Merge branchQuery directly if it's not a complex $or
+                if (branchQuery.$or) {
+                    searchCriteria.$or = branchQuery.$or;
+                } else {
+                    Object.assign(searchCriteria, branchQuery);
+                }
+            }
+        }
+
         if (documentType) {
             searchCriteria.documentType = new RegExp(`^${documentType}$`, 'i');
         }
@@ -293,8 +344,6 @@ router.get('/search', async (req, res) => {
             }
         }
 
-        const skip = (parseInt(page) - 1) * parseInt(limit);
-
         // Sorting logic
         let sortOption = { createdAt: -1 };
         if (sortBy === 'most-downloaded') sortOption = { downloadCount: -1, previewCount: -1 };
@@ -308,8 +357,6 @@ router.get('/search', async (req, res) => {
                 { $match: searchCriteria },
                 { $addFields: { likeCount: { $size: { $ifNull: ["$likes", []] } } } },
                 { $sort: { likeCount: -1, createdAt: -1 } },
-                { $skip: skip },
-                { $limit: parseInt(limit) },
                 {
                     $lookup: {
                         from: 'users',
@@ -324,9 +371,7 @@ router.get('/search', async (req, res) => {
         } else {
             documents = await Document.find(searchCriteria)
                 .populate('uploadedBy', 'name email')
-                .sort(sortOption)
-                .skip(skip)
-                .limit(parseInt(limit));
+                .sort(sortOption);
         }
 
         const total = await Document.countDocuments(searchCriteria);
@@ -341,18 +386,13 @@ router.get('/search', async (req, res) => {
             total,
             notes: breakdown.find(b => b._id === 'notes')?.count || 0,
             see: breakdown.find(b => b._id === 'see')?.count || 0,
-            internals: breakdown.find(b => b._id === 'internals')?.count || 0
+            internals: breakdown.find(b => b._id === 'internals')?.count || 0,
+            others: breakdown.find(b => b._id === 'others')?.count || 0
         };
 
         res.json({
             documents,
-            summary,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / parseInt(limit))
-            }
+            summary
         });
     } catch (error) {
         console.error('Error searching documents:', error);
@@ -372,6 +412,7 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
             subjectCode,
             semester,
             year,
+            branch,
             documentType,
             paperType,
             tags,
@@ -428,6 +469,7 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
                 subjectCode,
                 semester,
                 year,
+                branch: branch || contributorBranch,
                 documentType,
                 paperType,
                 tags,
@@ -491,7 +533,7 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
 });
 
 // Download document (S3 Signed URL)
-router.get('/:documentId/download', authMiddleware, async (req, res) => {
+router.get('/:documentId/download', async (req, res) => {
     try {
         const document = await Document.findById(req.params.documentId);
         
@@ -515,7 +557,7 @@ router.get('/:documentId/download', authMiddleware, async (req, res) => {
 });
 
 // Preview document (S3 Signed URL + increment previewCount)
-router.get('/:documentId/preview-url', authMiddleware, async (req, res) => {
+router.get('/:documentId/preview-url', async (req, res) => {
     try {
         const document = await Document.findById(req.params.documentId);
         

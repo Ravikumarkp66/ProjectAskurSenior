@@ -11,13 +11,13 @@ const authMiddleware = async (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Single Active Session Check
-        const user = await User.findById(decoded.userId).select('tokenVersion');
-        if (!user || user.tokenVersion !== decoded.tokenVersion) {
-            return res.status(401).json({
-                error: 'Session expired. Logged in from another device.',
-                sessionExpired: true
-            });
+        // Verify the user still exists in the db
+        const user = await User.findById(decoded.userId).select('_id accountStatus');
+        if (!user) {
+            return res.status(401).json({ error: 'User account not found', sessionExpired: true });
+        }
+        if (user.accountStatus === 'suspended') {
+            return res.status(403).json({ error: 'Your account has been suspended.' });
         }
 
         req.userId = decoded.userId;

@@ -131,6 +131,7 @@ export const FIRST_YEAR_SUBJECTS = [
 
 
 export const BRANCHES = [
+    { code: 'ALL', name: 'Common to All' },
     { code: 'CV', name: 'Civil Engineering' },
     { code: 'CS', name: 'Computer Science and Engineering' },
     { code: 'IS', name: 'Information Science and Engineering' },
@@ -159,7 +160,8 @@ export const toBackendBranch = (code) => {
         IM: 'IM',
         CH: 'CH',
         ET: 'ETC',
-        EI: 'EIE'
+        EI: 'EIE',
+        ALL: 'COMMON'
     };
     return map[value] || value;
 };
@@ -178,7 +180,8 @@ export const toUiBranch = (code) => {
         IM: 'IM',
         CH: 'CH',
         ETC: 'ET',
-        EIE: 'EI'
+        EIE: 'EI',
+        COMMON: 'ALL'
     };
     return map[value] || value;
 };

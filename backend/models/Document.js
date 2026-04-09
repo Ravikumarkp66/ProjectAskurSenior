@@ -42,9 +42,15 @@ const documentSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
+    branch: {
+        type: String,
+        trim: true,
+        lowercase: true,
+        index: true
+    },
     documentType: {
         type: String,
-        enum: ['notes', 'internals', 'see'],
+        enum: ['notes', 'internals', 'see', 'others'],
         required: true,
         lowercase: true
     },

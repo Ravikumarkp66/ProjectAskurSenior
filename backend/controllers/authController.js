@@ -2,8 +2,10 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
-// Admin emails that should automatically get admin access
-const ADMIN_EMAILS = ['mreduactor4566@gmail.com'];
+// Admin emails loaded from environment — never hardcoded
+const ADMIN_EMAILS = process.env.ADMIN_EMAIL
+    ? process.env.ADMIN_EMAIL.split(',').map(e => e.trim().toLowerCase())
+    : [];
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const generateToken = (userId, branch, currentBranch, isAdmin) => {

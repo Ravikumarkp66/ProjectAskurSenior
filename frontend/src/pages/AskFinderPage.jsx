@@ -55,7 +55,11 @@ const AskFinderPage = () => {
     const [loading, setLoading] = useState(false);
     const [subjects, setSubjects] = useState([]);
     const [paperTypes, setPaperTypes] = useState([]);
-    const [searchSummary, setSearchSummary] = useState({ total: 0, notes: 0, see: 0, internals: 0 });
+    const [searchSummary, setSearchSummary] = useState({ total: 0, notes: 0, see: 0, internals: 0, others: 0 });
+
+    // Pagination — Show More
+    const ITEMS_PER_PAGE = 9;
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Upload state
     const [showUploadModal, setShowUploadModal] = useState(false);
@@ -332,9 +336,9 @@ const AskFinderPage = () => {
             if (selectedPaperType) params.append('paperType', selectedPaperType.toLowerCase());
             if (selectedYearLevel) params.append('yearLevel', selectedYearLevel.toLowerCase());
             if (selectedSubSemester) params.append('semester', selectedSubSemester.toLowerCase());
-            else if (selectedYearLevel) params.append('semester', selectedYearLevel.toLowerCase());
             
-            if (currentBranch && selectedYearLevel !== '1st Year') params.append('branch', currentBranch.toLowerCase());
+            // Only filter by branch when user has explicitly chosen a year level (and it's not 1st Year — which is branch-agnostic)
+            if (selectedYearLevel && selectedYearLevel !== '1st Year' && currentBranch) params.append('branch', currentBranch.toLowerCase());
             if (selectedYear) params.append('year', selectedYear.toLowerCase());
             if (selectedDocType) params.append('documentType', selectedDocType.toLowerCase());
             if (sortBy) params.append('sortBy', sortBy);
@@ -354,7 +358,8 @@ const AskFinderPage = () => {
 
             const response = await apiClient.get(`/documents/search?${params.toString()}`);
             setDocuments(response.data.documents || response.data || []);
-            setSearchSummary(response.data.summary || { total: 0, notes: 0, see: 0, internals: 0 });
+            setSearchSummary(response.data.summary || { total: 0, notes: 0, see: 0, internals: 0, others: 0 });
+            setVisibleCount(ITEMS_PER_PAGE); // Reset pagination on every new search
         } catch (error) {
             console.error('Search failed:', error);
             setDocuments([]);
@@ -457,23 +462,82 @@ const AskFinderPage = () => {
     };
 
     const handleDocDelete = async (documentId) => {
+        // Optimistically remove from UI immediately — no page refresh
+        const deleted = documents.find(d => d._id === documentId);
+        setDocuments(prev => prev.filter(d => d._id !== documentId));
+        setConfirmingDeleteId(null);
+
+        // Also update summary counts instantly
+        if (deleted) {
+            setSearchSummary(prev => ({
+                ...prev,
+                total: Math.max(0, prev.total - 1),
+                notes: deleted.documentType === 'notes' ? Math.max(0, prev.notes - 1) : prev.notes,
+                see: deleted.documentType === 'see' ? Math.max(0, prev.see - 1) : prev.see,
+                internals: deleted.documentType === 'internals' ? Math.max(0, prev.internals - 1) : prev.internals,
+                others: deleted.documentType === 'others' ? Math.max(0, prev.others - 1) : prev.others,
+            }));
+        }
+
+        // Clamp visibleCount so it never exceeds remaining docs
+        setVisibleCount(v => Math.min(v, documents.length - 1));
+
         try {
             await apiClient.delete(`/documents/${documentId}`);
-            setConfirmingDeleteId(null);
-            handleSearch();
         } catch (error) {
             console.error('Delete failed:', error);
+            // Rollback — put the doc back
+            if (deleted) {
+                setDocuments(prev => {
+                    const idx = prev.findIndex((_, i) => i >= documents.indexOf(deleted));
+                    const next = [...prev];
+                    next.splice(Math.max(0, idx), 0, deleted);
+                    return next;
+                });
+                if (deleted) {
+                    setSearchSummary(prev => ({
+                        ...prev,
+                        total: prev.total + 1,
+                        notes: deleted.documentType === 'notes' ? prev.notes + 1 : prev.notes,
+                        see: deleted.documentType === 'see' ? prev.see + 1 : prev.see,
+                        internals: deleted.documentType === 'internals' ? prev.internals + 1 : prev.internals,
+                        others: deleted.documentType === 'others' ? prev.others + 1 : prev.others,
+                    }));
+                }
+            }
             alert('Failed to delete document: ' + (error.response?.data?.error || error.message));
         }
     };
 
     const handleApprove = async (documentId) => {
+        // In "pending" view: remove the card instantly (it's no longer pending)
+        // In normal view: mark it approved locally
+        const isInPendingView = statusFilter === 'pending';
+
+        if (isInPendingView) {
+            // Remove instantly from the pending list
+            setDocuments(prev => prev.filter(d => d._id !== documentId));
+            setSearchSummary(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+        } else {
+            // Mark as approved in place
+            setDocuments(prev => prev.map(d =>
+                d._id === documentId ? { ...d, isApproved: true } : d
+            ));
+        }
+
         try {
             await apiClient.post(`/documents/${documentId}/approve`);
-            handleSearch();
             fetchLeaderboard();
         } catch (error) {
             console.error('Approve failed:', error);
+            // Rollback
+            if (isInPendingView) {
+                handleSearch();
+            } else {
+                setDocuments(prev => prev.map(d =>
+                    d._id === documentId ? { ...d, isApproved: false } : d
+                ));
+            }
             alert('Approval failed');
         }
     };
@@ -1036,6 +1100,7 @@ const AskFinderPage = () => {
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="notes">Notes</option>
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="internals">Internals</option>
                                     <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="see">SEE</option>
+                                    <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="others">Others</option>
                                 </select>
 
                                 <select
@@ -1070,6 +1135,11 @@ const AskFinderPage = () => {
                                                 <div className={`h-8 w-1 bg-purple-500 rounded-full`}></div>
                                                 <h2 className={`text-xl font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
                                                     Found <span className="text-purple-500">{searchSummary.total}</span> Materials
+                                                    {visibleCount < documents.length && (
+                                                        <span className={`ml-2 text-sm font-normal ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                                            · showing {Math.min(visibleCount, documents.length)} of {documents.length}
+                                                        </span>
+                                                    )}
                                                 </h2>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2">
@@ -1088,11 +1158,16 @@ const AskFinderPage = () => {
                                                         Internals: {searchSummary.internals}
                                                     </span>
                                                 )}
+                                                {searchSummary.others > 0 && (
+                                                    <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                                                        Others: {searchSummary.others}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
-                                            {documents.map((doc) => {
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                            {documents.slice(0, visibleCount).map((doc) => {
                                                 const isAdminReviewCard = user?.isAdmin && statusFilter === 'pending';
 
                                                 if (isAdminReviewCard) {
@@ -1248,6 +1323,11 @@ const AskFinderPage = () => {
                                                                         Internal
                                                                     </span>
                                                                 )}
+                                                                {doc.documentType === 'others' && (
+                                                                    <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shadow-sm transition-transform group-hover:scale-105">
+                                                                        Others
+                                                                    </span>
+                                                                )}
                                                             </div>
 
                                                             {/* Header Layout - Balanced Alignment */}
@@ -1255,6 +1335,8 @@ const AskFinderPage = () => {
                                                                 <div className={`p-2 h-fit rounded-xl border shrink-0 transition-all group-hover:rotate-6 ${
                                                                     doc.documentType === 'see' 
                                                                     ? (isLightMode ? 'bg-red-50 text-red-600 border-red-100' : 'bg-red-500/10 text-red-400 border-red-500/20')
+                                                                    : doc.documentType === 'others'
+                                                                    ? (isLightMode ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20')
                                                                     : (isLightMode ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-blue-500/10 text-blue-400 border-blue-500/20')
                                                                 }`}>
                                                                     <FileText size={18} />
@@ -1378,27 +1460,61 @@ const AskFinderPage = () => {
                                                 );
                                             })}
 
-                                            {/* Search for More Card */}
-                                            <div className={`rounded-2xl border border-dashed flex flex-col items-center justify-center p-8 text-center transition-all hover:bg-purple-500/5 group/cta
-                                                ${isLightMode 
-                                                    ? 'bg-slate-50 border-slate-300 hover:border-purple-300' 
-                                                    : 'bg-white/5 border-white/10 hover:border-purple-500/30'}`}
-                                            >
-                                                <div className={`p-5 rounded-full mb-6 transition-all group-hover/cta:scale-110 group-hover/cta:rotate-12 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                                    <Search size={32} />
+                                        </div>
+
+                                        {/* Show More button (below grid) + progress indicator */}
+                                        {visibleCount < documents.length ? (
+                                            <div className="mt-8 mb-20 flex flex-col items-center gap-4">
+                                                {/* Progress bar */}
+                                                <div className="w-full max-w-sm">
+                                                    <div className="flex justify-between text-xs font-medium mb-2">
+                                                        <span className={isLightMode ? 'text-slate-500' : 'text-slate-500'}>
+                                                            Showing {visibleCount} of {documents.length}
+                                                        </span>
+                                                        <span className="text-purple-500 font-bold">
+                                                            {Math.round((visibleCount / documents.length) * 100)}%
+                                                        </span>
+                                                    </div>
+                                                    <div className={`h-1.5 rounded-full overflow-hidden ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`}>
+                                                        <div
+                                                            className="h-full rounded-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-500"
+                                                            style={{ width: `${Math.round((visibleCount / documents.length) * 100)}%` }}
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <h4 className={`text-xl font-bold mb-3 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
-                                                    Need more?
-                                                </h4>
-                                                <p className="text-sm mb-6 opacity-60">Try refining your search!</p>
-                                                <button 
-                                                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                                    className="text-xs font-black text-purple-500 uppercase tracking-widest hover:underline"
+
+                                                <button
+                                                    id="show-more-materials-bottom"
+                                                    onClick={() => setVisibleCount(v => Math.min(v + ITEMS_PER_PAGE, documents.length))}
+                                                    className="group flex items-center gap-3 px-8 py-3.5 rounded-full border-2 border-purple-500/40 hover:border-purple-500 hover:bg-purple-500/10 text-purple-400 hover:text-purple-300 font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
                                                 >
-                                                    Back to Top
+                                                    <svg className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                    Load {Math.min(ITEMS_PER_PAGE, documents.length - visibleCount)} more
+                                                    <span className={`text-xs font-normal opacity-60 ${isLightMode ? 'text-slate-500' : ''}`}>
+                                                        ({documents.length - visibleCount} remaining)
+                                                    </span>
                                                 </button>
                                             </div>
-                                        </div>
+                                        ) : (
+                                            /* End of results */
+                                            <div className="mt-10 mb-20 flex flex-col items-center gap-3 text-center">
+                                                <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full border text-xs font-bold uppercase tracking-widest ${isLightMode ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-500'}`}>
+                                                    <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    You've seen all {documents.length} material{documents.length !== 1 ? 's' : ''}
+                                                </div>
+                                                <button
+                                                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                                                    className="text-xs text-purple-500 hover:text-purple-400 font-semibold hover:underline transition-colors"
+                                                >
+                                                    ↑ Back to top
+                                                </button>
+                                            </div>
+                                        )}
+
                                     </>
                                 ) : (
                                     <div className={`text-center py-20 px-6 rounded-3xl border border-dashed ${isLightMode ? 'bg-slate-50/50 border-slate-300' : 'bg-[#141416]/20 border-white/10'}`}>
@@ -1613,11 +1729,10 @@ const AskFinderPage = () => {
                                             </div>
                                         )}
 
-                                        {(uploadMetadata.yearLevel === '2nd Year' || uploadMetadata.yearLevel === '3rd Year') && (
+                                        {(uploadMetadata.yearLevel === '2nd Year' || uploadMetadata.yearLevel === '3rd Year' || uploadMetadata.yearLevel === '4th Year') && (
                                             <div>
-                                                <label className="block text-sm font-semibold mb-2">Semester *</label>
+                                                <label className="block text-sm font-semibold mb-2">Semester <span className="text-xs font-normal opacity-50 ml-1">(Optional)</span></label>
                                                 <select
-                                                    required
                                                     value={uploadMetadata.semester}
                                                     onChange={(e) => setUploadMetadata({ ...uploadMetadata, semester: e.target.value, subjectName: '', subjectCode: '' })}
                                                     className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
@@ -1628,10 +1743,15 @@ const AskFinderPage = () => {
                                                             <option value="3rd Sem">3rd Semester</option>
                                                             <option value="4th Sem">4th Semester</option>
                                                         </>
-                                                    ) : (
+                                                    ) : uploadMetadata.yearLevel === '3rd Year' ? (
                                                         <>
                                                             <option value="5th Sem">5th Semester</option>
                                                             <option value="6th Sem">6th Semester</option>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <option value="7th Sem">7th Semester</option>
+                                                            <option value="8th Sem">8th Semester</option>
                                                         </>
                                                     )}
                                                 </select>
@@ -1780,6 +1900,7 @@ const AskFinderPage = () => {
                                                 <option value="notes">Notes</option>
                                                 <option value="internals">Internals</option>
                                                 <option value="see">SEE</option>
+                                                <option value="others">Others</option>
                                             </select>
                                         </div>
                                         <div>
@@ -2295,6 +2416,7 @@ const AskFinderPage = () => {
                                             <option value="notes">Notes</option>
                                             <option value="see">SEE (Semester End)</option>
                                             <option value="internals">Internals</option>
+                                            <option value="others">Others</option>
                                         </select>
                                     </div>
 
