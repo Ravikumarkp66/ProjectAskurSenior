@@ -508,6 +508,30 @@ const InterviewPage = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Coming Soon Section */}
+            {!isLoading && (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.6 }}
+                    className="mt-16 mb-8 flex flex-col items-center gap-4"
+                >
+                    <div className="flex items-center gap-3 px-6 py-3 rounded-2xl border border-white/5 bg-white/[0.02]">
+                        <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-purple-500" />
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                            More companies will be updated soon
+                        </span>
+                        <Sparkles size={12} className="text-purple-500/40" />
+                    </div>
+                    <p className="text-[10px] text-slate-700 font-medium">
+                        Have an experience to share? Help your juniors prepare better.
+                    </p>
+                </motion.div>
+            )}
         </div>
     );
 };
