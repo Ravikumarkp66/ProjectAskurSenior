@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import Hero from '../components/Hero';
+import InterviewExperienceSection from '../components/InterviewExperienceSection';
 import TermsModal from '../components/TermsModal';
+
 import PrivacyModal from '../components/PrivacyModal';
 import HomeBlogSection from '../components/HomeBlogSection';
 import CreatorSection from '../components/CreatorSection';
@@ -15,6 +17,7 @@ const HomePage = () => {
         <div className="flex flex-col min-h-screen bg-[#0a0a0b] font-outfit">
             <main className="flex-1 relative z-10">
                 <Hero />
+                <InterviewExperienceSection />
                 <HomeProductShowcase />
                 <HomeBlogSection />
                 <CreatorSection />

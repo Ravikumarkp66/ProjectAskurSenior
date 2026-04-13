@@ -6,7 +6,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 require('dotenv').config();
 
-const authRoutes = require('./routes/authRoutes');
+const authRoutes = require('./routes/authRoutes').default || require('./routes/authRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const bugRoutes = require('./routes/bugRoutes');
@@ -88,8 +88,12 @@ app.use(cors(corsOptions));
 mongoose
     .connect(process.env.MONGODB_URI, {
         useNewUrlParser: true,
-        useUnifiedTopology: true
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 10000, // 10s selection timeout
+        socketTimeoutMS: 45000,         // 45s socket timeout
+        maxPoolSize: 10                 // Limit connections
     })
+
     .then(async () => {
         console.log('MongoDB connected successfully');
 
@@ -108,6 +112,7 @@ mongoose
         app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+            console.log(`🔗 Current Directory: ${process.cwd()}`);
             console.log(`⏰ Started at: ${new Date().toISOString()}`);
         });
 
@@ -145,6 +150,8 @@ app.use('/api/articles', require('./routes/articleRoutes'));
 app.use('/api/materials', require('./routes/materialRoutes'));
 app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
+app.use('/api/experiences', require('./routes/interviewExperienceRoutes').default || require('./routes/interviewExperienceRoutes'));
+
 
 
 // Consolidated Dashboard Summary Route

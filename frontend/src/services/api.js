@@ -206,3 +206,14 @@ export const paymentAPI = {
     verifyPayment: (id, data) => apiClient.patch(`/payments/admin/verify/${id}`, data),
     deletePayment: (id) => apiClient.delete(`/payments/admin/${id}`)
 };
+
+// Interview Experiences API
+export const interviewExperiencesAPI = {
+    getCompanies: () => apiClient.get('/experiences/companies'),
+    getCompanyRoles: (companyId) => apiClient.get(`/experiences/companies/${companyId}/roles`),
+    getExperiences: (params) => apiClient.get('/experiences/list', { params }),
+    createExperience: (data) => apiClient.post('/experiences/create', data),
+    upvoteExperience: (id) => apiClient.post(`/experiences/upvote/${id}`),
+    createCompany: (data) => apiClient.post('/experiences/admin/companies', data)
+};
+

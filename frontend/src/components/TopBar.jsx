@@ -31,6 +31,24 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark', on
 
                     <div className="flex items-center gap-3">
                         <button
+                            onClick={() => navigate('/ask-finder')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${isLightMode
+                                ? 'text-slate-600 hover:bg-slate-100'
+                                : 'text-slate-400 hover:bg-slate-800'
+                                }`}
+                        >
+                            Materials
+                        </button>
+                        <button
+                            onClick={() => navigate('/interview')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${isLightMode
+                                ? 'text-slate-600 hover:bg-slate-100'
+                                : 'text-slate-400 hover:bg-slate-800'
+                                }`}
+                        >
+                            Interview Experiences
+                        </button>
+                        <button
                             onClick={() => navigate('/')}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${isLightMode
                                 ? 'text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -42,6 +60,7 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark', on
                             </svg>
                             Home
                         </button>
+
                     </div>
                 </div>
 

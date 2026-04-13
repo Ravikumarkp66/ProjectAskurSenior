@@ -565,7 +565,11 @@ const Sidebar = ({
                             </svg>
                             {!isCollapsed && <span className="text-sm font-semibold">CGPA Calculator</span>}
                         </button>
+
+
+
                     </div>
+
 
                     {/* UPGRADE_SECTION_HIDDEN: Uncomment to restore Subscription sidebar link
                     <div className="pt-2 border-t border-white/5 space-y-1">
