@@ -172,11 +172,12 @@ const InterviewPage = () => {
     React.useEffect(() => {
         const fetchCompanies = async () => {
             try {
-                const response = await fetch('/api/experiences/companies');
-                const data = await response.json();
+                // Use centralized API service instead of raw fetch
+                const response = await interviewExperiencesAPI.getCompanies();
+                const data = Array.isArray(response.data) ? response.data : [];
                 
-                if (!Array.isArray(data)) {
-                    console.error('Expected array from companies API, got:', data);
+                if (data.length === 0 && response.status !== 200) {
+                    console.error('API Error:', response);
                     setCompanies([]);
                     return;
                 }

@@ -51,10 +51,11 @@ const CompanyRolePage = () => {
                 const actualId = hasBatch ? id.split('--')[0] : id;
                 const batchFilter = hasBatch ? id.split('--')[1] : null;
 
-                const compRes = await fetch('/api/experiences/companies');
-                const companies = await compRes.json();
+                // Use centralized API service instead of raw fetch to ensure base URL is used
+                const compRes = await interviewExperiencesAPI.getCompanies();
+                const companies = Array.isArray(compRes.data) ? compRes.data : [];
                 
-                if (!Array.isArray(companies)) {
+                if (companies.length === 0) {
                     console.error('Expected array from companies API');
                     return;
                 }
@@ -64,13 +65,12 @@ const CompanyRolePage = () => {
                     || companies.find(c => c.name.toLowerCase().replace(/\s+/g, '-') === actualId.toLowerCase());
                 
                 if (targetComp) {
-                    // Fetch experiences, filtering by batch if specified
-                    let url = `/api/experiences/list?companyId=${targetComp._id}`;
-                    if (batchFilter) url += `&batch=${batchFilter}`;
-
-                    const expRes = await fetch(url);
-                    const expData = await expRes.json();
-                    const experiences = Array.isArray(expData) ? expData : [];
+                    // Fetch experiences, filtering by batch if specified via service
+                    const expRes = await interviewExperiencesAPI.getExperiences({
+                        companyId: targetComp._id,
+                        batch: batchFilter
+                    });
+                    const experiences = Array.isArray(expRes.data) ? expRes.data : [];
 
                     setExperiences(experiences);
 
