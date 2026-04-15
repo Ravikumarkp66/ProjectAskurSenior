@@ -214,6 +214,7 @@ export const interviewExperiencesAPI = {
     getExperiences: (params) => apiClient.get('/experiences/list', { params }),
     createExperience: (data) => apiClient.post('/experiences/create', data),
     upvoteExperience: (id) => apiClient.post(`/experiences/upvote/${id}`),
+    updateExperience: (id, data) => apiClient.put(`/experiences/${id}`, data),
     createCompany: (data) => apiClient.post('/experiences/admin/companies', data)
 };
 

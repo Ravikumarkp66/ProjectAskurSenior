@@ -17,6 +17,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useAuthContext } from '../../context/AuthContext';
+import { interviewExperiencesAPI } from '../../services/api';
 
 const ExperienceCard = ({ data: initialData, isLightMode }) => {
   const { user, token } = useAuthContext();
@@ -53,10 +54,7 @@ const ExperienceCard = ({ data: initialData, isLightMode }) => {
       setUpvoteCount(prev => prev + 1);
       setHasUpvoted(true);
       try {
-        await fetch(`/api/experiences/upvote/${data._id}`, { 
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        await interviewExperiencesAPI.upvoteExperience(data._id);
       } catch (error) {
         console.error('Failed to upvote:', error);
       }
@@ -91,18 +89,8 @@ const ExperienceCard = ({ data: initialData, isLightMode }) => {
     e.stopPropagation();
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/experiences/${data._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(editedData)
-      });
-
-      if (!response.ok) throw new Error('Failed to update experience');
-      
-      const updated = await response.json();
+      const response = await interviewExperiencesAPI.updateExperience(data._id, editedData);
+      const updated = response.data;
       
       // After save, update data state with the specific round data from updated object
       const updatedRound = updated.rounds.find(r => r.roundNumber === data.roundNumber);
@@ -117,7 +105,7 @@ const ExperienceCard = ({ data: initialData, isLightMode }) => {
       setIsEditing(false);
     } catch (error) {
       console.error('Update Error:', error);
-      alert('Failed to save changes');
+      alert('Failed to save changes: ' + (error.response?.data?.message || error.message));
     } finally {
       setIsSaving(false);
     }
