@@ -1,6 +1,5 @@
 const Subject = require('../models/Subject');
 const Progress = require('../models/Progress');
-const { generateSignedUrl } = require('../utils/getSignedUrl');
 
 const getSubjectsByBranch = async (req, res) => {
     try {
@@ -169,12 +168,12 @@ const getModuleNotes = async (req, res) => {
             return res.status(404).json({ error: 'No notes available for this module' });
         }
 
-        // Generate signed URL for PDF preview (valid for 1 hour)
-        const signedUrl = await generateSignedUrl(module.notesKey);
+        // Construct permanent CloudFront URL
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${module.notesKey}`;
 
         res.json({
             success: true,
-            url: signedUrl,
+            url: fileUrl,
             moduleName: module.title,
             subjectName: subject.name
         });
@@ -215,12 +214,12 @@ const getContentUrl = async (req, res) => {
             return res.status(404).json({ error: 'Content not found' });
         }
 
-        // Generate signed URL
-        const signedUrl = await generateSignedUrl(contentItem.fileKey);
+        // Construct permanent CloudFront URL
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${contentItem.fileKey}`;
 
         res.json({
             success: true,
-            url: signedUrl,
+            url: fileUrl,
             title: contentItem.title,
             description: contentItem.description,
             contextName

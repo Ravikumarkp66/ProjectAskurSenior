@@ -2,7 +2,6 @@ const express = require("express");
 const { upload } = require("../utils/multer");
 const { uploadToS3 } = require("../utils/uploadToS3");
 const { deleteFromS3 } = require("../utils/deleteFromS3");
-const { generateSignedUrl } = require("../utils/getSignedUrl");
 const authMiddleware = require("../middleware/auth");
 const adminMiddleware = require("../middleware/admin");
 const UserUpload = require("../models/UserUpload");
@@ -99,8 +98,9 @@ router.get("/:uploadId/url", authMiddleware, adminMiddleware, async (req, res) =
             return res.status(404).json({ error: "Upload not found" });
         }
 
-        const url = await generateSignedUrl(uploadItem.fileKey);
-        res.json({ url });
+        const fileKey = uploadItem.fileKey;
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${fileKey}`;
+        res.json({ url: fileUrl });
     } catch (err) {
         console.error("Error generating upload preview URL:", err.message);
         res.status(500).json({ error: "Failed to generate preview URL" });

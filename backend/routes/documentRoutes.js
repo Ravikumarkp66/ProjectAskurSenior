@@ -9,7 +9,6 @@ const SubjectMetadata = require('../models/SubjectMetadata');
 const PaperType = require('../models/PaperType');
 const Subject = require('../models/Subject');
 const { uploadToS3 } = require('../utils/uploadToS3');
-const { generateSignedUrl } = require('../utils/getSignedUrl');
 const deleteFromS3 = require('../utils/deleteFromS3');
 
 const router = express.Router();
@@ -541,7 +540,8 @@ router.get('/:documentId/download', async (req, res) => {
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        const signedUrl = await generateSignedUrl(document.fileUrl);
+        const fileKey = document.fileUrl;
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${fileKey}`;
 
         // Update download statistics
         await Document.findByIdAndUpdate(req.params.documentId, {
@@ -549,7 +549,7 @@ router.get('/:documentId/download', async (req, res) => {
             lastDownloadedAt: new Date()
         });
 
-        res.json({ downloadUrl: signedUrl });
+        res.json({ downloadUrl: fileUrl });
     } catch (error) {
         console.error('Error downloading document:', error);
         res.status(500).json({ error: 'Failed to generate download link' });
@@ -565,14 +565,15 @@ router.get('/:documentId/preview-url', async (req, res) => {
             return res.status(404).json({ error: 'Document not found' });
         }
 
-        const signedUrl = await generateSignedUrl(document.fileUrl);
+        const fileKey = document.fileUrl;
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${fileKey}`;
 
         // Update preview statistics
         await Document.findByIdAndUpdate(req.params.documentId, {
             $inc: { previewCount: 1 }
         });
 
-        res.json({ previewUrl: signedUrl });
+        res.json({ previewUrl: fileUrl });
     } catch (error) {
         console.error('Error previewing document:', error);
         res.status(500).json({ error: 'Failed to generate preview link' });

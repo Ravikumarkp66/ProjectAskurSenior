@@ -48,15 +48,10 @@ const getPresignedUrl = async (urlOrKey) => {
     }
 
     try {
-        const command = new GetObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: key
-        });
-
-        // Sign for 1 hour
-        return await getSignedUrl(s3, command, { expiresIn: 3600 });
+        // Construct the permanent CloudFront URL
+        return `https://d2mh2rnmjqdkgx.cloudfront.net/${key}`;
     } catch (error) {
-        console.error('Error generating presigned URL:', error);
+        console.error('Error generating CloudFront URL:', error);
         return urlOrKey; // Fallback to original
     }
 };

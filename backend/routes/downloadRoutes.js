@@ -1,6 +1,4 @@
 const express = require("express");
-const { generateSignedUrl } = require("../utils/getSignedUrl");
-
 const router = express.Router();
 
 /**
@@ -17,10 +15,8 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ error: "File key required" });
     }
 
-    const signedUrl = await generateSignedUrl(key);
-
-    // Redirect user directly to S3 for automatic download
-    res.redirect(signedUrl);
+    const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${key}`;
+    res.redirect(fileUrl);
   } catch (err) {
     console.error("Error generating signed URL:", err);
     res.status(500).json({ error: err.message });
