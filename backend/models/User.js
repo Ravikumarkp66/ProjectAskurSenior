@@ -101,6 +101,23 @@ const userSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        phone: {
+            type: String,
+            default: null
+        },
+        whatsappEnabled: {
+            type: Boolean,
+            default: false
+        },
+        priority: {
+            type: String,
+            enum: ['attendance', 'marks', 'balanced'],
+            default: 'balanced'
+        },
+        todos: [{
+            text: { type: String, required: true },
+            done: { type: Boolean, default: false }
+        }],
         lastActive: {
             type: Date,
             default: Date.now
@@ -111,6 +128,11 @@ const userSchema = new mongoose.Schema(
         createdAt: {
             type: Date,
             default: Date.now
+        },
+        setupProgress: {
+            type: String,
+            enum: ['none', 'dates_done', 'subjects_done', 'timetable_done', 'complete'],
+            default: 'none'
         }
     },
     { timestamps: true }

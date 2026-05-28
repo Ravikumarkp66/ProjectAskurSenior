@@ -63,6 +63,15 @@ exports.getOverviewAnalytics = async (req, res) => {
             createdAt: { $gte: startOfMonth }
         }).lean();
 
+        // New dashboard stats
+        const activeAskPlus = await User.countDocuments({ subscription: "askplus" }).lean();
+        const pendingPaymentsCount = await Payment.countDocuments({ status: "pending" }).lean();
+        const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const expiringSoon = await User.countDocuments({
+            subscription: "askplus",
+            subscriptionExpiry: { $gte: now, $lte: next7Days }
+        }).lean();
+
         const result = {
             totalUsers,
             userUploadCount,
@@ -70,6 +79,9 @@ exports.getOverviewAnalytics = async (req, res) => {
             pendingUploads,
             totalSubjects,
             uploadsThisMonth,
+            activeAskPlus,
+            pendingPayments: pendingPaymentsCount,
+            expiringSoon,
             liveUsers: await User.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } })
         };
 

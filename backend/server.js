@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
@@ -17,8 +19,15 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const seedDatabase = require('./utils/seedDatabase');
 const User = require('./models/User');
+const { sendWhatsAppMessage } = require('./modules/whatsapp/whatsapp.service');
+require('./modules/assistant/cron');
 
 const app = express();
+const server = http.createServer(app);
+
+// Data structures for tracking real-time users
+const activeUsers = new Map();
+const activeSockets = new Set();
 
 // Optimization: Compression middleware
 app.use(compression());
@@ -84,6 +93,87 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
+// Socket.IO Setup
+const io = new Server(server, { cors: corsOptions });
+
+// Admin verification middleware for socket could be added here, 
+// for now we rely on the 'join_admin' event
+
+io.on('connection', (socket) => {
+    activeSockets.add(socket.id);
+    console.log("Socket connected:", socket.id);
+    
+    socket.on('user_online', (userData) => {
+        console.log("USER ONLINE:", userData);
+        const { userId, name, email, role } = userData;
+        if (!userId) return;
+
+        if (!activeUsers.has(userId)) {
+            activeUsers.set(userId, {
+                userId,
+                name,
+                email,
+                role,
+                sockets: new Set(),
+                joinedAt: new Date()
+            });
+        }
+        
+        activeUsers.get(userId).sockets.add(socket.id);
+
+        io.emit("dashboard_live_stats", {
+            liveUsers: activeUsers.size,
+            trafficTabs: activeSockets.size
+        });
+
+        io.emit(
+            "live_users_list",
+            Array.from(activeUsers.values()).map(user => ({
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                tabs: user.sockets.size,
+                joinedAt: user.joinedAt
+            }))
+        );
+    });
+
+    socket.on('join_admin', () => {
+        socket.join('admins');
+    });
+
+    socket.on('disconnect', () => {
+        console.log("Socket disconnected:", socket.id);
+        activeSockets.delete(socket.id);
+        
+        for (const [userId, user] of activeUsers.entries()) {
+            user.sockets.delete(socket.id);
+            if (user.sockets.size === 0) {
+                activeUsers.delete(userId);
+            }
+        }
+
+        io.emit("dashboard_live_stats", {
+            liveUsers: activeUsers.size,
+            trafficTabs: activeSockets.size
+        });
+
+        io.emit(
+            "live_users_list",
+            Array.from(activeUsers.values()).map(user => ({
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                tabs: user.sockets.size,
+                joinedAt: user.joinedAt
+            }))
+        );
+    });
+});
+
+
 // MongoDB Connection
 mongoose
     .connect(process.env.MONGODB_URI, {
@@ -109,7 +199,7 @@ mongoose
 
         // Start server only after DB connection
         const PORT = process.env.PORT || 5000;
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📝 Environment: ${process.env.NODE_ENV}`);
             console.log(`🔗 Current Directory: ${process.cwd()}`);
@@ -151,7 +241,22 @@ app.use('/api/materials', require('./routes/materialRoutes'));
 app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
 app.use('/api/experiences', require('./routes/interviewExperienceRoutes').default || require('./routes/interviewExperienceRoutes'));
-
+app.use('/api/academic', require('./modules/academic/academic.routes'));
+app.use('/api/whatsapp', require('./modules/whatsapp/whatsapp.routes'));
+app.use('/api/whatsapp', require('./routes/whatsappRoutes')); // Meta Cloud API
+const { sendWhatsAppMessage: sendMetaWhatsAppMessage, sendWhatsAppTemplate } = require('./services/whatsappService');
+app.get("/test", async (req, res) => {
+  try {
+    await sendWhatsAppTemplate("919986577493", "Present", "DBMS 10 AM", "Submit assignment");
+    res.send("Template Sent successfully!");
+  } catch (error) {
+    const errorDetails = error.response?.data || error.message;
+    res.status(400).json({
+      error: "WhatsApp API Error",
+      details: errorDetails
+    });
+  }
+});
 
 
 // Consolidated Dashboard Summary Route
@@ -163,6 +268,71 @@ app.get('/api/admin/dashboard-summary', authMiddleware, adminMiddleware, analyti
 // Health check endpoint
 app.get('/api/health', (req, res) => {
     res.json({ message: 'Server is running', timestamp: new Date() });
+});
+
+// Quick WhatsApp Test Route
+app.get('/test-whatsapp', async (req, res) => {
+    try {
+        const testPhone = req.query.phone || "+919986577493"; 
+
+        if (testPhone.includes('X')) {
+            return res.status(400).send("❌ Error: Please provide a real phone number in the URL (e.g., ?phone=+919986577493)");
+        }
+
+        console.log(`Attempting to send WhatsApp test to: ${testPhone}`);
+        
+        const result = await sendWhatsAppMessage(testPhone, "🔥 FINAL WORKING MESSAGE");
+        
+        if (result.success) {
+            res.send(`✅ Success! Message sent to ${testPhone}. SID: ${result.sid}`);
+        } else {
+            res.status(500).send(`❌ Failed: ${result.error}`);
+        }
+    } catch (err) {
+        console.error("WhatsApp Test Route Error:", err);
+        res.status(500).send("❌ Twilio Error: " + err.message);
+    }
+});
+
+// Manual Daily Message Test Route
+app.get('/api/whatsapp/test-daily', async (req, res) => {
+    try {
+        const { getDashboardData } = require('./modules/assistant/getDashboardData');
+        const { generateDailyMessage } = require('./modules/assistant/messageGenerator');
+        
+        // Find the first user who has a phone number set
+        const user = await User.findOne({ phoneNumber: { $ne: null } });
+        
+        if (!user) {
+            return res.status(404).send("❌ No user found with a phone number set. Please update a user in DB first.");
+        }
+
+        const data = await getDashboardData(user._id);
+        const message = generateDailyMessage(data);
+
+        await sendWhatsAppMessage(user.phoneNumber, message);
+        res.send(`✅ Daily message test sent to ${user.phoneNumber} for user ${user.email}`);
+    } catch (err) {
+        console.error("Manual Daily Test Error:", err);
+        res.status(500).send("❌ Error: " + err.message);
+    }
+});
+
+// Quick route to activate WhatsApp for testing (No auth for browser ease)
+app.get('/api/whatsapp/activate-me', async (req, res) => {
+    try {
+        const phone = req.query.phone || "+919986577493";
+        // Just find the first user for testing purposes
+        const user = await User.findOne();
+        if (!user) return res.status(404).send("No users found in DB");
+        
+        user.phoneNumber = phone;
+        user.whatsappEnabled = true;
+        await user.save();
+        res.send(`✅ WhatsApp activated for ${user.email} with number ${phone}`);
+    } catch (err) {
+        res.status(500).send("Error: " + err.message);
+    }
 });
 
 // Error handling middleware

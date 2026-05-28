@@ -1,5 +1,7 @@
 const Subject = require('../models/Subject');
 const Progress = require('../models/Progress');
+const { GetObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { s3 } = require("../utils/s3Client");
 
 const getSubjectsByBranch = async (req, res) => {
     try {
@@ -168,8 +170,23 @@ const getModuleNotes = async (req, res) => {
             return res.status(404).json({ error: 'No notes available for this module' });
         }
 
+        // Verify the file actually exists in S3 to prevent confusing "Access Denied" XML errors from CloudFront
+        try {
+            const headCmd = new HeadObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME || 'askursenior-notes-storage',
+                Key: module.notesKey
+            });
+            await s3.send(headCmd);
+        } catch (s3Err) {
+            if (s3Err.name === 'NotFound' || s3Err.$metadata?.httpStatusCode === 404) {
+                return res.status(404).json({ error: "File no longer exists in storage (it may have been deleted)." });
+            }
+            throw s3Err;
+        }
+
         // Construct permanent CloudFront URL
-        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${module.notesKey}`;
+        const encodedKey = module.notesKey.split('/').map(encodeURIComponent).join('/');
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${encodedKey}`;
 
         res.json({
             success: true,
@@ -214,8 +231,23 @@ const getContentUrl = async (req, res) => {
             return res.status(404).json({ error: 'Content not found' });
         }
 
+        // Verify the file actually exists in S3 to prevent confusing "Access Denied" XML errors from CloudFront
+        try {
+            const headCmd = new HeadObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME || 'askursenior-notes-storage',
+                Key: contentItem.fileKey
+            });
+            await s3.send(headCmd);
+        } catch (s3Err) {
+            if (s3Err.name === 'NotFound' || s3Err.$metadata?.httpStatusCode === 404) {
+                return res.status(404).json({ error: "File no longer exists in storage (it may have been deleted)." });
+            }
+            throw s3Err;
+        }
+
         // Construct permanent CloudFront URL
-        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${contentItem.fileKey}`;
+        const encodedKey = contentItem.fileKey.split('/').map(encodeURIComponent).join('/');
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${encodedKey}`;
 
         res.json({
             success: true,

@@ -2,6 +2,8 @@ const express = require("express");
 const { upload } = require("../utils/multer");
 const { uploadToS3 } = require("../utils/uploadToS3");
 const { deleteFromS3 } = require("../utils/deleteFromS3");
+const { GetObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
+const { s3 } = require("../utils/s3Client");
 const authMiddleware = require("../middleware/auth");
 const adminMiddleware = require("../middleware/admin");
 const UserUpload = require("../models/UserUpload");
@@ -40,7 +42,8 @@ router.post(
             }
 
             const normalizedSubjectCode = subjectCode.toUpperCase();
-            const uploadFolder = `user-uploads/pending/${normalizedSubjectCode}/${contentType}`;
+            // Prefix with contentType so that CloudFront S3 Bucket Policies (which usually allow notes/*, pyqs/*) permit access
+            const uploadFolder = `${contentType}/user-uploads/pending/${normalizedSubjectCode}`;
 
             const createdItems = [];
 
@@ -99,7 +102,25 @@ router.get("/:uploadId/url", authMiddleware, adminMiddleware, async (req, res) =
         }
 
         const fileKey = uploadItem.fileKey;
-        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${fileKey}`;
+
+        // Verify the file actually exists in S3 to prevent confusing "Access Denied" XML errors from CloudFront
+        try {
+            const headCmd = new HeadObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME || 'askursenior-notes-storage',
+                Key: fileKey
+            });
+            await s3.send(headCmd);
+        } catch (s3Err) {
+            if (s3Err.name === 'NotFound' || s3Err.$metadata?.httpStatusCode === 404) {
+                return res.status(404).json({ error: "File no longer exists in storage (it may have been deleted)." });
+            }
+            throw s3Err;
+        }
+
+        // Encode the key parts to prevent CloudFront 400/403 errors with spaces
+        const encodedKey = fileKey.split('/').map(encodeURIComponent).join('/');
+        const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${encodedKey}`;
+
         res.json({ url: fileUrl });
     } catch (err) {
         console.error("Error generating upload preview URL:", err.message);

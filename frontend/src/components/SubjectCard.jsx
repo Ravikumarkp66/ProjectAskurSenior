@@ -163,7 +163,7 @@ const SubjectCard = ({ subject: initialSubject, expanded, onToggle, onQuestionTo
                         <div className={`flex flex-col gap-2 w-full sm:w-auto sm:min-w-[160px]`}>
                             <ProgressBar progress={progress} height={12} theme={theme} />
                             <p className="text-xs text-slate-500 text-right">
-                                {completedQuestions}/{totalQuestions}
+                                {totalQuestions === 0 ? 'No attendance data yet' : `${completedQuestions}/${totalQuestions}`}
                             </p>
                         </div>
 

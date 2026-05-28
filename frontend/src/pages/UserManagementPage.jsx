@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaSearch, FaCrown, FaTrash, FaUndo, FaSpinner, FaCheckCircle, FaInfoCircle, FaShieldAlt, FaHistory, FaTimes, FaCheck } from 'react-icons/fa';
 import { analyticsAPI } from '../services/analyticsAPI';
 import { paymentAPI } from '../services/api';
+import socket from '../services/socket';
 
 const UserManagementPage = () => {
     const [users, setUsers] = useState([]);
@@ -30,6 +31,12 @@ const UserManagementPage = () => {
         expiringSoon: 0,
         liveUsers: 0
     });
+
+    // Socket states
+    const [liveUsersCount, setLiveUsersCount] = useState(0);
+    const [trafficCount, setTrafficCount] = useState(0);
+    const [liveUsersList, setLiveUsersList] = useState([]);
+    const [isLiveUsersModalOpen, setIsLiveUsersModalOpen] = useState(false);
 
     const [theme] = useState(() => {
         try {
@@ -73,6 +80,23 @@ const UserManagementPage = () => {
     useEffect(() => {
         setCurrentPage(1);
     }, [search, roleFilter, sortBy, filter]);
+
+    // Socket listeners
+    useEffect(() => {
+        socket.on('dashboard_live_stats', (data) => {
+            setLiveUsersCount(data.liveUsers);
+            setTrafficCount(data.trafficTabs);
+        });
+
+        socket.on('live_users_list', (data) => {
+            setLiveUsersList(data);
+        });
+
+        return () => {
+            socket.off('dashboard_live_stats');
+            socket.off('live_users_list');
+        };
+    }, []);
 
     const handleOpenManageModal = async (user) => {
         setSelectedUser(user);
@@ -137,9 +161,15 @@ const UserManagementPage = () => {
         }
     };
 
-    const StatCard = ({ label, value, colorClass }) => (
-        <div className={`p-4 rounded-xl border transition-all hover:scale-[1.02] ${isLightMode ? 'bg-white border-slate-200' : 'bg-dark-100 border-white/10'}`}>
-            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isLightMode ? 'text-slate-500' : 'text-secondary-500'}`}>{label}</p>
+    const StatCard = ({ label, value, colorClass, onClick, pulse }) => (
+        <div 
+            onClick={onClick}
+            className={`p-4 rounded-xl border transition-all hover:scale-[1.02] ${onClick ? 'cursor-pointer' : ''} ${isLightMode ? 'bg-white border-slate-200' : 'bg-dark-100 border-white/10'}`}
+        >
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-2 ${isLightMode ? 'text-slate-500' : 'text-secondary-500'}`}>
+                {pulse && <span className={`w-2 h-2 rounded-full animate-pulse ${colorClass.replace('text-', 'bg-')}`} />}
+                {label}
+            </p>
             <p className={`text-2xl font-black ${colorClass}`}>{value}</p>
         </div>
     );
@@ -158,10 +188,11 @@ const UserManagementPage = () => {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <StatCard label="Total Users" value={summary.totalUsers} colorClass={isLightMode ? 'text-blue-600' : 'text-blue-400'} />
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                <StatCard label="Live Users" value={liveUsersCount} colorClass={isLightMode ? 'text-emerald-600' : 'text-emerald-400'} onClick={() => setIsLiveUsersModalOpen(true)} pulse={true} />
+                <StatCard label="Traffic Tabs" value={trafficCount} colorClass={isLightMode ? 'text-blue-600' : 'text-blue-400'} pulse={true} />
+                <StatCard label="Total Users" value={summary.totalUsers} colorClass={isLightMode ? 'text-slate-600' : 'text-slate-400'} />
                 <StatCard label="Active ASK+" value={summary.activeSubscriptions} colorClass={isLightMode ? 'text-amber-600' : 'text-amber-400'} />
-                <StatCard label="Live Users" value={summary.liveUsers} colorClass={isLightMode ? 'text-emerald-600' : 'text-emerald-400'} />
                 <StatCard label="Pending Payments" value={summary.pendingPayments} colorClass={isLightMode ? 'text-purple-600' : 'text-purple-400'} />
                 <StatCard label="Expiring Soon" value={summary.expiringSoon} colorClass={isLightMode ? 'text-red-600' : 'text-red-400'} />
             </div>
@@ -578,6 +609,63 @@ const UserManagementPage = () => {
                             >
                                 {actioningUserId === selectedUser?._id ? <FaSpinner className="animate-spin inline-block" /> : 'Confirm Action'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Live Users Modal */}
+            {isLiveUsersModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsLiveUsersModalOpen(false)}>
+                    <div className={`w-full max-w-4xl rounded-3xl shadow-2xl border ${isLightMode ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'}`} onClick={e => e.stopPropagation()}>
+                        <div className={`flex items-center justify-between p-6 border-b ${isLightMode ? 'border-slate-200' : 'border-slate-800'}`}>
+                            <h2 className={`text-xl font-bold flex items-center gap-3 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                                <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Live Logged-In Users ({liveUsersCount})
+                            </h2>
+                            <button onClick={() => setIsLiveUsersModalOpen(false)} className={`p-2 rounded-lg transition-colors ${isLightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-400'}`}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-x-auto max-h-[60vh] overflow-y-auto">
+                            <table className={`w-full text-left border-collapse ${isLightMode ? 'text-slate-600' : 'text-slate-300'}`}>
+                                <thead>
+                                    <tr className={`border-b ${isLightMode ? 'border-slate-200' : 'border-slate-800'}`}>
+                                        <th className="py-3 px-4 font-semibold text-sm">Name</th>
+                                        <th className="py-3 px-4 font-semibold text-sm">Email</th>
+                                        <th className="py-3 px-4 font-semibold text-sm">Role</th>
+                                        <th className="py-3 px-4 font-semibold text-sm text-center">Active Tabs</th>
+                                        <th className="py-3 px-4 font-semibold text-sm">Online Since</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {liveUsersList.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="py-8 text-center text-slate-500 italic">No users currently online.</td>
+                                        </tr>
+                                    ) : (
+                                        liveUsersList.map((u, i) => (
+                                            <tr key={u.userId || i} className={`border-b transition-colors ${isLightMode ? 'border-slate-100 hover:bg-slate-50' : 'border-slate-800 hover:bg-slate-800/50'}`}>
+                                                <td className="py-3 px-4 font-medium">{u.name}</td>
+                                                <td className="py-3 px-4">{u.email}</td>
+                                                <td className="py-3 px-4">
+                                                    <span className={`px-2 py-1 text-xs rounded-full ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                                                        {u.role}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-center">
+                                                    <span className="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-400 font-mono">
+                                                        {u.sockets?.length || 0}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-sm">
+                                                    {new Date(u.joinedAt).toLocaleTimeString()}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

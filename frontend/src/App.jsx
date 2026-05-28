@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext.jsx';
 import { useAuth } from './utils/hooks';
 import WatermarkStamp from './components/common/WatermarkStamp';
 import { authAPI } from './services/api';
+import socket from './services/socket';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -28,11 +29,12 @@ const AskFinderPage = lazy(() => import('./pages/AskFinderPage'));
 
 // Academic Dashboard Pages
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const AcademicSetupPage = lazy(() => import('./pages/AcademicSetup'));
 
 // Interview Experiences Module
-const InterviewExperiencesPage = lazy(() => import('./pages/interview/InterviewPage'));
-const CompanyRolePage = lazy(() => import('./pages/interview/CompanyRolePage'));
-const ShareExperience = lazy(() => import('./pages/interview/ShareExperience'));
+const InterviewExperiencesPage = lazy(() => import('./pages/interviews/InterviewPage'));
+const CompanyRolePage = lazy(() => import('./pages/interviews/CompanyRolePage'));
+const ShareExperience = lazy(() => import('./pages/interviews/ShareExperience'));
 
 // Simple loading fallback for Suspense
 const LoadingFallback = () => (
@@ -67,9 +69,33 @@ const AdminRoute = ({ children }) => {
 };
 
 function AppContent() {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     
-    // Global Heartbeat System
+    // Global Socket Connection
+    React.useEffect(() => {
+        socket.connect();
+        return () => {
+            socket.disconnect();
+        };
+    }, []);
+
+    // Global Socket User Registration
+    React.useEffect(() => {
+        if (user && socket) {
+            socket.emit("user_online", {
+                userId: user.id || user._id,
+                name: user.name || user.email,
+                email: user.email,
+                role: user.isAdmin ? 'admin' : 'user'
+            });
+            
+            if (user.isAdmin) {
+                socket.emit('join_admin');
+            }
+        }
+    }, [user]);
+
+    // Legacy heartbeat polling
     React.useEffect(() => {
         if (!isAuthenticated) return;
         authAPI.heartbeat().catch(() => {});
@@ -77,7 +103,7 @@ function AppContent() {
             authAPI.heartbeat().catch(() => {});
         }, 30000);
         return () => clearInterval(interval);
-    }, [isAuthenticated]);
+    }, [isAuthenticated, user]);
 
     return (
         <div className="relative">
@@ -123,6 +149,7 @@ function AppContent() {
                     </Route>
                     
                     {/* Specialized Academic Content routes under protection */}
+                    <Route path="/academic-setup" element={<ProtectedRoute><AcademicSetupPage /></ProtectedRoute>} />
                     <Route path="/subject/:subjectId/content" element={<ProtectedRoute><SubjectContentPage /></ProtectedRoute>} />
                     <Route path="/quiz/:quizId" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
 

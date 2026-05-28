@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { FaUsers, FaCloudUploadAlt, FaFileAlt, FaHourglassHalf, FaBook, FaArrowUp, FaChartLine, FaChartBar } from 'react-icons/fa';
+import { FaUsers, FaCloudUploadAlt, FaFileAlt, FaHourglassHalf, FaBook, FaArrowUp, FaChartLine, FaChartBar, FaGlobe, FaTimes, FaStar, FaCreditCard, FaClock } from 'react-icons/fa';
 import AnalyticsCard from '../components/AnalyticsCard';
 import { analyticsAPI } from '../services/analyticsAPI';
 import Skeleton from '../components/Skeleton';
+import socket from '../services/socket';
 
 const DashboardOverview = () => {
     const [stats, setStats] = useState(null);
@@ -15,6 +16,12 @@ const DashboardOverview = () => {
     const [uploadByMonth, setUploadByMonth] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // Socket states
+    const [liveUsersCount, setLiveUsersCount] = useState(0);
+    const [trafficCount, setTrafficCount] = useState(0);
+    const [liveUsersList, setLiveUsersList] = useState([]);
+    const [isLiveUsersModalOpen, setIsLiveUsersModalOpen] = useState(false);
 
     const [theme] = useState(() => {
         try {
@@ -31,6 +38,23 @@ const DashboardOverview = () => {
         // Auto-refresh analytics every 30 seconds
         const interval = setInterval(loadAllAnalytics, 30000);
         return () => clearInterval(interval);
+    }, []);
+
+    // Socket listeners
+    useEffect(() => {
+        socket.on('dashboard_live_stats', (data) => {
+            setLiveUsersCount(data.liveUsers);
+            setTrafficCount(data.trafficTabs);
+        });
+
+        socket.on('live_users_list', (data) => {
+            setLiveUsersList(data);
+        });
+
+        return () => {
+            socket.off('dashboard_live_stats');
+            socket.off('live_users_list');
+        };
     }, []);
 
     const loadAllAnalytics = async () => {
@@ -135,14 +159,15 @@ const DashboardOverview = () => {
                 )}
 
                 {/* Overview Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6">
-                    <AnalyticsCard icon={FaUsers} label="Total Users" value={stats?.totalUsers || 0} isLoading={loading} isLightMode={isLightMode} color="blue" />
-                    <AnalyticsCard icon={FaChartLine} label="Live Users" value={stats?.liveUsers || 0} isLoading={loading} isLightMode={isLightMode} color="emerald" pulse={true} />
-                    <AnalyticsCard icon={FaCloudUploadAlt} label="User Uploads" value={stats?.userUploadCount || 0} isLoading={loading} isLightMode={isLightMode} color="emerald" />
-                    <AnalyticsCard icon={FaFileAlt} label="Total Files" value={stats?.totalFiles || 0} isLoading={loading} isLightMode={isLightMode} color="purple" />
-                    <AnalyticsCard icon={FaHourglassHalf} label="Pending Approval" value={stats?.pendingUploads || 0} isLoading={loading} isLightMode={isLightMode} color="amber" />
-                    <AnalyticsCard icon={FaBook} label="Active Subjects" value={stats?.totalSubjects || 0} isLoading={loading} isLightMode={isLightMode} color="indigo" />
-                    <AnalyticsCard icon={FaArrowUp} label="New This Month" value={stats?.uploadsThisMonth || 0} isLoading={loading} isLightMode={isLightMode} color="rose" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+                    <div className="cursor-pointer transition-transform hover:scale-105" onClick={() => setIsLiveUsersModalOpen(true)}>
+                        <AnalyticsCard icon={FaChartLine} label="LIVE USERS" value={liveUsersCount} isLoading={loading} isLightMode={isLightMode} color="emerald" pulse={true} />
+                    </div>
+                    <AnalyticsCard icon={FaGlobe} label="TRAFFIC TABS" value={trafficCount} isLoading={loading} isLightMode={isLightMode} color="blue" pulse={true} />
+                    <AnalyticsCard icon={FaUsers} label="TOTAL USERS" value={stats?.totalUsers || 0} isLoading={loading} isLightMode={isLightMode} color="purple" />
+                    <AnalyticsCard icon={FaStar} label="ACTIVE ASK+" value={stats?.activeAskPlus || 0} isLoading={loading} isLightMode={isLightMode} color="indigo" />
+                    <AnalyticsCard icon={FaCreditCard} label="PENDING PAYMENTS" value={stats?.pendingPayments || 0} isLoading={loading} isLightMode={isLightMode} color="amber" />
+                    <AnalyticsCard icon={FaClock} label="EXPIRING SOON" value={stats?.expiringSoon || 0} isLoading={loading} isLightMode={isLightMode} color="rose" />
                 </div>
 
                 {/* Charts Grid */}
@@ -246,6 +271,63 @@ const DashboardOverview = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Live Users Modal */}
+            {isLiveUsersModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsLiveUsersModalOpen(false)}>
+                    <div className={`w-full max-w-4xl rounded-2xl shadow-2xl border ${isLightMode ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-700'}`} onClick={e => e.stopPropagation()}>
+                        <div className={`flex items-center justify-between p-6 border-b ${isLightMode ? 'border-slate-200' : 'border-slate-800'}`}>
+                            <h2 className={`text-xl font-bold flex items-center gap-3 ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                                <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Live Logged-In Users ({liveUsersCount})
+                            </h2>
+                            <button onClick={() => setIsLiveUsersModalOpen(false)} className={`p-2 rounded-lg transition-colors ${isLightMode ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-400'}`}>
+                                <FaTimes />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-x-auto max-h-[60vh] overflow-y-auto">
+                            <table className={`w-full text-left border-collapse ${isLightMode ? 'text-slate-600' : 'text-slate-300'}`}>
+                                <thead>
+                                    <tr className={`border-b ${isLightMode ? 'border-slate-200' : 'border-slate-800'}`}>
+                                        <th className="py-3 px-4 font-semibold text-sm">Name</th>
+                                        <th className="py-3 px-4 font-semibold text-sm">Email</th>
+                                        <th className="py-3 px-4 font-semibold text-sm">Role</th>
+                                        <th className="py-3 px-4 font-semibold text-sm text-center">Active Tabs</th>
+                                        <th className="py-3 px-4 font-semibold text-sm">Online Since</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {liveUsersList.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="py-8 text-center text-slate-500 italic">No users currently online.</td>
+                                        </tr>
+                                    ) : (
+                                        liveUsersList.map((u, i) => (
+                                            <tr key={u.userId || i} className={`border-b transition-colors ${isLightMode ? 'border-slate-100 hover:bg-slate-50' : 'border-slate-800 hover:bg-slate-800/50'}`}>
+                                                <td className="py-3 px-4 font-medium">{u.name}</td>
+                                                <td className="py-3 px-4">{u.email}</td>
+                                                <td className="py-3 px-4">
+                                                    <span className={`px-2 py-1 text-xs rounded-full ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-500/20 text-slate-400'}`}>
+                                                        {u.role}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-center">
+                                                    <span className="px-2 py-1 text-xs rounded bg-blue-500/20 text-blue-400 font-mono">
+                                                        {u.sockets?.length || 0}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-sm">
+                                                    {new Date(u.joinedAt).toLocaleTimeString()}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
