@@ -11,4 +11,7 @@ router.get('/', materialController.getMaterials);
 // Using simple routes for now, can add auth/admin middlewares later if needed
 router.post('/', /* authMiddleware, adminMiddleware, */ materialController.createMaterial);
 
+// Ask+ Chatbot material search
+router.post('/search', materialController.searchMaterials);
+
 module.exports = router;

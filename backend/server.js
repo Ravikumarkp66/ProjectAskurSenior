@@ -20,6 +20,8 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const seedDatabase = require('./utils/seedDatabase');
 const User = require('./models/User');
 const { sendWhatsAppMessage } = require('./modules/whatsapp/whatsapp.service');
+const Conversation = require('./models/Conversation');
+const Message = require('./models/Message');
 require('./modules/assistant/cron');
 
 const app = express();
@@ -141,6 +143,120 @@ io.on('connection', (socket) => {
 
     socket.on('join_admin', () => {
         socket.join('admins');
+        Conversation.find({})
+            .sort({ updatedAt: -1 })
+            .then(conversations => {
+                socket.emit('admin_conversations_list', conversations);
+            })
+            .catch(err => console.error(err));
+    });
+
+    socket.on('create_or_join_conversation', async (userData) => {
+        try {
+            const { userId, name, email } = userData;
+            if (!userId) return;
+
+            let conversation = await Conversation.findOne({ userId });
+
+            if (!conversation) {
+                conversation = await Conversation.create({
+                    userId,
+                    userName: name,
+                    userEmail: email
+                });
+                io.to('admins').emit('new_conversation', conversation);
+            }
+
+            const roomId = `conversation_${conversation._id}`;
+            socket.join(roomId);
+
+            const messages = await Message.find({ conversationId: conversation._id }).sort({ createdAt: 1 });
+            
+            conversation.unreadUserCount = 0;
+            await conversation.save();
+
+            socket.emit('conversation_data', { conversation, messages });
+        } catch (error) {
+            console.error('Socket create_or_join_conversation error:', error);
+        }
+    });
+
+    socket.on('send_message', async (data) => {
+        try {
+            const { conversationId, senderId, senderType, message } = data;
+            
+            const newMessage = await Message.create({
+                conversationId,
+                senderId,
+                senderType,
+                message
+            });
+
+            const conversation = await Conversation.findById(conversationId);
+            if (conversation) {
+                conversation.lastMessage = message;
+                if (senderType === 'user') {
+                    conversation.unreadAdminCount += 1;
+                } else if (senderType === 'admin') {
+                    conversation.unreadUserCount += 1;
+                }
+                await conversation.save();
+            }
+
+            const roomId = `conversation_${conversationId}`;
+            io.to(roomId).emit('receive_message', newMessage);
+            io.to('admins').emit('conversation_updated', conversation);
+        } catch (error) {
+            console.error('Socket send_message error:', error);
+        }
+    });
+
+    socket.on('delete_message', async (data) => {
+        try {
+            const { messageId, conversationId } = data;
+            await Message.findByIdAndUpdate(messageId, { isDeletedForUser: true });
+            
+            const roomId = `conversation_${conversationId}`;
+            io.to(roomId).emit('message_deleted', messageId);
+        } catch (error) {
+            console.error('Socket delete_message error:', error);
+        }
+    });
+
+    socket.on('typing', (data) => {
+        const { conversationId, senderType, isTyping } = data;
+        const roomId = `conversation_${conversationId}`;
+        socket.to(roomId).emit('typing_status', { senderType, isTyping });
+    });
+
+    socket.on('mark_seen', async (data) => {
+        try {
+            const { conversationId, readerType } = data;
+            const targetSender = readerType === 'admin' ? 'user' : 'admin';
+            
+            await Message.updateMany(
+                { conversationId, senderType: targetSender, seen: false },
+                { seen: true }
+            );
+            
+            const roomId = `conversation_${conversationId}`;
+            io.to(roomId).emit('messages_seen', { readerType, conversationId });
+        } catch (error) {
+            console.error('Socket mark_seen error:', error);
+        }
+    });
+
+    socket.on('admin_join_conversation', (conversationId) => {
+        const roomId = `conversation_${conversationId}`;
+        socket.join(roomId);
+        
+        // Notify user that admin has joined
+        socket.to(roomId).emit('admin_joined', conversationId);
+
+        Conversation.findByIdAndUpdate(conversationId, { unreadAdminCount: 0 }, { new: true })
+            .then(conv => {
+                if(conv) io.to('admins').emit('conversation_updated', conv);
+            }).catch(err => console.error(err));
     });
 
     socket.on('disconnect', () => {
@@ -241,6 +357,8 @@ app.use('/api/materials', require('./routes/materialRoutes'));
 app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/comments', require('./routes/commentRoutes'));
 app.use('/api/experiences', require('./routes/interviewExperienceRoutes').default || require('./routes/interviewExperienceRoutes'));
+app.use('/api/knowledge-base', require('./routes/knowledgeBaseRoutes'));
+app.use('/api/mentorship', require('./routes/mentorshipRoutes'));
 app.use('/api/academic', require('./modules/academic/academic.routes'));
 app.use('/api/whatsapp', require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/whatsapp', require('./routes/whatsappRoutes')); // Meta Cloud API

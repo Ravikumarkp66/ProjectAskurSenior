@@ -8,6 +8,7 @@ import HomeBlogSection from '../components/HomeBlogSection';
 import CreatorSection from '../components/CreatorSection';
 import HomeProductShowcase from '../components/HomeProductShowcase';
 import { Link } from 'react-router-dom';
+import SupportWidget from '../components/support/SupportWidget';
 
 const HomePage = () => {
     const [showTerms, setShowTerms] = useState(false);
@@ -102,6 +103,8 @@ const HomePage = () => {
                 isOpen={showPrivacy}
                 onClose={() => setShowPrivacy(false)}
             />
+            
+            <SupportWidget />
         </div>
     );
 };

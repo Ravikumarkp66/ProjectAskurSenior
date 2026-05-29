@@ -101,6 +101,14 @@ const userSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        demeritPoints: {
+            type: Number,
+            default: 0
+        },
+        chatBanUntil: {
+            type: Date,
+            default: null
+        },
         phone: {
             type: String,
             default: null
@@ -133,6 +141,14 @@ const userSchema = new mongoose.Schema(
             type: String,
             enum: ['none', 'dates_done', 'subjects_done', 'timetable_done', 'complete'],
             default: 'none'
+        },
+        dailyAiQuestionsCount: {
+            type: Number,
+            default: 0
+        },
+        lastAiQuestionDate: {
+            type: Date,
+            default: null
         }
     },
     { timestamps: true }

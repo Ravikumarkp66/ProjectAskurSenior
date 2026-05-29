@@ -15,7 +15,10 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+const AdminSupport = lazy(() => import('./pages/admin/AdminSupport'));
 const AdminCreateArticle = lazy(() => import('./pages/AdminCreateArticle'));
+const KnowledgeBase = lazy(() => import('./pages/admin/KnowledgeBase'));
+const AdminMentorship = lazy(() => import('./pages/admin/AdminMentorship'));
 const CGPACalculatorPage = lazy(() => import('./pages/CGPACalculatorPage'));
 const SubjectContentPage = lazy(() => import('./pages/SubjectContentPage'));
 const QuizPage = lazy(() => import('./pages/QuizPage'));
@@ -155,9 +158,12 @@ function AppContent() {
 
                     {/* Admin Routes */}
                     <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                    <Route path="/admin/support" element={<AdminRoute><AdminSupport /></AdminRoute>} />
                     <Route path="/admin/reviews" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/study-materials" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/articles/create" element={<AdminRoute><AdminCreateArticle /></AdminRoute>} />
+                    <Route path="/admin/knowledge-base" element={<AdminRoute><KnowledgeBase /></AdminRoute>} />
+                    <Route path="/admin/mentorship" element={<AdminRoute><AdminMentorship /></AdminRoute>} />
 
                     {/* Interview Experiences - Fully Public (no login required) */}
                     <Route path="/interview" element={<InterviewLayout />}>
