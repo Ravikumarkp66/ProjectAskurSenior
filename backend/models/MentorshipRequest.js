@@ -15,14 +15,18 @@ const mentorshipRequestSchema = new mongoose.Schema({
         required: true,
         enum: [
             'Placements',
-            'Academics',
-            'Projects',
             'Internships',
-            'Resume Review',
-            'Career Guidance',
+            'Resume',
+            'Projects',
             'Higher Studies',
+            'Academics',
             'Other'
         ]
+    },
+    preferredCommunication: {
+        type: String,
+        enum: ['Chat', 'Call'],
+        default: 'Chat'
     },
     description: {
         type: String,

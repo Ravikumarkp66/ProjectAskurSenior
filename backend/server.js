@@ -12,6 +12,7 @@ const authRoutes = require('./routes/authRoutes').default || require('./routes/a
 const subjectRoutes = require('./routes/subjectRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const bugRoutes = require('./routes/bugRoutes');
+const requestRoutes = require('./routes/requestRoutes');
 const downloadRoutes = require('./routes/downloadRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const userUploadRoutes = require('./routes/userUploadRoutes');
@@ -97,6 +98,7 @@ app.use(cors(corsOptions));
 
 // Socket.IO Setup
 const io = new Server(server, { cors: corsOptions });
+app.set('io', io);
 
 // Admin verification middleware for socket could be added here, 
 // for now we rely on the 'join_admin' event
@@ -342,6 +344,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/bugs', bugRoutes);
+app.use('/api/requests', requestRoutes);
 app.use('/api/download', downloadRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/user-uploads', userUploadRoutes);

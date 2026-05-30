@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import ChatMessage from './ChatMessage';
 import MaterialCard from './MaterialCard';
 import PdfPreviewModal from './PdfPreviewModal';
-import MentorshipModal from './MentorshipModal';
+import InteractiveForm from './InteractiveForm';
 import socket from '../../services/socket';
 
 const ChatWindow = ({ isOpen, onClose, user }) => {
@@ -19,8 +19,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
     const [isAiThinking, setIsAiThinking] = useState(false);
     const [pendingAdminMessage, setPendingAdminMessage] = useState(null);
     const [previewMaterial, setPreviewMaterial] = useState(null);
-    const [showMentorshipModal, setShowMentorshipModal] = useState(false);
-    const [mentorshipTopic, setMentorshipTopic] = useState('');
+    const [activeForms, setActiveForms] = useState({}); // Track which message has which form open
     const [suggestionIndex, setSuggestionIndex] = useState(0);
     const [isFocused, setIsFocused] = useState(false);
     let typingTimeout = useRef(null);
@@ -193,8 +192,13 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                 materials: data.materials,
                 originalQuestion: questionText,
                 needsAdmin: !isLimitReached && needsAdmin,
-                needsMentorship: !isLimitReached && (wantsMentorship || (needsAdmin && highInteraction) || highInteraction),
-                isLimitReached
+                needsMentorship: !isLimitReached && (wantsMentorship || (needsAdmin && highInteraction) || highInteraction || data.type === 'mentorship_required'),
+                isLimitReached,
+                isMaterialMissing: data.type === 'material_missing',
+                isCompanyMissing: data.type === 'company_missing',
+                type: data.type,
+                suggestions: data.suggestions,
+                subject: data.subject
             };
             setAiMessages(prev => [...prev, aiMsg]);
         } catch (error) {
@@ -252,6 +256,13 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
         setPendingAdminMessage(originalQuestion);
     };
 
+    const toggleForm = (messageId, formType) => {
+        setActiveForms(prev => ({
+            ...prev,
+            [messageId]: prev[messageId] === formType ? null : formType
+        }));
+    };
+
     const renderAiMessages = () => {
         return aiMessages.map((msg) => (
             <div key={msg._id} className="flex flex-col w-full">
@@ -277,7 +288,60 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                     </motion.div>
                 )}
 
-                {msg.needsAdmin && (
+                {msg.type === 'material_disambiguation_subject' && msg.suggestions && (
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="ml-11 mb-4 flex flex-wrap gap-2 max-w-[85%]">
+                        {msg.suggestions.map((sub, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => handleSend(`Give me ${sub} Notes`)}
+                                className="bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-500/50 text-white text-xs px-3 py-1.5 rounded-full transition-colors"
+                            >
+                                {sub}
+                            </button>
+                        ))}
+                    </motion.div>
+                )}
+
+                {msg.type === 'material_disambiguation_branch_sem' && (
+                    <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="ml-11 mb-4 flex flex-col gap-3 max-w-[85%] bg-white/5 border border-white/10 p-4 rounded-xl">
+                        <p className="text-xs font-semibold text-slate-300">🎓 Select Branch</p>
+                        <div className="flex flex-wrap gap-2">
+                            {['CSE', 'AIML', 'ECE', 'EEE', 'ME'].map(b => (
+                                <button key={b} onClick={() => handleSend(`Give me ${msg.subject} notes for ${b} branch`)} className="bg-white/5 hover:bg-blue-500/20 border border-white/10 hover:border-blue-500/50 text-slate-300 hover:text-white text-xs px-3 py-1.5 rounded-full transition-colors">{b}</button>
+                            ))}
+                        </div>
+                        <p className="text-xs font-semibold text-slate-300 mt-2">📚 Select Semester</p>
+                        <div className="flex flex-wrap gap-2">
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                                <button key={s} onClick={() => handleSend(`Give me ${msg.subject} notes for semester ${s}`)} className="bg-white/5 hover:bg-green-500/20 border border-white/10 hover:border-green-500/50 text-slate-300 hover:text-white text-xs px-3 py-1.5 rounded-full transition-colors">Sem {s}</button>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+
+                {msg.isMaterialMissing && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-2 ml-11 mb-4 flex flex-col items-start gap-3 bg-gradient-to-r from-blue-900/40 to-[#0a0a0f] border border-blue-500/30 p-4 rounded-xl max-w-[85%]">
+                        <button 
+                            onClick={() => toggleForm(msg._id, 'material')}
+                            className="flex items-center justify-center gap-2 w-full bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-white text-xs py-2 rounded-lg transition-all"
+                        >
+                            📚 Request Material
+                        </button>
+                    </motion.div>
+                )}
+
+                {msg.isCompanyMissing && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-2 ml-11 mb-4 flex flex-col items-start gap-3 bg-[#111116] border border-orange-500/30 p-4 rounded-xl max-w-[85%]">
+                        <button 
+                            onClick={() => toggleForm(msg._id, 'issue')}
+                            className="flex items-center justify-center gap-2 w-full bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-white text-xs py-2 rounded-lg transition-all"
+                        >
+                            📬 Notify Me When Available
+                        </button>
+                    </motion.div>
+                )}
+
+                {msg.needsAdmin && !msg.isMaterialMissing && (
                     <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-3 ml-11 mb-2 flex flex-col items-start gap-2 bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl max-w-[85%]">
                         <div className="flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -302,44 +366,48 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                     </motion.div>
                 )}
 
-                {(msg.needsMentorship || msg.needsAdmin) && msg.senderType === 'ai' && (
+                {(msg.needsMentorship || msg.needsAdmin) && msg.senderType === 'ai' && !msg.isMaterialMissing && !msg.isCompanyMissing && msg.type !== 'material_disambiguation_subject' && msg.type !== 'material_disambiguation_branch_sem' && (
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-2 ml-11 mb-4 flex flex-col items-start gap-3 bg-gradient-to-r from-purple-900/40 to-[#0a0a0f] border border-purple-500/30 p-4 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.1)] relative overflow-hidden group max-w-[85%]">
                         <div className="absolute inset-0 bg-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                        <p className="text-slate-300 text-xs font-semibold relative z-10">Still have doubts?</p>
+                        <p className="text-slate-300 text-xs font-semibold relative z-10">🎓 Need Personalized Guidance?</p>
                         <button 
-                            onClick={() => {
-                                setMentorshipTopic(msg.originalQuestion);
-                                setShowMentorshipModal(true);
-                            }}
+                            onClick={() => toggleForm(msg._id, 'mentorship')}
                             className="relative z-10 flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-purple-600/20 border border-white/10 hover:border-purple-500/50 text-white text-xs py-2 rounded-lg transition-all shadow-md active:scale-95 group/btn"
                         >
-                            🎓 <span className="font-bold group-hover/btn:text-purple-300 transition-colors">Get 1:1 Mentorship</span>
+                            <span className="font-bold group-hover/btn:text-purple-300 transition-colors">Request 1:1 Mentorship</span>
                         </button>
                     </motion.div>
                 )}
 
+                {activeForms[msg._id] && (
+                    <div className="ml-11 mb-4">
+                        <InteractiveForm type={activeForms[msg._id]} originalQuestion={msg.originalQuestion} />
+                    </div>
+                )}
+
                 {/* Feedback CTA */}
                 {msg.senderType === 'ai' && !msg.isLimitReached && (
-                    <div className="mt-2 ml-11 mb-4 flex items-center gap-3">
-                        <span className="text-xs text-slate-500 font-medium">Was this helpful?</span>
-                        <div className="flex items-center gap-1">
+                    <div className="mt-2 ml-11 mb-4 flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] text-slate-500 font-medium">Helpful?</span>
+                        <div className="flex items-center gap-1 bg-white/5 rounded-full px-2 py-1">
                             <button 
                                 onClick={() => toast.success("We will show text like this in future requests")}
-                                className="text-xs text-slate-400 hover:text-green-400 hover:bg-green-400/10 px-2 py-1 rounded transition-colors flex items-center gap-1">
-                                <ThumbsUp className="w-3.5 h-3.5" /> Yes
+                                className="text-[11px] text-slate-400 hover:text-green-400 transition-colors flex items-center gap-1">
+                                <ThumbsUp className="w-3 h-3" />
                             </button>
+                            <span className="w-px h-3 bg-white/10 mx-1"></span>
                             <button 
-                                onClick={() => toast.error("Please click 'Talk to a Senior' to chat with an admin!")}
-                                className="text-xs text-slate-400 hover:text-red-400 hover:bg-red-400/10 px-2 py-1 rounded transition-colors flex items-center gap-1">
-                                <ThumbsDown className="w-3.5 h-3.5" /> No
+                                onClick={() => toast.error("Please click 'Talk to Admin' or 'Report Issue'!")}
+                                className="text-[11px] text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1">
+                                <ThumbsDown className="w-3 h-3" />
                             </button>
                         </div>
                         <div className="w-px h-3 bg-white/10 mx-1"></div>
                         <button 
-                            onClick={() => handleTalkToAdmin(msg.originalQuestion)}
-                            className="text-[11px] text-purple-400 hover:text-purple-300 font-medium flex items-center gap-1 hover:bg-purple-500/10 px-2 py-1 rounded transition-colors"
+                            onClick={() => toggleForm(msg._id, 'issue')}
+                            className="text-[10px] text-red-400/80 hover:text-red-400 font-medium flex items-center gap-1 hover:bg-red-500/10 px-2 py-1 rounded transition-colors"
                         >
-                            🎓 Talk to a Senior
+                            <AlertTriangle className="w-3 h-3" /> Report Issue
                         </button>
                     </div>
                 )}
@@ -550,19 +618,12 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
             )}
         </AnimatePresence>
         
-        {/* PDF Preview Modal is rendered outside the chat constraint */}
         {previewMaterial && (
             <PdfPreviewModal 
                 material={previewMaterial} 
                 onClose={() => setPreviewMaterial(null)} 
             />
         )}
-
-        <MentorshipModal
-            isOpen={showMentorshipModal}
-            onClose={() => setShowMentorshipModal(false)}
-            initialTopic={mentorshipTopic}
-        />
         </>
     );
 };
