@@ -158,11 +158,14 @@ function AppContent() {
 
                     {/* Admin Routes */}
                     <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/support" element={<AdminRoute><AdminSupport /></AdminRoute>} />
+                    <Route path="/admin/support" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/reviews" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/study-materials" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                    <Route path="/admin/articles" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                    <Route path="/admin/payments" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/articles/create" element={<AdminRoute><AdminCreateArticle /></AdminRoute>} />
-                    <Route path="/admin/knowledge-base" element={<AdminRoute><KnowledgeBase /></AdminRoute>} />
+                    <Route path="/admin/knowledge-base" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                    <Route path="/admin/requests" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/mentorship" element={<AdminRoute><AdminMentorship /></AdminRoute>} />
 
                     {/* Interview Experiences - Fully Public (no login required) */}

@@ -18,16 +18,16 @@ const SupportWidget = () => {
             socket.connect();
         }
 
-        const hasSeenPopup = localStorage.getItem('askPlusPopupSeen');
+        const hasSeenPopup = sessionStorage.getItem('askPlusPopupSeen');
         
         if (!hasSeenPopup && !isChatOpen) {
             const timer = setTimeout(() => {
                 setShowPopup(true);
-            }, 6000);
+            }, 5000);
 
             const hideTimer = setTimeout(() => {
                 setShowPopup(false);
-            }, 14000);
+            }, 13000);
 
             return () => {
                 clearTimeout(timer);
@@ -42,13 +42,13 @@ const SupportWidget = () => {
 
     const handleClosePopup = () => {
         setShowPopup(false);
-        localStorage.setItem('askPlusPopupSeen', 'true');
+        sessionStorage.setItem('askPlusPopupSeen', 'true');
     };
 
     const handleOpenChat = () => {
         setIsChatOpen(true);
         setShowPopup(false);
-        localStorage.setItem('askPlusPopupSeen', 'true');
+        sessionStorage.setItem('askPlusPopupSeen', 'true');
     };
 
     const toggleChat = () => {

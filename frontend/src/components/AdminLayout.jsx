@@ -147,10 +147,18 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
             <nav className={`${isLightMode ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'} border-b`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex space-x-8">
-                        {tabs.map((tab) => (
+                        {tabs.map((tab) => {
+                            const getTabRoute = (id) => {
+                                if (id === 'users') return '/admin';
+                                return `/admin/${id}`;
+                            };
+                            return (
                             <button
                                 key={tab.id}
-                                onClick={() => onTabChange && onTabChange(tab.id)}
+                                onClick={() => {
+                                    if (onTabChange) onTabChange(tab.id);
+                                    navigate(getTabRoute(tab.id));
+                                }}
                                 className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition ${activeTab === tab.id
                                     ? isLightMode
                                         ? 'border-amber-500 text-amber-600'
@@ -163,7 +171,8 @@ const AdminLayout = ({ children, activeTab, onTabChange }) => {
                                 {tab.icon}
                                 {tab.label}
                             </button>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             </nav>

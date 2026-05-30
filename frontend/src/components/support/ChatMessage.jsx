@@ -6,6 +6,28 @@ const ChatMessage = ({ messageId, message, senderType, seen, onDelete }) => {
     const isAdmin = senderType === 'admin';
     const [isHovered, setIsHovered] = useState(false);
 
+    const renderFormattedText = (text) => {
+        if (!text) return null;
+        const lines = text.split('\n');
+        return lines.map((line, i) => {
+            if (!line.trim()) return <div key={`empty-${i}`} className="h-1.5"></div>;
+            
+            const isHeading = line.trim().match(/^[📖⚠✅💼🎓🚀💡📚]/);
+            
+            const parts = line.split(/(\*\*.*?\*\*)/g);
+            return (
+                <div key={i} className={`mb-1 leading-relaxed ${isHeading ? 'font-bold text-base mt-3 mb-2 flex items-center gap-1.5 border-b border-white/10 pb-1.5' : ''}`}>
+                    {parts.map((part, j) => {
+                        if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={j} className={`font-bold ${isAdmin ? 'text-white' : 'text-purple-100'}`}>{part.slice(2, -2)}</strong>;
+                        }
+                        return <span key={j}>{part}</span>;
+                    })}
+                </div>
+            );
+        });
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 15 }}
@@ -23,23 +45,17 @@ const ChatMessage = ({ messageId, message, senderType, seen, onDelete }) => {
                 </div>
             )}
             
-            <div className={`relative flex items-center gap-2 ${isAdmin ? 'flex-row' : 'flex-row-reverse'}`}>
+            <div className={`relative flex items-center gap-2 max-w-[85%] ${isAdmin ? 'flex-row' : 'flex-row-reverse'}`}>
                 <div
                     className={`
-                        relative max-w-[80%] rounded-2xl px-4 py-2 text-sm leading-relaxed
+                        relative w-full rounded-2xl px-4 py-3 text-[15px]
                         ${isAdmin
-                            ? 'bg-white/[0.05] border border-white/5 text-slate-200 rounded-bl-none shadow-sm' 
-                            : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-br-none shadow-[0_4px_15px_rgba(168,85,247,0.15)] pr-8'
+                            ? 'bg-[#181824] border border-white/5 text-slate-200 rounded-bl-sm shadow-md' 
+                            : 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(168,85,247,0.25)] pr-10'
                         }
                     `}
                 >
-                    {/* Render message handling potential newlines */}
-                    {message.split('\n').map((line, i) => (
-                        <React.Fragment key={i}>
-                            {line}
-                            {i !== message.split('\n').length - 1 && <br />}
-                        </React.Fragment>
-                    ))}
+                    {renderFormattedText(message)}
 
                     {/* Seen status for user messages */}
                     {!isAdmin && (

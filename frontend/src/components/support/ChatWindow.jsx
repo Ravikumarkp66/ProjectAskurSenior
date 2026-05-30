@@ -424,7 +424,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 50, scale: 0.95 }}
                     transition={{ type: "spring", bounce: 0.3, duration: 0.5 }}
-                    className="absolute bottom-20 right-0 w-[390px] sm:w-[410px] h-[600px] max-h-[680px] bg-[#0a0a0f]/95 backdrop-blur-2xl border border-purple-500/30 rounded-2xl shadow-[0_10px_40px_rgba(168,85,247,0.15)] z-40 flex flex-col overflow-hidden"
+                    className="fixed inset-0 w-full h-[100dvh] sm:absolute sm:inset-auto sm:bottom-20 sm:right-0 sm:w-[410px] sm:h-[600px] sm:max-h-[680px] bg-[#0a0a0f]/95 backdrop-blur-2xl sm:border border-purple-500/30 sm:rounded-2xl shadow-[0_10px_40px_rgba(168,85,247,0.15)] z-[100] flex flex-col overflow-hidden"
                 >
                     {/* Premium Header */}
                     <div className="flex items-center justify-between p-5 border-b border-white/5 bg-gradient-to-r from-purple-500/10 to-blue-600/10 backdrop-blur-md">
@@ -488,22 +488,29 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                                 <p className="text-slate-300 text-sm mb-6">I'm ASK+, your senior assistant.</p>
                                 
                                 <p className="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">I can help with:</p>
-                                <ul className="space-y-3 mb-8 ml-1">
-                                    <li className="flex items-center gap-3 text-sm text-slate-300"><span className="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-[0_0_5px_rgba(168,85,247,0.8)]"></span> 📚 Notes & PYQs</li>
-                                    <li className="flex items-center gap-3 text-sm text-slate-300"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_5px_rgba(59,130,246,0.8)]"></span> 📜 College Rules</li>
-                                    <li className="flex items-center gap-3 text-sm text-slate-300"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_rgba(16,185,129,0.8)]"></span> 📈 SGPA / CGPA</li>
-                                    <li className="flex items-center gap-3 text-sm text-slate-300"><span className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_5px_rgba(236,72,153,0.8)]"></span> 💼 Placements & Internships</li>
-                                </ul>
+                                <div className="flex flex-wrap gap-2 mb-8">
+                                    <span className="bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[11px] font-medium px-2.5 py-1 rounded-md">📚 Notes & PYQs</span>
+                                    <span className="bg-blue-500/10 border border-blue-500/20 text-blue-300 text-[11px] font-medium px-2.5 py-1 rounded-md">📜 Academic Rules</span>
+                                    <span className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] font-medium px-2.5 py-1 rounded-md">💼 Placement Experiences</span>
+                                    <span className="bg-pink-500/10 border border-pink-500/20 text-pink-300 text-[11px] font-medium px-2.5 py-1 rounded-md">🎓 Mentorship</span>
+                                    <span className="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-medium px-2.5 py-1 rounded-md">📈 SGPA & CGPA</span>
+                                </div>
                                 
-                                <p className="text-slate-400 text-xs font-semibold mb-3 uppercase tracking-wider">Try asking:</p>
-                                <div className="space-y-2.5 w-full">
-                                    {["What is the attendance requirement?", "Show DBMS notes", "How is SGPA calculated?"].map((q, i) => (
+                                <div className="flex flex-wrap gap-2 w-full">
+                                    {[
+                                        "Attendance Rules", 
+                                        "SGPA Calculator", 
+                                        "DBMS Notes", 
+                                        "Placement Experiences", 
+                                        "Talk to a Mentor", 
+                                        "Interview Tips"
+                                    ].map((q, i) => (
                                         <button 
                                             key={i}
                                             onClick={() => handleAskAi(q)}
-                                            className="w-full text-left text-sm text-slate-300 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-purple-500/30 px-4 py-3 rounded-xl transition-all shadow-sm active:scale-[0.98]"
+                                            className="text-[11px] font-medium text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/50 px-3 py-1.5 rounded-full transition-all active:scale-95 whitespace-nowrap"
                                         >
-                                            • {q}
+                                            {q}
                                         </button>
                                     ))}
                                 </div>
@@ -532,7 +539,11 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                                 className="flex gap-3 w-full justify-start items-center ml-2"
                             >
                                 <div className="text-xs text-purple-400 italic flex items-center gap-2">
-                                    <Sparkles className="w-3.5 h-3.5 animate-spin" /> ASK+ is thinking...
+                                    <Sparkles className="w-3.5 h-3.5 animate-spin" /> {
+                                        suggestionIndex % 3 === 0 ? "🤔 Searching materials..." :
+                                        suggestionIndex % 3 === 1 ? "📚 Looking through resources..." :
+                                        "💼 Checking experiences..."
+                                    }
                                 </div>
                             </motion.div>
                         )}
@@ -574,11 +585,12 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                                 onFocus={() => setIsFocused(true)}
                                 onBlur={() => setIsFocused(false)}
                                 disabled={!user || (chatMode === 'ai' && isAiThinking)}
-                                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-4 pl-5 pr-14 text-sm text-white focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all disabled:opacity-50 shadow-inner relative z-20 bg-transparent"
+                                className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all disabled:opacity-50 shadow-inner relative z-20 bg-transparent placeholder-transparent"
+                                placeholder={chatMode === 'ai' ? SUGGESTIONS[suggestionIndex] : "Type a message..."}
                             />
                             {/* Smart Suggestions Placeholder */}
                             {!messageInput && !isFocused && user && (
-                                <div className="absolute left-5 right-14 top-0 bottom-0 flex items-center pointer-events-none z-10 overflow-hidden">
+                                <div className="absolute left-4 right-12 top-0 bottom-0 flex items-center pointer-events-none z-10 overflow-hidden">
                                     <AnimatePresence mode="wait">
                                         <motion.span
                                             key={suggestionIndex}
@@ -586,7 +598,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                                             animate={{ opacity: 1, y: 0 }}
                                             exit={{ opacity: 0, y: -10 }}
                                             transition={{ duration: 0.3 }}
-                                            className="text-sm text-slate-500 truncate"
+                                            className="text-sm text-slate-500 truncate bg-transparent"
                                         >
                                             {chatMode === 'ai' ? SUGGESTIONS[suggestionIndex] : "Type a message..."}
                                         </motion.span>
@@ -594,24 +606,41 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                                 </div>
                             )}
                             {!user && (
-                                <div className="absolute left-5 right-14 top-0 bottom-0 flex items-center pointer-events-none z-10">
+                                <div className="absolute left-4 right-12 top-0 bottom-0 flex items-center pointer-events-none z-10">
                                     <span className="text-sm text-slate-500">Login to chat...</span>
                                 </div>
                             )}
                             <button
                                 onClick={handleSend}
                                 disabled={!messageInput.trim() || !user || (chatMode === 'ai' && isAiThinking)}
-                                className={`absolute right-2 p-2.5 rounded-xl transition-all duration-300 ${
+                                className={`absolute right-1 p-2 rounded-xl transition-all duration-300 z-30 ${
                                     messageInput.trim() && user && !(chatMode === 'ai' && isAiThinking)
                                     ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] hover:scale-105 active:scale-95' 
                                     : 'text-slate-600 bg-transparent'
                                 }`}
                             >
-                                <Send className="w-5 h-5 ml-0.5" />
+                                <Send className="w-4 h-4 ml-0.5" />
                             </button>
                         </div>
-                        <div className="text-center mt-3 opacity-60 hover:opacity-100 transition-opacity">
-                            <p className="text-[10px] text-slate-500 tracking-wider font-semibold uppercase">Powered by ASK+</p>
+
+                        {/* Bottom Navigation */}
+                        <div className="flex justify-around items-center mt-3 pt-2 border-t border-white/5">
+                            <button onClick={() => handleAskAi("Show me materials")} className="flex flex-col items-center gap-1 text-slate-400 hover:text-purple-400 transition-colors">
+                                <BookOpen className="w-4 h-4" />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Materials</span>
+                            </button>
+                            <button onClick={() => handleAskAi("What are the college rules?")} className="flex flex-col items-center gap-1 text-slate-400 hover:text-blue-400 transition-colors">
+                                <BookOpen className="w-4 h-4" />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Rules</span>
+                            </button>
+                            <button onClick={() => handleAskAi("Show placement experiences")} className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-400 transition-colors">
+                                <BookOpen className="w-4 h-4" />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Placements</span>
+                            </button>
+                            <button onClick={() => handleAskAi("Talk to a Mentor")} className="flex flex-col items-center gap-1 text-slate-400 hover:text-pink-400 transition-colors">
+                                <GraduationCap className="w-4 h-4" />
+                                <span className="text-[9px] font-medium uppercase tracking-wider">Mentor</span>
+                            </button>
                         </div>
                     </div>
                 </motion.div>

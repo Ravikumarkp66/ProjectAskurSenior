@@ -31,26 +31,17 @@ const ChatPopupBubble = ({ onOpenChat, onClose, user }) => {
                     onClick={onOpenChat}
                     className="cursor-pointer group relative z-10"
                 >
-                    {/* Header */}
-                    <div className="flex items-center gap-2.5 mb-3">
-                        <span className="text-2xl drop-shadow-md">👨‍🎓</span>
-                        <div>
-                            <h4 className="text-white font-bold text-sm tracking-wide">
-                                Hi {firstName}! 👋
-                            </h4>
+                    {/* Content */}
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 p-[1px] shadow-[0_0_15px_rgba(168,85,247,0.3)] shrink-0 mt-1">
+                            <div className="w-full h-full bg-[#0a0a0f] rounded-full flex items-center justify-center text-xl">
+                                👨‍🎓
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Message Content */}
-                    <div className="pl-1">
-                        <p className="text-slate-300 text-xs leading-relaxed font-medium mb-3">
-                            Need notes, PYQs,<br/>
-                            attendance rules,<br/>
-                            or placement guidance?
-                        </p>
-                        
-                        <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs font-bold flex items-center justify-center gap-2 px-3 py-2 rounded-xl w-full shadow-md group-hover:shadow-lg transition-all active:scale-95">
-                            <MessageCircle className="w-3.5 h-3.5" /> Ask ASK+
+                        <div className="bg-white/5 border border-white/10 p-3 rounded-2xl rounded-tl-none">
+                            <p className="text-white text-sm font-medium">
+                                Hi {firstName} 👋<br/>Need notes or guidance?
+                            </p>
                         </div>
                     </div>
                 </div>

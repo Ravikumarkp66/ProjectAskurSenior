@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DashboardOverview from './DashboardOverview';
 import UserManagementPage from './UserManagementPage';
@@ -14,6 +14,7 @@ import { FileText, Plus } from 'lucide-react';
 
 const AdminPanel = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const isAdmin = user?.isAdmin;
 
@@ -24,7 +25,14 @@ const AdminPanel = () => {
         }
     }, [isAdmin, navigate]);
 
-    const [activeTab, setActiveTab] = useState('users');
+    const pathParts = location.pathname.split('/');
+    const tabFromUrl = pathParts[2] || 'users';
+    
+    const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+    useEffect(() => {
+        setActiveTab(tabFromUrl);
+    }, [tabFromUrl]);
 
     // Reviews state
     const [reviewsActiveTab, setReviewsActiveTab] = useState('feedback');
