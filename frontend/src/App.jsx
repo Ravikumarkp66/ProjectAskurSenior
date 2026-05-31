@@ -5,6 +5,7 @@ import { useAuth } from './utils/hooks';
 import WatermarkStamp from './components/common/WatermarkStamp';
 import { authAPI } from './services/api';
 import socket from './services/socket';
+import { Toaster } from 'react-hot-toast';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -180,6 +181,7 @@ function AppContent() {
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
             </Suspense>
+            <Toaster position="bottom-right" toastOptions={{ duration: 5000 }} />
         </div>
     );
 }

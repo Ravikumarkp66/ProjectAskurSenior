@@ -1,9 +1,9 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const sendEmail = async (options) => {
-    if (!process.env.RESEND_API_KEY) {
+    if (!resend) {
         console.warn('RESEND_API_KEY not found. Email will NOT be sent.');
         return;
     }

@@ -1,28 +1,76 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaBell } from 'react-icons/fa';
 import { analyticsAPI } from '../services/analyticsAPI';
+import { useAuthContext } from '../context/AuthContext';
+import { formatDistanceToNow } from 'date-fns';
 
 const NotificationBell = ({ isLightMode, onNavigate }) => {
-    const [stats, setStats] = useState(null);
+    const { user } = useAuthContext();
+    const [stats, setStats] = useState(null); // Admin stats
+    const [userNotifications, setUserNotifications] = useState([]); // User notifications
+    const [unreadCount, setUnreadCount] = useState(0);
     const [showDropdown, setShowDropdown] = useState(false);
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
-        loadNotificationStats();
-        const interval = setInterval(loadNotificationStats, 60000); // Refresh every 60 seconds
+        if (!user) return;
+        
+        loadData();
+        const interval = setInterval(loadData, 60000); // Refresh every 60 seconds
         return () => clearInterval(interval);
-    }, []);
+    }, [user]);
 
-    const loadNotificationStats = async () => {
+    const loadData = async () => {
         try {
             setLoading(true);
-            const response = await analyticsAPI.getNotificationStats();
-            setStats(response.data);
+            if (user.isAdmin) {
+                const response = await analyticsAPI.getNotificationStats();
+                setStats(response.data);
+                setUnreadCount(response.data.totalNotifications || 0);
+            } else {
+                const token = localStorage.getItem('authToken');
+                const response = await fetch('/api/user-notifications', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setUserNotifications(data.notifications || []);
+                    setUnreadCount(data.unreadCount || 0);
+                }
+            }
         } catch (err) {
-            console.error('Error loading notification stats:', err);
+            console.error('Error loading notifications:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleMarkAsRead = async (id) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            await fetch(`/api/user-notifications/${id}/read`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            setUserNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleMarkAllRead = async () => {
+        try {
+            const token = localStorage.getItem('authToken');
+            await fetch('/api/user-notifications/mark-all-read', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            setUserNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+            setUnreadCount(0);
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -39,13 +87,11 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
         }
     }, [showDropdown]);
 
-    const totalNotifications = stats?.totalNotifications || 0;
-
     const handleBellClick = () => {
         setShowDropdown(!showDropdown);
-        // Clear notification count when bell is clicked (mark as seen)
-        if (!showDropdown && stats && totalNotifications > 0) {
+        if (!showDropdown && user?.isAdmin && stats && unreadCount > 0) {
             setStats({ ...stats, totalNotifications: 0, pendingUploads: 0, reportCount: 0, flaggedContent: 0 });
+            setUnreadCount(0);
         }
     };
 
@@ -60,9 +106,9 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                 title="Notifications"
             >
                 <FaBell className="w-5 h-5" />
-                {totalNotifications > 0 && (
+                {unreadCount > 0 && (
                     <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                        {totalNotifications > 99 ? '99+' : totalNotifications}
+                        {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                 )}
             </button>
@@ -73,97 +119,91 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                         : 'bg-dark-100 border-white/10'
                     }`}>
                     {/* Header */}
-                    <div className={`px-4 py-3 border-b ${isLightMode
+                    <div className={`px-4 py-3 border-b flex justify-between items-center ${isLightMode
                         ? 'border-slate-200 bg-slate-50'
                         : 'border-white/10 bg-white/5'
                         }`}>
                         <h3 className={`text-sm font-semibold ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
                             Notifications
                         </h3>
+                        {!user?.isAdmin && unreadCount > 0 && (
+                            <button onClick={handleMarkAllRead} className="text-xs text-purple-500 hover:text-purple-600 font-medium">
+                                Mark all as read
+                            </button>
+                        )}
                     </div>
 
                     {/* Content */}
                     <div className="max-h-96 overflow-y-auto">
-                        {loading ? (
+                        {loading && !stats && userNotifications.length === 0 ? (
                             <div className={`p-4 text-center text-sm ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
                                 Loading...
                             </div>
-                        ) : !stats || stats.totalNotifications === 0 ? (
-                            <div className={`p-4 text-center text-sm ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
-                                No notifications
-                            </div>
+                        ) : user?.isAdmin ? (
+                            // Admin Stats Render
+                            !stats || (stats.totalNotifications === 0 && unreadCount === 0) ? (
+                                <div className={`p-4 text-center text-sm ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                    No admin notifications
+                                </div>
+                            ) : (
+                                <div className="divide-y" style={{ borderColor: isLightMode ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}>
+                                    {stats.pendingUploads > 0 && (
+                                        <button onClick={() => { onNavigate?.('admin', 'reviews'); setShowDropdown(false); }} className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'}`}>
+                                            <div className="flex items-start justify-between mb-1">
+                                                <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Pending Uploads</p>
+                                                <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded">{stats.pendingUploads}</span>
+                                            </div>
+                                            <p className={`text-xs ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>Users waiting for content approval</p>
+                                        </button>
+                                    )}
+                                    {stats.reportCount > 0 && (
+                                        <button onClick={() => { onNavigate?.('admin', 'reviews'); setShowDropdown(false); }} className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'}`}>
+                                            <div className="flex items-start justify-between mb-1">
+                                                <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Bug Reports</p>
+                                                <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">{stats.reportCount}</span>
+                                            </div>
+                                            <p className={`text-xs ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>Unresolved issues to review</p>
+                                        </button>
+                                    )}
+                                </div>
+                            )
                         ) : (
-                            <div className="divide-y" style={{
-                                borderColor: isLightMode ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)'
-                            }}>
-                                {/* Pending Uploads */}
-                                {stats.pendingUploads > 0 && (
-                                    <button
-                                        onClick={() => {
-                                            onNavigate?.('admin', 'reviews');
-                                            setShowDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
+                            // User Notifications Render
+                            userNotifications.length === 0 ? (
+                                <div className={`p-4 text-center text-sm ${isLightMode ? 'text-slate-500' : 'text-secondary-400'}`}>
+                                    No new notifications
+                                </div>
+                            ) : (
+                                <div className="divide-y" style={{ borderColor: isLightMode ? '#e2e8f0' : 'rgba(255, 255, 255, 0.1)' }}>
+                                    {userNotifications.map(notification => (
+                                        <div 
+                                            key={notification._id} 
+                                            onClick={() => {
+                                                if (!notification.isRead) handleMarkAsRead(notification._id);
+                                            }}
+                                            className={`w-full text-left px-4 py-3 cursor-pointer transition ${
+                                                !notification.isRead ? (isLightMode ? 'bg-purple-50' : 'bg-purple-900/20') : (isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5')
                                             }`}
-                                    >
-                                        <div className="flex items-start justify-between mb-1">
-                                            <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                                                Pending Uploads
+                                        >
+                                            <div className="flex items-start justify-between mb-1">
+                                                <p className={`font-medium text-sm ${
+                                                    !notification.isRead 
+                                                    ? (isLightMode ? 'text-purple-900' : 'text-purple-300') 
+                                                    : (isLightMode ? 'text-slate-900' : 'text-white')
+                                                }`}>
+                                                    {notification.title}
+                                                </p>
+                                                <span className={`text-[10px] whitespace-nowrap ml-2 ${isLightMode ? 'text-slate-500' : 'text-secondary-500'}`}>
+                                                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                                </span>
+                                            </div>
+                                            <p className={`text-xs line-clamp-2 ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>
+                                                {notification.message}
                                             </p>
-                                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded">
-                                                {stats.pendingUploads}
-                                            </span>
                                         </div>
-                                        <p className={`text-xs ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>
-                                            Users waiting for content approval
-                                        </p>
-                                    </button>
-                                )}
-
-                                {/* Bug Reports */}
-                                {stats.reportCount > 0 && (
-                                    <button
-                                        onClick={() => {
-                                            onNavigate?.('admin', 'reviews');
-                                            setShowDropdown(false);
-                                        }}
-                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
-                                            }`}
-                                    >
-                                        <div className="flex items-start justify-between mb-1">
-                                            <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                                                Bug Reports
-                                            </p>
-                                            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">
-                                                {stats.reportCount}
-                                            </span>
-                                        </div>
-                                        <p className={`text-xs ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>
-                                            Unresolved issues to review
-                                        </p>
-                                    </button>
-                                )}
-
-                                {/* Flagged Content */}
-                                {stats.flaggedContent > 0 && (
-                                    <button
-                                        className={`w-full text-left px-4 py-3 hover:bg-opacity-50 transition ${isLightMode ? 'hover:bg-slate-50' : 'hover:bg-white/5'
-                                            }`}
-                                    >
-                                        <div className="flex items-start justify-between mb-1">
-                                            <p className={`font-medium text-sm ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                                                Flagged Content
-                                            </p>
-                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded">
-                                                {stats.flaggedContent}
-                                            </span>
-                                        </div>
-                                        <p className={`text-xs ${isLightMode ? 'text-slate-600' : 'text-secondary-400'}`}>
-                                            Content marked for review
-                                        </p>
-                                    </button>
-                                )}
-                            </div>
+                                    ))}
+                                </div>
+                            )
                         )}
                     </div>
 
@@ -173,7 +213,7 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                         : 'border-white/10 bg-white/5'
                         }`}>
                         <button
-                            onClick={() => loadNotificationStats()}
+                            onClick={loadData}
                             className={`text-xs font-medium ${isLightMode
                                 ? 'text-purple-600 hover:text-purple-700'
                                 : 'text-purple-400 hover:text-purple-300'

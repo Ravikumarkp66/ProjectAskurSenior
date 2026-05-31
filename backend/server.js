@@ -23,6 +23,7 @@ const User = require('./models/User');
 const { sendWhatsAppMessage } = require('./modules/whatsapp/whatsapp.service');
 const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
+const UserNotification = require('./models/UserNotification');
 require('./modules/assistant/cron');
 
 const app = express();
@@ -201,6 +202,24 @@ io.on('connection', (socket) => {
                     conversation.unreadAdminCount += 1;
                 } else if (senderType === 'admin') {
                     conversation.unreadUserCount += 1;
+                    
+                    // Create Notification for the user
+                    const newNotif = await UserNotification.create({
+                        userId: conversation.userId,
+                        type: 'admin_reply',
+                        title: 'New Support Reply',
+                        message: 'You have received a new reply from ASK+ Support.'
+                    });
+
+                    // Emit event for notification
+                    const userKey = conversation.userId.toString();
+                    if (activeUsers.has(userKey)) {
+                        const userSocketData = activeUsers.get(userKey);
+                        userSocketData.sockets.forEach(socketId => {
+                            io.to(socketId).emit('notification_created', newNotif);
+                            io.to(socketId).emit('admin_message_sent', { conversationId });
+                        });
+                    }
                 }
                 await conversation.save();
             }
@@ -349,6 +368,7 @@ app.use('/api/download', downloadRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/user-notifications', require('./routes/userNotificationRoutes'));
 app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
 app.use('/api/payments', require('./routes/paymentRoutes'));

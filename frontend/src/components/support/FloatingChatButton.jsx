@@ -2,25 +2,34 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 
-const FloatingChatButton = ({ onClick, isOpen }) => {
+const FloatingChatButton = ({ onClick, isOpen, unreadCount = 0, isAnimating = false }) => {
     return (
         <motion.button
             onClick={onClick}
             initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
+            animate={{ 
+                scale: isAnimating ? [1, 1.1, 1, 1.1, 1] : 1,
+                y: isAnimating ? [0, -8, 0, -8, 0] : 0,
+                boxShadow: isAnimating 
+                    ? ["0px 0px 20px rgba(168,85,247,0.3)", "0px 0px 40px rgba(168,85,247,0.8)", "0px 0px 20px rgba(168,85,247,0.3)"] 
+                    : "0px 0px 20px rgba(168,85,247,0.3)"
+            }}
+            transition={{
+                duration: isAnimating ? 1 : 0.2,
+                repeat: isAnimating ? 2 : 0, // 3 seconds total (1s x 3)
+            }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className={`
                 relative flex items-center justify-center h-14 rounded-full
                 bg-gradient-to-r from-purple-600 to-blue-600
-                shadow-[0_0_20px_rgba(168,85,247,0.3)]
                 border border-white/20 z-50
                 transition-all duration-300
                 ${isOpen ? 'w-14' : 'px-5'}
             `}
         >
             {/* Pulse Effect */}
-            {!isOpen && (
+            {!isOpen && !isAnimating && (
                 <motion.div
                     animate={{
                         scale: [1, 1.2, 1],
@@ -57,11 +66,19 @@ const FloatingChatButton = ({ onClick, isOpen }) => {
                         <span className="text-xl">👨‍🎓</span>
                         <div className="flex flex-col items-start leading-tight">
                             <span className="text-white font-bold text-sm tracking-wide flex items-center gap-1">
-                                ASK+ <Sparkles className="w-3 h-3 text-yellow-300" />
+                                {unreadCount > 0 ? "Admin Replied" : (
+                                    <>ASK+ <Sparkles className="w-3 h-3 text-yellow-300" /></>
+                                )}
                             </span>
                         </div>
-                        {/* Online Indicator */}
-                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-purple-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                        {/* Unread Badge / Online Indicator */}
+                        {unreadCount > 0 ? (
+                            <span className="absolute -top-3 -right-3 min-w-[24px] h-6 px-1.5 bg-red-500 border-2 border-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                                {unreadCount}
+                            </span>
+                        ) : (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 border-2 border-purple-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
