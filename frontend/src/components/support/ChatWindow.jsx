@@ -75,7 +75,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
         const handleConversationData = (data) => {
             setConversationId(data.conversation._id);
             if (data.messages && data.messages.length > 0) {
-                setMessages(data.messages.filter(m => !m.isDeletedForUser));
+                setMessages(data.messages);
             }
             // Mark messages seen by user
             socket.emit('mark_seen', { conversationId: data.conversation._id, readerType: 'user' });
@@ -90,7 +90,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
         };
 
         const handleMessageDeleted = (deletedId) => {
-            setMessages(prev => prev.filter(m => m._id !== deletedId));
+            setMessages(prev => prev.map(m => m._id === deletedId ? { ...m, isDeletedForUser: true } : m));
         };
 
         const handleMessagesSeen = (data) => {
@@ -151,9 +151,28 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
 
     const handleAskAi = async (questionText) => {
         // Add User Message
-        const userMsg = { _id: Date.now().toString(), message: questionText, senderType: 'user' };
+        const userMsg = { _id: Date.now().toString(), message: questionText, senderType: 'user', timestamp: new Date().toISOString() };
         setAiMessages(prev => [...prev, userMsg]);
         setIsAiThinking(true);
+
+        const aiMsgId = (Date.now() + 1).toString();
+        // Create an empty AI message to stream into
+        const initialAiMsg = {
+            _id: aiMsgId,
+            message: '',
+            senderType: 'ai',
+            sources: [],
+            materials: [],
+            originalQuestion: questionText,
+            needsAdmin: false,
+            needsMentorship: false,
+            isLimitReached: false,
+            isMaterialMissing: false,
+            isCompanyMissing: false,
+            type: 'rag',
+            timestamp: new Date().toISOString()
+        };
+        setAiMessages(prev => [...prev, initialAiMsg]);
 
         try {
             const token = localStorage.getItem('authToken');
@@ -168,49 +187,80 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
 
             if (!res.ok) {
                 if (res.status === 403) {
-                    const errorData = await res.json();
-                    throw new Error(errorData.answer || "Account banned from ASK+.");
+                    throw new Error("Account banned from ASK+.");
                 }
                 throw new Error("Failed to fetch response from ASK+");
             }
-            const data = await res.json();
-            
-            const isLimitReached = data.type === 'limit_reached';
-            const needsAdmin = data.answer.includes("I couldn't find that information in the uploaded college documents");
-            const qLower = questionText.toLowerCase();
-            const wantsMentorship = ['placement', 'resume', 'career', 'project', 'internship', 'guidance', 'mentor'].some(w => qLower.includes(w));
-            
-            // Check for 3+ follow up questions in a row
-            const recentMsgs = aiMessages.slice(-5);
-            const highInteraction = recentMsgs.length >= 3;
 
-            const aiMsg = { 
-                _id: (Date.now() + 1).toString(), 
-                message: data.answer, 
-                senderType: 'ai',
-                sources: data.sources,
-                materials: data.materials,
-                originalQuestion: questionText,
-                needsAdmin: !isLimitReached && needsAdmin,
-                needsMentorship: !isLimitReached && (wantsMentorship || (needsAdmin && highInteraction) || highInteraction || data.type === 'mentorship_required'),
-                isLimitReached,
-                isMaterialMissing: data.type === 'material_missing',
-                isCompanyMissing: data.type === 'company_missing',
-                type: data.type,
-                suggestions: data.suggestions,
-                subject: data.subject
-            };
-            setAiMessages(prev => [...prev, aiMsg]);
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            let isFirstChunk = true;
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                const chunkText = decoder.decode(value, { stream: true });
+                const lines = chunkText.split('\n');
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            
+                            if (data.error) throw new Error(data.error);
+
+                            if (isFirstChunk) {
+                                setIsAiThinking(false);
+                                isFirstChunk = false;
+                            }
+
+                            setAiMessages(prev => prev.map(msg => {
+                                if (msg._id === aiMsgId) {
+                                    if (data.type === 'chunk') {
+                                        return { ...msg, message: msg.message + data.text };
+                                    } else if (data.type === 'rag_start') {
+                                        return msg; // Start chunking
+                                    } else if (data.type === 'rag_end') {
+                                        return { ...msg, sources: data.sources, materials: data.materials };
+                                    } else {
+                                        // Fixed response types
+                                        return { 
+                                            ...msg, 
+                                            message: data.answer || msg.message,
+                                            type: data.type || msg.type,
+                                            sources: data.sources || msg.sources,
+                                            materials: data.materials || msg.materials,
+                                            subject: data.subject || msg.subject,
+                                            suggestions: data.suggestions || msg.suggestions,
+                                            isLimitReached: data.type === 'limit_reached',
+                                            isMaterialMissing: data.type === 'material_missing',
+                                            isCompanyMissing: data.type === 'company_missing',
+                                            needsMentorship: data.type === 'mentorship_required'
+                                        };
+                                    }
+                                }
+                                return msg;
+                            }));
+
+                        } catch (e) {}
+                    }
+                }
+            }
+
         } catch (error) {
             console.error(error);
-            const errorMsg = { 
-                _id: (Date.now() + 1).toString(), 
-                message: error.message === "Failed to fetch response from ASK+" 
-                    ? "I'm having trouble connecting to my knowledge base right now. Please try again later."
-                    : error.message, 
-                senderType: 'ai' 
-            };
-            setAiMessages(prev => [...prev, errorMsg]);
+            setAiMessages(prev => prev.map(msg => {
+                if (msg._id === aiMsgId) {
+                    return {
+                        ...msg,
+                        message: error.message === "Failed to fetch response from ASK+" 
+                            ? "I'm having trouble connecting to my knowledge base right now. Please try again later."
+                            : error.message
+                    };
+                }
+                return msg;
+            }));
         } finally {
             setIsAiThinking(false);
         }
@@ -228,7 +278,8 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                 conversationId,
                 senderId: user._id || user.id,
                 senderType: 'user',
-                message: text
+                message: text,
+                timestamp: new Date().toISOString()
             });
             socket.emit('typing', { conversationId, senderType: 'user', isTyping: false });
         }
@@ -241,7 +292,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
         }
         if (!conversationId) return;
         socket.emit('delete_message', { messageId, conversationId });
-        setMessages(prev => prev.filter(m => m._id !== messageId));
+        setMessages(prev => prev.map(m => m._id === messageId ? { ...m, isDeletedForUser: true } : m));
     };
 
     const handleKeyDown = (e) => {
@@ -272,6 +323,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                     senderType={msg.senderType === 'ai' ? 'admin' : 'user'} 
                     seen={true}
                     onDelete={handleDeleteMessage}
+                    timestamp={msg.timestamp || msg.createdAt}
                 />
                 
                 {/* Sources block removed as requested */}
@@ -527,7 +579,9 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                                     message={msg.message} 
                                     senderType={msg.senderType} 
                                     seen={msg.seen}
+                                    isDeleted={msg.isDeletedForUser}
                                     onDelete={handleDeleteMessage}
+                                    timestamp={msg.timestamp || msg.createdAt}
                                 />
                             ))
                         )}

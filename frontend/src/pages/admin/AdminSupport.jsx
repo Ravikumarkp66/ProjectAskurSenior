@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Users, Search, Send, Check, CheckCheck } from 'lucide-react';
+import { Users, Search, Send, Check, CheckCheck, Trash2 } from 'lucide-react';
 import socket from '../../services/socket';
 import { useAuth } from '../../utils/hooks';
 
@@ -31,9 +31,9 @@ const AdminSupport = () => {
                 if (index > -1) {
                     const newList = [...prev];
                     newList[index] = updatedConv;
-                    return newList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    return newList.sort((a, b) => new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt));
                 } else {
-                    return [updatedConv, ...prev].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    return [updatedConv, ...prev].sort((a, b) => new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt));
                 }
             });
         };
@@ -145,6 +145,10 @@ const AdminSupport = () => {
         }
     };
 
+    const handleDeleteMessage = (messageId, conversationId) => {
+        socket.emit('delete_message', { messageId, conversationId });
+    };
+
     const filteredConversations = conversations.filter(c => 
         c.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.userEmail.toLowerCase().includes(searchQuery.toLowerCase())
@@ -210,7 +214,7 @@ const AdminSupport = () => {
                                     )}
                                 </div>
                                 <div className="flex items-center justify-end text-xs text-slate-500 mt-1">
-                                    <span className="shrink-0">{new Date(conv.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="shrink-0">{new Date(conv.lastMessageAt || conv.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                             </div>
                         ))
@@ -243,12 +247,12 @@ const AdminSupport = () => {
                                 </div>
                             ) : (
                                 messages.map(msg => (
-                                    <div key={msg._id} className={`flex ${msg.senderType === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                                    <div key={msg._id} className={`flex ${msg.senderType === 'admin' ? 'justify-end' : 'justify-start'} group/msg relative`}>
                                         <div className={`
                                             relative max-w-[70%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed flex items-end gap-2
                                             ${msg.senderType === 'admin' 
-                                                ? 'bg-purple-600 text-white rounded-br-none shadow-[0_4px_15px_rgba(168,85,247,0.15)]' 
-                                                : 'bg-white/[0.05] border border-white/5 text-slate-200 rounded-bl-none shadow-sm'
+                                                ? 'bg-purple-600 text-white rounded-br-none shadow-[0_4px_15px_rgba(168,85,247,0.15)] pr-16 pb-5' 
+                                                : 'bg-white/[0.05] border border-white/5 text-slate-200 rounded-bl-none shadow-sm pr-14 pb-5'
                                             }
                                         `}>
                                             <div className={msg.isDeletedForUser ? "opacity-50 line-through" : ""}>
@@ -265,16 +269,24 @@ const AdminSupport = () => {
                                                 </span>
                                             )}
 
-                                            {/* Seen status for admin messages */}
-                                            {msg.senderType === 'admin' && (
-                                                <div className="absolute bottom-1 right-2 opacity-80">
-                                                    {msg.seen ? (
-                                                        <CheckCheck className="w-3 h-3 text-blue-200" />
-                                                    ) : (
-                                                        <Check className="w-3 h-3 text-slate-300" />
-                                                    )}
-                                                </div>
-                                            )}
+                                            {/* Timestamp and Seen status */}
+                                            <div className="absolute bottom-1 right-2 flex items-center gap-1 opacity-70">
+                                                <span className="text-[10px]">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                {msg.senderType === 'admin' && (
+                                                    msg.seen ? <CheckCheck className="w-3.5 h-3.5 text-blue-200" /> : <Check className="w-3.5 h-3.5 text-slate-300" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Dropdown for delete */}
+                                        <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-opacity ${msg.senderType === 'admin' ? 'right-full mr-2' : 'left-full ml-2'}`}>
+                                            <button 
+                                                onClick={() => handleDeleteMessage(msg._id, activeConversation._id)}
+                                                className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-white/5 rounded-full transition-colors"
+                                                title="Delete message"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
                                 ))

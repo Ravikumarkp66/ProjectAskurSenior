@@ -12,12 +12,12 @@ const authMiddleware = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Verify the user still exists in the db
-        const user = await User.findById(decoded.userId).select('_id accountStatus');
+        const user = await User.findById(decoded.userId).select('_id isSuspended');
         if (!user) {
             return res.status(401).json({ error: 'User account not found', sessionExpired: true });
         }
-        if (user.accountStatus === 'suspended') {
-            return res.status(403).json({ error: 'Your account has been suspended.' });
+        if (user.isSuspended) {
+            return res.status(403).json({ error: 'Your account has been suspended. Contact AskUrSenior support.' });
         }
 
         req.userId = decoded.userId;
@@ -25,8 +25,8 @@ const authMiddleware = async (req, res, next) => {
         req.currentBranch = decoded.currentBranch;
         req.isAdmin = !!decoded.isAdmin;
 
-        // Background update of lastActive for real-time analytics
-        User.findByIdAndUpdate(decoded.userId, { lastActive: new Date() }).catch(() => {});
+        // Background update of lastActiveAt for real-time analytics
+        User.findByIdAndUpdate(decoded.userId, { lastActiveAt: new Date() }).catch(() => {});
 
         next();
     } catch (error) {

@@ -19,6 +19,10 @@ const conversationSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    lastMessageAt: {
+        type: Date,
+        default: Date.now
+    },
     unreadAdminCount: {
         type: Number,
         default: 0

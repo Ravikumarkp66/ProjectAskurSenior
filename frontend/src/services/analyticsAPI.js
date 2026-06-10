@@ -21,11 +21,8 @@ export const analyticsAPI = {
             params: { search, role, sortBy, page, limit, filter }
         }),
 
-    togglePremium: (userId, isPremium) =>
-        apiClient.patch(`/admin/analytics/users/${userId}/premium`, { isPremium }),
-
-    banUser: (userId, isBanned) =>
-        apiClient.patch(`/admin/analytics/users/${userId}/ban`, { isBanned }),
+    suspendUser: (userId, isSuspended) =>
+        apiClient.patch(`/admin/analytics/users/${userId}/suspend`, { isSuspended }),
 
     resetUserRole: (userId) =>
         apiClient.patch(`/admin/analytics/users/${userId}/reset-role`),

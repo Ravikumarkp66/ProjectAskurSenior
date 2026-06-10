@@ -9,9 +9,7 @@ const {
     getUploadByMonthAnalytics,
     getNotificationStats,
     getUserListAnalytics,
-    togglePremium,
-    banUser,
-    resetUserRole,
+    suspendUser,
     getAdminLogs
 } = require("../controllers/analyticsController");
 
@@ -40,9 +38,12 @@ router.get("/notification-stats", getNotificationStats);
 
 // User management
 router.get("/users", getUserListAnalytics);
-router.patch("/users/:userId/premium", togglePremium);
-router.patch("/users/:userId/ban", banUser);
-router.patch("/users/:userId/reset-role", resetUserRole);
+router.patch("/users/:userId/suspend", suspendUser);
 router.get("/users/:userId/logs", getAdminLogs);
+
+// Report Export
+const { exportUsersPDF, exportUsersCSV } = require("../controllers/analyticsController");
+router.get("/reports/users/export/pdf", exportUsersPDF);
+router.get("/reports/users/export/csv", exportUsersCSV);
 
 module.exports = router;

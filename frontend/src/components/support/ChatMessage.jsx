@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Trash2, Check, CheckCheck } from 'lucide-react';
 
-const ChatMessage = ({ messageId, message, senderType, seen, onDelete }) => {
-    const isAdmin = senderType === 'admin';
+const ChatMessage = ({ messageId, message, senderType, seen, isDeleted, onDelete, timestamp }) => {
+    const isAdmin = senderType === 'admin' || senderType === 'ai';
     const [isHovered, setIsHovered] = useState(false);
+
+    const formatTime = (ts) => {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
     const renderFormattedText = (text) => {
         if (!text) return null;
@@ -48,25 +54,30 @@ const ChatMessage = ({ messageId, message, senderType, seen, onDelete }) => {
             <div className={`relative flex items-center gap-2 max-w-[85%] ${isAdmin ? 'flex-row' : 'flex-row-reverse'}`}>
                 <div
                     className={`
-                        relative w-full rounded-2xl px-4 py-3 text-[15px]
+                        relative w-full rounded-2xl px-4 pt-3 pb-5 text-[15px]
                         ${isAdmin
-                            ? 'bg-[#181824] border border-white/5 text-slate-200 rounded-bl-sm shadow-md' 
-                            : 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(168,85,247,0.25)] pr-10'
+                            ? 'bg-[#181824] border border-white/5 text-slate-200 rounded-bl-sm shadow-md pr-12' 
+                            : 'bg-gradient-to-br from-purple-600 to-blue-600 text-white rounded-br-sm shadow-[0_4px_15px_rgba(168,85,247,0.25)] pr-16'
                         }
                     `}
                 >
-                    {renderFormattedText(message)}
-
-                    {/* Seen status for user messages */}
-                    {!isAdmin && (
-                        <div className="absolute bottom-1.5 right-2 opacity-80">
-                            {seen ? (
-                                <CheckCheck className="w-3.5 h-3.5 text-blue-200" />
-                            ) : (
-                                <Check className="w-3.5 h-3.5 text-slate-300" />
-                            )}
-                        </div>
+                    {isDeleted ? (
+                        <div className="italic opacity-80 mb-1 leading-relaxed text-[13px]">🚫 This message was deleted</div>
+                    ) : (
+                        renderFormattedText(message)
                     )}
+
+                    {/* Timestamp and Seen status */}
+                    <div className={`absolute bottom-1 right-2 flex items-center gap-1 ${isAdmin ? 'opacity-60' : 'opacity-80'}`}>
+                        {timestamp && (
+                            <span className={`text-[10px] ${isAdmin ? 'text-slate-400' : 'text-blue-100'}`}>
+                                {formatTime(timestamp)}
+                            </span>
+                        )}
+                        {!isAdmin && (
+                            seen ? <CheckCheck className="w-3.5 h-3.5 text-blue-200" /> : <Check className="w-3.5 h-3.5 text-slate-300" />
+                        )}
+                    </div>
                 </div>
                 
                 {/* Delete button for user messages */}

@@ -3,9 +3,13 @@ const Subject = require("../models/Subject");
 const UserUpload = require("../models/UserUpload");
 const Feedback = require("../models/Feedback");
 const BugReport = require("../models/BugReport");
-const Payment = require("../models/Payment");
 const AdminLog = require("../models/AdminLog");
 const cacheInvalidator = require("../utils/cacheInvalidator");
+const AnalyticsEvent = require("../models/AnalyticsEvent");
+const PDFDocument = require("pdfkit");
+const reportService = require("../services/reportService");
+const csvExportService = require("../services/csvExportService");
+const pdfExportService = require("../services/pdfExportService");
 
 /**
  * GET /admin/analytics/overview
@@ -64,14 +68,6 @@ exports.getOverviewAnalytics = async (req, res) => {
         }).lean();
 
         // New dashboard stats
-        const activeAskPlus = await User.countDocuments({ subscription: "askplus" }).lean();
-        const pendingPaymentsCount = await Payment.countDocuments({ status: "pending" }).lean();
-        const next7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-        const expiringSoon = await User.countDocuments({
-            subscription: "askplus",
-            subscriptionExpiry: { $gte: now, $lte: next7Days }
-        }).lean();
-
         const result = {
             totalUsers,
             userUploadCount,
@@ -79,10 +75,7 @@ exports.getOverviewAnalytics = async (req, res) => {
             pendingUploads,
             totalSubjects,
             uploadsThisMonth,
-            activeAskPlus,
-            pendingPayments: pendingPaymentsCount,
-            expiringSoon,
-            liveUsers: await User.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } })
+            liveUsers: await User.countDocuments({ lastActiveAt: { $gte: new Date(Date.now() - 300000) } })
         };
 
         console.log("Overview analytics result:", result);
@@ -289,46 +282,25 @@ exports.getUserListAnalytics = async (req, res) => {
             query.isAdmin = role === "admin";
         }
 
-        // Handle Plan Filters (Free/ASK+)
-        if (filter === "free" || filter === "askplus") {
-            query.subscription = filter;
+        if (filter === "recentlyActive" || sortBy === "recentlyActive") {
+            query.lastActiveAt = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
+        }
+
+        if (filter === "suspended") {
+            query.isSuspended = true;
         }
 
         // Base pipeline
         let pipeline = [
-            { $match: query },
-            // Lookup latest payment
-            {
-                $lookup: {
-                    from: "payments",
-                    let: { userId: "$_id" },
-                    pipeline: [
-                        { $match: { $expr: { $eq: ["$userId", "$$userId"] } } },
-                        { $sort: { createdAt: -1 } },
-                        { $limit: 1 }
-                    ],
-                    as: "latestPayment"
-                }
-            },
-            {
-                $addFields: {
-                    paymentStatus: { $arrayElemAt: ["$latestPayment.status", 0] },
-                    utrNumber: { $arrayElemAt: ["$latestPayment.utrNumber", 0] }
-                }
-            }
+            { $match: query }
         ];
-
-        // Filter by Pending Payments
-        if (filter === "pending_payment") {
-            pipeline.push({ $match: { paymentStatus: "pending" } });
-        }
 
         // Sorting
         let sort = {};
         if (sortBy === "recent") {
             sort = { createdAt: -1 };
-        } else if (sortBy === "active") {
-            sort = { lastLogin: -1 };
+        } else if (sortBy === "active" || sortBy === "recentlyActive" || filter === "recentlyActive") {
+            sort = { lastActiveAt: -1 };
         } else {
             sort = { createdAt: -1 };
         }
@@ -338,16 +310,11 @@ exports.getUserListAnalytics = async (req, res) => {
         const countPipeline = [...pipeline];
         pipeline.push({ $skip: skip }, { $limit: parseInt(limit) });
 
-        const [users, totalResult, activeSubscriptions, pendingPayments, expiringSoon, liveUsers] = await Promise.all([
+        const [users, totalResult, liveUsers, recentlyActiveCount] = await Promise.all([
             User.aggregate(pipeline),
             User.aggregate([...countPipeline, { $count: "count" }]),
-            User.countDocuments({ subscription: "askplus" }),
-            Payment.countDocuments({ status: "pending" }),
-            User.countDocuments({
-                subscription: "askplus",
-                subscriptionExpiry: { $gte: now, $lte: next7Days }
-            }),
-            User.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } })
+            User.countDocuments({ lastActiveAt: { $gte: new Date(Date.now() - 300000) } }),
+            User.countDocuments({ lastActiveAt: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } })
         ]);
 
         const total = totalResult.length > 0 ? totalResult[0].count : 0;
@@ -360,10 +327,8 @@ exports.getUserListAnalytics = async (req, res) => {
             pages: Math.ceil(total / limit),
             summary: {
                 totalUsers: totalUsersCount,
-                activeSubscriptions,
-                pendingPayments,
-                expiringSoon,
-                liveUsers
+                liveUsers,
+                recentlyActiveCount
             }
         });
     } catch (err) {
@@ -373,30 +338,29 @@ exports.getUserListAnalytics = async (req, res) => {
 };
 
 /**
- * PATCH /admin/users/:userId/premium
- * Toggle user premium status
+ * PATCH /admin/users/:userId/suspend
+ * Suspend or reactivate user
  */
-exports.togglePremium = async (req, res) => {
+exports.suspendUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const { isPremium } = req.body;
+        const { isSuspended } = req.body;
 
-        if (typeof isPremium !== "boolean") {
-            return res.status(400).json({ error: "isPremium must be boolean" });
+        if (typeof isSuspended !== "boolean") {
+            return res.status(400).json({ error: "isSuspended must be boolean" });
         }
 
-        const subscription = isPremium ? "askplus" : "free";
-        // Also update role for legacy compatibility if needed
-        const role = isPremium ? "premium" : "free";
-
-        const expiry = isPremium ? new Date() : null;
-        if (isPremium) expiry.setDate(expiry.getDate() + 30);
+        const updateData = {
+            isSuspended,
+            suspendedAt: isSuspended ? new Date() : null,
+            suspendedBy: isSuspended ? req.userId : null
+        };
 
         const user = await User.findByIdAndUpdate(
             userId,
-            { subscription, role, subscriptionExpiry: expiry },
+            updateData,
             { new: true }
-        ).select("name usn email role subscription subscriptionExpiry");
+        ).select("name usn email isSuspended suspendedAt");
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
@@ -405,103 +369,20 @@ exports.togglePremium = async (req, res) => {
         // Create Admin Log
         await AdminLog.create({
             adminId: req.userId,
-            action: isPremium ? "UPGRADED_TO_ASKPLUS" : "DOWNGRADED_TO_FREE",
-            targetUserId: userId,
-            details: { manual: true, expiry }
-        });
-
-        res.json({
-            message: `User ${isPremium ? "upgraded to ASK+" : "downgraded to free"}`,
-            user
-        });
-
-        // Invalidate Cache
-        cacheInvalidator.emit('FEEDBACK_UPDATED');
-    } catch (err) {
-        console.error("Error updating user premium status:", err);
-        res.status(500).json({ error: "Failed to update user premium status" });
-    }
-};
-
-/**
- * PATCH /admin/users/:userId/ban
- * Ban or unban user
- */
-exports.banUser = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { isBanned } = req.body;
-
-        if (typeof isBanned !== "boolean") {
-            return res.status(400).json({ error: "isBanned must be boolean" });
-        }
-
-        const accountStatus = isBanned ? 'suspended' : 'active';
-        const user = await User.findByIdAndUpdate(
-            userId,
-            { isBanned, accountStatus },
-            { new: true }
-        ).select("name usn email isBanned accountStatus");
-
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        // Create Admin Log
-        await AdminLog.create({
-            adminId: req.userId,
-            action: isBanned ? "SUSPENDED_USER" : "ACTIVATED_USER",
+            action: isSuspended ? "ACCOUNT_SUSPENDED" : "ACCOUNT_REACTIVATED",
             targetUserId: userId
         });
 
         res.json({
-            message: `User ${isBanned ? "suspended" : "activated"}`,
+            message: `User ${isSuspended ? "suspended" : "reactivated"}`,
             user
         });
 
         // Invalidate Cache
         cacheInvalidator.emit('FEEDBACK_UPDATED');
     } catch (err) {
-        console.error("Error banning user:", err);
+        console.error("Error suspending user:", err);
         res.status(500).json({ error: "Failed to update user status" });
-    }
-};
-
-/**
- * PATCH /admin/users/:userId/reset-role
- * Reset user to default role
- */
-exports.resetUserRole = async (req, res) => {
-    try {
-        const { userId } = req.params;
-
-        const user = await User.findByIdAndUpdate(
-            userId,
-            { isAdmin: false, isBanned: false, role: "free", subscription: "free", accountStatus: "active" },
-            { new: true }
-        ).select("name usn email isAdmin isBanned role subscription accountStatus");
-
-        if (!user) {
-            return res.status(404).json({ error: "User not found" });
-        }
-
-        // Create Admin Log
-        await AdminLog.create({
-            adminId: req.userId,
-            action: "RESET_USER_ROLE",
-            targetUserId: userId
-        });
-
-        res.json({
-            message: "User role reset to default",
-            user
-        });
-
-        // Invalidate Cache
-        cacheInvalidator.emit('FEEDBACK_UPDATED');
-    } catch (err) {
-        console.error("Error resetting user role:", err);
-        res.status(500).json({ error: "Failed to reset user role" });
     }
 };
 
@@ -602,3 +483,50 @@ exports.getDashboardSummary = async (req, res) => {
         res.status(500).json({ error: "Failed to fetch dashboard summary" });
     }
 };
+
+const getReportFilename = (extension, from, to) => {
+    const today = new Date().toISOString().split('T')[0];
+    if (from && to) {
+        const fromStr = new Date(from).toISOString().split('T')[0];
+        const toStr = new Date(to).toISOString().split('T')[0];
+        return `askursenior-users-report-${fromStr}_to_${toStr}.${extension}`;
+    }
+    return `askursenior-users-report-${today}.${extension}`;
+};
+
+exports.exportUsersCSV = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const reportData = await reportService.getUsersReportData(from, to);
+        const csv = csvExportService.generateUsersReportCSV(reportData);
+
+        const filename = getReportFilename('csv', from, to);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+        res.status(200).send(csv);
+    } catch (err) {
+        console.error("Error exporting CSV:", err);
+        res.status(500).json({ error: "Failed to export CSV" });
+    }
+};
+
+exports.exportUsersPDF = async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        const reportData = await reportService.getUsersReportData(from, to);
+        const pdfBuffer = await pdfExportService.generateUsersReportPDF(reportData);
+
+        const filename = getReportFilename('pdf', from, to);
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+        res.status(200).send(pdfBuffer);
+    } catch (err) {
+        console.error("Error exporting PDF:", err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Failed to export PDF" });
+        }
+    }
+};
+

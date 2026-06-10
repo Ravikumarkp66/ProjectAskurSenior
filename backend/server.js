@@ -18,6 +18,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const userUploadRoutes = require('./routes/userUploadRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 const seedDatabase = require('./utils/seedDatabase');
 const User = require('./models/User');
 const { sendWhatsAppMessage } = require('./modules/whatsapp/whatsapp.service');
@@ -93,6 +94,7 @@ const corsOptions = {
         }
     },
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
     optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
@@ -112,6 +114,8 @@ io.on('connection', (socket) => {
         console.log("USER ONLINE:", userData);
         const { userId, name, email, role } = userData;
         if (!userId) return;
+
+        User.findByIdAndUpdate(userId, { lastActiveAt: new Date() }).catch(err => console.error("Error updating lastActiveAt:", err));
 
         if (!activeUsers.has(userId)) {
             activeUsers.set(userId, {
@@ -146,12 +150,50 @@ io.on('connection', (socket) => {
 
     socket.on('join_admin', () => {
         socket.join('admins');
+        
+        // Immediately send current live stats to the joining admin
+        socket.emit("dashboard_live_stats", {
+            liveUsers: activeUsers.size,
+            trafficTabs: activeSockets.size
+        });
+
+        socket.emit(
+            "live_users_list",
+            Array.from(activeUsers.values()).map(user => ({
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                tabs: user.sockets.size,
+                joinedAt: user.joinedAt
+            }))
+        );
+
         Conversation.find({})
-            .sort({ updatedAt: -1 })
+            .sort({ lastMessageAt: -1, createdAt: -1 })
             .then(conversations => {
                 socket.emit('admin_conversations_list', conversations);
             })
             .catch(err => console.error(err));
+    });
+
+    socket.on('request_dashboard_stats', () => {
+        socket.emit("dashboard_live_stats", {
+            liveUsers: activeUsers.size,
+            trafficTabs: activeSockets.size
+        });
+
+        socket.emit(
+            "live_users_list",
+            Array.from(activeUsers.values()).map(user => ({
+                userId: user.userId,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                tabs: user.sockets.size,
+                joinedAt: user.joinedAt
+            }))
+        );
     });
 
     socket.on('create_or_join_conversation', async (userData) => {
@@ -198,6 +240,7 @@ io.on('connection', (socket) => {
             const conversation = await Conversation.findById(conversationId);
             if (conversation) {
                 conversation.lastMessage = message;
+                conversation.lastMessageAt = new Date();
                 if (senderType === 'user') {
                     conversation.unreadAdminCount += 1;
                 } else if (senderType === 'admin') {
@@ -370,8 +413,8 @@ app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/user-notifications', require('./routes/userNotificationRoutes'));
 app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/events', eventRoutes);
 app.use('/api/leaderboard', require('./routes/leaderboardRoutes'));
-app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/discord', require('./routes/discord'));
 // Admin utility routes
 app.use('/api/admin/utils', require('./routes/adminUtilsRoutes').default || require('./routes/adminUtilsRoutes'));
@@ -385,6 +428,8 @@ app.use('/api/mentorship', require('./routes/mentorshipRoutes'));
 app.use('/api/academic', require('./modules/academic/academic.routes'));
 app.use('/api/whatsapp', require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/whatsapp', require('./routes/whatsappRoutes')); // Meta Cloud API
+app.use('/api/roadmap', require('./routes/roadmapRoutes'));
+app.use('/api/voice-chat', require('./routes/voiceChatRoutes'));
 const { sendWhatsAppMessage: sendMetaWhatsAppMessage, sendWhatsAppTemplate } = require('./services/whatsappService');
 app.get("/test", async (req, res) => {
   try {

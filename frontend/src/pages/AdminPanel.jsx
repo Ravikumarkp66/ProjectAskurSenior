@@ -3,10 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import DashboardOverview from './DashboardOverview';
 import UserManagementPage from './UserManagementPage';
-import PaymentManagementPage from './PaymentManagementPage';
 import AdminSupport from './admin/AdminSupport';
 import KnowledgeBase from './admin/KnowledgeBase';
 import AdminRequests from '../components/admin/AdminRequests';
+import RoadmapManager from '../components/admin/RoadmapManager';
 import { apiClient, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 import { articleAPI } from '../services/articleAPI';
 import { useAuth } from '../utils/hooks';
@@ -220,10 +220,10 @@ const AdminPanel = () => {
         <AdminLayout activeTab={activeTab} onTabChange={setActiveTab}>
 
             {activeTab === 'users' && <UserManagementPage />}
-            {activeTab === 'payments' && <PaymentManagementPage />}
             {activeTab === 'support' && <AdminSupport />}
             {activeTab === 'knowledge-base' && <KnowledgeBase />}
             {activeTab === 'requests' && <AdminRequests />}
+            {activeTab === 'roadmap' && <RoadmapManager />}
             {activeTab === 'reviews' && (
                 <div className="space-y-6">
                     <div>
