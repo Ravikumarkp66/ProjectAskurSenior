@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FaSearch, FaCrown, FaTrash, FaUndo, FaSpinner, FaCheckCircle, FaInfoCircle, FaShieldAlt, FaHistory, FaTimes, FaCheck } from 'react-icons/fa';
+import { FaSearch, FaCrown, FaTrash, FaUndo, FaSpinner, FaCheckCircle, FaInfoCircle, FaShieldAlt, FaHistory, FaTimes, FaCheck, FaDownload } from 'react-icons/fa';
 import { analyticsAPI } from '../services/analyticsAPI';
-import { paymentAPI } from '../services/api';
 import socket from '../services/socket';
+import DownloadReportsModal from '../components/admin/DownloadReportsModal';
 
 const UserManagementPage = () => {
     const [users, setUsers] = useState([]);
@@ -26,9 +26,7 @@ const UserManagementPage = () => {
 
     const [summary, setSummary] = useState({
         totalUsers: 0,
-        activeSubscriptions: 0,
-        pendingPayments: 0,
-        expiringSoon: 0,
+        recentlyActiveCount: 0,
         liveUsers: 0
     });
 
@@ -37,6 +35,7 @@ const UserManagementPage = () => {
     const [trafficCount, setTrafficCount] = useState(0);
     const [liveUsersList, setLiveUsersList] = useState([]);
     const [isLiveUsersModalOpen, setIsLiveUsersModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     const [theme] = useState(() => {
         try {
@@ -92,6 +91,9 @@ const UserManagementPage = () => {
             setLiveUsersList(data);
         });
 
+        // Request initial stats immediately on mount
+        socket.emit('request_dashboard_stats');
+
         return () => {
             socket.off('dashboard_live_stats');
             socket.off('live_users_list');
@@ -114,28 +116,7 @@ const UserManagementPage = () => {
         }
     };
 
-    const handleApprovePayment = async (paymentId) => {
-        setConfirmModal({
-            show: true,
-            action: 'APPROVE_PAYMENT',
-            data: { paymentId, title: 'Approve Payment?', message: 'This will automatically upgrade the user to ASK+ for 30 days.' }
-        });
-    };
 
-    const handleRejectPayment = async (paymentId) => {
-        const reason = window.prompt('Reason for rejection:');
-        if (!reason) return;
-        setActioningUserId(selectedUser._id);
-        try {
-            await paymentAPI.verifyPayment(paymentId, 'rejected', reason);
-            await loadUsers();
-            setShowModal(false);
-        } catch (err) {
-            setError(err?.response?.data?.error || 'Failed to reject payment');
-        } finally {
-            setActioningUserId(null);
-        }
-    };
 
     const handleExecuteAction = async () => {
         const { action, data } = confirmModal;
@@ -143,14 +124,8 @@ const UserManagementPage = () => {
         setConfirmModal({ show: false, action: null, data: null });
 
         try {
-            if (action === 'APPROVE_PAYMENT') {
-                await paymentAPI.verifyPayment(data.paymentId, 'approved');
-            } else if (action === 'MANUAL_PLAN') {
-                await analyticsAPI.togglePremium(selectedUser._id, data.isPremium);
-            } else if (action === 'MANUAL_STATUS') {
-                await analyticsAPI.banUser(selectedUser._id, data.isBanned);
-            } else if (action === 'RESET_ROLE') {
-                await analyticsAPI.resetUserRole(selectedUser._id);
+            if (action === 'MANUAL_STATUS') {
+                await analyticsAPI.suspendUser(selectedUser._id, data.isSuspended);
             }
             await loadUsers();
             setShowModal(false);
@@ -187,14 +162,21 @@ const UserManagementPage = () => {
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 <StatCard label="Live Users" value={liveUsersCount} colorClass={isLightMode ? 'text-emerald-600' : 'text-emerald-400'} onClick={() => setIsLiveUsersModalOpen(true)} pulse={true} />
                 <StatCard label="Traffic Tabs" value={trafficCount} colorClass={isLightMode ? 'text-blue-600' : 'text-blue-400'} pulse={true} />
                 <StatCard label="Total Users" value={summary.totalUsers} colorClass={isLightMode ? 'text-slate-600' : 'text-slate-400'} />
-                <StatCard label="Active ASK+" value={summary.activeSubscriptions} colorClass={isLightMode ? 'text-amber-600' : 'text-amber-400'} />
-                <StatCard label="Pending Payments" value={summary.pendingPayments} colorClass={isLightMode ? 'text-purple-600' : 'text-purple-400'} />
-                <StatCard label="Expiring Soon" value={summary.expiringSoon} colorClass={isLightMode ? 'text-red-600' : 'text-red-400'} />
+                {sortBy === 'recentlyActive' && (
+                    <StatCard label="Recently Active Users (24h)" value={`${summary.recentlyActiveCount || 0} Users`} colorClass={isLightMode ? 'text-blue-600' : 'text-blue-400'} />
+                )}
+                
+                <div 
+                    onClick={() => setIsReportModalOpen(true)}
+                    className={`cursor-pointer p-4 rounded-2xl border flex flex-col justify-center items-center gap-2 transition-all hover:-translate-y-1 ${isLightMode ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-500 shadow-blue-500/30 shadow-lg text-white' : 'bg-gradient-to-br from-blue-500 to-indigo-600 border-blue-400 text-white shadow-blue-500/20 shadow-lg'}`}
+                >
+                    <FaDownload className="text-xl mb-1" />
+                    <span className="text-xs font-black tracking-widest uppercase">Download Reports</span>
+                </div>
             </div>
 
             {error && (
@@ -210,9 +192,7 @@ const UserManagementPage = () => {
             <div className="flex flex-wrap items-center gap-2">
                 {[
                     { id: '', label: 'All Accounts' },
-                    { id: 'free', label: 'Free Plan', roleFilter: 'user' },
-                    { id: 'askplus', label: 'ASK+', roleFilter: 'user' },
-                    { id: 'pending_payment', label: 'Pending Payments' }
+                    { id: 'suspended', label: 'Suspended Accounts' }
                 ].map((btn) => (
                     <button
                         key={btn.id}
@@ -265,7 +245,7 @@ const UserManagementPage = () => {
                             className={`px-3 py-2 rounded-xl border text-sm outline-none transition ${isLightMode ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500' : 'bg-slate-800 border-slate-600 text-white focus:border-blue-500'}`}
                         >
                             <option value="recent">Recently Joined</option>
-                            <option value="active">Recently Active</option>
+                            <option value="recentlyActive">Recently Active</option>
                         </select>
 
                         <div className={`hidden lg:flex items-center justify-center px-4 py-2 rounded-xl text-center font-bold text-sm ${isLightMode ? 'bg-slate-100 text-slate-700 border-slate-200' : 'bg-slate-800 text-secondary-400 border-slate-700'} border truncate`}>
@@ -293,11 +273,11 @@ const UserManagementPage = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className={`${isLightMode ? 'bg-slate-50 border-b border-slate-200' : 'bg-white/5 border-b border-white/10'}`}>
-                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Student Info</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Plan / Expiry</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Payment Status</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Method</th>
-                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">UTR (Manual)</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Name</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">USN</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Email</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Joined Date</th>
+                                        <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Last Active</th>
                                         <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500">Account Status</th>
                                         <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-secondary-500 text-right">Actions</th>
                                     </tr>
@@ -306,83 +286,35 @@ const UserManagementPage = () => {
                                     {users.map((user) => (
                                         <tr key={user._id} className={`transition-colors hover:bg-white/5 group`}>
                                             <td className="px-6 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className={`font-bold text-sm tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                                                        {user.name || 'Anonymous'}
-                                                    </span>
-                                                    <span className="text-[11px] font-mono text-secondary-500 uppercase mt-0.5">
-                                                        {user.usn || 'No Student ID'}
-                                                    </span>
-                                                    <span className="text-[10px] text-secondary-600 mt-0.5">
-                                                        {user.email}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex flex-col">
-                                                    <span className={`text-xs font-bold ${user.subscription === 'askplus' ? 'text-amber-500' : 'text-secondary-400'}`}>
-                                                        {user.subscription === 'askplus' ? 'ASK+ Active' : 'Free Plan'}
-                                                    </span>
-                                                    {user.subscription === 'askplus' && user.subscriptionExpiry && (
-                                                        <span className="text-[10px] text-secondary-500 mt-1">
-                                                            Expires: {new Date(user.subscriptionExpiry).toLocaleDateString()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="flex items-center">
-                                                    {user.paymentStatus === 'approved' && (
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                                            Approved
-                                                        </span>
-                                                    )}
-                                                    {user.paymentStatus === 'pending' && (
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                                                            Pending
-                                                        </span>
-                                                    )}
-                                                    {user.paymentStatus === 'rejected' && (
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                                                            Rejected
-                                                        </span>
-                                                    )}
-                                                    {!user.paymentStatus && (
-                                                        <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-slate-800 text-secondary-400 border border-white/5">
-                                                            No Payment
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <span className="text-[10px] font-bold text-secondary-500 uppercase">
-                                                    Manual
+                                                <span className={`font-bold text-sm tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
+                                                    {user.name || 'Anonymous'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5">
-                                                {user.utrNumber ? (
-                                                    <span
-                                                        title={user.utrNumber}
-                                                        className="font-mono text-[11px] text-secondary-400 cursor-help border-b border-dashed border-secondary-600"
-                                                    >
-                                                        {user.utrNumber.length > 10
-                                                            ? `${user.utrNumber.substring(0, 6)}...${user.utrNumber.slice(-4)}`
-                                                            : user.utrNumber}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-secondary-600">—</span>
-                                                )}
+                                                <span className="text-[11px] font-mono text-secondary-500 uppercase">
+                                                    {user.usn || 'No Student ID'}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${user.isBanned ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                                                        <span className={`text-xs font-bold ${user.isBanned ? 'text-red-400' : 'text-emerald-400'}`}>
-                                                            {user.isBanned ? 'Suspended' : 'Active Account'}
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] text-secondary-500 mt-1 pl-3.5">
-                                                        Joined: {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                <span className="text-[10px] text-secondary-600">
+                                                    {user.email}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className="text-[10px] text-secondary-500">
+                                                    {new Date(user.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} at {new Date(user.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <span className={`text-xs font-bold whitespace-nowrap ${isLightMode ? 'text-slate-700' : 'text-secondary-300'}`}>
+                                                    {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + new Date(user.lastActiveAt).toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${user.isSuspended ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                                                    <span className={`text-xs font-bold ${user.isSuspended ? 'text-red-400' : 'text-emerald-400'}`}>
+                                                        {user.isSuspended ? 'Suspended' : 'Active'}
                                                     </span>
                                                 </div>
                                             </td>
@@ -436,97 +368,15 @@ const UserManagementPage = () => {
 
                         <div className="p-6 space-y-8">
                             {/* Summary Section */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className={`p-4 rounded-2xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                                    <p className="text-[10px] uppercase font-black text-secondary-500 tracking-widest mb-1">Current Plan</p>
-                                    <p className={`text-lg font-bold ${selectedUser.subscription === 'askplus' ? 'text-amber-500' : isLightMode ? 'text-slate-700' : 'text-white'}`}>
-                                        {selectedUser.subscription === 'askplus' ? 'ASK+' : 'Free Plan'}
-                                    </p>
-                                </div>
                                 <div className={`p-4 rounded-2xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
                                     <p className="text-[10px] uppercase font-black text-secondary-500 tracking-widest mb-1">Account Status</p>
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${selectedUser.isBanned ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                                        <p className={`text-lg font-bold ${selectedUser.isBanned ? 'text-red-400' : 'text-emerald-400'}`}>
-                                            {selectedUser.isBanned ? 'Suspended' : 'Active'}
+                                        <div className={`w-2 h-2 rounded-full ${selectedUser.isSuspended ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                                        <p className={`text-lg font-bold ${selectedUser.isSuspended ? 'text-red-400' : 'text-emerald-400'}`}>
+                                            {selectedUser.isSuspended ? 'Suspended' : 'Active'}
                                         </p>
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Verification Section */}
-                            {selectedUser.paymentStatus === 'pending' && (
-                                <div className={`p-6 rounded-3xl border bg-purple-500/5 border-purple-500/20 relative overflow-hidden group`}>
-                                    <div className="absolute top-0 right-0 p-4 opacity-10">
-                                        <FaCrown className="w-12 h-12 text-purple-500" />
-                                    </div>
-                                    <div className="flex flex-col gap-4">
-                                        <div className="flex items-start gap-4">
-                                            <div className="p-3 rounded-2xl bg-purple-500/20 text-purple-400 mt-1">
-                                                <FaInfoCircle />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-black text-purple-300">Pending Payment Approval</h3>
-                                                <p className="text-xs text-secondary-400 mt-1">UTR: <span className="font-mono text-purple-400">{selectedUser.utrNumber}</span></p>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleApprovePayment(selectedUser.latestPayment[0]?._id)}
-                                                className="flex-grow flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-500 text-white font-black text-xs hover:bg-purple-600 transition-all"
-                                            >
-                                                <FaCheckCircle /> Approve & Upgrade
-                                            </button>
-                                            <button
-                                                onClick={() => handleRejectPayment(selectedUser.latestPayment[0]?._id)}
-                                                className="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-500 border border-red-500/20 font-black text-xs hover:bg-red-500/20 transition-all"
-                                            >
-                                                Reject
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Plan Control */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2">
-                                    <FaCrown className="text-amber-500" />
-                                    <h3 className={`text-sm font-black ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Subscription Control</h3>
-                                </div>
-                                <div className={`space-y-4 p-5 rounded-3xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'}`}>
-                                    <div className="flex flex-col gap-3">
-                                        <label className="text-[10px] font-black uppercase text-secondary-500">Change Subscription Plan Manually</label>
-                                        <div className="flex gap-2">
-                                            <button
-                                                disabled={selectedUser.subscription === 'free'}
-                                                onClick={() => setConfirmModal({ show: true, action: 'MANUAL_PLAN', data: { isPremium: false, title: 'Downgrade to Free?', message: 'Remove all ASK+ benefits from this student.' } })}
-                                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${selectedUser.subscription === 'free' ? 'opacity-30 bg-white/5 border-white/5' : 'bg-white/5 border-white/10 hover:bg-white/10 text-secondary-300'}`}
-                                            >
-                                                Free Plan
-                                            </button>
-                                            <button
-                                                disabled={selectedUser.subscription === 'askplus'}
-                                                onClick={() => setConfirmModal({ show: true, action: 'MANUAL_PLAN', data: { isPremium: true, title: 'Upgrade to ASK+?', message: 'Grant 30 days of premium access without payment verification.' } })}
-                                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${selectedUser.subscription === 'askplus' ? 'bg-amber-500 text-white border-amber-500' : 'bg-white/5 border-white/10 hover:bg-white/10 text-amber-500'}`}
-                                            >
-                                                ASK+
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="pt-2 border-t border-dashed border-white/10">
-                                        <label className={`flex items-start gap-3 cursor-pointer group`}>
-                                            <div className="relative mt-0.5">
-                                                <input type="checkbox" className="sr-only" checked={planConfirm} onChange={(e) => setPlanConfirm(e.target.checked)} />
-                                                <div className={`w-4 h-4 rounded border transition-colors ${planConfirm ? 'bg-blue-600 border-blue-600' : 'bg-white/5 border-white/10 group-hover:border-white/20'}`}>
-                                                    {planConfirm && <FaCheck className="text-[8px] text-white absolute left-0.5 top-0.5" />}
-                                                </div>
-                                            </div>
-                                            <span className="text-[11px] font-medium text-secondary-400 group-hover:text-secondary-300 leading-tight">I understand that manual changes override payment verification logs.</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
 
                             {/* Danger Zone */}
                             <div className="space-y-4">
@@ -536,18 +386,12 @@ const UserManagementPage = () => {
                                 </div>
                                 <div className={`flex flex-wrap gap-2 p-5 rounded-3xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-red-500/5 border-red-500/10'}`}>
                                     <button
-                                        onClick={() => setConfirmModal({ show: true, action: 'MANUAL_STATUS', data: { isBanned: !selectedUser.isBanned, title: selectedUser.isBanned ? 'Activate Account?' : 'Suspend Account?', message: selectedUser.isBanned ? 'User will regain access to the platform.' : 'User will be blocked from logging in.' } })}
-                                        className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${selectedUser.isBanned
+                                        onClick={() => setConfirmModal({ show: true, action: 'MANUAL_STATUS', data: { isSuspended: !selectedUser.isSuspended, title: selectedUser.isSuspended ? 'Activate Account?' : 'Suspend Account?', message: selectedUser.isSuspended ? 'User will regain access to the platform.' : 'User will be blocked from logging in.' } })}
+                                        className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-all ${selectedUser.isSuspended
                                             ? 'bg-emerald-500 text-white border-emerald-500'
                                             : 'bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20'}`}
                                     >
-                                        {selectedUser.isBanned ? 'Activate Account' : 'Suspend Account'}
-                                    </button>
-                                    <button
-                                        onClick={() => setConfirmModal({ show: true, action: 'RESET_ROLE', data: { title: 'Emergency Reset?', message: 'This will reset role to student, unban user, and clear all special permissions.' } })}
-                                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-white/5 border border-white/10 text-secondary-400 hover:bg-white/10 transition-all"
-                                    >
-                                        Emergency Reset
+                                        {selectedUser.isSuspended ? 'Activate Account' : 'Suspend Account'}
                                     </button>
                                 </div>
                             </div>
@@ -670,6 +514,12 @@ const UserManagementPage = () => {
                     </div>
                 </div>
             )}
+            
+            <DownloadReportsModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                isLightMode={isLightMode}
+            />
         </div>
     );
 };
