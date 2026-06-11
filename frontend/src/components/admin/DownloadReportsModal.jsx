@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FaDownload, FaTimes, FaFilePdf, FaFileCsv, FaCalendarAlt, FaSpinner } from 'react-icons/fa';
+import { apiClient } from '../../services/api';
 
 const DownloadReportsModal = ({ isOpen, onClose, isLightMode }) => {
     const [format, setFormat] = useState('pdf');
@@ -37,48 +38,41 @@ const DownloadReportsModal = ({ isOpen, onClose, isLightMode }) => {
             to = new Date(toDate).toISOString();
         }
 
-        const url = `/api/admin/analytics/reports/users/export/${format}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-        
-        // Use an invisible anchor to trigger download using JWT auth if necessary, 
-        // but since this is an admin panel, window.open is often enough if the cookie holds the session.
-        // If JWT is in localStorage, we must fetch as blob and download.
+        const url = `/admin/analytics/reports/users/export/${format}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
         
         setLoading(true);
-        const token = localStorage.getItem('authToken');
-        fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        })
-        .then(async res => {
-            if (!res.ok) throw new Error("Failed to export report");
-            const blob = await res.blob();
+        apiClient.get(url, { responseType: 'blob' })
+        .then(res => {
+            const blob = res.data;
             
             // Extract filename from Content-Disposition header if present
-            const disposition = res.headers.get('Content-Disposition');
+            const disposition = res.headers['content-disposition'];
             let filename = `users_report.${format}`;
             if (disposition && disposition.indexOf('filename=') !== -1) {
-                const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(disposition);
+                const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                const matches = filenameRegex.exec(disposition);
                 if (matches != null && matches[1]) { 
                     filename = matches[1].replace(/['"]/g, '');
                 }
             }
-            return { blob, filename };
-        })
-        .then(({ blob, filename }) => {
-            const downloadUrl = window.URL.createObjectURL(blob);
+
+            // Create blob link to download
+            const windowUrl = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = downloadUrl;
+            a.href = windowUrl;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
             a.remove();
-            setLoading(false);
+            window.URL.revokeObjectURL(windowUrl);
+            
             onClose();
         })
         .catch(err => {
             console.error(err);
             alert("Error downloading report.");
+        })
+        .finally(() => {
             setLoading(false);
         });
     };
