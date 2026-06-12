@@ -5,6 +5,8 @@ import { Search, FileText } from 'lucide-react';
 import { useAuth } from '../utils/hooks';
 import { apiClient } from '../services/api';
 import Logo from './Logo';
+import VoiceCallModal from './voice/VoiceCallModal';
+import { useTheme } from '../context/ThemeContext';
 import './Hero.css';
 
 export default function Hero() {
@@ -20,6 +22,16 @@ export default function Hero() {
     const searchRef = useRef(null);
     const inputRef = useRef(null);
     const navigate = useNavigate();
+    const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
+    const [navScrolled, setNavScrolled] = useState(false);
+    const { isDark, toggleTheme } = useTheme();
+
+    // Transparent → floating pill on scroll
+    useEffect(() => {
+        const onScroll = () => setNavScrolled(window.scrollY > 100);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
 
     const placeholders = [
         "Search subject, code, topic...",
@@ -116,10 +128,10 @@ export default function Hero() {
             <div className="bg-glow bg-glow-2" />
 
             {/* Navigation */}
-            <nav className="landing-nav px-4 py-3 md:px-6 md:py-4">
+            <nav className={`landing-nav px-4 py-3 md:px-6 md:py-4${navScrolled ? ' scrolled' : ''}${mobileMenuOpen ? ' menu-open' : ''}`}>
                 <div className="nav-container">
-                    <Link to="/" className="nav-logo">
-                        <Logo size="md" className="scale-90 sm:scale-100 origin-left" />
+                    <Link to="/" className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', flexShrink: 0 }}>
+                        <Logo size="sm" />
                     </Link>
                     <div className="nav-links desktop-only hidden md:flex items-center gap-4">
                         <Link to="/ask-finder" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all border border-purple-500/20">
@@ -165,21 +177,38 @@ export default function Hero() {
                                     <>
                                         {/* Backdrop */}
                                         <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                                        {/* Dropdown */}
-                                        <div className="absolute right-0 top-full mt-2 w-52 z-50 rounded-2xl border border-white/10 bg-[#141416]/95 backdrop-blur-xl shadow-2xl shadow-black/60 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                            <div className="px-4 py-3 border-b border-white/5">
-                                                <p className="text-xs font-black uppercase tracking-widest text-purple-400">
-                                                    {user?.isAdmin ? 'Admin' : 'Student'}
-                                                </p>
-                                                <p className="text-sm font-bold text-white truncate mt-0.5">{user?.name || user?.usn}</p>
-                                                <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                                        {/* Dropdown */}                                        <div className={`absolute right-0 top-full mt-2 w-52 z-50 rounded-2xl border backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-white/10 bg-[#141416]/95 shadow-black/60 text-white' : 'border-slate-200 bg-white/95 shadow-slate-200/50 text-slate-800'}`}>
+                                            <div className={`px-4 py-3 border-b flex items-center justify-between ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                                                <div className="min-w-0 flex-1 pr-2">
+                                                    <p className="text-xs font-black uppercase tracking-widest text-purple-400">
+                                                        {user?.isAdmin ? 'Admin' : 'Student'}
+                                                    </p>
+                                                    <p className={`text-sm font-bold truncate mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{user?.name || user?.usn}</p>
+                                                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                                                </div>
+                                                <button
+                                                    onClick={toggleTheme}
+                                                    title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                                                    className={`flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-200 cursor-pointer flex-shrink-0 ${isDark ? 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white' : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-950'}`}
+                                                >
+                                                    {isDark ? (
+                                                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <circle cx="12" cy="12" r="4" strokeWidth="2.5" strokeLinecap="round" />
+                                                            <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2.5" strokeLinecap="round" />
+                                                        </svg>
+                                                    ) : (
+                                                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+                                                        </svg>
+                                                    )}
+                                                </button>
                                             </div>
                                             <div className="p-2 space-y-1">
                                                 {user?.isAdmin && (
                                                     <Link
                                                         to="/admin"
                                                         onClick={() => setUserMenuOpen(false)}
-                                                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 transition-all border border-amber-500/10 mb-1"
+                                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all border mb-1 ${isDark ? 'text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 border-amber-500/10' : 'text-amber-600 hover:bg-amber-50 hover:text-amber-700 border-amber-200'}`}
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m-6-8h6M7 20h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -190,7 +219,7 @@ export default function Hero() {
                                                 <Link
                                                     to="/calculator"
                                                     onClick={() => setUserMenuOpen(false)}
-                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all"
+                                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDark ? 'text-slate-300 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'}`}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m-6 4h6m-6 4h6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -200,7 +229,7 @@ export default function Hero() {
                                                 <Link
                                                     to="/blog"
                                                     onClick={() => setUserMenuOpen(false)}
-                                                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all"
+                                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDark ? 'text-slate-300 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'}`}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -208,10 +237,10 @@ export default function Hero() {
                                                     Blogs
                                                 </Link>
 
-                                                <div className="border-t border-white/5 my-1" />
+                                                <div className={`border-t my-1 ${isDark ? 'border-white/5' : 'border-slate-100'}`} />
                                                 <button
                                                     onClick={handleLogout}
-                                                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all"
+                                                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ${isDark ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300' : 'text-red-600 hover:bg-red-50 hover:text-red-700'}`}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -225,8 +254,34 @@ export default function Hero() {
                             </div>
                         ) : (
                             <>
-                                <Link to="/login" className="nav-link">Sign In</Link>
-                                <Link to="/signup" className="nav-btn nav-btn-primary">Get Started</Link>
+                                {/* Theme Toggle */}
+                                <button
+                                    onClick={toggleTheme}
+                                    title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                                    className="flex items-center justify-center w-9 h-9 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all duration-200"
+                                >
+                                    {isDark ? (
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="12" r="4" strokeWidth="2" strokeLinecap="round" />
+                                            <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" strokeWidth="2" strokeLinecap="round" />
+                                        </svg>
+                                    ) : (
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    )}
+                                </button>
+
+                                {/* Get Started with arrow */}
+                                <Link
+                                    to="/signup"
+                                    className="nav-btn nav-btn-primary flex items-center gap-1.5"
+                                >
+                                    Get Started
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 17L17 7M17 7H7M17 7v10" />
+                                    </svg>
+                                </Link>
                             </>
                         )}
                     </div>
@@ -479,6 +534,18 @@ export default function Hero() {
                             <button onClick={()=>navigate('/ask-finder?search=Mathematics')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Mathematics</button>
                         </div>
 
+                        <div className="mt-8 mb-10">
+                            <button
+                                onClick={() => setIsVoiceCallOpen(true)}
+                                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/50 rounded-full font-bold text-lg text-white transition-all overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <span className="text-2xl animate-pulse">🎙️</span>
+                                Talk With A Senior
+                                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity -z-10" />
+                            </button>
+                        </div>
+
                         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 text-sm md:text-base font-semibold text-slate-300 bg-white/5 py-4 px-6 md:px-8 rounded-2xl border border-white/10 inline-flex backdrop-blur-sm">
                             <div className="flex items-center gap-3">
                                 <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
@@ -496,6 +563,8 @@ export default function Hero() {
                     </motion.div>
                 </div>
             </section>
+
+            <VoiceCallModal isOpen={isVoiceCallOpen} onClose={() => setIsVoiceCallOpen(false)} />
         </div>
     );
 }

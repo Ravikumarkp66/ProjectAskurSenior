@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import { useAuth } from './utils/hooks';
 import WatermarkStamp from './components/common/WatermarkStamp';
 import { authAPI } from './services/api';
@@ -30,6 +31,7 @@ const CompleteProfilePage = lazy(() => import('./pages/CompleteProfilePage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AskFinderPage = lazy(() => import('./pages/AskFinderPage'));
+// const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 
 // Academic Dashboard Pages
 const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -74,6 +76,24 @@ const AdminRoute = ({ children }) => {
 
 function AppContent() {
     const { isAuthenticated, user } = useAuth();
+    const location = useLocation();
+
+    // Track page views
+    React.useEffect(() => {
+        if (isAuthenticated) {
+            const token = localStorage.getItem('token');
+            if (token) {
+                fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/events/track`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ path: location.pathname })
+                }).catch(err => console.error("Event tracking error:", err));
+            }
+        }
+    }, [location.pathname, isAuthenticated]);
     
     // Global Socket Connection
     React.useEffect(() => {
@@ -124,6 +144,7 @@ function AppContent() {
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/ask-finder" element={<AskFinderPage />} />
+                    {/* <Route path="/roadmap" element={<RoadmapPage />} /> */}
 
                     {/* Registration Flow */}
                     <Route
@@ -167,6 +188,7 @@ function AppContent() {
                     <Route path="/admin/articles/create" element={<AdminRoute><AdminCreateArticle /></AdminRoute>} />
                     <Route path="/admin/knowledge-base" element={<AdminRoute><AdminPanel /></AdminRoute>} />
                     <Route path="/admin/requests" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                    {/* <Route path="/admin/roadmap" element={<AdminRoute><AdminPanel /></AdminRoute>} /> */}
                     <Route path="/admin/mentorship" element={<AdminRoute><AdminMentorship /></AdminRoute>} />
 
                     {/* Interview Experiences - Fully Public (no login required) */}
@@ -188,11 +210,13 @@ function AppContent() {
 
 function App() {
     return (
-        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-            <AuthProvider>
-                <AppContent />
-            </AuthProvider>
-        </Router>
+        <ThemeProvider>
+            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+                <AuthProvider>
+                    <AppContent />
+                </AuthProvider>
+            </Router>
+        </ThemeProvider>
     );
 }
 

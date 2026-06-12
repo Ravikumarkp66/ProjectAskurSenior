@@ -10,10 +10,10 @@ const sendEmail = async (options) => {
 
     try {
         const { data, error } = await resend.emails.send({
-            from: 'AskUrSenior <onboarding@resend.dev>',
+            from: 'AskUrSenior <noreply@askursenior.org>',
             to: options.email,
             subject: options.subject,
-            html: `<p>${options.message.replace(/\n/g, '<br>')}</p>`,
+            html: options.html || `<p>${options.message.replace(/\n/g, '<br>')}</p>`,
         });
 
         if (error) {

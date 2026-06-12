@@ -237,26 +237,40 @@ router.get("/test-groq", async (req, res) => {
     }
 });
 
-// RAG Answer Generation Endpoint
+// RAG Answer Generation Endpoint (SSE Stream)
 router.post('/ask', authMiddleware, async (req, res) => {
+    // Set headers for SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const sendSSE = (payload) => {
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
     try {
         const { question } = req.body;
         console.log(`\n--- ASK+ INTELLIGENCE LAYER DEBUG ---`);
         console.log(`1. Question received: "${question}"`);
 
         if (!question) {
-            return res.status(400).json({ error: 'Question is required' });
+            sendSSE({ error: 'Question is required' });
+            return res.end();
         }
 
         // --- 1. User & Ban Check ---
         const user = await User.findById(req.userId);
-        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (!user) {
+            sendSSE({ error: 'User not found' });
+            return res.end();
+        }
 
         if (user.chatBanUntil && user.chatBanUntil > new Date()) {
-            return res.status(403).json({ 
+            sendSSE({ 
                 error: 'Account Banned', 
                 answer: `Your account is temporarily banned from ASK+ until ${new Date(user.chatBanUntil).toLocaleString()} due to abusive behavior.`
             });
+            return res.end();
         }
 
         // --- 2. Moderation Check ---
@@ -286,22 +300,25 @@ router.post('/ask', authMiddleware, async (req, res) => {
         });
 
         if (newBan) {
-            return res.json({ answer: `Your message was flagged for severe toxicity. Your account is banned until ${newBan.toLocaleString()}.`, sources: [] });
+            sendSSE({ answer: `Your message was flagged for severe toxicity. Your account is banned until ${newBan.toLocaleString()}.`, sources: [] });
+            return res.end();
         }
         if (modResult.points >= 5) {
-            return res.json({ answer: `Your message was flagged for inappropriate content. You received ${modResult.points} demerit points.`, sources: [] });
+            sendSSE({ answer: `Your message was flagged for inappropriate content. You received ${modResult.points} demerit points.`, sources: [] });
+            return res.end();
         }
 
         // --- Limit Check (20 questions / day) ---
         const today = new Date().setHours(0, 0, 0, 0);
         const userLastDate = user.lastAiQuestionDate ? new Date(user.lastAiQuestionDate).setHours(0, 0, 0, 0) : null;
         if (userLastDate === today && user.dailyAiQuestionsCount >= 20) {
-            return res.json({
+            sendSSE({
                 type: "limit_reached",
                 answer: "You have reached your limit of 20 AI questions for today. You can still search for materials, preview PDFs, and download files unlimitedly! Please come back tomorrow.",
                 sources: [],
                 materials: []
             });
+            return res.end();
         }
 
         const normalizedQuestion = question.toLowerCase().trim();
@@ -324,92 +341,100 @@ router.post('/ask', authMiddleware, async (req, res) => {
         if (intent === 'calculator') {
             const calcResult = await processAcademicCalculation(question);
             if (calcResult) {
-                return res.json({ type: "calculator", answer: calcResult, sources: [], materials: [] });
+                sendSSE({ type: "calculator", answer: calcResult, sources: [], materials: [] });
+                return res.end();
             }
         }
 
         // --- MENTORSHIP FLOW ---
         if (intent === 'mentorship') {
-            return res.json({
+            sendSSE({
                 type: "mentorship_required",
                 answer: "💡 I can see you're looking for personalized guidance.\n\nSince this requires specific advice tailored to you, I highly recommend connecting directly with a Senior Mentor.",
                 sources: [],
                 materials: []
             });
+            return res.end();
         }
 
         // --- MATERIAL FLOW ---
         if (intent === 'material') {
             if (!entities.subject) {
-                return res.json({
+                sendSSE({
                     type: "material_disambiguation_subject",
                     answer: "📚 I'd be happy to help you find materials. Which subject are you looking for?",
                     suggestions: ["DBMS", "ADA", "CN", "Java", "Mathematics", "OS", "AIML"],
                     sources: [],
                     materials: []
                 });
+                return res.end();
             }
 
             if (!entities.branch && !entities.semester && (normalizedQuestion.includes("notes") || normalizedQuestion.includes("pyq"))) {
                 // If it's too broad
-                return res.json({
+                sendSSE({
                     type: "material_disambiguation_branch_sem",
                     answer: `📚 I found multiple resources for ${entities.subject}. Please help me narrow down your search by selecting your Branch and Semester.`,
                     subject: entities.subject,
                     sources: [],
                     materials: []
                 });
+                return res.end();
             }
 
             const foundMaterials = await performMaterialSearch(question);
             if (foundMaterials.length > 0) {
-                return res.json({
+                sendSSE({
                     type: "material_search",
                     answer: `📚 ${entities.subject || 'Materials'} Found\n\nFound ${foundMaterials.length} Resources.`,
                     materials: foundMaterials,
                     sources: []
                 });
             } else {
-                return res.json({
+                sendSSE({
                     type: "material_missing",
                     answer: `😔 I couldn't find matching materials for ${entities.subject || 'this subject'}.\n\nWe are continuously working with seniors and contributors to expand and verify our academic repository.`,
                     materials: [],
                     sources: []
                 });
             }
+            return res.end();
         }
 
         // --- INTERVIEW FLOW ---
         if (intent === 'interview') {
             if (!entities.company) {
-                return res.json({
+                sendSSE({
                     type: "interview_search",
                     answer: "Please specify which company you want to know about. (e.g., 'Did Amazon visit SIT?')",
                     sources: [],
                     materials: []
                 });
+                return res.end();
             }
 
             const companyRegex = new RegExp(entities.company, 'i');
             const foundCompany = await Company.findOne({ name: companyRegex });
 
             if (!foundCompany) {
-                return res.json({
+                sendSSE({
                     type: "company_missing",
                     answer: `🔍 I couldn't find verified interview experiences for ${entities.company} in our repository.\n\nThis does not necessarily mean the company never visited. Our team relies on student-submitted experiences.`,
                     sources: [],
                     materials: []
                 });
+                return res.end();
             }
 
             const experiences = await Experience.find({ companyId: foundCompany._id });
             if (experiences.length === 0) {
-                return res.json({
+                sendSSE({
                     type: "company_missing",
                     answer: `🔍 I couldn't find verified interview experiences for ${foundCompany.name}.\n\nThis does not necessarily mean the company never visited.`,
                     sources: [],
                     materials: []
                 });
+                return res.end();
             }
 
             // Extract CTCs
@@ -430,18 +455,20 @@ router.post('/ask', authMiddleware, async (req, res) => {
                 ctcInsights = `\n\n💰 ${foundCompany.name} Compensation Insights\n\nBased on recorded student experiences:\n\nLowest Mentioned: ${min} LPA\nAverage Mentioned: ${avg} LPA\nHighest Mentioned: ${max} LPA\n\n⚠ Values may vary by year, role and hiring cycle.`;
             }
 
-            return res.json({
+            sendSSE({
                 type: "interview_search",
                 answer: `💼 ${foundCompany.name} Placement Insights\n\nYes, ${foundCompany.name} appears in verified placement experiences shared by SIT students.\n\n📊 Quick Overview\nExperiences Found: ${experiences.length}\nRoles:\n${Array.from(roles).map(r => `• ${r}`).join('\n')}${ctcInsights}`,
                 sources: ["Interview Experiences Collection"],
                 materials: []
             });
+            return res.end();
         }
 
         // --- RULEBOOK & GENERAL RAG FLOW ---
         const cachedFaq = await FaqCache.findOne({ question: normalizedQuestion });
         if (cachedFaq) {
-            return res.json({ type: "rag", answer: cachedFaq.answer, sources: cachedFaq.sources, materials: [], cached: true });
+            sendSSE({ type: "rag", answer: cachedFaq.answer, sources: cachedFaq.sources, materials: [], cached: true });
+            return res.end();
         }
 
         let queryVector = await generateEmbedding(question);
@@ -453,7 +480,7 @@ router.post('/ask', authMiddleware, async (req, res) => {
         const contextText = chunks.map((c, i) => `[Source ${i + 1}: ${c.title}]\n${c.chunkText}`).join('\n\n');
         const sources = [...new Set(chunks.map(c => c.title))];
 
-        const ragResponse = await groq.chat.completions.create({
+        const ragStream = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: [
                 {
@@ -472,34 +499,62 @@ CRITICAL RULES:
                     content: `CONTEXT:\n${contextText}\n\nQUESTION:\n${question}`
                 }
             ],
-            temperature: 0.1
+            temperature: 0.1,
+            stream: true
         });
 
-        let answer = ragResponse.choices[0].message.content.trim();
+        let fullAnswer = "";
+        let isStarted = false;
 
-        if (answer === "LOW_CONFIDENCE_FALLBACK" || answer.includes("LOW_CONFIDENCE_FALLBACK")) {
-            return res.json({
-                type: "mentorship_required",
-                answer: `⚠ I couldn't find enough verified information to answer confidently.\n\n🎓 Need Personalized Help?\nConnect with a Senior Mentor.`,
-                sources: [],
-                materials: []
-            });
+        for await (const chunk of ragStream) {
+            const text = chunk.choices[0]?.delta?.content || "";
+            fullAnswer += text;
+
+            if (!isStarted) {
+                // Wait until we have enough chars to verify it's not the fallback string
+                if (fullAnswer.length > 25 || (!fullAnswer.startsWith("L") && !fullAnswer.startsWith("LOW"))) {
+                    isStarted = true;
+                    sendSSE({ type: "rag_start" });
+                    sendSSE({ type: "chunk", text: fullAnswer });
+                }
+            } else {
+                if (text) {
+                    sendSSE({ type: "chunk", text });
+                }
+            }
         }
 
-        if (answer) {
-            FaqCache.create({ question: normalizedQuestion, answer: answer, sources: sources }).catch(e => null);
+        if (!isStarted) {
+            // Stream ended very quickly. Check for fallback.
+            if (fullAnswer.includes("LOW_CONFIDENCE_FALLBACK") || fullAnswer.trim() === "LOW_CONFIDENCE_FALLBACK") {
+                sendSSE({
+                    type: "mentorship_required",
+                    answer: `⚠ I couldn't find enough verified information to answer confidently.\n\n🎓 Need Personalized Help?\nConnect with a Senior Mentor.`,
+                    sources: [],
+                    materials: []
+                });
+            } else {
+                // It was just a very short valid answer
+                sendSSE({ type: "rag_start" });
+                sendSSE({ type: "chunk", text: fullAnswer });
+                sendSSE({ type: "rag_end", sources, materials: [] });
+                if (fullAnswer) {
+                    FaqCache.create({ question: normalizedQuestion, answer: fullAnswer, sources }).catch(e => null);
+                }
+            }
+        } else {
+            sendSSE({ type: "rag_end", sources, materials: [] });
+            if (fullAnswer) {
+                FaqCache.create({ question: normalizedQuestion, answer: fullAnswer, sources }).catch(e => null);
+            }
         }
 
-        res.json({
-            type: "rag",
-            answer,
-            sources,
-            materials: []
-        });
+        return res.end();
 
     } catch (error) {
         console.error('Error in /ask endpoint:', error);
-        res.status(500).json({ error: 'Failed to generate answer' });
+        sendSSE({ error: 'Failed to generate answer' });
+        res.end();
     }
 });
 

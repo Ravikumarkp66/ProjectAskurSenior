@@ -428,8 +428,8 @@ app.use('/api/mentorship', require('./routes/mentorshipRoutes'));
 app.use('/api/academic', require('./modules/academic/academic.routes'));
 app.use('/api/whatsapp', require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/whatsapp', require('./routes/whatsappRoutes')); // Meta Cloud API
-app.use('/api/roadmap', require('./routes/roadmapRoutes'));
-app.use('/api/voice-chat', require('./routes/voiceChatRoutes'));
+// app.use('/api/roadmap', require('./routes/roadmapRoutes'));
+// app.use('/api/voice-chat', require('./routes/voiceChatRoutes'));
 const { sendWhatsAppMessage: sendMetaWhatsAppMessage, sendWhatsAppTemplate } = require('./services/whatsappService');
 app.get("/test", async (req, res) => {
   try {

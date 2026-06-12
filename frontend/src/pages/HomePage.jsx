@@ -7,6 +7,7 @@ import PrivacyModal from '../components/PrivacyModal';
 import HomeBlogSection from '../components/HomeBlogSection';
 import CreatorSection from '../components/CreatorSection';
 import HomeProductShowcase from '../components/HomeProductShowcase';
+import HomeRoadmapPreview from '../components/roadmap/HomeRoadmapPreview';
 import { Link } from 'react-router-dom';
 import SupportWidget from '../components/support/SupportWidget';
 
@@ -22,6 +23,7 @@ const HomePage = () => {
                 <HomeProductShowcase />
                 <HomeBlogSection />
                 <CreatorSection />
+                <HomeRoadmapPreview />
                 
                 {/* Trust Section - Icon Cards */}
                 <section className="py-16 px-6 border-t border-white/5 bg-[#0d0d0f]">

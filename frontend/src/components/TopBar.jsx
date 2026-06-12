@@ -12,8 +12,8 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark', on
                 ${sidebarCollapsed ? 'left-0 sm:left-20' : 'left-0 sm:left-64'}
                 ${isLightMode ? 'bg-white border-b border-slate-200' : 'bg-[#0F172A] border-b border-[#1E293B]'}`}
         >
-            <div className="px-4 sm:px-6 py-4 pl-16 sm:pl-6">
-                <div className="flex items-center justify-between">
+            <div className="px-4 sm:px-6 pl-16 sm:pl-6">
+                <div className="flex items-center justify-between py-2">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={onMenuClick}
@@ -40,6 +40,16 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark', on
                             Materials
                         </button>
                         <button
+                            onClick={() => navigate('/roadmap')}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${isLightMode
+                                ? 'text-purple-600 hover:bg-purple-50'
+                                : 'text-purple-400 hover:bg-purple-900/20'
+                                }`}
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
+                            Roadmap
+                        </button>
+                        <button
                             onClick={() => navigate('/interview')}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition ${isLightMode
                                 ? 'text-slate-600 hover:bg-slate-100'
@@ -64,7 +74,7 @@ const TopBar = ({ progress, branch, sidebarCollapsed = false, theme = 'dark', on
                     </div>
                 </div>
 
-                <div className="mt-3">
+                <div className="mt-0 px-0 pb-3">
                     <div className="relative">
                         <div className={`h-3 rounded-full overflow-hidden ${isLightMode ? 'bg-slate-200' : 'bg-[#1E293B]'}`}>
                             <div

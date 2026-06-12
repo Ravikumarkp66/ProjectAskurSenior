@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
 import { apiClient, notificationAPI, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
+import { ASLogo } from './Logo';
 
 const Sidebar = ({
     currentBranch,
@@ -499,11 +500,8 @@ const Sidebar = ({
                     {!isCollapsed && (
                         <div>
                             <div className="flex items-center gap-2">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M7 18V6l10 6-10 6z" fill="currentColor" />
-                                    </svg>
-                                </div>
+                                {/* AS inline SVG logo */}
+                                <ASLogo size={56} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
                                 <div>
                                     <h1 className={`text-xl font-extrabold leading-tight ${sidebarClasses.accent}`}>AskUrSenior</h1>
                                     <p className="text-[11px] text-gray-400/70 -mt-0.5">Academic Tracker</p>

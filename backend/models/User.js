@@ -49,6 +49,14 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null
         },
+        otp: {
+            type: String,
+            default: null
+        },
+        otpExpires: {
+            type: Date,
+            default: null
+        },
         branch: {
             type: String,
             enum: [
@@ -67,15 +75,9 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['free', 'premium', 'admin', 'student'],
+            enum: ['admin', 'student'],
             default: 'student'
         },
-        subscription: {
-            type: String,
-            enum: ["free", "askplus"],
-            default: "free"
-        },
-        subscriptionExpiry: Date,
         isAdmin: {
             type: Boolean,
             default: false
@@ -84,10 +86,14 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: true
         },
-        accountStatus: {
-            type: String,
-            enum: ['active', 'suspended'],
-            default: 'active'
+        isSuspended: {
+            type: Boolean,
+            default: false
+        },
+        suspendedAt: Date,
+        suspendedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
         },
         bookmarks: [{
             type: mongoose.Schema.Types.ObjectId,
@@ -126,7 +132,7 @@ const userSchema = new mongoose.Schema(
             text: { type: String, required: true },
             done: { type: Boolean, default: false }
         }],
-        lastActive: {
+        lastActiveAt: {
             type: Date,
             default: Date.now
         },

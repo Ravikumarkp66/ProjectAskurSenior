@@ -116,7 +116,7 @@ router.get("/callback", authMiddleware, async (req, res) => {
             } catch (e) { }
         }
 
-        const isPremium = user.subscription === 'askplus' || user.role === 'premium' || user.isAdmin === true;
+        const isPremium = user.isAdmin === true;
         const targetRoleId = isPremium ? PREMIUM_ROLE_ID : FREE_ROLE_ID;
 
         if (targetRoleId) {

@@ -1,6 +1,8 @@
 const User = require('../models/User');
+const OTP = require('../models/OTP');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const sendEmail = require('../utils/sendEmail');
 
 // Admin emails loaded from environment — never hardcoded
 const ADMIN_EMAILS = process.env.ADMIN_EMAIL
@@ -8,9 +10,9 @@ const ADMIN_EMAILS = process.env.ADMIN_EMAIL
     : [];
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const generateToken = (userId, branch, currentBranch, isAdmin) => {
+const generateToken = (userId, branch, currentBranch, isAdmin, expiresIn = '7d') => {
     return jwt.sign({ userId, branch, currentBranch, isAdmin: !!isAdmin }, process.env.JWT_SECRET, {
-        expiresIn: '7d'
+        expiresIn
     });
 };
 
@@ -28,6 +30,9 @@ const registerUser = async (req, res) => {
         // Check if user already exists
         const existingUser = await User.findOne({ $or: [{ usn: trimmedUSN.toUpperCase() }, { email: email.toLowerCase().trim() }] });
         if (existingUser) {
+            if (existingUser.isSuspended) {
+                return res.status(403).json({ error: 'Your account has been suspended. Please contact support.' });
+            }
             return res.status(400).json({ error: 'User already exists' });
         }
 
@@ -81,6 +86,10 @@ const loginUser = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        if (user.isSuspended) {
+            return res.status(403).json({ error: 'Your account has been suspended. Contact AskUrSenior support.' });
+        }
+
         if (user.registrationComplete === false) {
             user.registrationComplete = true;
             await user.save();
@@ -101,7 +110,7 @@ const loginUser = async (req, res) => {
         const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
 
         user.lastLogin = new Date();
-        user.lastActive = new Date();
+        user.lastActiveAt = new Date();
         await user.save();
 
         res.json({
@@ -166,6 +175,10 @@ const adminLogin = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        if (user.isSuspended) {
+            return res.status(403).json({ error: 'Your account has been suspended. Contact AskUrSenior support.' });
+        }
+
         // Check password
         const isValidPassword = await user.comparePassword(password);
         if (!isValidPassword) {
@@ -187,7 +200,7 @@ const adminLogin = async (req, res) => {
         const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
 
         user.lastLogin = new Date();
-        user.lastActive = new Date();
+        user.lastActiveAt = new Date();
         await user.save();
 
         res.json({
@@ -257,12 +270,27 @@ const googleLogin = async (req, res) => {
             return res.status(500).json({ error: 'Google authentication is not configured on the server' });
         }
 
-        const ticket = await googleClient.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID
-        });
+        let payload;
+        try {
+            const ticket = await googleClient.verifyIdToken({
+                idToken: token,
+                audience: process.env.GOOGLE_CLIENT_ID
+            });
+            payload = ticket.getPayload();
+        } catch (err) {
+            console.log('ID Token verification failed, trying Access Token fallback...');
+            const axios = require('axios');
+            const response = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            payload = {
+                email: response.data.email,
+                sub: response.data.sub,
+                picture: response.data.picture,
+                name: response.data.name
+            };
+        }
 
-        const payload = ticket.getPayload();
         const email = payload?.email;
         const googleId = payload?.sub;
 
@@ -271,6 +299,10 @@ const googleLogin = async (req, res) => {
         }
 
         let user = await User.findOne({ $or: [{ email: email.toLowerCase() }, { googleId }] });
+
+        if (user && user.isSuspended) {
+            return res.status(403).json({ error: 'Your account has been suspended. Contact AskUrSenior support.' });
+        }
 
         if (!user) {
             const isAdminEmail = ADMIN_EMAILS.includes(email.toLowerCase());
@@ -304,10 +336,10 @@ const googleLogin = async (req, res) => {
 
         await user.save();
 
-        const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
+        const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin, '30d');
 
         user.lastLogin = new Date();
-        user.lastActive = new Date();
+        user.lastActiveAt = new Date();
         await user.save();
 
         res.json({
@@ -349,17 +381,22 @@ const googleLogin = async (req, res) => {
     }
 };
 
-// Complete Google registration - Add USN, Username, and Branch for new Google users
+// Complete Google registration - Add USN, Name, Username, and Branch for new Google/OTP users
 const completeGoogleRegistration = async (req, res) => {
     try {
-        const { usn, username, branch } = req.body;
+        const { usn, username, branch, name } = req.body;
         const userId = req.userId;
 
-        if (!usn || !username || !branch) {
-            return res.status(400).json({ error: 'USN, Username, and Branch are required' });
+        if (!usn || !username || !branch || !name) {
+            return res.status(400).json({ error: 'USN, Name, Username, and Branch are required' });
         }
 
         const trimmedUSN = usn.trim();
+        const trimmedName = name.trim();
+
+        if (trimmedName.length < 2) {
+            return res.status(400).json({ error: 'Name must be at least 2 characters' });
+        }
 
         // Validate USN format
         if (!/^[a-z0-9]{8,12}$/i.test(trimmedUSN)) {
@@ -387,8 +424,9 @@ const completeGoogleRegistration = async (req, res) => {
             return res.status(400).json({ error: 'Registration already completed' });
         }
 
-        // Update user with USN, username, branch, and mark registration complete
+        // Update user with USN, Name, Username, Branch, and mark registration complete
         user.usn = trimmedUSN.toUpperCase();
+        user.name = trimmedName;
         user.username = username.toLowerCase();
         user.branch = branch;
         user.currentBranch = branch;
@@ -426,9 +464,224 @@ const completeGoogleRegistration = async (req, res) => {
 
 const heartbeat = async (req, res) => {
     try {
-        await User.findByIdAndUpdate(req.userId, { lastActive: new Date() });
+        await User.findByIdAndUpdate(req.userId, { lastActiveAt: new Date() });
         res.status(200).json({ success: true });
     } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const sendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Check if user exists and is suspended
+        const user = await User.findOne({ email: normalizedEmail });
+        if (user && user.isSuspended) {
+            return res.status(403).json({ error: 'Your account has been suspended. Please contact support.' });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiration
+
+        // Delete any existing OTP records for this email
+        await OTP.deleteMany({ email: normalizedEmail });
+
+        // Create new OTP record
+        await OTP.create({
+            email: normalizedEmail,
+            otp,
+            expiresAt
+        });
+
+        // Parse User Agent for Platform/Browser
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        let platform = 'Unknown Device';
+        let browser = 'Unknown Browser';
+
+        if (userAgent.includes('Windows')) platform = 'Windows';
+        else if (userAgent.includes('Macintosh')) platform = 'macOS';
+        else if (userAgent.includes('iPhone')) platform = 'iPhone';
+        else if (userAgent.includes('iPad')) platform = 'iPad';
+        else if (userAgent.includes('Android')) platform = 'Android';
+        else if (userAgent.includes('Linux')) platform = 'Linux';
+
+        if (userAgent.includes('Firefox')) browser = 'Firefox';
+        else if (userAgent.includes('Chrome')) browser = 'Chrome';
+        else if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) browser = 'Safari';
+        else if (userAgent.includes('Edge') || userAgent.includes('Edg')) browser = 'Edge';
+        else if (userAgent.includes('MSIE') || userAgent.includes('Trident')) browser = 'Internet Explorer';
+
+        // Format Time in IST
+        const timeString = new Date().toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            hour12: true,
+            timeZone: 'Asia/Kolkata'
+        }) + ' IST';
+
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const verificationUrl = `${frontendUrl}/login?email=${encodeURIComponent(normalizedEmail)}&otp=${otp}`;
+
+        // HTML Branded Email Template
+        const emailHtml = `
+<div style="font-family: 'Inter', system-ui, -apple-system, sans-serif; max-width: 420px; margin: 0 auto; padding: 40px 24px; background-color: #050505; color: #f8fafc; border: 1px solid #1e293b; border-radius: 24px; text-align: center; box-shadow: 0 20px 50px rgba(139, 92, 246, 0.15);">
+  <!-- AS Logo Card -->
+  <div style="margin-bottom: 16px; text-align: center;">
+    <table align="center" border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; border-collapse: collapse;">
+      <tr>
+        <td style="background-color: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 16px; padding: 12px; text-align: center; vertical-align: middle;">
+          <svg width="40" height="40" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block; margin: 0 auto;">
+            <path d="M105 380L205 205C220 180 240 170 270 170H405" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M405 170H290C250 170 220 200 220 240C220 280 250 310 290 310H345" stroke="#8B5CF6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M285 240H360C400 240 430 270 430 310C430 350 400 380 360 380H210" stroke="#8B5CF6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Brand Name -->
+  <div style="font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: #ffffff; margin-bottom: 24px;">
+    Ask<span style="color: #8B5CF6;">UR</span>Senior
+  </div>
+
+  <div style="height: 1px; background: linear-gradient(90deg, transparent, #1e293b, transparent); margin-bottom: 24px;"></div>
+
+  <!-- Greeting -->
+  <div style="text-align: left; padding: 0 8px; margin-bottom: 24px;">
+    <p style="font-size: 16px; font-weight: 700; color: #ffffff; margin: 0 0 8px 0;">Hi there 👋</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #94a3b8; margin: 0;">Use the following code to verify your account.</p>
+  </div>
+
+  <!-- OTP Code -->
+  <div style="font-size: 38px; font-weight: 800; letter-spacing: 2px; color: #8B5CF6; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.2); padding: 14px 28px; border-radius: 16px; display: inline-block; margin: 8px 0 24px 0; font-family: monospace; -webkit-user-select: all; user-select: all; cursor: pointer;" title="Click to select all">
+    ${otp.slice(0, 3)} ${otp.slice(3)}
+  </div>
+
+  <!-- Validity -->
+  <div style="font-size: 13px; font-weight: 500; color: #64748b; margin-bottom: 8px;">
+    Valid for 5 minutes.
+  </div>
+
+  <!-- Use Once -->
+  <div style="font-size: 13px; font-weight: 500; color: #64748b; margin-bottom: 24px;">
+    This verification code can only be used once.
+  </div>
+
+  <!-- Security Disclaimer -->
+  <div style="text-align: left; background-color: rgba(30, 41, 59, 0.25); border: 1px solid rgba(255, 255, 255, 0.03); padding: 16px; border-radius: 14px; margin-bottom: 24px; font-size: 12px; line-height: 1.5; color: #64748b;">
+    <p style="margin: 0 0 4px 0;">Never share this code with anyone.</p>
+    <p style="margin: 0;">AskUrSenior will never ask for your OTP.</p>
+  </div>
+
+  <!-- Need Help -->
+  <div style="text-align: center; border-top: 1px dashed #1e293b; padding-top: 20px; margin-bottom: 24px;">
+    <p style="font-size: 13px; font-weight: 600; color: #94a3b8; margin: 0 0 4px 0;">Need help?</p>
+    <a href="mailto:hello@askursenior.org" style="font-size: 13px; color: #8B5CF6; text-decoration: none; font-weight: 600;">hello@askursenior.org</a>
+  </div>
+
+  <!-- Footer -->
+  <div style="font-size: 11px; color: #475569; line-height: 1.5; text-align: center;">
+    <p style="margin: 0 0 4px 0; font-weight: 600; color: #64748b;">© 2026 AskUrSenior</p>
+    <p style="margin: 0;">Helping engineering students navigate their journey.</p>
+  </div>
+</div>
+        `;
+
+        // Send Email using Resend
+        try {
+            await sendEmail({
+                email: normalizedEmail,
+                subject: 'Verify your AskUrSenior account',
+                html: emailHtml
+            });
+        } catch (mailErr) {
+            console.error('Failed to send email:', mailErr);
+            // In dev fallback
+            if (process.env.NODE_ENV !== 'production' || !process.env.RESEND_API_KEY) {
+                console.log(`[DEV ONLY] OTP for ${normalizedEmail} is: ${otp}`);
+            } else {
+                return res.status(500).json({ error: 'Failed to send verification email. Please try again later.' });
+            }
+        }
+
+        res.json({ success: true, message: 'Verification code sent to your email.' });
+    } catch (error) {
+        console.error('sendOtp error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        if (!email || !otp) {
+            return res.status(400).json({ error: 'Email and OTP are required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // Verify record in OTP collection
+        const record = await OTP.findOne({
+            email: normalizedEmail,
+            otp
+        });
+
+        if (!record) {
+            return res.status(400).json({ error: 'Invalid or expired verification code' });
+        }
+
+        // OTP is valid! Delete all OTP records for this email
+        await OTP.deleteMany({ email: normalizedEmail });
+
+        // Find or create the User
+        let user = await User.findOne({ email: normalizedEmail });
+        if (user) {
+            if (user.isSuspended) {
+                return res.status(403).json({ error: 'Your account has been suspended. Please contact support.' });
+            }
+            user.lastLogin = new Date();
+            user.lastActiveAt = new Date();
+            await user.save();
+        } else {
+            // New user registration flow
+            const isAdminEmail = ADMIN_EMAILS.includes(normalizedEmail);
+            user = new User({
+                email: normalizedEmail,
+                branch: 'CS',
+                currentBranch: 'CS',
+                isAdmin: isAdminEmail,
+                registrationComplete: false
+            });
+            await user.save();
+        }
+
+        // Generate 7-day session token for OTP Login
+        const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin, '7d');
+
+        res.json({
+            success: true,
+            message: 'Verification successful',
+            token,
+            user: {
+                id: user._id,
+                usn: user.usn,
+                email: user.email,
+                branch: user.branch,
+                currentBranch: user.currentBranch,
+                isAdmin: !!user.isAdmin,
+                registrationComplete: user.registrationComplete
+            },
+            needsCompletion: !user.registrationComplete
+        });
+    } catch (error) {
+        console.error('verifyOtp error:', error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -444,7 +697,9 @@ module.exports = {
     completeGoogleRegistration,
     discordCallback,
     heartbeat,
-    ADMIN_EMAILS
+    ADMIN_EMAILS,
+    sendOtp,
+    verifyOtp
 };
 
 async function discordCallback(req, res) {

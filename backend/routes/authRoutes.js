@@ -10,7 +10,9 @@ const {
     googleLogin,
     completeGoogleRegistration,
     discordCallback,
-    heartbeat
+    heartbeat,
+    sendOtp,
+    verifyOtp
 } = require('../controllers/authController');
 
 
@@ -28,6 +30,8 @@ router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/admin-login', adminLogin);
 router.post('/google', googleLogin);
+router.post('/send-otp', sendOtp);
+router.post('/verify-otp', verifyOtp);
 router.get('/discord/callback', discordCallback);
 
 // Protected routes

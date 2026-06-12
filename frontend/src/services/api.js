@@ -62,6 +62,8 @@ export const authAPI = {
     login: (data) => apiClient.post('/auth/login', data),
     adminLogin: (data) => apiClient.post('/auth/admin-login', data),
     googleLogin: (token) => apiClient.post('/auth/google', { token }),
+    sendOtp: (email) => apiClient.post('/auth/send-otp', { email }),
+    verifyOtp: (email, otp) => apiClient.post('/auth/verify-otp', { email, otp }),
     completeGoogleRegistration: (data) => apiClient.post('/auth/complete-google-registration', data),
     getProfile: () => apiClient.get('/auth/profile'),
     updateProfile: (data) => apiClient.put('/auth/update-profile', data),
@@ -195,17 +197,6 @@ export const userUploadAPI = {
 };
 
 
-
-// Payment API
-export const paymentAPI = {
-    submitUtr: (data) => apiClient.post('/payments/submit', data),
-    getLatestPayment: (userId) => apiClient.get(`/payments/user/${userId}`),
-    getPaymentHistory: () => apiClient.get('/payments/history'),
-    // Admin methods
-    getAllPayments: () => apiClient.get('/payments/admin/all'),
-    verifyPayment: (id, data) => apiClient.patch(`/payments/admin/verify/${id}`, data),
-    deletePayment: (id) => apiClient.delete(`/payments/admin/${id}`)
-};
 
 // Interview Experiences API
 export const interviewExperiencesAPI = {

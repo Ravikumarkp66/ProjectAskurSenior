@@ -8,6 +8,7 @@ const CompleteProfilePage = () => {
     const { login } = useAuth();
     const [formData, setFormData] = useState({
         usn: '',
+        name: '',
         username: '',
         branch: 'CS'
     });
@@ -48,7 +49,7 @@ const CompleteProfilePage = () => {
         e.preventDefault();
         setError('');
 
-        if (!formData.usn || !formData.username || !formData.branch) {
+        if (!formData.usn || !formData.username || !formData.branch || !formData.name) {
             setError('All fields are required');
             return;
         }
@@ -56,6 +57,11 @@ const CompleteProfilePage = () => {
         const trimmedUSN = formData.usn.trim();
         if (!/^[a-z0-9]{8,12}$/i.test(trimmedUSN)) {
             setError('Invalid USN format');
+            return;
+        }
+
+        if (formData.name.trim().length < 2) {
+            setError('Name must be at least 2 characters');
             return;
         }
 
@@ -70,7 +76,8 @@ const CompleteProfilePage = () => {
             const response = await authAPI.completeGoogleRegistration({
                 usn: trimmedUSN,
                 username: formData.username,
-                branch: formData.branch
+                branch: formData.branch,
+                name: formData.name.trim()
             });
 
             // Update auth context
@@ -102,11 +109,24 @@ const CompleteProfilePage = () => {
                             Finish Your Profile
                         </h1>
                         <p className="text-gray-400 text-sm">
-                            Pick a unique username and enter your USN to continue
+                            Enter your full name, pick a unique username, and enter your USN to continue
                         </p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+                            <input
+                                type="text"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="John Doe"
+                                className="w-full rounded-2xl border border-white/5 bg-[#1c1c1e] px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50 focus:ring-2 focus:ring-orange-500/10 placeholder-gray-600 transition-all font-medium"
+                                required
+                            />
+                        </div>
+
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2 ml-1">Username</label>
                             <input
