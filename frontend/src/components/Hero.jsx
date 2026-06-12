@@ -5,7 +5,7 @@ import { Search, FileText } from 'lucide-react';
 import { useAuth } from '../utils/hooks';
 import { apiClient } from '../services/api';
 import Logo from './Logo';
-import VoiceCallModal from './voice/VoiceCallModal';
+// import VoiceCallModal from './voice/VoiceCallModal';
 import { useTheme } from '../context/ThemeContext';
 import './Hero.css';
 
@@ -22,7 +22,7 @@ export default function Hero() {
     const searchRef = useRef(null);
     const inputRef = useRef(null);
     const navigate = useNavigate();
-    const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
+    // const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
     const [navScrolled, setNavScrolled] = useState(false);
     const { isDark, toggleTheme } = useTheme();
 
@@ -534,7 +534,7 @@ export default function Hero() {
                             <button onClick={()=>navigate('/ask-finder?search=Mathematics')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Mathematics</button>
                         </div>
 
-                        <div className="mt-8 mb-10">
+                        {/* <div className="mt-8 mb-10">
                             <button
                                 onClick={() => setIsVoiceCallOpen(true)}
                                 className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/50 rounded-full font-bold text-lg text-white transition-all overflow-hidden"
@@ -544,7 +544,7 @@ export default function Hero() {
                                 Talk With A Senior
                                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity -z-10" />
                             </button>
-                        </div>
+                        </div> */}
 
                         <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 text-sm md:text-base font-semibold text-slate-300 bg-white/5 py-4 px-6 md:px-8 rounded-2xl border border-white/10 inline-flex backdrop-blur-sm">
                             <div className="flex items-center gap-3">
@@ -564,7 +564,7 @@ export default function Hero() {
                 </div>
             </section>
 
-            <VoiceCallModal isOpen={isVoiceCallOpen} onClose={() => setIsVoiceCallOpen(false)} />
+            {/* <VoiceCallModal isOpen={isVoiceCallOpen} onClose={() => setIsVoiceCallOpen(false)} /> */}
         </div>
     );
 }
