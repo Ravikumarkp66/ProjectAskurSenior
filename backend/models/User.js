@@ -162,6 +162,9 @@ const userSchema = new mongoose.Schema(
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
+    if (this.role === 'free' || !['admin', 'student'].includes(this.role)) {
+        this.role = 'student';
+    }
     if (this.usn === null || this.usn === '') {
         this.usn = undefined;
     }

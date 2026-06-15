@@ -51,6 +51,10 @@ const registerUser = async (req, res) => {
 
         await user.save();
 
+        // Trigger Welcome Email asynchronously
+        const { sendWelcomeEmail } = require('../utils/emailService');
+        sendWelcomeEmail(user.email, user.name || user.username || 'Student').catch(err => console.error('Error sending welcome email:', err));
+
         const token = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
 
         res.status(201).json({
@@ -433,6 +437,10 @@ const completeGoogleRegistration = async (req, res) => {
         user.registrationComplete = true;
 
         await user.save();
+
+        // Trigger Welcome Email asynchronously
+        const { sendWelcomeEmail } = require('../utils/emailService');
+        sendWelcomeEmail(user.email, user.name || user.username || 'Student').catch(err => console.error('Error sending welcome email:', err));
 
         // Generate new token with updated information
         const tokenJwt = generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);

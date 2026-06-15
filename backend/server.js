@@ -430,6 +430,32 @@ app.use('/api/whatsapp', require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/whatsapp', require('./routes/whatsappRoutes')); // Meta Cloud API
 // app.use('/api/roadmap', require('./routes/roadmapRoutes'));
 // app.use('/api/voice-chat', require('./routes/voiceChatRoutes'));
+
+app.get('/api/hero-stats', async (req, res) => {
+    try {
+        const Document = require('./models/Document');
+        const User = require('./models/User');
+
+        const [notesCount, seeCount, internalsCount, othersCount, usersCount] = await Promise.all([
+            Document.countDocuments({ documentType: 'notes', isApproved: true, isDeleted: { $ne: true } }),
+            Document.countDocuments({ documentType: 'see', isApproved: true, isDeleted: { $ne: true } }),
+            Document.countDocuments({ documentType: 'internals', isApproved: true, isDeleted: { $ne: true } }),
+            Document.countDocuments({ documentType: 'others', isApproved: true, isDeleted: { $ne: true } }),
+            User.countDocuments({ isDeleted: { $ne: true } })
+        ]);
+
+        res.json({
+            notes: notesCount + 170,
+            pyqs: seeCount + 100,
+            questionBanks: internalsCount + 15,
+            otherMaterials: othersCount + 30,
+            users: Math.max(800, usersCount)
+        });
+    } catch (error) {
+        console.error('Error fetching hero stats:', error);
+        res.status(500).json({ error: 'Failed to fetch hero stats' });
+    }
+});
 const { sendWhatsAppMessage: sendMetaWhatsAppMessage, sendWhatsAppTemplate } = require('./services/whatsappService');
 app.get("/test", async (req, res) => {
   try {

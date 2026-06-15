@@ -68,6 +68,27 @@ router.post(
                 createdItems.push(userUpload);
             }
 
+            // Send Contribution Submitted email asynchronously
+            try {
+                const uploader = await User.findById(req.userId);
+                if (uploader && uploader.email) {
+                    const Subject = require("../models/Subject");
+                    const subject = await Subject.findOne({ code: normalizedSubjectCode });
+                    const subjectName = subject ? subject.name : normalizedSubjectCode;
+
+                    const { sendContributionSubmittedEmail } = require("../utils/emailService");
+                    sendContributionSubmittedEmail(uploader.email, uploader.name || uploader.username || 'Contributor', {
+                        resourceName: createdItems.map(item => item.originalFileName || item.title).join(", "),
+                        subjectName: subjectName,
+                        subjectCode: normalizedSubjectCode,
+                        documentType: contentType,
+                        semester: "N/A"
+                    }).catch(err => console.error("Error sending contribution submitted email:", err));
+                }
+            } catch (emailErr) {
+                console.error("Failed to trigger contribution submitted email:", emailErr);
+            }
+
             res.json({
                 success: true,
                 message: "Upload submitted for admin review",
@@ -177,6 +198,24 @@ router.post("/:uploadId/approve", authMiddleware, adminMiddleware, async (req, r
             contributor.uploads = (contributor.uploads || 0) + 1;
             contributor.score = contributor.uploads * 10;
             await contributor.save();
+
+            // Send Contribution Approved email
+            try {
+                const Subject = require("../models/Subject");
+                const subject = await Subject.findOne({ code: uploadItem.subjectCode });
+                const subjectName = subject ? subject.name : uploadItem.subjectCode;
+
+                const { sendContributionApprovedEmail } = require("../utils/emailService");
+                sendContributionApprovedEmail(contributor.email, contributor.name || contributor.username || 'Contributor', 10, {
+                    resourceName: uploadItem.originalFileName || uploadItem.title,
+                    subjectName: subjectName,
+                    subjectCode: uploadItem.subjectCode,
+                    documentType: uploadItem.contentType,
+                    semester: "N/A"
+                }).catch(err => console.error("Error sending contribution approved email:", err));
+            } catch (emailErr) {
+                console.error("Failed to trigger contribution approved email:", emailErr);
+            }
         }
 
         await createContentNotification({

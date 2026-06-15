@@ -1,30 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, FileText } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useAuth } from '../utils/hooks';
-import { apiClient } from '../services/api';
-import Logo from './Logo';
-// import VoiceCallModal from './voice/VoiceCallModal';
 import { useTheme } from '../context/ThemeContext';
+import Logo from './Logo';
 import './Hero.css';
+import HeroShowcase from './HeroShowcase';
+import HeroStats from './HeroStats';
 
 export default function Hero() {
     const { user, logout } = useAuth();
     const [userMenuOpen, setUserMenuOpen] = useState(false);
-    const [searchFocused, setSearchFocused] = useState(false);
-    const [placeholderIndex, setPlaceholderIndex] = useState(0);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [suggestions, setSuggestions] = useState({ subjects: [], papers: [], notes: [] });
-    const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [showSuggestions, setShowSuggestions] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const searchRef = useRef(null);
-    const inputRef = useRef(null);
-    const navigate = useNavigate();
-    // const [isVoiceCallOpen, setIsVoiceCallOpen] = useState(false);
     const [navScrolled, setNavScrolled] = useState(false);
     const { isDark, toggleTheme } = useTheme();
+    const navigate = useNavigate();
 
     // Transparent → floating pill on scroll
     useEffect(() => {
@@ -33,89 +24,17 @@ export default function Hero() {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    const placeholders = [
-        "Search subject, code, topic...",
-        "Search Data Structures",
-        "Search 22CS41",
-        "Search PYQs",
-        "Search Mathematics notes",
-        "Search DBMS Papers"
-    ];
-
-    // Auto changing placeholder
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, []);
-
-    // Keyboard shortcut '/'
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                e.preventDefault();
-                inputRef.current?.focus();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    // Suggestions Logic
-    useEffect(() => {
-        if (!searchQuery.trim() || searchQuery.length < 2) {
-            setSuggestions({ subjects: [], papers: [], notes: [] });
-            setShowSuggestions(false);
-            return;
-        }
-
-        const fetchSuggestions = async () => {
-            try {
-                const response = await apiClient.get(`/documents/suggestions?q=${encodeURIComponent(searchQuery)}`);
-                setSuggestions(response.data);
-                setShowSuggestions(true);
-                setSelectedIndex(-1);
-            } catch (error) {
-                console.error('Failed to fetch suggestions:', error);
-            }
-        };
-
-        fetchSuggestions();
-    }, [searchQuery]);
-
-    const handleSearch = (e) => {
-        e?.preventDefault();
-        const query = searchQuery || placeholders[placeholderIndex].replace('Search ', '');
-        navigate(`/ask-finder?search=${encodeURIComponent(query)}`);
-        setShowSuggestions(false);
-    };
-
     const handleLogout = () => {
         logout();
         setUserMenuOpen(false);
         navigate('/');
     };
 
-    const handleKeyDown = (e) => {
-        const totalItems = suggestions.subjects.length + suggestions.papers.length + suggestions.notes.length;
-        
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setSelectedIndex(prev => (prev + 1) % totalItems);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSelectedIndex(prev => (prev - 1 + totalItems) % totalItems);
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            // Get the item at selectedIndex
-            const allItems = [...suggestions.subjects, ...suggestions.papers, ...suggestions.notes];
-            const item = allItems[selectedIndex];
-            navigate(`/ask-finder?search=${encodeURIComponent(item.name)}`);
-            setShowSuggestions(false);
-        } else if (e.key === 'Escape') {
-            setShowSuggestions(false);
-            inputRef.current?.blur();
+    const handleCtaClick = () => {
+        if (user) {
+            navigate('/ask-finder');
+        } else {
+            navigate('/signup');
         }
     };
 
@@ -147,7 +66,6 @@ export default function Hero() {
                             Interview Experiences
                         </Link>
                         {user && (
-
                             <Link to="/dashboard" className="nav-link nav-link-highlight flex items-center gap-1.5 px-4 py-2 rounded-full bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all border border-emerald-500/20">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
@@ -177,7 +95,8 @@ export default function Hero() {
                                     <>
                                         {/* Backdrop */}
                                         <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                                        {/* Dropdown */}                                        <div className={`absolute right-0 top-full mt-2 w-52 z-50 rounded-2xl border backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-white/10 bg-[#141416]/95 shadow-black/60 text-white' : 'border-slate-200 bg-white/95 shadow-slate-200/50 text-slate-800'}`}>
+                                        {/* Dropdown */}
+                                        <div className={`absolute right-0 top-full mt-2 w-52 z-50 rounded-2xl border backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ${isDark ? 'border-white/10 bg-[#141416]/95 shadow-black/60 text-white' : 'border-slate-200 bg-white/95 shadow-slate-200/50 text-slate-800'}`}>
                                             <div className={`px-4 py-3 border-b flex items-center justify-between ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
                                                 <div className="min-w-0 flex-1 pr-2">
                                                     <p className="text-xs font-black uppercase tracking-widest text-purple-400">
@@ -366,205 +285,98 @@ export default function Hero() {
             </nav>
 
             {/* Hero Section */}
-            <section className="relative z-10 pt-28 md:pt-36 pb-6 md:pb-8 px-6 flex flex-col items-center justify-center">
-                <div className="max-w-4xl mx-auto w-full text-center">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                        <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-6 leading-tight font-[Outfit]">
-                            Find Notes, PYQs and Study Materials for <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">SIT</span> Students
-                        </h1>
-                        <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
-                            Access curated notes, previous year question papers, and academic tools built specifically for SIT students.
-                        </p>
+            <section className="relative z-10 pt-32 md:pt-40 pb-20 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[calc(100vh-80px)] flex flex-col justify-center gap-12 lg:gap-16">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
+                    {/* Left Column */}
+                    <div className="flex flex-col items-start text-left max-w-[550px] w-full">
+                        {/* Badge */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-md mb-6 hover:border-purple-500/30 transition-colors cursor-default"
+                        >
+                            <span className="text-sm">🎓</span>
+                            <span className="text-xs md:text-sm font-semibold text-slate-300 tracking-wide">Trusted by 800+ Learners</span>
+                        </motion.div>
 
-                        <div className="relative max-w-2xl mx-auto mb-8 transition-all duration-300 ease-out" ref={searchRef} style={{ width: searchFocused ? '100%' : '90%', maxWidth: '720px' }}>
-                            <form onSubmit={handleSearch} className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
-                                    <svg className={`w-6 h-6 transition-colors duration-300 ${searchFocused ? 'text-purple-400' : 'text-slate-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                    </svg>
-                                </div>
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onFocus={() => setSearchFocused(true)}
-                                    onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={placeholders[placeholderIndex]}
-                                    className={`w-full bg-[#141416]/80 backdrop-blur-xl border rounded-full py-4 md:py-5 pl-14 pr-36 text-white text-base md:text-lg outline-none transition-all duration-300 ${
-                                        searchFocused 
-                                        ? 'border-purple-500 ring-4 ring-purple-500/20 shadow-[0_0_30px_rgba(139,92,246,0.2)]' 
-                                        : 'border-white/10 shadow-2xl shadow-purple-900/10'
-                                    }`}
-                                />
-                                <div className="absolute inset-y-2 right-2 flex items-center gap-2">
-                                    {!searchFocused && searchQuery === '' && (
-                                        <kbd className="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-slate-500 mr-2">
-                                            <span>/</span>
-                                        </kbd>
-                                    )}
-                                    <button
-                                        type="submit"
-                                        className="h-full px-6 md:px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-full font-bold text-sm md:text-base transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
-                                    >
-                                        Search
-                                    </button>
-                                </div>
-                            </form>
+                        {/* Main Heading */}
+                        <motion.h1
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+                            className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.05] mb-6 font-[Outfit]"
+                        >
+                            ONE STOP <br />
+                            Platform For Your <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-fuchsia-400 to-indigo-400">Academics & Doubts</span>
+                        </motion.h1>
 
-                            {/* Suggestions Dropdown */}
-                            <AnimatePresence>
-                                {searchFocused && showSuggestions && (suggestions.subjects.length > 0 || suggestions.papers.length > 0 || suggestions.notes.length > 0) && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="absolute top-full left-0 right-0 mt-3 bg-[#141416]/95 backdrop-blur-2xl border border-white/10 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[60]"
-                                    >
-                                        <div className="max-h-[400px] overflow-y-auto p-3 custom-scrollbar">
-                                            {/* Subjects Category */}
-                                            {suggestions.subjects.length > 0 && (
-                                                <div className="mb-4">
-                                                    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                                        Subjects
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {suggestions.subjects.map((s, idx) => {
-                                                            const itemIdx = idx;
-                                                            return (
-                                                                <button
-                                                                    key={`s-${idx}`}
-                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(s.name)}`); setShowSuggestions(false); }}
-                                                                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <Search size={14} className={selectedIndex === itemIdx ? 'text-white' : 'text-purple-400'} />
-                                                                        <span className="text-sm font-bold truncate">{s.name}</span>
-                                                                    </div>
-                                                                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${selectedIndex === itemIdx ? 'bg-white/20 border-white/30 text-white' : 'bg-white/5 border-white/10 text-slate-500'}`}>{s.code}</span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
+                        {/* Description */}
+                        <motion.p
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+                            className="text-base md:text-lg text-slate-400 leading-relaxed mb-6"
+                        >
+                            Everything you need to score better, prepare smarter, and clear your doubts faster.
+                        </motion.p>
 
-                                            {/* PYQs Category */}
-                                            {suggestions.papers.length > 0 && (
-                                                <div className="mb-4 text-left">
-                                                    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                        Past Year Papers
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {suggestions.papers.map((p, idx) => {
-                                                            const itemIdx = suggestions.subjects.length + idx;
-                                                            return (
-                                                                <button
-                                                                    key={`p-${idx}`}
-                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(p.name)}`); setShowSuggestions(false); }}
-                                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
-                                                                >
-                                                                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                                                                        <FileText size={14} className="text-emerald-400" />
-                                                                    </div>
-                                                                    <div className="flex flex-col items-start overflow-hidden">
-                                                                        <span className="text-sm font-bold truncate">{p.name}</span>
-                                                                        <span className={`text-[10px] ${selectedIndex === itemIdx ? 'text-emerald-100' : 'text-slate-500'}`}>Official University Paper</span>
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
+                        {/* Features line */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.25, ease: "easeOut" }}
+                            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs md:text-sm font-bold tracking-wider uppercase text-purple-400/95 mb-8"
+                        >
+                            <span>Notes</span>
+                            <span className="text-slate-600 font-normal">•</span>
+                            <span>PYQs</span>
+                            <span className="text-slate-600 font-normal">•</span>
+                            <span>Question Banks</span>
+                            <span className="text-slate-600 font-normal">•</span>
+                            <span>CGPA Tools</span>
+                            <span className="text-slate-600 font-normal">•</span>
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 font-black">Ask+</span>
+                        </motion.div>
 
-                                            {/* Notes Category */}
-                                            {suggestions.notes.length > 0 && (
-                                                <div className="text-left">
-                                                    <div className="flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                                        Curated Notes
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {suggestions.notes.map((n, idx) => {
-                                                            const itemIdx = suggestions.subjects.length + suggestions.papers.length + idx;
-                                                            return (
-                                                                <button
-                                                                    key={`n-${idx}`}
-                                                                    onClick={() => { navigate(`/ask-finder?search=${encodeURIComponent(n.name)}`); setShowSuggestions(false); }}
-                                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-amber-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
-                                                                >
-                                                                    <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                                                                        <div className="w-3.5 h-3.5 border-2 border-amber-400 rounded-sm" />
-                                                                    </div>
-                                                                    <div className="flex flex-col items-start overflow-hidden">
-                                                                        <span className="text-sm font-bold truncate">{n.name}</span>
-                                                                        <span className={`text-[10px] ${selectedIndex === itemIdx ? 'text-amber-100' : 'text-slate-500'}`}>Handwritten / PDF Study Material</span>
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="p-3 bg-white/5 border-t border-white/5 flex items-center justify-between text-[10px] font-bold text-slate-500">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">ΓåæΓåô</kbd> Navigate</span>
-                                                <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> Select</span>
-                                            </div>
-                                            <span className="flex items-center gap-1.5"><kbd className="px-1.5 py-0.5 rounded bg-white/10 border border-white/10">Esc</kbd> Close</span>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-slate-400 mb-4">
-                            <span className="font-semibold text-slate-500">Popular:</span>
-                            <button onClick={()=>navigate('/ask-finder?search=Chemistry')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Chemistry</button>
-                            <button onClick={()=>navigate('/ask-finder?search=Electrical')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Electrical</button>
-                            <button onClick={()=>navigate('/ask-finder?search=Mathematics')} className="hover:text-white transition-colors bg-white/5 px-4 py-1.5 rounded-full border border-white/10 hover:border-purple-500/40 hover:bg-purple-500/10 font-medium tracking-wide">Mathematics</button>
-                        </div>
-
-                        {/* <div className="mt-8 mb-10">
-                            <button
-                                onClick={() => setIsVoiceCallOpen(true)}
-                                className="group relative inline-flex items-center justify-center gap-3 px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-500/50 rounded-full font-bold text-lg text-white transition-all overflow-hidden"
+                        {/* CTA Button */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+                            className="mb-12 relative group"
+                        >
+                            {/* Premium Glow Effect in background */}
+                            <div className="absolute -inset-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur-lg opacity-40 group-hover:opacity-75 transition duration-500 group-hover:duration-200" />
+                            <motion.button
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={handleCtaClick}
+                                className="relative flex items-center justify-center gap-3 px-8 py-4.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-lg shadow-[0_0_25px_rgba(139,92,246,0.35)] transition-all duration-300 border border-white/10"
                             >
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                <span className="text-2xl animate-pulse">🎙️</span>
-                                Talk With A Senior
-                                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity -z-10" />
-                            </button>
-                        </div> */}
+                                Try The Platform <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+                            </motion.button>
+                        </motion.div>
 
-                        <div className="flex flex-wrap items-center justify-center gap-6 md:gap-12 text-sm md:text-base font-semibold text-slate-300 bg-white/5 py-4 px-6 md:px-8 rounded-2xl border border-white/10 inline-flex backdrop-blur-sm">
-                            <div className="flex items-center gap-3">
-                                <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
-                                Search real exam papers
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
-                                Notes shared by seniors
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="p-1 bg-green-500/20 rounded-full"><svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg></div>
-                                SIT accurate CGPA calculator
-                            </div>
-                        </div>
-                    </motion.div>
+                    </div>
+ 
+                    {/* Right Column */}
+                    <div className="hidden lg:block w-full">
+                        <HeroShowcase />
+                    </div>
                 </div>
-            </section>
 
-            {/* <VoiceCallModal isOpen={isVoiceCallOpen} onClose={() => setIsVoiceCallOpen(false)} /> */}
+                {/* Animated Stats Section */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.45 }}
+                    className="w-full"
+                >
+                    <HeroStats />
+                </motion.div>
+            </section>
         </div>
     );
 }

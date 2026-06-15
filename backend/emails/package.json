@@ -1,0 +1,21 @@
+{
+  "name": "askursenior-emails",
+  "version": "1.0.0",
+  "description": "Email templates for AskUrSenior using React Email and TypeScript",
+  "main": "compile.ts",
+  "scripts": {
+    "build": "tsx compile.ts"
+  },
+  "dependencies": {
+    "@react-email/components": "^0.0.19",
+    "@react-email/render": "^0.0.15",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "tsx": "^4.7.1",
+    "typescript": "^5.3.3"
+  }
+}

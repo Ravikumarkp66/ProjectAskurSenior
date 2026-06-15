@@ -512,6 +512,25 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
             );
         }
 
+        if (!isApproved) {
+            // Trigger Contribution Submitted email asynchronously
+            try {
+                const uploader = await User.findById(req.userId);
+                if (uploader && uploader.email) {
+                    const { sendContributionSubmittedEmail } = require('../utils/emailService');
+                    sendContributionSubmittedEmail(uploader.email, uploader.name || uploader.username || 'Contributor', {
+                        resourceName: uploadedDocuments.map(item => item.originalName || item.fileName).join(", "),
+                        subjectName: subjectName,
+                        subjectCode: subjectCode || 'N/A',
+                        documentType: documentType,
+                        semester: semester || 'N/A'
+                    }).catch(err => console.error('Error sending contribution submitted email:', err));
+                }
+            } catch (emailErr) {
+                console.error('Failed to trigger contribution submitted email:', emailErr);
+            }
+        }
+
         res.status(201).json({
             message: `${uploadedDocuments.length} document(s) uploaded successfully`,
             documents: uploadedDocuments,
@@ -725,6 +744,16 @@ router.post('/:id/approve', authMiddleware, async (req, res) => {
                 uploader.uploads += 1;
                 uploader.score += 10;
                 await uploader.save();
+
+                // Send Contribution Approved email asynchronously
+                const { sendContributionApprovedEmail } = require('../utils/emailService');
+                sendContributionApprovedEmail(uploader.email, uploader.name || uploader.username || 'Contributor', 10, {
+                    resourceName: document.originalName || document.fileName,
+                    subjectName: document.subjectName,
+                    subjectCode: document.subjectCode || 'N/A',
+                    documentType: document.documentType,
+                    semester: document.semester || 'N/A'
+                }).catch(err => console.error('Error sending contribution approved email:', err));
             }
         }
 
