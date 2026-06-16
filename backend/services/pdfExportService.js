@@ -113,7 +113,7 @@ exports.generateUsersReportPDF = (reportData) => {
             const chunks = [];
             const doc = new PDFDocument({
                 size: [PAGE_W, PAGE_H],   // landscape A4
-                margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN },
+                margins: { top: MARGIN, bottom: 15, left: MARGIN, right: MARGIN },
                 autoFirstPage: false,
                 bufferPages: true          // lets us go back and stamp page numbers
             });
