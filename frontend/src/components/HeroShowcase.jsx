@@ -104,7 +104,7 @@ export default function HeroShowcase() {
     }
 
     return (
-        <div className="relative w-full max-w-[620px] mx-auto min-h-[480px] flex items-center justify-center py-12 px-4 select-none overflow-visible">
+        <div className="relative w-full max-w-[360px] lg:max-w-[620px] mx-auto min-h-0 lg:min-h-[480px] flex items-center justify-center py-6 lg:py-12 px-4 select-none overflow-visible">
             {/* Inline styles for circular orbit animations */}
             <style>{`
                 @keyframes orbit {
@@ -124,7 +124,7 @@ export default function HeroShowcase() {
             `}</style>
 
             {/* Orbiting Path Ring */}
-            <div className="absolute w-[500px] h-[500px] rounded-full border border-purple-500/5 pointer-events-none hidden md:block z-0">
+            <div className="absolute w-[500px] h-[500px] rounded-full border border-purple-500/5 pointer-events-none hidden lg:block z-0">
                 <div className="absolute inset-0 orbit-container">
                     {[
                         { label: "Maths", emoji: "📘", angle: 0 },

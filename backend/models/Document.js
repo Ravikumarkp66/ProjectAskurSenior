@@ -21,6 +21,16 @@ const documentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    thumbnailUrl: {
+        type: String
+    },
+    thumbnailKey: {
+        type: String
+    },
+    thumbnailGenerated: {
+        type: Boolean,
+        default: false
+    },
     
     // Metadata fields (all stored in lowercase for better search)
     subjectName: {

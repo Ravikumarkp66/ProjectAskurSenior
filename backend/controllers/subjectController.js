@@ -22,6 +22,41 @@ const getSubjectsByBranch = async (req, res) => {
     }
 };
 
+const getAllSubjects = async (req, res) => {
+    try {
+        const { year, semester, branch, cycle } = req.query;
+        let query = {};
+        
+        if (cycle) query.cycle = cycle;
+        if (branch) query.branch = branch;
+        // In this system, first year subjects are usually cycle P or C
+        if (year === '1' && !cycle) query.cycle = { $in: ['P', 'C'] };
+
+        const subjects = await Subject.find(query)
+            .sort({ name: 1 })
+            .select('name code cycle color')
+            .lean();
+
+        // Deduplicate subjects by code if branch isn't specified, as they exist per-branch
+        const uniqueSubjects = [];
+        const seenCodes = new Set();
+        
+        for (const sub of subjects) {
+            if (sub.code && !seenCodes.has(sub.code)) {
+                seenCodes.add(sub.code);
+                uniqueSubjects.push(sub);
+            } else if (!sub.code && !seenCodes.has(sub.name)) {
+                seenCodes.add(sub.name);
+                uniqueSubjects.push(sub);
+            }
+        }
+
+        res.json(uniqueSubjects);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 const getSubjectById = async (req, res) => {
     try {
         const { subjectId } = req.params;
@@ -308,6 +343,7 @@ const getSubjectContent = async (req, res) => {
 };
 
 module.exports = {
+    getAllSubjects,
     getSubjectsByBranch,
     getSubjectById,
     getSubjectsByCode,

@@ -63,7 +63,9 @@ export const authAPI = {
     adminLogin: (data) => apiClient.post('/auth/admin-login', data),
     googleLogin: (token) => apiClient.post('/auth/google', { token }),
     sendOtp: (email) => apiClient.post('/auth/send-otp', { email }),
+    registerAndSendOtp: (data) => apiClient.post('/auth/register-send-otp', data), // signup: name+usn+email → OTP
     verifyOtp: (email, otp) => apiClient.post('/auth/verify-otp', { email, otp }),
+    verifySignupOtp: (email, otp) => apiClient.post('/auth/verify-signup-otp', { email, otp }), // signup OTP verify
     completeGoogleRegistration: (data) => apiClient.post('/auth/complete-google-registration', data),
     getProfile: () => apiClient.get('/auth/profile'),
     updateProfile: (data) => apiClient.put('/auth/update-profile', data),
@@ -92,6 +94,7 @@ export const subjectAPI = {
         subjectCache.set(cacheKey, { promise, timestamp: Date.now() });
         return promise;
     },
+    getAllSubjects: (params) => apiClient.get('/subjects', { params }),
     getSubjectById: (subjectId) => apiClient.get(`/subjects/${subjectId}`),
     getSubjectsByCode: (subjectCode) => apiClient.get(`/subjects/code/${subjectCode}`),
     markQuestionCompleted: (data) => apiClient.post('/subjects/question/complete', data),
@@ -108,9 +111,17 @@ export const subjectAPI = {
 
 // Upload API (Admin)
 export const uploadAPI = {
-    uploadSubjectFiles: (subjectId, contentType, files, options = {}) => {
+    uploadSubjectFiles: (subjectId, contentType, items, options = {}) => {
         const formData = new FormData();
-        files.forEach((file) => formData.append('files', file));
+        items.forEach((item) => {
+            if (item instanceof File) {
+                formData.append('files', item);
+            } else {
+                formData.append('files', item.file);
+                if (item.thumbnail) formData.append('thumbnails', item.thumbnail);
+                if (item.pageCount) formData.append('pageCounts', item.pageCount);
+            }
+        });
         return apiClient.post(`/upload/${subjectId}/${contentType}`, formData, {
             timeout: 300000, // 5 minute timeout for large files
             onUploadProgress: options.onUploadProgress
@@ -133,9 +144,17 @@ export const uploadAPI = {
 
     // BULK UPLOAD - Upload to ALL subjects with same code across all branches/cycles
 
-    bulkUploadSubjectContent: (subjectCode, contentType, files) => {
+    bulkUploadSubjectContent: (subjectCode, contentType, items) => {
         const formData = new FormData();
-        files.forEach((file) => formData.append('files', file));
+        items.forEach((item) => {
+            if (item instanceof File) {
+                formData.append('files', item);
+            } else {
+                formData.append('files', item.file);
+                if (item.thumbnail) formData.append('thumbnails', item.thumbnail);
+                if (item.pageCount) formData.append('pageCounts', item.pageCount);
+            }
+        });
         return apiClient.post(`/upload/bulk/content/${subjectCode}/${contentType}`, formData, {
             timeout: 300000 // 5 minute timeout for large files
         });
@@ -194,6 +213,38 @@ export const userUploadAPI = {
         apiClient.post(`/documents/${uploadId}/restore`),
     permanentDeleteUpload: (uploadId) =>
         apiClient.delete(`/documents/${uploadId}/permanent`)
+};
+
+// Global Documents API
+export const documentsAPI = {
+    uploadDocument: (data, items, options = {}) => {
+        const formData = new FormData();
+        
+        // Append all document metadata
+        Object.keys(data).forEach(key => {
+            if (data[key] !== undefined && data[key] !== null) {
+                formData.append(key, data[key]);
+            }
+        });
+
+        // Append files and thumbnails
+        items.forEach((item) => {
+            if (item instanceof File) {
+                formData.append('files', item);
+            } else {
+                formData.append('files', item.file);
+                if (item.thumbnail) formData.append('thumbnails', item.thumbnail);
+                if (item.pageCount) formData.append('pageCounts', item.pageCount);
+            }
+        });
+
+        return apiClient.post('/documents/upload', formData, {
+            timeout: 300000,
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: options.onUploadProgress
+        });
+    },
+    deleteDocument: (id) => apiClient.delete(`/documents/${id}/permanent`)
 };
 
 

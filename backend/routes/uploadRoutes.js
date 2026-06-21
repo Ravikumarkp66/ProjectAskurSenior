@@ -162,7 +162,7 @@ router.post(
   "/bulk/content/:subjectCode/:contentType",
   authMiddleware,
   adminMiddleware,
-  upload.array("files", 100),
+  upload.fields([{ name: 'files', maxCount: 100 }, { name: 'thumbnails', maxCount: 100 }]),
   async (req, res) => {
     try {
       const { subjectCode, contentType } = req.params;
@@ -171,7 +171,7 @@ router.post(
         return res.status(400).json({ error: "Invalid content type" });
       }
 
-      if (!req.files || req.files.length === 0) {
+      if (!req.files || !req.files.files || req.files.files.length === 0) {
         return res.status(400).json({ error: "No files uploaded" });
       }
 
@@ -182,9 +182,21 @@ router.post(
 
       const uploads = [];
 
-      for (const file of req.files) {
+      for (let i = 0; i < req.files.files.length; i++) {
+        const file = req.files.files[i];
+        const thumbnailFile = req.files.thumbnails && req.files.thumbnails[i] && req.files.thumbnails[i].size > 0 ? req.files.thumbnails[i] : null;
+        const pageCount = req.body.pageCounts && req.body.pageCounts[i] ? parseInt(req.body.pageCounts[i]) : null;
+
         const folder = `${contentType}/shared/${subjectCode.toUpperCase()}`;
         const s3Key = await uploadToS3(file, folder);
+        
+        let thumbnailKey = null;
+        let thumbnailUrl = null;
+        if (thumbnailFile) {
+            thumbnailKey = await uploadToS3(thumbnailFile, folder + '/thumbnails');
+            thumbnailUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${thumbnailKey}`;
+        }
+
         const title = cleanFileTitle(file.originalname);
 
         const contentItem = {
@@ -192,6 +204,10 @@ router.post(
           description: "",
           fileKey: s3Key,
           fileType: file.mimetype.includes("pdf") ? "pdf" : "other",
+          thumbnailKey,
+          thumbnailUrl,
+          thumbnailGenerated: !!thumbnailKey,
+          pageCount,
           uploadedBy: req.userId,
           uploadedAt: new Date(),
           tags: [subjectCode.toUpperCase(), contentType],
@@ -453,7 +469,7 @@ router.post(
   "/:subjectId/:contentType",
   authMiddleware,
   adminMiddleware,
-  upload.array("files", 100),
+  upload.fields([{ name: 'files', maxCount: 100 }, { name: 'thumbnails', maxCount: 100 }]),
   async (req, res) => {
     try {
       const { subjectId, contentType } = req.params;
@@ -462,7 +478,7 @@ router.post(
         return res.status(400).json({ error: "Invalid content type" });
       }
 
-      if (!req.files || req.files.length === 0) {
+      if (!req.files || !req.files.files || req.files.files.length === 0) {
         return res.status(400).json({ error: "No files uploaded" });
       }
 
@@ -477,9 +493,21 @@ router.post(
 
       const uploads = [];
 
-      for (const file of req.files) {
+      for (let i = 0; i < req.files.files.length; i++) {
+        const file = req.files.files[i];
+        const thumbnailFile = req.files.thumbnails && req.files.thumbnails[i] && req.files.thumbnails[i].size > 0 ? req.files.thumbnails[i] : null;
+        const pageCount = req.body.pageCounts && req.body.pageCounts[i] ? parseInt(req.body.pageCounts[i]) : null;
+
         const folder = `${contentType}/${subject.branch}/${subject.code}`;
         const s3Key = await uploadToS3(file, folder);
+
+        let thumbnailKey = null;
+        let thumbnailUrl = null;
+        if (thumbnailFile) {
+            thumbnailKey = await uploadToS3(thumbnailFile, folder + '/thumbnails');
+            thumbnailUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${thumbnailKey}`;
+        }
+
         const title = cleanFileTitle(file.originalname);
 
         const contentItem = {
@@ -487,6 +515,10 @@ router.post(
           description: "",
           fileKey: s3Key,
           fileType: file.mimetype.includes("pdf") ? "pdf" : "other",
+          thumbnailKey,
+          thumbnailUrl,
+          thumbnailGenerated: !!thumbnailKey,
+          pageCount,
           uploadedBy: req.userId,
           uploadedAt: new Date(),
           tags: [subject.code, contentType],

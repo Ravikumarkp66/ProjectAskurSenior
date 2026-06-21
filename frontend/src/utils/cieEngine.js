@@ -58,12 +58,25 @@ export const CIE_RULES = {
 
 /**
  * Determines the subject type based on credits and lab status.
+ * Rules (VTU/SIT pattern):
+ *   - 4 credits + has theory AND lab  → IPCC (Integrated Professional Core Course)
+ *   - name contains 'lab' explicitly AND credits <= 2 → LAB_ONLY
+ *   - credits >= 3, theory only       → THEORY_ONLY
+ *   - credits <= 2, theory only       → LOW_THEORY
  */
-export const detectSubjectType = (credits, hasLab) => {
+export const detectSubjectType = (credits, hasLab, subjectName = '') => {
     const cr = parseFloat(credits) || 0;
-    if (cr >= 4) return 'IPCC';
-    if (hasLab) return 'LAB_ONLY';
+    const nameLC = (subjectName || '').toLowerCase();
+    // Explicit lab-only courses (name-based): labs, lab, practical
+    const isExplicitLab = /\blab(oratory)?\b|\bpractical\b/.test(nameLC) && !nameLC.includes('theory');
+    if (cr <= 2 && isExplicitLab) return 'LAB_ONLY';
+    // 4-credit IPCC: theory + lab integrated (name does NOT end in 'lab')
+    if (cr >= 4 && !isExplicitLab) return 'IPCC';
+    // 4-credit lab-only edge case
+    if (cr >= 4 && isExplicitLab) return 'LAB_ONLY';
+    // 3-credit theory
     if (cr >= 3) return 'THEORY_ONLY';
+    // 1-2 credit theory
     return 'LOW_THEORY';
 };
 
@@ -71,9 +84,9 @@ export const detectSubjectType = (credits, hasLab) => {
  * Calculates CIE from marks. Returns { cie, isEligible, components }
  * where components = { test, quiz, abl, labs, labTests } each = { score, max, pass }
  */
-export const calculateCIEFromMarks = (cieMarks, credits, hasLab) => {
+export const calculateCIEFromMarks = (cieMarks, credits, hasLab, subjectName = '') => {
     const m = cieMarks;
-    const type = detectSubjectType(credits, hasLab);
+    const type = detectSubjectType(credits, hasLab, subjectName);
     const rule = CIE_RULES[type];
 
     const components = {};

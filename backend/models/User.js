@@ -99,6 +99,15 @@ const userSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Document'
         }],
+        semesterTimeline: {
+            collegeStart: { type: Date },
+            cie1: { type: Date },
+            cie2: { type: Date },
+            lastWorkingDay: { type: Date },
+            seeStart: { type: Date },
+            seeEnd: { type: Date },
+            nextSem: { type: Date }
+        },
         uploads: {
             type: Number,
             default: 0

@@ -293,16 +293,22 @@ const CountInput = ({ label, placeholder, onSet, color = 'orange' }) => {
 };
 
 // ─── CIE Calculator Modal ────────────────────────────────────────────────
-const CIECalculatorModal = ({ subject, onCIESaved, onClose }) => {
-    const subjectCode = subject?.code || subject?.name || 'unknown';
-    const credits = subject?.credits ?? 0;
-    const hasLab = (subject?.name || '').toLowerCase().includes('lab');
-    const subjectType = detectSubjectType(credits, hasLab);
+const CIECalculatorModal = ({ subject, onCIESaved, onClose, inline = false }) => {
+    const subjectName = subject?.name || 'unknown';
+    // Collision-safe key: prefer _id, fallback to code (if not placeholder '—'), then sanitized name
+    const subjectCode = subject?._id
+        || (subject?.code && subject.code !== '—' ? `${subject.code}` : null)
+        || subjectName.toLowerCase().replace(/\s+/g, '_');
+    const credits = parseFloat(subject?.credits) || 0;
+    // hasLab passed explicitly from subject if available, otherwise derived from name
+    const hasLab = subject?.isLab ?? (subjectName.toLowerCase().includes('lab') && !subjectName.toLowerCase().includes('theory'));
+    const subjectType = detectSubjectType(credits, hasLab, subjectName);
     const rule = CIE_RULES[subjectType];
     const cieMax = (rule.scaleTheoryTo || rule.theoryMax || 0) + (rule.practicalMax || 0);
 
     const hasTheory = !!rule.theory;
     const hasPractical = !!rule.practical;
+
 
     const getInitialMarks = () => getCIEDraft(subjectCode) || emptyMarks();
 
@@ -452,7 +458,7 @@ const CIECalculatorModal = ({ subject, onCIESaved, onClose }) => {
         if (rule.practical?.test) await run('labTests', () => labTestSum >= rule.practical.test.minTotal, labTestRed);
 
         await delay(400);
-        const calc = calculateCIEFromMarks(marks, credits, hasLab);
+        const calc = calculateCIEFromMarks(marks, credits, hasLab, subjectName);
         saveCIEResult(subjectCode, calc.cie, calc.isEligible, marks);
         saveCIEDraft(subjectCode, marks);
         if (onCIESaved) onCIESaved(calc);
@@ -476,14 +482,10 @@ const CIECalculatorModal = ({ subject, onCIESaved, onClose }) => {
 
 
 
-    const modalContent = (
-        <div
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300"
-            onClick={onClose}
-        >
+    const innerContent = (
             <div
-                className="flex flex-col w-full max-w-2xl max-h-[90vh] bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-white/10 relative animate-in zoom-in-95 duration-300 sm:ml-20 lg:ml-32"
-                onClick={e => e.stopPropagation()}
+                className={`flex flex-col w-full ${inline ? 'bg-transparent h-full' : 'max-w-2xl max-h-[90vh] bg-slate-900 rounded-2xl shadow-2xl border border-white/10 sm:ml-20 lg:ml-32'} overflow-hidden relative animate-in zoom-in-95 duration-300`}
+                onClick={e => !inline && e.stopPropagation()}
             >
                 {/* Analyzing Overlay (absolute to this container) */}
                 {isAnalyzing && <AnalyzingOverlay components={overlayComponents} analysis={analysis} />}
@@ -495,8 +497,19 @@ const CIECalculatorModal = ({ subject, onCIESaved, onClose }) => {
                             CIE Analyzer
                         </h3>
                         <p className="text-[10px] text-white/40 mt-0.5 uppercase tracking-widest font-black">
-                            {rule.name} · {subject?.name}
+                            {subjectName}
                         </p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-violet-600/20 text-violet-300 border border-violet-500/20 uppercase tracking-widest">
+                                {rule.name}
+                            </span>
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10 uppercase tracking-widest">
+                                {credits} Credits
+                            </span>
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400/70 border border-amber-500/20 uppercase tracking-widest">
+                                CIE / {cieMax}
+                            </span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {result && (
@@ -504,19 +517,21 @@ const CIECalculatorModal = ({ subject, onCIESaved, onClose }) => {
                                 Clear
                             </button>
                         )}
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-white/5 rounded-lg text-white/30 hover:text-white transition"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                        {!inline && (
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-white/5 rounded-lg text-white/30 hover:text-white transition"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 {/* Body - Scrollable content area */}
-                <div className="p-6 space-y-6 overflow-y-auto">
+                <div className={`p-6 space-y-6 ${inline ? 'pb-24' : 'overflow-y-auto'}`}>
                     {!result ? (
                         <>
                             <div className={`grid gap-6 ${hasTheory && hasPractical ? 'md:grid-cols-2' : 'grid-cols-1'} cie-form-container`}>
@@ -903,6 +918,18 @@ const CIECalculatorModal = ({ subject, onCIESaved, onClose }) => {
                     )}
                 </div>
             </div>
+    );
+
+    if (inline) {
+        return innerContent;
+    }
+
+    const modalContent = (
+        <div
+            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300"
+            onClick={onClose}
+        >
+            {innerContent}
         </div>
     );
 

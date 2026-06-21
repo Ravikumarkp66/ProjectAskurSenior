@@ -5,7 +5,7 @@ import TopBar from '../components/TopBar';
 import { useTheme } from '../context/ThemeContext';
 
 const SIDEBAR_OPEN   = 280;
-const SIDEBAR_CLOSED = 104;
+const SIDEBAR_CLOSED =  72;
 
 const DashboardLayout = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -40,10 +40,12 @@ const DashboardLayout = () => {
             >
                 <TopBar
                     sidebarCollapsed={sidebarCollapsed}
+                    theme={theme}
+                    progress={dashboardState.progress}
+                    branch={dashboardState.currentBranch}
                 />
 
-                {/* 64px TopBar offset */}
-                <main className="pt-[64px] px-4 pb-4 sm:px-6 sm:pb-6 lg:px-10 lg:pb-10">
+                <main className="mt-24 p-4 sm:p-6 lg:p-10">
                     <Outlet context={{ setDashboardState, dashboardState, theme, isLightMode, sidebarCollapsed }} />
                 </main>
             </div>

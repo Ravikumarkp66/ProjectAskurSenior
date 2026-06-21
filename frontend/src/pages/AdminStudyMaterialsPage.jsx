@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { subjectAPI, uploadAPI } from '../services/api';
+import { subjectAPI, uploadAPI, documentsAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
+import { generatePDFThumbnail } from '../utils/pdfThumbnail';
 
 const CONTENT_TYPES = {
     notes: { label: 'Notes', hasModules: true },
@@ -12,17 +13,13 @@ const CONTENT_TYPES = {
 
 // Map frontend content types to backend expected values
 const getBackendContentType = (frontendType) => {
-    // For module-level endpoints, use exact content type names
-    // For subject-level endpoints, map to 'resources' except syllabus
-    if (frontendType === 'syllabus') {
-        return 'syllabus';
+    switch(frontendType) {
+        case 'pyqs': return 'see';
+        case 'questionBanks': return 'internals';
+        case 'resources': return 'others';
+        case 'notes': return 'notes';
+        default: return 'others';
     }
-    // For module-level content, return exact type for validation
-    if (['notes', 'pyqs', 'questionBanks'].includes(frontendType)) {
-        return frontendType;
-    }
-    // Fallback for subject-level content
-    return 'resources';
 };
 
 const AdminStudyMaterialsPage = () => {
@@ -151,27 +148,25 @@ const AdminStudyMaterialsPage = () => {
             }
             
             if (contentType.hasModules && selectedModule && selectedModule !== 'all') {
-                // Upload to specific module using subject ID
-                await uploadAPI.uploadModuleContent(
-                    selectedSubjectData._id, 
-                    parseInt(selectedModule), 
-                    backendContentType, 
-                    file, 
-                    title, 
-                    description
-                );
-                alert(`${contentType.label} uploaded successfully to Module ${selectedModule}!`);
-            } else {
-                // Upload to subject level using subject ID
-                await uploadAPI.uploadSubjectContent(
-                    selectedSubjectData._id, 
-                    backendContentType, 
-                    file, 
-                    title, 
-                    description
-                );
-                alert(`${contentType.label} uploaded successfully!`);
+                // If it was meant for a specific module, we currently just upload it to the subject level since backend no longer supports module-level nested uploads.
+                // We could rename the file to include the module number, but for now we just upload it.
             }
+
+            const { thumbnail, pageCount } = await generatePDFThumbnail(file);
+            const items = [{ file, thumbnail, pageCount }];
+
+            const metadata = {
+                subjectName: selectedSubjectData.name,
+                subjectCode: selectedSubjectData.code,
+                semester: selectedSubjectData.semester || '1',
+                branch: selectedSubjectData.branch || 'ALL',
+                documentType: backendContentType,
+                paperType: 'regular'
+            };
+
+            await documentsAPI.uploadDocument(metadata, items);
+            
+            alert(`${contentType.label} uploaded successfully!`);
 
             // Reset form
             setSelectedSubject('');

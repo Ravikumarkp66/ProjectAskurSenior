@@ -95,7 +95,7 @@ export default function HeroStats() {
             </svg>
 
             {/* Main statistics container */}
-            <div className="w-full bg-[#070b19]/45 border border-white/[0.08] backdrop-blur-[24px] rounded-3xl p-6 lg:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-y-8 gap-x-4 shadow-[0_0_50px_rgba(139,92,246,0.06)] hover:border-purple-500/20 hover:shadow-[0_0_40px_rgba(139,92,246,0.08)] transition-all duration-500">
+            <div className="w-full bg-[#070b19]/45 border border-white/[0.08] backdrop-blur-[24px] rounded-3xl p-6 lg:p-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-y-8 md:gap-x-4 shadow-[0_0_50px_rgba(139,92,246,0.06)] hover:border-purple-500/20 hover:shadow-[0_0_40px_rgba(139,92,246,0.08)] transition-all duration-500">
                 {statsConfig.map((stat, idx) => {
                     const Icon = stat.icon;
                     return (

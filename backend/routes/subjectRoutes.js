@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+    getAllSubjects,
     getSubjectsByBranch,
     getSubjectById,
     getSubjectsByCode,
@@ -12,6 +13,7 @@ const {
 const authMiddleware = require('../middleware/auth');
 
 // Public routes (Guest access allowed for calculator/browsing)
+router.get('/', getAllSubjects);
 router.get('/branch/:branch', getSubjectsByBranch);
 router.get('/code/:code', getSubjectsByCode);
 router.get('/:subjectId', getSubjectById);

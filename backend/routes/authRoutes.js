@@ -12,7 +12,8 @@ const {
     discordCallback,
     heartbeat,
     sendOtp,
-    verifyOtp
+    verifyOtp,
+    updateSemesterTimeline
 } = require('../controllers/authController');
 
 
@@ -42,6 +43,7 @@ router.put('/update-profile', authMiddleware, updateProfile);
 router.post('/upload-profile-picture', authMiddleware, upload.single('profilePicture'), uploadProfilePicture);
 router.put('/change-password', authMiddleware, changePassword);
 router.post('/heartbeat', authMiddleware, heartbeat);
+router.put('/timeline', authMiddleware, updateSemesterTimeline);
 
 // Admin routes
 router.get('/users', authMiddleware, adminMiddleware, getAllUsers);

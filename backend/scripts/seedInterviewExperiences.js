@@ -13,6 +13,7 @@ const seedData = async () => {
     await Experience.deleteMany({});
 
     // Create Companies
+    const companies = await Company.insertMany([
       {
         name: 'AMAZON',
         logo: 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg',

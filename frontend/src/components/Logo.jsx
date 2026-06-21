@@ -2,7 +2,7 @@ import React from 'react';
 
 // Inline SVG logo — no network request, crisp at all sizes
 // A stroke: white (#FFFFFF) | S strokes: purple (#8B5CF6)
-const ASLogo = ({ size = 32, className = '' }) => (
+const ASLogo = ({ size = 32, className = '', strokeColor }) => (
     <svg
         width={size}
         height={size}
@@ -16,7 +16,7 @@ const ASLogo = ({ size = 32, className = '' }) => (
         {/* A — uses theme text color (white in dark, black in light) */}
         <path
             d="M105 380L205 205C220 180 240 170 270 170H405"
-            stroke="var(--theme-text)"
+            stroke={strokeColor || "var(--theme-text)"}
             strokeWidth="28"
             strokeLinecap="round"
             strokeLinejoin="round"

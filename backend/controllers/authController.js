@@ -127,7 +127,8 @@ const loginUser = async (req, res) => {
                 branch: user.branch,
                 currentBranch: user.currentBranch,
                 isAdmin: !!user.isAdmin,
-                registrationComplete: true
+                registrationComplete: true,
+                semesterTimeline: user.semesterTimeline
             }
         });
     } catch (error) {
@@ -142,6 +143,30 @@ const getUserProfile = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const updateSemesterTimeline = async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        const { collegeStart, cie1, cie2, lastWorkingDay, seeStart, seeEnd, nextSem } = req.body;
+        
+        user.semesterTimeline = {
+            collegeStart: collegeStart ? new Date(collegeStart) : null,
+            cie1: cie1 ? new Date(cie1) : null,
+            cie2: cie2 ? new Date(cie2) : null,
+            lastWorkingDay: lastWorkingDay ? new Date(lastWorkingDay) : null,
+            seeStart: seeStart ? new Date(seeStart) : null,
+            seeEnd: seeEnd ? new Date(seeEnd) : null,
+            nextSem: nextSem ? new Date(nextSem) : null
+        };
+
+        await user.save();
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -217,7 +242,8 @@ const adminLogin = async (req, res) => {
                 branch: user.branch,
                 currentBranch: user.currentBranch,
                 isAdmin: true,
-                registrationComplete: true
+                registrationComplete: true,
+                semesterTimeline: user.semesterTimeline
             }
         });
     } catch (error) {
@@ -707,7 +733,8 @@ module.exports = {
     heartbeat,
     ADMIN_EMAILS,
     sendOtp,
-    verifyOtp
+    verifyOtp,
+    updateSemesterTimeline
 };
 
 async function discordCallback(req, res) {

@@ -23,6 +23,19 @@ const userUploadSchema = new mongoose.Schema({
         type: String,
         default: "pdf"
     },
+    thumbnailUrl: {
+        type: String
+    },
+    thumbnailKey: {
+        type: String
+    },
+    thumbnailGenerated: {
+        type: Boolean,
+        default: false
+    },
+    pageCount: {
+        type: Number
+    },
     tags: {
         type: [String],
         default: []

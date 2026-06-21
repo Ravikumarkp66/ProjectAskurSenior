@@ -24,12 +24,12 @@ const cleanFileTitle = (filename) => {
 router.post(
     "/",
     authMiddleware,
-    upload.array("files", 100),
+    upload.fields([{ name: 'files', maxCount: 100 }, { name: 'thumbnails', maxCount: 100 }]),
     async (req, res) => {
         try {
             const { contentType, subjectCode } = req.body;
 
-            if (!req.files || req.files.length === 0) {
+            if (!req.files || !req.files.files || req.files.files.length === 0) {
                 return res.status(400).json({ error: "No files uploaded" });
             }
 
@@ -47,8 +47,20 @@ router.post(
 
             const createdItems = [];
 
-            for (const file of req.files) {
+            for (let i = 0; i < req.files.files.length; i++) {
+                const file = req.files.files[i];
+                const thumbnailFile = req.files.thumbnails && req.files.thumbnails[i] && req.files.thumbnails[i].size > 0 ? req.files.thumbnails[i] : null;
+                const pageCount = req.body.pageCounts && req.body.pageCounts[i] ? parseInt(req.body.pageCounts[i]) : null;
+
                 const s3Key = await uploadToS3(file, uploadFolder);
+                
+                let thumbnailKey = null;
+                let thumbnailUrl = null;
+                if (thumbnailFile) {
+                    thumbnailKey = await uploadToS3(thumbnailFile, uploadFolder + '/thumbnails');
+                    thumbnailUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${thumbnailKey}`;
+                }
+
                 const title = cleanFileTitle(file.originalname);
 
                 const userUpload = await UserUpload.create({
@@ -58,6 +70,10 @@ router.post(
                     contentType,
                     fileKey: s3Key,
                     fileType: file.mimetype.includes("pdf") ? "pdf" : "other",
+                    thumbnailKey,
+                    thumbnailUrl,
+                    thumbnailGenerated: !!thumbnailKey,
+                    pageCount,
                     tags: [normalizedSubjectCode, contentType],
                     originalFileName: file.originalname,
                     uploadedBy: req.userId,

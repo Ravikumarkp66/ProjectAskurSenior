@@ -47,8 +47,8 @@ const upload = multer({
 // Get subjects metadata
 router.get('/subjects', async (req, res) => {
     try {
-        // Get all subjects with their names and codes
-        const rawSubjects = await Subject.find({}, 'name code').lean();
+        // Get all subjects with their names, codes, and credits
+        const rawSubjects = await Subject.find({}, 'name code credits').lean();
         
         if (!rawSubjects) {
             return res.json([]);
@@ -61,6 +61,7 @@ router.get('/subjects', async (req, res) => {
             const lower = s.name.toLowerCase().replace(/-/g, ' ');
             let normalizedName = s.name;
             let defaultCode = s.code;
+            let credits = s.credits || 0;
             
             // Physics: Match "physics" but not "physical" unless it's "physical science"
             if (lower.includes('physics') || lower.includes('aps')) {
@@ -84,13 +85,21 @@ router.get('/subjects', async (req, res) => {
             }
             
             if (!subjectsMap.has(normalizedName)) {
-                subjectsMap.set(normalizedName, defaultCode);
+                subjectsMap.set(normalizedName, { code: defaultCode, credits });
+            } else {
+                const existing = subjectsMap.get(normalizedName);
+                if (credits > existing.credits) {
+                    existing.credits = credits;
+                }
             }
         });
 
         const uniqueSubjects = Array.from(subjectsMap.entries())
-            .map(([name, code]) => ({ name, code }))
-            .sort((a, b) => a.name.localeCompare(b.name));
+            .map(([name, data]) => ({ name, code: data.code, credits: data.credits }))
+            .sort((a, b) => {
+                if (b.credits !== a.credits) return b.credits - a.credits;
+                return a.name.localeCompare(b.name);
+            });
         
         res.json(uniqueSubjects);
     } catch (error) {
@@ -400,9 +409,9 @@ router.get('/search', async (req, res) => {
 });
 
 // Upload document (Multiple Files Support)
-router.post('/upload', authMiddleware, upload.array('files'), async (req, res) => {
+router.post('/upload', authMiddleware, upload.fields([{ name: 'files', maxCount: 100 }, { name: 'thumbnails', maxCount: 100 }]), async (req, res) => {
     try {
-        if (!req.files || req.files.length === 0) {
+        if (!req.files || !req.files.files || req.files.files.length === 0) {
             return res.status(400).json({ error: 'No files uploaded' });
         }
 
@@ -441,8 +450,13 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
         // Validate required fields
         if (!subjectName || !documentType) {
             // Clean up uploaded files if validation fails
-            if (req.files) {
-                req.files.forEach(file => {
+            if (req.files && req.files.files) {
+                req.files.files.forEach(file => {
+                    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+                });
+            }
+            if (req.files && req.files.thumbnails) {
+                req.files.thumbnails.forEach(file => {
                     if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
                 });
             }
@@ -453,9 +467,20 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
         const uploadedDocuments = [];
 
         // Process each file
-        for (const file of req.files) {
+        for (let i = 0; i < req.files.files.length; i++) {
+            const file = req.files.files[i];
+            const thumbnailFile = req.files.thumbnails && req.files.thumbnails[i] && req.files.thumbnails[i].size > 0 ? req.files.thumbnails[i] : null;
+            const singlePageCount = req.body.pageCounts && req.body.pageCounts[i] ? parseInt(req.body.pageCounts[i]) : pageCount;
+
             // Upload to S3
             const s3Key = await uploadToS3(file, 'materials');
+            
+            let thumbnailKey = null;
+            let thumbnailUrl = null;
+            if (thumbnailFile) {
+                thumbnailKey = await uploadToS3(thumbnailFile, 'materials/thumbnails');
+                thumbnailUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${thumbnailKey}`;
+            }
 
             // Create document record
             const document = new Document({
@@ -464,6 +489,10 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
                 fileUrl: s3Key,
                 fileSize: file.size,
                 mimeType: file.mimetype,
+                thumbnailKey,
+                thumbnailUrl,
+                thumbnailGenerated: !!thumbnailKey,
+                pageCount: singlePageCount,
                 subjectName,
                 subjectCode,
                 semester,
@@ -473,11 +502,10 @@ router.post('/upload', authMiddleware, upload.array('files'), async (req, res) =
                 paperType,
                 tags,
                 moduleInfo,
-                pageCount,
                 uploadedBy: req.userId,
                 isApproved,
                 contributor: {
-                    showName: showContributorName === 'true',
+                    showName: showContributorName === 'true' || showContributorName === true,
                     name: contributorName,
                     year: contributorYear,
                     branch: contributorBranch

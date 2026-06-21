@@ -285,10 +285,10 @@ export default function Hero() {
             </nav>
 
             {/* Hero Section */}
-            <section className="relative z-10 pt-32 md:pt-40 pb-20 px-6 md:px-12 max-w-7xl mx-auto w-full min-h-[calc(100vh-80px)] flex flex-col justify-center gap-12 lg:gap-16">
+            <section className="relative z-10 pt-24 lg:pt-40 pb-12 lg:pb-20 px-6 lg:px-12 max-w-7xl mx-auto w-full min-h-[calc(100vh-80px)] flex flex-col justify-center gap-12 lg:gap-16">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
                     {/* Left Column */}
-                    <div className="flex flex-col items-start text-left max-w-[550px] w-full">
+                    <div className="flex flex-col items-center lg:items-start text-center lg:text-left max-w-[550px] w-full order-2 lg:order-1">
                         {/* Badge */}
                         <motion.div
                             initial={{ opacity: 0, y: 15 }}
@@ -305,7 +305,7 @@ export default function Hero() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight leading-[1.05] mb-6 font-[Outfit]"
+                            className="text-5xl lg:text-7xl font-black text-white tracking-tight leading-[1.05] mb-6 font-[Outfit] text-center lg:text-left"
                         >
                             ONE STOP <br />
                             Platform For Your <br />
@@ -317,7 +317,7 @@ export default function Hero() {
                             initial={{ opacity: 0, y: 15 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-                            className="text-base md:text-lg text-slate-400 leading-relaxed mb-6"
+                            className="text-base md:text-lg text-slate-400 leading-relaxed mb-6 text-center lg:text-left"
                         >
                             Everything you need to score better, prepare smarter, and clear your doubts faster.
                         </motion.p>
@@ -327,7 +327,7 @@ export default function Hero() {
                             initial={{ opacity: 0, y: 15 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.25, ease: "easeOut" }}
-                            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs md:text-sm font-bold tracking-wider uppercase text-purple-400/95 mb-8"
+                            className="flex flex-wrap items-center justify-center lg:justify-start gap-x-2 gap-y-1 text-xs md:text-sm font-bold tracking-wider uppercase text-purple-400/95 mb-8"
                         >
                             <span>Notes</span>
                             <span className="text-slate-600 font-normal">•</span>
@@ -340,12 +340,11 @@ export default function Hero() {
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400 font-black">Ask+</span>
                         </motion.div>
 
-                        {/* CTA Button */}
                         <motion.div
                             initial={{ opacity: 0, y: 15 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-                            className="mb-12 relative group"
+                            className="mb-12 relative group mx-auto lg:mx-0 w-full max-w-xs lg:w-auto"
                         >
                             {/* Premium Glow Effect in background */}
                             <div className="absolute -inset-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur-lg opacity-40 group-hover:opacity-75 transition duration-500 group-hover:duration-200" />
@@ -353,7 +352,7 @@ export default function Hero() {
                                 whileHover={{ scale: 1.03 }}
                                 whileTap={{ scale: 0.97 }}
                                 onClick={handleCtaClick}
-                                className="relative flex items-center justify-center gap-3 px-8 py-4.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-lg shadow-[0_0_25px_rgba(139,92,246,0.35)] transition-all duration-300 border border-white/10"
+                                className="relative flex items-center justify-center gap-3 w-full lg:w-auto px-8 py-4.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-lg shadow-[0_0_25px_rgba(139,92,246,0.35)] transition-all duration-300 border border-white/10"
                             >
                                 Try The Platform <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
                             </motion.button>
@@ -362,7 +361,7 @@ export default function Hero() {
                     </div>
  
                     {/* Right Column */}
-                    <div className="hidden lg:block w-full">
+                    <div className="w-full order-1 lg:order-2 flex justify-center">
                         <HeroShowcase />
                     </div>
                 </div>

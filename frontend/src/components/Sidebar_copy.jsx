@@ -3,14 +3,27 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
-import { useTheme } from '../context/ThemeContext';
 import { apiClient, notificationAPI, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 import { ASLogo } from './Logo';
-import { ALL_KNOWN_SUBJECTS } from '../utils/constants';
 
 /* ─── Data ───────────────────────────────────────────────────────── */
+const SUBJECTS = [
+    { id: 'math1',   name: 'Mathematics-I',       icon: '∑',  color: '#8B5CF6' },
+    { id: 'physics', name: 'Physics',              icon: '⚛',  color: '#3B82F6' },
+    { id: 'chem',    name: 'Chemistry',            icon: '🧪', color: '#10B981' },
+    { id: 'elec',    name: 'Electronics',          icon: '⚡', color: '#F59E0B' },
+    { id: 'engraph', name: 'Engineering Graphics', icon: '📐', color: '#EF4444' },
+    { id: 'ai',      name: 'AI Fundamentals',      icon: '🤖', color: '#6366F1' },
+];
+
+const RECENT_ACTIVITY = [
+    { icon: '📝', text: '2 new notes uploaded',   time: '2h ago' },
+    { icon: '📄', text: 'Physics PYQ added',       time: '5h ago' },
+    { icon: '❓', text: '4 unanswered doubts',     time: '1d ago' },
+];
+
 const W_OPEN   = 280;
-const W_CLOSED = 104;
+const W_CLOSED = 72;
 
 /* ═══════════════════════════════════════════════════════════════════
    TOOLTIP — reusable, portal-free, CSS-driven
@@ -39,7 +52,7 @@ const Tip = ({ label, color, children, side = 'right' }) => (
 /* ═══════════════════════════════════════════════════════════════════
    SEARCH MODAL — command-palette style
 ═══════════════════════════════════════════════════════════════════ */
-const SearchModal = ({ open, onClose, onSelect, activeSubject, subjectsList }) => {
+const SearchModal = ({ open, onClose, onSelect, activeSubject }) => {
     const [q, setQ] = useState('');
     const inputRef = useRef(null);
 
@@ -55,8 +68,8 @@ const SearchModal = ({ open, onClose, onSelect, activeSubject, subjectsList }) =
 
     const results = useMemo(() => {
         const query = q.trim().toLowerCase();
-        return query ? subjectsList.filter(s => s.name.toLowerCase().includes(query)) : subjectsList;
-    }, [q, subjectsList]);
+        return query ? SUBJECTS.filter(s => s.name.toLowerCase().includes(query)) : SUBJECTS;
+    }, [q]);
 
     if (!open) return null;
 
@@ -104,30 +117,30 @@ const SearchModal = ({ open, onClose, onSelect, activeSubject, subjectsList }) =
                 <div className="py-2 max-h-72 overflow-y-auto">
                     {results.length === 0 ? (
                         <p className="text-center py-6 text-sm text-slate-500">No subjects found</p>
-                    ) : results.map((s, i) => {
-                        const id = s._id || s.id;
-                        return (
-                            <motion.button
-                                key={id}
-                                initial={{ opacity: 0, x: -4 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.03 }}
-                                onClick={() => { onSelect(id); onClose(); }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100 group"
-                                style={{ background: activeSubject === id ? `rgba(139,92,246,0.15)` : 'transparent' }}
-                                onMouseEnter={e => e.currentTarget.style.background = `rgba(139,92,246,0.1)`}
-                                onMouseLeave={e => e.currentTarget.style.background = activeSubject === id ? `rgba(139,92,246,0.15)` : 'transparent'}
-                            >
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[13px] font-medium text-white truncate">{s.name}</p>
-                                    {s.code && <p className="text-[10px] text-slate-500 truncate mt-0.5">{s.code}</p>}
-                                </div>
-                                {activeSubject === id && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" style={{ boxShadow: `0 0 6px #a78bfa` }} />
-                                )}
-                            </motion.button>
-                        );
-                    })}
+                    ) : results.map((s, i) => (
+                        <motion.button
+                            key={s.id}
+                            initial={{ opacity: 0, x: -4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => { onSelect(s.id); onClose(); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100 group"
+                            style={{ background: activeSubject === s.id ? `${s.color}15` : 'transparent' }}
+                            onMouseEnter={e => e.currentTarget.style.background = `${s.color}10`}
+                            onMouseLeave={e => e.currentTarget.style.background = activeSubject === s.id ? `${s.color}15` : 'transparent'}
+                        >
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
+                                style={{ background: `${s.color}18`, border: `1px solid ${s.color}35`, color: s.color }}>
+                                {s.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{s.name}</p>
+                            </div>
+                            {activeSubject === s.id && (
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ background: s.color, boxShadow: `0 0 6px ${s.color}` }} />
+                            )}
+                        </motion.button>
+                    ))}
                 </div>
 
                 <div className="px-4 py-2.5 flex items-center gap-4" style={{ borderTop: '1px solid rgba(139,92,246,0.08)' }}>
@@ -200,53 +213,18 @@ const Sidebar = ({
     const [searchQuery,   setSearchQuery]   = useState('');
     const [activeSubject, setActiveSubject] = useState(null);
     const [showSearch,    setShowSearch]    = useState(false);
-    
-    // Dynamic subjects
-    const [subjectsList,    setSubjectsList]    = useState([]);
-    const [subjectsLoading, setSubjectsLoading] = useState(true);
-
-    const [pinnedSubjects, setPinnedSubjects] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('pinnedSubjects') || '[]'); } catch { return []; }
+    const [theme, setTheme] = useState(() => {
+        try { return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark'; }
+        catch { return 'dark'; }
     });
-    useEffect(() => { localStorage.setItem('pinnedSubjects', JSON.stringify(pinnedSubjects)); }, [pinnedSubjects]);
-    const togglePin = (id) => { setPinnedSubjects(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]); };
 
-    const { isDark, toggleTheme } = useTheme();
-    const isLightMode = !isDark;
+    const isLightMode = theme === 'light';
     const collapsed   = !!isCollapsed;
 
     useEffect(() => {
-        let isMounted = true;
-        const fetchSubjects = async () => {
-            try {
-                setSubjectsLoading(true);
-                const res = await apiClient.get('/documents/subjects');
-                const backendSubjects = res.data || [];
-                
-                // Keep only those that are NOT in ALL_KNOWN_SUBJECTS (matches exactly what the Materials page does for 1st Year)
-                const firstYearSubjects = backendSubjects.filter(s => {
-                    const n = (s.name || s).toLowerCase();
-                    return !ALL_KNOWN_SUBJECTS.some(k => k.name.toLowerCase() === n);
-                });
-                
-                // Format the objects for Sidebar
-                const formattedSubjects = firstYearSubjects.map((s, idx) => {
-                    const nameStr = typeof s === 'string' ? s : (s.name || s);
-                    const creditsVal = typeof s === 'string' ? 0 : (s.credits || 0);
-                    const codeStr = typeof s === 'string' ? '' : (s.code || '');
-                    return { id: nameStr, name: nameStr, credits: creditsVal, code: codeStr };
-                });
-
-                if (isMounted) setSubjectsList(formattedSubjects);
-            } catch (err) {
-                console.error('Failed to fetch subjects', err);
-            } finally {
-                if (isMounted) setSubjectsLoading(false);
-            }
-        };
-        fetchSubjects();
-        return () => { isMounted = false; };
-    }, []);
+        try { localStorage.setItem('uiTheme', theme); window.dispatchEvent(new Event('uiThemeChange')); }
+        catch { /* ignore */ }
+    }, [theme]);
 
     /* ── ⌘K global shortcut ── */
     useEffect(() => {
@@ -394,23 +372,11 @@ const Sidebar = ({
         finally { setUserUploadLoading(false); setUserUploadProgress(0); setUserUploadFileIndex(0); setUserUploadFileTotal(0); }
     };
 
-    /* ── filtered dynamic subjects ── */
+    /* ── derived ── */
     const filteredSubjects = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        let list = q ? subjectsList.filter(s => s.name.toLowerCase().includes(q)) : [...subjectsList];
-        
-        return list.sort((a, b) => {
-            const aPinned = pinnedSubjects.includes(a.id);
-            const bPinned = pinnedSubjects.includes(b.id);
-            if (aPinned && !bPinned) return -1;
-            if (!aPinned && bPinned) return 1;
-            
-            if (b.credits !== a.credits) {
-                return b.credits - a.credits;
-            }
-            return a.name.localeCompare(b.name);
-        });
-    }, [subjectSearch, subjectsList, pinnedSubjects]);
+        return q ? SUBJECTS.filter(s => s.name.toLowerCase().includes(q)) : SUBJECTS;
+    }, [searchQuery]);
 
     /* ════════════════════════════════════════════════════════════════
        RENDER
@@ -423,9 +389,8 @@ const Sidebar = ({
                     <SearchModal
                         open={showSearch}
                         onClose={() => setShowSearch(false)}
-                        onSelect={(id) => { setActiveSubject(id); navigate(`/dashboard/subject/${encodeURIComponent(id)}/content`); }}
+                        onSelect={(id) => { setActiveSubject(id); navigate(`/dashboard/subject/${id}/content`); }}
                         activeSubject={activeSubject}
-                        subjectsList={subjectsList}
                     />
                 )}
             </AnimatePresence>
@@ -480,7 +445,7 @@ const Sidebar = ({
 
                 {/* ── HEADER ─────────────────────────────────── */}
                 <div className="relative z-10 flex items-center flex-shrink-0 px-3"
-                    style={{ height: 64, borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
+                    style={{ height: 56, borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
 
                     {/* Logo — always centered when collapsed */}
                     <motion.div
@@ -496,7 +461,7 @@ const Sidebar = ({
                                 boxShadow: '0 0 16px rgba(139,92,246,0.2)',
                             }}
                         >
-                            <ASLogo size={22} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.75)]" strokeColor="#f8fafc" />
+                            <ASLogo size={22} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.75)]" />
                         </motion.div>
 
                         <AnimatePresence initial={false}>
@@ -609,71 +574,86 @@ const Sidebar = ({
 
                 {/* ── SUBJECT LIST ────────────────────────────── */}
                 <nav className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 custom-scrollbar-premium">
-                    <div className={`mt-0.5 ${collapsed ? 'space-y-2' : 'space-y-0.5'}`}>
-                        {subjectsLoading ? (
-                            Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="w-full flex items-center gap-3 px-3 py-3 opacity-50">
-                                    {collapsed ? (
-                                        <div className="w-5 h-5 mx-auto rounded bg-slate-800 animate-pulse" />
-                                    ) : (
-                                        <div className="h-4 w-3/4 rounded bg-slate-800 animate-pulse" />
-                                    )}
-                                </div>
-                            ))
-                        ) : filteredSubjects.length > 0 ? (
-                            filteredSubjects.map((subject, i) => {
-                                const id = subject._id || subject.id;
-                                return (
-                                    <SubjectItem
-                                        key={id}
-                                        subject={subject}
-                                        index={i}
-                                        isActive={activeSubject === id}
-                                        collapsed={collapsed}
-                                        isPinned={pinnedSubjects.includes(id)}
-                                        onTogglePin={() => togglePin(id)}
-                                        onClick={() => { setActiveSubject(id); navigate(`/dashboard/subject/${encodeURIComponent(id)}/content`); }}
-                                    />
-                                );
-                            })
-                        ) : (
-                            !collapsed && (
-                                <p className="py-6 text-center text-xs" style={{ color: 'rgba(148,163,184,0.3)' }}>
-                                    No subjects available
-                                </p>
-                            )
+                    <div className="space-y-0.5 mt-0.5">
+                        {filteredSubjects.map((subject, i) => (
+                            <SubjectItem
+                                key={subject.id}
+                                subject={subject}
+                                index={i}
+                                isActive={activeSubject === subject.id}
+                                collapsed={collapsed}
+                                onClick={() => { setActiveSubject(subject.id); navigate(`/dashboard/subject/${subject.id}/content`); }}
+                            />
+                        ))}
+                        {filteredSubjects.length === 0 && !collapsed && (
+                            <p className="py-6 text-center text-xs" style={{ color: 'rgba(148,163,184,0.3)' }}>
+                                No subjects found
+                            </p>
                         )}
                     </div>
+
+                    {/* Recent activity (expanded only) */}
+                    <AnimatePresence initial={false}>
+                        {!collapsed && (
+                            <motion.div
+                                key="activity"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.25 }}
+                                className="overflow-hidden"
+                            >
+                                <div className="mt-5 mb-1">
+                                    <div className="flex items-center gap-2 px-1 mb-2">
+                                        <span className="text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(139,92,246,0.38)', letterSpacing: '0.16em' }}>
+                                            Recent Activity
+                                        </span>
+                                        <div className="flex-1 h-px" style={{ background: 'rgba(139,92,246,0.1)' }} />
+                                    </div>
+                                    <div className="space-y-0.5 px-1">
+                                        {RECENT_ACTIVITY.map((item, i) => (
+                                            <motion.div
+                                                key={i}
+                                                initial={{ opacity: 0, x: -6 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                transition={{ delay: 0.1 + i * 0.04 }}
+                                                className="flex items-center gap-2.5 py-1.5 group/act"
+                                            >
+                                                <span className="text-xs leading-none flex-shrink-0">{item.icon}</span>
+                                                <span className="text-[11px] flex-1 truncate" style={{ color: 'rgba(148,163,184,0.5)' }}>
+                                                    {item.text}
+                                                </span>
+                                                <span className="text-[9px] flex-shrink-0 font-medium" style={{ color: 'rgba(100,116,139,0.4)' }}>
+                                                    {item.time}
+                                                </span>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </nav>
 
                 {/* ── PROFILE ─────────────────────────────────── */}
-                <div className="relative z-10 flex-shrink-0 p-2 space-y-2"
+                <div className="relative z-10 flex-shrink-0 p-2"
                     style={{ borderTop: '1px solid rgba(139,92,246,0.1)' }}>
-                    
-                    {/* Quick Actions Bar */}
-                    <div className="flex items-center gap-1.5 p-1.5 rounded-[14px]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <button onClick={() => navigate('/')} className="flex-1 flex items-center justify-center gap-2 px-3 h-9 rounded-lg text-[12.5px] font-bold text-slate-300 hover:text-white transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <HomeIcon /> {!collapsed && "Home"}
-                        </button>
-                        
-                        {!collapsed && (
-                            <button className="flex-1 flex items-center justify-center gap-2 px-3 h-9 rounded-lg text-[12.5px] font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', boxShadow: '0 0 12px rgba(139,92,246,0.1)' }}>
-                                <TrackIcon /> Track
-                            </button>
-                        )}
-                    </div>
-
                     <ProfileCard
                         user={user}
                         currentBranch={currentBranch}
                         collapsed={collapsed}
                         showProfileMenu={showProfileMenu}
                         setShowProfileMenu={setShowProfileMenu}
+                        onProfileClick={onProfileClick}
                         onFeedback={() => { setFeedbackError(''); setFeedbackRating(0); setFeedbackMessage(''); loadFeedbackMeta(); setShowFeedbackModal(true); }}
                         onBug={() => { setBugError(''); setBugTitle(''); setBugDescription(''); setShowBugModal(true); }}
-                        isLightMode={isLightMode}
-                        toggleTheme={toggleTheme}
+                        onNotifications={() => setShowNotificationModal(true)}
+                        unreadCount={unreadCount}
+                        theme={theme} setTheme={setTheme} isLightMode={isLightMode}
                         logout={logout} navigate={navigate}
+                        user_isAdmin={user?.isAdmin}
+                        setShowAdminUploadModal={setShowAdminUploadModal}
+                        setShowUserUploadModal={setShowUserUploadModal}
                     />
                 </div>
 
@@ -852,36 +832,31 @@ const Sidebar = ({
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   SUBJECT ITEM (No Icons, Pure Typography)
+   SUBJECT ITEM
 ═══════════════════════════════════════════════════════════════════ */
-const SubjectItem = ({ subject, index, isActive, collapsed, onClick, isPinned, onTogglePin }) => {
+const SubjectItem = ({ subject, index, isActive, collapsed, onClick }) => {
     const content = (
-        <motion.div
-            role="button"
-            tabIndex={0}
+        <motion.button
             onClick={onClick}
             initial={{ opacity: 0, x: -6 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.035, duration: 0.2 }}
             whileHover={!isActive ? { x: collapsed ? 0 : 2 } : {}}
             whileTap={{ scale: 0.96 }}
-            className="w-full flex items-center rounded-lg text-left transition-all duration-200 relative overflow-hidden group"
+            className="w-full flex items-center rounded-xl text-left transition-all duration-200 relative overflow-hidden"
             style={{
-                gap: collapsed ? 0 : 12,
-                padding: collapsed ? '10px 4px' : '9px 12px',
+                gap: collapsed ? 0 : 10,
+                padding: collapsed ? '8px' : '7px 10px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 background: isActive
-                    ? 'rgba(139,92,246,0.12)'
+                    ? `linear-gradient(135deg, ${subject.color}20 0%, ${subject.color}08 100%)`
                     : 'transparent',
                 border: isActive
-                    ? '1px solid rgba(139,92,246,0.25)'
+                    ? `1px solid ${subject.color}40`
                     : '1px solid transparent',
-            }}
-            onMouseEnter={e => {
-                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-            }}
-            onMouseLeave={e => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
+                boxShadow: isActive
+                    ? `0 0 20px ${subject.color}15, inset 0 0 12px ${subject.color}06`
+                    : 'none',
             }}
         >
             {/* Active left bar */}
@@ -891,13 +866,28 @@ const SubjectItem = ({ subject, index, isActive, collapsed, onClick, isPinned, o
                     className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full"
                     style={{
                         width: 3, height: 20,
-                        background: '#a78bfa',
-                        boxShadow: `0 0 8px #a78bfa, 0 0 16px rgba(167,139,250,0.6)`,
+                        background: `linear-gradient(180deg, ${subject.color}, ${subject.color}80)`,
+                        boxShadow: `0 0 8px ${subject.color}, 0 0 16px ${subject.color}60`,
                     }}
                 />
             )}
 
-            {/* Label (Expanded) */}
+            {/* Icon */}
+            <motion.div
+                animate={isActive ? { scale: 1.05 } : { scale: 1 }}
+                className="flex-shrink-0 flex items-center justify-center rounded-lg transition-all duration-200"
+                style={{
+                    width: 28, height: 28, fontSize: 13,
+                    background: isActive ? `${subject.color}28` : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${isActive ? subject.color + '50' : 'rgba(255,255,255,0.07)'}`,
+                    color: isActive ? subject.color : 'rgba(100,116,139,0.75)',
+                    boxShadow: isActive ? `0 0 10px ${subject.color}35` : 'none',
+                }}
+            >
+                {subject.icon}
+            </motion.div>
+
+            {/* Label */}
             <AnimatePresence initial={false}>
                 {!collapsed && (
                     <motion.span
@@ -906,47 +896,23 @@ const SubjectItem = ({ subject, index, isActive, collapsed, onClick, isPinned, o
                         animate={{ opacity: 1, width: 'auto' }}
                         exit={{ opacity: 0, width: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="flex-1 text-[13px] font-medium leading-[1.3] whitespace-normal pr-5 transition-colors duration-200"
-                        style={{ color: isActive ? '#ffffff' : 'rgba(148,163,184,0.85)', wordBreak: 'break-word' }}
+                        className="flex-1 text-[12.5px] font-medium truncate overflow-hidden whitespace-nowrap"
+                        style={{ color: isActive ? '#f0ecff' : 'rgba(100,116,139,0.82)' }}
                     >
                         {subject.name}
                     </motion.span>
                 )}
             </AnimatePresence>
 
-            {/* Pin Icon */}
-            {!collapsed && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); onTogglePin(subject.id); }}
-                    className={`absolute right-2 p-1 rounded-md transition-opacity duration-200 ${isPinned ? 'opacity-100 text-[#a78bfa]' : 'opacity-0 group-hover:opacity-100 text-slate-500 hover:text-white hover:bg-white/10'}`}
-                >
-                    <svg className="w-3.5 h-3.5" fill={isPinned ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isPinned ? 1 : 2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                </button>
-            )}
-
-            {/* Collapsed Initial */}
-            <AnimatePresence initial={false}>
-                {collapsed && (
-                    <motion.span
-                        key="collapsed-label"
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                        className="text-[11px] font-bold uppercase transition-colors duration-200 tracking-wider"
-                        style={{ color: isActive ? '#ffffff' : 'rgba(148,163,184,0.85)', textAlign: 'center', lineHeight: 1.1 }}
-                    >
-                        {subject.code || subject.name.substring(0, 3)}
-                    </motion.span>
-                )}
-            </AnimatePresence>
-            
-            {/* Active glow */}
+            {/* Active dot (expanded) */}
             {isActive && !collapsed && (
-                <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-purple-500/10 to-transparent pointer-events-none" />
+                <motion.div
+                    initial={{ scale: 0 }} animate={{ scale: 1 }}
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ background: subject.color, boxShadow: `0 0 6px ${subject.color}` }}
+                />
             )}
-        </motion.div>
+        </motion.button>
     );
 
     // Wrap in tooltip when collapsed
@@ -961,9 +927,10 @@ const SubjectItem = ({ subject, index, isActive, collapsed, onClick, isPinned, o
 const ProfileCard = ({
     user, currentBranch, collapsed,
     showProfileMenu, setShowProfileMenu,
-    onFeedback, onBug,
-    isLightMode, toggleTheme,
-    logout, navigate,
+    onProfileClick, onFeedback, onBug, onNotifications,
+    unreadCount, theme, setTheme, isLightMode,
+    logout, navigate, user_isAdmin,
+    setShowAdminUploadModal, setShowUserUploadModal,
 }) => {
     const isAskPlus = user?.subscription === 'askplus';
     const isExpiringSoon = isAskPlus && user?.subscriptionExpiry && (new Date(user.subscriptionExpiry) - new Date()) < 3 * 24 * 60 * 60 * 1000;
@@ -971,35 +938,26 @@ const ProfileCard = ({
         ? (user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.profilePicture}`)
         : null;
 
-    const [imgError, setImgError] = useState(false);
-    useEffect(() => {
-        setImgError(false);
-    }, [user?.profilePicture]);
-
     const trigger = (
         <motion.button
             type="button"
             onClick={() => setShowProfileMenu(v => !v)}
-            whileHover={{ backgroundColor: isLightMode ? 'rgba(15,23,42,0.04)' : 'rgba(139,92,246,0.1)' }}
+            whileHover={{ backgroundColor: 'rgba(139,92,246,0.1)' }}
             whileTap={{ scale: 0.98 }}
             className="w-full flex items-center rounded-xl transition-all duration-200"
             style={{
                 gap: collapsed ? 0 : 10,
                 padding: collapsed ? '7px' : '7px 10px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                background: showProfileMenu
-                    ? (isLightMode ? 'rgba(15,23,42,0.04)' : 'rgba(139,92,246,0.1)')
-                    : (isLightMode ? 'rgba(15,23,42,0.02)' : 'rgba(139,92,246,0.05)'),
-                border: isLightMode
-                    ? `1px solid ${showProfileMenu ? 'rgba(15,23,42,0.12)' : 'rgba(15,23,42,0.06)'}`
-                    : `1px solid ${showProfileMenu ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.12)'}`,
-                boxShadow: showProfileMenu ? (isLightMode ? '0 0 10px rgba(0,0,0,0.04)' : '0 0 16px rgba(139,92,246,0.15)') : 'none',
+                background: showProfileMenu ? 'rgba(139,92,246,0.1)' : 'rgba(139,92,246,0.05)',
+                border: `1px solid ${showProfileMenu ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.12)'}`,
+                boxShadow: showProfileMenu ? '0 0 16px rgba(139,92,246,0.15)' : 'none',
             }}
         >
             {/* Avatar */}
             <div className="flex-shrink-0 relative" style={{ width: 30, height: 30 }}>
                 <div
-                    className={`w-full h-full rounded-full flex items-center justify-center ${isLightMode ? 'text-slate-800' : 'text-white'} font-bold overflow-hidden`}
+                    className="w-full h-full rounded-full flex items-center justify-center text-white font-bold overflow-hidden"
                     style={{
                         background: 'linear-gradient(135deg,#8B5CF6,#3B82F6)',
                         border: '1.5px solid rgba(139,92,246,0.45)',
@@ -1007,11 +965,14 @@ const ProfileCard = ({
                         fontSize: 12,
                     }}
                 >
-                    {avatarUrl && !imgError
-                        ? <img src={avatarUrl} alt={user?.usn} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; setImgError(true); }} />
+                    {avatarUrl
+                        ? <img src={avatarUrl} alt={user?.usn} className="w-full h-full object-cover" />
                         : (user?.usn || 'U').slice(0, 1).toUpperCase()
                     }
                 </div>
+                {unreadCount > 0 && (
+                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border border-[#080416]" />
+                )}
             </div>
 
             {/* Info */}
@@ -1023,8 +984,14 @@ const ProfileCard = ({
                         transition={{ duration: 0.2 }}
                         className="flex-1 min-w-0 text-left overflow-hidden"
                     >
-                        <p className={`text-[12.5px] font-semibold truncate whitespace-nowrap leading-tight ${isLightMode ? 'text-slate-800' : 'text-white'}`}>
+                        <p className="text-[12.5px] font-semibold text-white truncate whitespace-nowrap leading-tight">
                             {user?.usn || 'Student'}
+                        </p>
+                        <p className="text-[10px] truncate whitespace-nowrap mt-0.5 font-medium"
+                            style={{ color: isAskPlus ? (isExpiringSoon ? '#f59e0b' : 'rgba(139,92,246,0.7)') : 'rgba(100,116,139,0.55)' }}>
+                            {isAskPlus
+                                ? `ASK+ • ${user.subscriptionExpiry ? new Date(user.subscriptionExpiry).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : 'Lifetime'}`
+                                : 'Free Plan'}
                         </p>
                     </motion.div>
                 )}
@@ -1032,7 +999,7 @@ const ProfileCard = ({
 
             {!collapsed && (
                 <motion.svg animate={{ rotate: showProfileMenu ? 180 : 0 }} transition={{ duration: 0.2 }}
-                    className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isLightMode ? 'rgba(15,23,42,0.45)' : 'rgba(139,92,246,0.45)' }}
+                    className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'rgba(139,92,246,0.45)' }}
                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
                 </motion.svg>
@@ -1060,17 +1027,17 @@ const ProfileCard = ({
                             marginLeft: collapsed ? 8 : 0,
                             minWidth: 220,
                             right: collapsed ? 'auto' : 0,
-                            background: isLightMode ? '#ffffff' : 'rgba(8,4,22,0.98)',
-                            border: isLightMode ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(139,92,246,0.22)',
-                            boxShadow: isLightMode ? '0 -8px 40px rgba(15, 23, 42, 0.08)' : '0 -8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.08)',
+                            background: 'rgba(8,4,22,0.98)',
+                            border: '1px solid rgba(139,92,246,0.22)',
+                            boxShadow: '0 -8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.08)',
                             backdropFilter: 'blur(20px)',
                             zIndex: 100,
                         }}
                     >
                         {/* Header */}
-                        <div className="px-4 py-3" style={{ borderBottom: isLightMode ? '1px solid rgba(15,23,42,0.06)' : '1px solid rgba(139,92,246,0.1)' }}>
-                            <p className={`text-sm font-bold truncate ${isLightMode ? 'text-slate-800' : 'text-white'}`}>{user?.name || user?.usn}</p>
-                            <p className={`text-xs truncate mt-0.5 ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email}</p>
+                        <div className="px-4 py-3" style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
+                            <p className="text-sm font-bold text-white truncate">{user?.name || user?.usn}</p>
+                            <p className="text-xs text-slate-400 truncate mt-0.5">{user?.email}</p>
                             {currentBranch && (
                                 <span className="inline-flex mt-1.5 items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
                                     style={{ background: 'rgba(16,185,129,0.12)', color: '#34d399', border: '1px solid rgba(16,185,129,0.22)' }}>
@@ -1080,19 +1047,16 @@ const ProfileCard = ({
                         </div>
 
                         <div className="py-1">
-                            {/* Divider — Tools */}
-                            <div className="mx-3 my-1">
-                                <p className="text-[9px] font-bold uppercase tracking-widest px-1 pt-2 pb-1" style={{ color: 'rgba(139,92,246,0.35)' }}>Tools</p>
-                            </div>
-
-                            <PMI icon={<CalIcon />}      label="Academic Calendar" onClick={() => navigate('/dashboard/academic-calendar')} isLightMode={isLightMode} />
-                            <PMI icon={<BookIcon />}     label="Subjects Sheet"    onClick={() => navigate('/dashboard/subjects')} isLightMode={isLightMode} />
-                            <div className="mx-3 my-1 h-px" style={{ background: 'rgba(139,92,246,0.08)' }} />
-                            <PMI icon={<FbIcon />}       label="Feedback"         onClick={onFeedback} isLightMode={isLightMode} />
-                            <PMI icon={<BugIcon />}      label="Report a Bug"     onClick={onBug} isLightMode={isLightMode} />
-                            <PMI icon={<ThemeIcon />}    label={isLightMode ? 'Dark Mode' : 'Light Mode'} onClick={toggleTheme} isLightMode={isLightMode} />
+                            <PMI icon={<UserIcon />}     label="My Profile"       onClick={onProfileClick} />
+                            <PMI icon={<BellIcon cnt={unreadCount} />} label="Notifications" onClick={onNotifications} badge={unreadCount || null} />
+                            <PMI icon={<FbIcon />}       label="Feedback"         onClick={onFeedback} />
+                            <PMI icon={<BugIcon />}      label="Report a Bug"     onClick={onBug} />
+                            <PMI icon={<DiscordIcon />}  label="Connect Discord"  color="#5865F2" onClick={() => { const t = localStorage.getItem('authToken'); window.location.href = `https://askursenior.onrender.com/api/discord/login?token=${t}`; }} />
+                            <PMI icon={<ThemeIcon />}    label={isLightMode ? 'Dark Mode' : 'Light Mode'} onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')} />
+                            {user_isAdmin && <PMI icon={<UpIcon />} label="Admin Upload" color="#8B5CF6" onClick={() => setShowAdminUploadModal(true)} />}
+                            <PMI icon={<UpIcon />}       label="Upload Materials" onClick={() => setShowUserUploadModal(true)} />
                             <div className="mx-3 my-1 h-px" style={{ background: 'rgba(139,92,246,0.1)' }} />
-                            <PMI icon={<OutIcon />}      label="Logout"           color="#f87171" onClick={() => { logout(); navigate('/'); }} isLightMode={isLightMode} />
+                            <PMI icon={<OutIcon />}      label="Logout"           color="#f87171" onClick={() => { logout(); navigate('/'); }} />
                         </div>
                     </motion.div>
                 )}
@@ -1102,15 +1066,15 @@ const ProfileCard = ({
 };
 
 /* ─── Profile menu item ─────────────────────────────────────────── */
-const PMI = ({ icon, label, onClick, color, badge, isLightMode }) => (
+const PMI = ({ icon, label, onClick, color, badge }) => (
     <button type="button" onClick={onClick}
         className="w-full flex items-center gap-3 px-4 py-2 text-[12.5px] font-medium group transition-all duration-100"
-        style={{ color: color || (isLightMode ? 'rgba(15,23,42,0.8)' : 'rgba(148,163,184,0.85)') }}
-        onMouseEnter={e => e.currentTarget.style.background = color ? `${color}14` : (isLightMode ? 'rgba(15,23,42,0.05)' : 'rgba(139,92,246,0.07)')}
+        style={{ color: color || 'rgba(148,163,184,0.85)' }}
+        onMouseEnter={e => e.currentTarget.style.background = color ? `${color}14` : 'rgba(139,92,246,0.07)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
     >
-        <span style={{ color: color || (isLightMode ? 'rgba(15,23,42,0.6)' : 'rgba(100,116,139,0.7)'), flexShrink: 0 }}>{icon}</span>
-        <span className={`flex-1 text-left transition-colors duration-100 ${isLightMode ? 'group-hover:text-black text-slate-800' : 'group-hover:text-white text-slate-300'}`}>{label}</span>
+        <span style={{ color: color || 'rgba(100,116,139,0.7)', flexShrink: 0 }}>{icon}</span>
+        <span className="flex-1 text-left group-hover:text-white transition-colors duration-100">{label}</span>
         {badge > 0 && <span className="h-4 min-w-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center px-1">{badge > 9 ? '9+' : badge}</span>}
     </button>
 );
@@ -1121,19 +1085,12 @@ const I = (d, extra) => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
     </svg>
 );
-const HomeIcon    = () => I("M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6");
-const GridIcon    = () => I("M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z", { strokeWidth: 1.5 });
-const TrackIcon   = () => I("M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z");
-const SendIcon    = () => I("M12 19l9 2-9-18-9 18 9-2zm0 0v-8");
-const EditDocIcon = () => I("M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z");
 const UserIcon    = () => I("M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0");
 const FbIcon      = () => I("M7 8h10M7 12h6m-6 4h8M5 20l2-2h12a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v14z");
 const BugIcon     = () => I("M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z");
 const ThemeIcon   = () => I("M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0l-1.414-1.414M7.05 7.05L5.636 5.636M12 18a6 6 0 100-12 6 6 0 000 12z");
 const UpIcon      = () => I("M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12");
 const OutIcon     = () => I("M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1");
-const CalIcon     = () => I("M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z");
-const BookIcon    = () => I("M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253");
 const BellIcon    = ({ cnt }) => (
     <span className="relative inline-flex">
         {I("M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9")}

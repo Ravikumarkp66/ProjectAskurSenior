@@ -22,6 +22,8 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
 
     const isLightMode = theme === 'light';
 
+    const [imageError, setImageError] = useState(false);
+
     useEffect(() => {
         if (show && user) {
             setProfileForm({
@@ -39,6 +41,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
             setProfileImage(null);
             setActiveTab('profile');
             setProfileMessage({ type: '', text: '' });
+            setImageError(false);
         }
     }, [show, user]);
 
@@ -119,11 +122,11 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                     {/* Avatar */}
                     <div className="relative group">
                         <div className={`w-32 h-32 rounded-full overflow-hidden border-4 ${isLightMode ? 'border-white' : 'border-gray-900'} shadow-lg bg-white`}>
-                            {profileImagePreview ? (
-                                <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
+                            {profileImagePreview && !imageError ? (
+                                <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; setImageError(true); }} />
                             ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-4xl font-bold">
-                                    {(user?.name || user?.usn || 'S').slice(0, 1).toUpperCase()}
+                                    4
                                 </div>
                             )}
                         </div>

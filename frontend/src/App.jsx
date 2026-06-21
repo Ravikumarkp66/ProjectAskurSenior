@@ -34,8 +34,10 @@ const AskFinderPage = lazy(() => import('./pages/AskFinderPage'));
 // const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
 
 // Academic Dashboard Pages
-const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
-const AcademicSetupPage = lazy(() => import('./pages/AcademicSetup'));
+const DashboardPage        = lazy(() => import('./pages/dashboard/DashboardPage'));
+const AcademicCalendarPage = lazy(() => import('./pages/dashboard/AcademicCalendarPage'));
+const SubjectsPage         = lazy(() => import('./pages/dashboard/SubjectsPage'));
+const AcademicSetupPage    = lazy(() => import('./pages/AcademicSetup'));
 
 // Interview Experiences Module
 const InterviewExperiencesPage = lazy(() => import('./pages/interviews/InterviewPage'));
@@ -171,11 +173,11 @@ function AppContent() {
                         </ProtectedRoute>
                     }>
                         <Route index element={<DashboardPage />} />
+                        <Route path="subject/:subjectId/content" element={<SubjectContentPage />} />
+                        <Route path="academic-calendar" element={<AcademicCalendarPage />} />
+                        <Route path="subjects" element={<SubjectsPage />} />
                     </Route>
-                    
-                    {/* Specialized Academic Content routes under protection */}
                     <Route path="/academic-setup" element={<ProtectedRoute><AcademicSetupPage /></ProtectedRoute>} />
-                    <Route path="/subject/:subjectId/content" element={<ProtectedRoute><SubjectContentPage /></ProtectedRoute>} />
                     <Route path="/quiz/:quizId" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
 
                     {/* Admin Routes */}

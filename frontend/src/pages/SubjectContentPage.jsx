@@ -1,348 +1,451 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { subjectAPI } from '../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { subjectAPI, apiClient, uploadAPI, documentsAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
+import ResourceCard from '../components/ResourceCard';
+import { generatePDFThumbnail } from '../utils/pdfThumbnail';
+import CIECalculatorModal from '../components/CIECalculatorPanel';
+import DiscussionPanel from '../components/DiscussionPanel';
 
-const CONTENT_TYPES = {
-    notes: { label: 'Notes', icon: 'notes', color: 'green' },
-    pyqs: { label: 'PYQs', icon: 'pyq', color: 'purple' },
-    questionBanks: { label: 'Question Banks', icon: 'qbank', color: 'blue' },
-    syllabus: { label: 'Syllabus', icon: 'syllabus', color: 'orange' }
+/* ─── Tab config ─────────────────────────────────────────────────── */
+const TABS = [
+    {
+        id: 'notes',
+        label: 'Notes',
+        color: '#10B981',
+        placeholder: { emoji: '📖', headline: 'No notes available yet', sub: 'Check back later or upload notes to help your juniors.' },
+    },
+    {
+        id: 'pyqs',
+        label: 'PYQs',
+        color: '#8B5CF6',
+        placeholder: { emoji: '📝', headline: 'No PYQs uploaded yet', sub: 'Previous year papers will appear here once available.' },
+    },
+    {
+        id: 'others',
+        label: 'Others',
+        color: '#3B82F6',
+        placeholder: { emoji: '📂', headline: 'No resources available yet', sub: 'Additional resources will be listed here.' },
+    },
+    {
+        id: 'cie',
+        label: 'CIE Analyzer',
+        color: '#F59E0B',
+        placeholder: { emoji: '📊', headline: 'CIE Analyzer Coming Soon', sub: 'CIE tracking and eligibility analysis coming soon.' },
+    },
+    {
+        id: 'discussion',
+        label: 'Discussion',
+        color: '#EC4899',
+        placeholder: { emoji: '💬', headline: 'Discussion Coming Soon', sub: 'Subject-specific discussions and doubt solving coming soon.' },
+    },
+];
+
+/* ─── Static sidebar IDs ─────────────────────────────────────────── */
+const LOCAL_SUBJECTS = {
+    math1:   { name: 'Mathematics-I',        code: 'AMS1',   credits: 4, semester: '1' },
+    physics: { name: 'Physics',              code: 'PHY101', credits: 4, semester: '1' },
+    chem:    { name: 'Chemistry',            code: 'CHE101', credits: 4, semester: '1' },
+    elec:    { name: 'Electronics',          code: 'ELE101', credits: 3, semester: '1' },
+    engraph: { name: 'Engineering Graphics', code: 'EG101',  credits: 3, semester: '1' },
+    ai:      { name: 'AI Fundamentals',      code: 'AI101',  credits: 3, semester: '1' },
+};
+const isObjectId = (id) => /^[a-f\d]{24}$/i.test(id);
+
+/* ═══════════════════════════════════════════════════════════════════
+   MINIMAL PLACEHOLDER
+═══════════════════════════════════════════════════════════════════ */
+const Placeholder = ({ tab }) => (
+    <motion.div
+        key={tab.id}
+        initial={{ opacity: 0, y: 5 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -5 }}
+        transition={{ duration: 0.2 }}
+        className="flex flex-col items-center justify-center py-16 px-4 text-center select-none"
+    >
+        <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">{tab.placeholder.emoji}</span>
+            <h3 className="text-[13px] font-bold tracking-widest uppercase" style={{ color: tab.color }}>
+                {tab.placeholder.headline.replace(' Coming Soon', '')} Module
+            </h3>
+        </div>
+        
+        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest mb-3"
+            style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(148,163,184,0.7)' }}>
+            Coming Soon
+        </div>
+
+        <p className="text-xs max-w-[260px] leading-relaxed" style={{ color: 'rgba(148,163,184,0.5)' }}>
+            {tab.placeholder.sub}
+        </p>
+    </motion.div>
+);
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONTENT LIST  (when API returns files)
+═══════════════════════════════════════════════════════════════════ */
+const ContentList = ({ items, contentType, onView, onDownload, onDelete, showDelete, color }) => {
+    if (!items?.length) return null;
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4 w-full">
+            {items.map((item, i) => (
+                <ResourceCard 
+                    key={item._id || i}
+                    resource={item}
+                    onPreview={() => onView(contentType, item._id)}
+                    onDownload={() => onDownload(item._id, item.originalName || item.fileName || 'download')}
+                    onDelete={onDelete}
+                    showDelete={showDelete}
+                    color={color}
+                />
+            ))}
+        </div>
+    );
 };
 
-const ContentIcon = ({ type, className = "w-5 h-5" }) => {
-    const icons = {
-        notes: (
-            <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 3.5H14C14.5523 3.5 15 3.94772 15 4.5V16.5L12.5 15L10 16.5L7.5 15L5 16.5V4.5C5 3.94772 5.44772 3.5 6 3.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M7 7H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M7 10H11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        ),
-        pyq: (
-            <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 3H5C3.89543 3 3 3.89543 3 5V9M9 3H15M9 3V7M15 3H19C20.1046 3 21 3.89543 21 5V9M15 3V7M3 9V15M3 9H7M21 9V15M21 9H17M3 15V19C3 20.1046 3.89543 21 5 21H9M3 15H7M21 15V19C21 20.1046 20.1046 21 19 21H15M21 15H17M9 21H15M9 21V17M15 21V17" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-        ),
-        qbank: (
-            <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M12 8V12M12 16H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-        ),
-        syllabus: (
-            <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5C15 6.10457 14.1046 7 13 7H11C9.89543 7 9 6.10457 9 5Z" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M9 12H15M9 16H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
-    };
-    return icons[type] || icons.notes;
-};
-
+/* ═══════════════════════════════════════════════════════════════════
+   SUBJECT CONTENT PAGE
+═══════════════════════════════════════════════════════════════════ */
 const SubjectContentPage = () => {
     const { subjectId } = useParams();
-    const navigate = useNavigate();
-    const { user } = useContext(AuthContext);
+    const navigate      = useNavigate();
+    const { user }      = useContext(AuthContext);
 
-    const [subject, setSubject] = useState(null);
-    const [content, setContent] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [activeTab, setActiveTab] = useState('notes');
-    const [pdfUrl, setPdfUrl] = useState(null);
-    const [pdfTitle, setPdfTitle] = useState('');
-    const [showPdfModal, setShowPdfModal] = useState(false);
+    const [subject,      setSubject]      = useState(null);
+    const [content,      setContent]      = useState(null);
+    const [loading,      setLoading]      = useState(true);
+    const [error,        setError]        = useState(null);
+    const [activeTab,    setActiveTab]    = useState('notes');
+    const [pdfUrl,       setPdfUrl]       = useState(null);
+    const [pdfTitle,     setPdfTitle]     = useState('');
+    const [showPdf,      setShowPdf]      = useState(false);
 
-    const [theme] = useState(() => {
+    const fileInputRef = useRef(null);
+
+    const handleAdminFastUpload = async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+
+        let backendContentType = 'others';
+        if (activeTab === 'pyqs') backendContentType = 'see';
+        else if (activeTab === 'notes') backendContentType = 'notes';
+        else if (activeTab === 'questionBanks') backendContentType = 'internals';
+
+        setLoading(true);
         try {
-            return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark';
-        } catch {
-            return 'dark';
-        }
-    });
-    const isLightMode = theme === 'light';
+            // Generate thumbnails for PDFs before upload
+            const items = await Promise.all(files.map(async (file) => {
+                const { thumbnail, pageCount } = await generatePDFThumbnail(file);
+                return { file, thumbnail, pageCount };
+            }));
 
-    useEffect(() => {
-        loadContent();
-    }, [subjectId]);
-
-    const loadContent = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const response = await subjectAPI.getSubjectContent(subjectId);
-            const data = response.data;
-
-            if (!data) {
-                setError('Subject not found');
-                return;
-            }
-
-            setSubject(data);
-
-            // Simplified content loading - just use current subject's content for now
-            const flattenedContent = {
-                notes: data.notes || [],
-                pyqs: data.pyqs || [],
-                questionBanks: data.questionBanks || [],
-                syllabus: data.syllabus || []
+            // Prepare metadata payload
+            const metadata = {
+                subjectName: subject.name,
+                subjectCode: subject.code && subject.code !== '—' ? subject.code : subject.name, // Use name as code for generic subjects
+                semester: subject.semester || '1',
+                branch: subject.branch || 'ALL',
+                documentType: backendContentType,
+                paperType: 'regular'
             };
 
-            setContent(flattenedContent);
-        } catch (error) {
-            console.error('Error loading content:', error);
-            if (error.response?.status === 404) {
-                setError('Subject not found');
-            } else {
-                setError('Failed to load content. Please try again.');
-            }
-            setContent({ notes: [], pyqs: [], questionBanks: [], syllabus: [] });
+            await documentsAPI.uploadDocument(metadata, items);
+
+            alert('Upload successful!');
+            await loadContent(); // Refresh the materials
+        } catch (err) {
+            console.error('Fast upload error:', err);
+            alert('Failed to upload material');
         } finally {
             setLoading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
-    const handleViewContent = async (contentType, contentId) => {
+    /* ESC closes PDF */
+    useEffect(() => {
+        const h = (e) => { if (e.key === 'Escape') setShowPdf(false); };
+        window.addEventListener('keydown', h);
+        return () => window.removeEventListener('keydown', h);
+    }, []);
+
+    /* Load subject */
+    const loadContent = useCallback(async () => {
+        setLoading(true); setError(null);
+
+        if (!isObjectId(subjectId)) {
+            const decodedName = decodeURIComponent(subjectId);
+            const local = LOCAL_SUBJECTS[decodedName] || Object.values(LOCAL_SUBJECTS).find(s => s.name === decodedName);
+            setSubject(local || { name: decodedName, code: '—', credits: '—', semester: '1' });
+            
+            try {
+                // Fetch materials specifically for this string-based subject
+                const params = new URLSearchParams();
+                params.append('subject', decodedName.toLowerCase());
+                const res = await apiClient.get(`/documents/search?${params.toString()}`);
+                const docs = res.data.documents || res.data || [];
+                
+                setContent({
+                    notes:         docs.filter(d => d.documentType === 'notes'),
+                    pyqs:          docs.filter(d => d.documentType === 'see'),
+                    questionBanks: docs.filter(d => d.documentType === 'internals'),
+                    others:        docs.filter(d => d.documentType === 'others'),
+                    syllabus:      docs.filter(d => d.documentType === 'syllabus'),
+                });
+            } catch (err) {
+                console.error('Failed to fetch documents for generic subject', err);
+                setContent({ notes: [], pyqs: [], questionBanks: [], others: [], syllabus: [] });
+            }
+            setLoading(false);
+            return;
+        }
+
         try {
-            const response = await subjectAPI.getContentUrl(subjectId, contentType, contentId);
-            setPdfUrl(response.data.url);
-            setPdfTitle(response.data.title);
-            setShowPdfModal(true);
+            const res  = await subjectAPI.getSubjectContent(subjectId);
+            const data = res.data;
+            if (!data) { setError('Subject not found'); return; }
+            
+            const subjName = data.subjectInfo?.name || data.name || 'Subject';
+            const subjCredits = parseFloat(data.subjectInfo?.credits ?? data.credits) || 0;
+            const subjNameLC = subjName.toLowerCase();
+            const isLab = /\blab(oratory)?\b|\bpractical\b/.test(subjNameLC) && !subjNameLC.includes('theory');
+            setSubject({
+                _id:      subjectId,
+                name:     subjName,
+                code:     data.subjectInfo?.code     || data.code     || '—',
+                credits:  subjCredits,
+                semester: data.subjectInfo?.semester || data.semester || '—',
+                isLab,
+            });
+
+            // Fetch materials from single source of truth based on subject name
+            const params = new URLSearchParams();
+            params.append('subject', subjName.toLowerCase());
+            const docRes = await apiClient.get(`/documents/search?${params.toString()}`);
+            const docs = docRes.data.documents || docRes.data || [];
+            
+            setContent({
+                notes:         docs.filter(d => d.documentType === 'notes'),
+                pyqs:          docs.filter(d => d.documentType === 'see'),
+                questionBanks: docs.filter(d => d.documentType === 'internals'),
+                others:        docs.filter(d => d.documentType === 'others'),
+                syllabus:      docs.filter(d => d.documentType === 'syllabus'),
+            });
+        } catch (err) {
+            setError(err.response?.status === 404 ? 'Subject not found' : 'Failed to load. Please try again.');
+            setContent({ notes: [], pyqs: [], questionBanks: [], syllabus: [], others: [] });
+        } finally { setLoading(false); }
+    }, [subjectId]);
+
+    useEffect(() => { loadContent(); }, [loadContent]);
+
+    const handleView = async (contentType, contentId) => {
+        try {
+            const res = await apiClient.get(`/documents/${contentId}/preview-url`);
+            setPdfUrl(res.data.previewUrl); setPdfTitle(res.data.title || 'Document'); setShowPdf(true);
+        } catch (err) { alert(err.response?.data?.error || 'Failed to load content'); }
+    };
+
+    const handleDownload = async (contentId, originalName) => {
+        try {
+            const res = await apiClient.get(`/documents/${contentId}/download`);
+            if (res.data && res.data.downloadUrl) {
+                const link = document.createElement('a');
+                link.href = res.data.downloadUrl;
+                link.setAttribute('download', originalName || 'download');
+                link.setAttribute('target', '_blank'); // Ensures it doesn't navigate away if it opens in a browser
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to download file');
+        }
+    };
+
+    const handleDeleteMaterial = async (resource) => {
+        if (!window.confirm(`Are you sure you want to delete "${resource.originalName || resource.fileName || 'this document'}"?`)) return;
+        try {
+            await documentsAPI.deleteDocument(resource._id);
+            alert('Document deleted successfully');
+            loadContent();
         } catch (error) {
-            console.error('Error getting content URL:', error);
-            alert(error.response?.data?.error || 'Failed to load content');
+            console.error('Failed to delete document:', error);
+            alert('Failed to delete document');
         }
     };
 
-    const getGradientColor = (color) => {
-        const gradients = {
-            green: isLightMode ? 'from-green-500 to-emerald-600' : 'from-green-400 to-emerald-500',
-            purple: isLightMode ? 'from-purple-500 to-violet-600' : 'from-purple-400 to-violet-500',
-            blue: isLightMode ? 'from-blue-500 to-indigo-600' : 'from-blue-400 to-indigo-500',
-            orange: isLightMode ? 'from-orange-500 to-red-600' : 'from-orange-400 to-red-500'
-        };
-        return gradients[color] || gradients.green;
-    };
+    const tab        = TABS.find(t => t.id === activeTab);
+    const activeItems = content
+        ? (activeTab === 'notes' ? content.notes : activeTab === 'pyqs' ? content.pyqs : activeTab === 'others' ? content.others : [])
+        : [];
 
-    const renderContentList = (contentType) => {
-        if (!content || !content[contentType]) return null;
-        const items = content[contentType];
-        const { color } = CONTENT_TYPES[contentType];
+    /* ── Loading ── */
+    if (loading) return (
+        <div className="min-h-[50vh] flex items-center justify-center">
+            <div className="w-6 h-6 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
+        </div>
+    );
 
-        if (items.length === 0) {
-            return (
-                <div className="text-center py-12">
-                    <ContentIcon type={contentType} className={`w-16 h-16 mx-auto mb-4 ${isLightMode ? 'text-gray-400' : 'text-gray-600'}`} />
-                    <p className={`${isLightMode ? 'text-gray-500' : 'text-gray-400'} text-lg`}>
-                        No {CONTENT_TYPES[contentType].label.toLowerCase()} available yet
-                    </p>
-                </div>
-            );
-        }
+    /* ── Error ── */
+    if (error) return (
+        <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-center px-6">
+            <p className="text-base font-bold text-white">{error}</p>
+            <button onClick={() => navigate('/dashboard')}
+                className="text-sm text-purple-400 hover:underline">← Dashboard</button>
+        </div>
+    );
 
-        return (
-            <div className="space-y-4">
-                {items.map((item, index) => (
-                    <div
-                        key={item._id || index}
-                        className={`${isLightMode ? 'bg-white' : 'bg-gray-800'} rounded-lg p-6 shadow-lg hover:shadow-xl transition-all duration-200 border ${isLightMode ? 'border-gray-200' : 'border-gray-700'}`}
-                    >
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-start gap-4">
-                                <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${getGradientColor(color)} flex items-center justify-center flex-shrink-0`}>
-                                    <ContentIcon type={contentType} className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="flex-1">
-                                    <h4 className={`font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'} text-lg mb-1`}>
-                                        {item.title}
-                                    </h4>
-                                    {item.description && (
-                                        <p className={`text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                            {item.description}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => handleViewContent(contentType, item._id)}
-                                className={`px-6 py-2 text-sm font-medium rounded-lg transition bg-gradient-to-r ${getGradientColor(color)} text-white hover:shadow-lg hover:scale-105`}
-                            >
-                                View
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
-    };
-
-    if (loading) {
-        return (
-            <div className={`min-h-screen ${isLightMode ? 'bg-gray-50' : 'bg-gray-900'} p-8`}>
-                <div className="max-w-7xl mx-auto animate-pulse">
-                    <div className="h-10 bg-slate-700/20 rounded w-1/3 mb-8"></div>
-                    <div className="flex gap-6">
-                        <div className="w-64 h-[400px] bg-slate-700/20 rounded"></div>
-                        <div className="flex-1 h-[600px] bg-slate-700/20 rounded"></div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className={`min-h-screen ${isLightMode ? 'bg-gray-50' : 'bg-gray-900'} flex items-center justify-center`}>
-                <div className="text-center">
-                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                    </div>
-                    <h2 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'} mb-2`}>
-                        {error}
-                    </h2>
-                    <p className={`${isLightMode ? 'text-gray-600' : 'text-gray-400'} mb-6`}>
-                        The content you're looking for might have been moved or doesn't exist.
-                    </p>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-                    >
-                        Go to Dashboard
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
+    /* ═════════════════════════════════════════════════════════════
+       RENDER
+    ═════════════════════════════════════════════════════════════ */
     return (
-        <div className={`min-h-screen ${isLightMode ? 'bg-gray-50' : 'bg-gray-900'}`}>
-            <div className="container mx-auto px-6 py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-4 mb-6">
+        /*
+         * Break out of DashboardLayout's side padding only.
+         * Top padding is perfectly handled by DashboardLayout (pt-56px).
+         */
+        <div className="-mx-4 sm:-mx-6 lg:-mx-10">
+
+            {/* ══════════════════════════════════════════════════
+                STICKY TAB NAV — directly below 56px TopBar
+            ══════════════════════════════════════════════════ */}
+            <div
+                className="sticky z-20 flex flex-col"
+                style={{
+                    top: '56px',
+                    background: 'rgba(8,4,22,0.97)',
+                    borderBottom: '1px solid rgba(139,92,246,0.1)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                }}
+            >
+                {/* ── Breadcrumb ── */}
+                <div className="px-4 sm:px-6 lg:px-10 pt-2 flex items-center">
+                    <span className="text-[12px] font-medium text-slate-400 opacity-60 flex items-center gap-1.5 select-none">
+                        📘 {subject?.name || 'Subject'}
+                    </span>
+                </div>
+
+                <div className="flex w-full px-0 sm:px-2">
+                    {TABS.map(t => {
+                        const isActive = activeTab === t.id;
+                        return (
+                            <button
+                                key={t.id}
+                                onClick={() => setActiveTab(t.id)}
+                                className="relative flex-1 flex items-center justify-center py-3.5 text-[15px] sm:text-[16px] font-semibold transition-colors duration-200 outline-none border-none bg-transparent cursor-pointer tracking-wide"
+                                style={{ color: isActive ? t.color : 'rgba(100,116,139,0.7)' }}
+                                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'rgba(203,213,225,0.9)'; }}
+                                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; }}
+                            >
+                                {t.label}
+
+                                {/* Animated active underline */}
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="tab-indicator"
+                                        className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t-full"
+                                        style={{ background: t.color, boxShadow: `0 -2px 10px ${t.color}40` }}
+                                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                                    />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* ══════════════════════════════════════════════════
+                TAB CONTENT
+            ══════════════════════════════════════════════════ */}
+            <div className="px-4 sm:px-6 lg:px-10 w-full">
+                
+                {/* Section Header for Admin Fast Upload */}
+                {user?.isAdmin && ['notes', 'pyqs', 'others'].includes(activeTab) && (
+                    <div className="flex justify-end pt-4 w-full">
                         <button
-                            onClick={() => navigate(-1)}
-                            className={`p-2 rounded-lg ${isLightMode ? 'bg-white hover:bg-gray-50' : 'bg-gray-800 hover:bg-gray-700'} shadow-lg transition-colors`}
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center justify-center gap-2 px-4 h-10 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold shadow-lg shadow-purple-600/20 transition-all hover:-translate-y-0.5"
+                            title={`Upload ${tab?.label}`}
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                             </svg>
+                            Upload {tab?.label}
                         </button>
-                        <div>
-                            <h1 className={`text-3xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'} mb-2`}>
-                                {subject?.subjectInfo?.name || subject?.name || ''}
-                            </h1>
-                            <p className={`${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                                Access comprehensive study materials, previous year questions, and resources.
-                            </p>
-                        </div>
+                        <input
+                            type="file"
+                            multiple
+                            accept=".pdf,.zip,.rar"
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
+                            onChange={handleAdminFastUpload}
+                        />
                     </div>
-                </div>
+                )}
 
-                {/* Main Content Area with Sidebar */}
-                <div className="flex gap-6">
-                    {/* Compact Sidebar Navigation */}
-                    <div className={`w-64 ${isLightMode ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-lg p-4 h-fit sticky top-6`}>
-                        <h3 className={`text-lg font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'} mb-4`}>
-                            Study Materials
-                        </h3>
-                        <nav className="space-y-2">
-                            {Object.entries(CONTENT_TYPES).map(([type, config]) => (
-                                <button
-                                    key={type}
-                                    onClick={() => setActiveTab(type)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${activeTab === type
-                                        ? `bg-gradient-to-r ${getGradientColor(config.color)} text-white shadow-lg`
-                                        : `${isLightMode ? 'hover:bg-gray-50' : 'hover:bg-gray-700'} ${isLightMode ? 'text-gray-700' : 'text-gray-300'}`
-                                        }`}
-                                >
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === type
-                                        ? 'bg-white/20'
-                                        : isLightMode
-                                            ? `bg-${config.color}-100`
-                                            : `bg-${config.color}-600/20`
-                                        }`}>
-                                        <ContentIcon type={config.icon} className={`w-4 h-4 ${activeTab === type
-                                            ? 'text-white'
-                                            : isLightMode
-                                                ? `text-${config.color}-600`
-                                                : `text-${config.color}-400`
-                                            }`} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className={`font-medium ${activeTab === type ? 'text-white' : ''}`}>
-                                            {config.label}
-                                        </div>
-                                        <div className={`text-xs ${activeTab === type
-                                            ? 'text-white/80'
-                                            : isLightMode
-                                                ? 'text-gray-500'
-                                                : 'text-gray-400'
-                                            }`}>
-                                            {content && content[type] ? `${content[type].length} items` : '0 items'}
-                                        </div>
-                                    </div>
-                                </button>
-                            ))}
-                        </nav>
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="flex-1">
-                        {/* Content Header */}
-                        <div className={`${isLightMode ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-lg p-6 mb-6`}>
-                            <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium mb-4 bg-gradient-to-r ${getGradientColor(CONTENT_TYPES[activeTab]?.color)} text-white`}>
-                                <ContentIcon type={CONTENT_TYPES[activeTab]?.icon} className="w-4 h-4 mr-2" />
-                                {CONTENT_TYPES[activeTab]?.label} Library
-                            </div>
-                            <h1 className={`text-2xl font-bold ${isLightMode ? 'text-gray-900' : 'text-white'} mb-2`}>
-                                {CONTENT_TYPES[activeTab]?.label} Collection
-                            </h1>
-                            <p className={`${isLightMode ? 'text-gray-600' : 'text-gray-300'}`}>
-                                Browse all available {CONTENT_TYPES[activeTab]?.label.toLowerCase()} for this subject.
-                            </p>
-                        </div>
-
-                        {/* Content List */}
-                        <div className={`${isLightMode ? 'bg-white' : 'bg-gray-800'} rounded-xl shadow-lg p-6`}>
-                            {renderContentList(activeTab)}
-                        </div>
-                    </div>
-                </div>
+                <AnimatePresence mode="wait">
+                    {activeTab === 'discussion' ? (
+                        <DiscussionPanel 
+                            key="discussion-panel" 
+                            subjectId={subjectId} 
+                            subjectName={subject?.name || subjectId}
+                            currentUser={user}
+                        />
+                    ) : activeTab === 'cie' ? (
+                        <motion.div
+                            key="cie-analyzer"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="w-full pb-10 pt-4 max-w-5xl mx-auto"
+                        >
+                            <CIECalculatorModal subject={subject} inline={true} />
+                        </motion.div>
+                    ) : activeItems.length > 0
+                        ? <ContentList key={activeTab + '-list'} items={activeItems} contentType={activeTab} onView={handleView} onDownload={handleDownload} onDelete={handleDeleteMaterial} showDelete={user?.isAdmin} color={tab?.color || '#8B5CF6'} />
+                        : <Placeholder key={activeTab} tab={tab} />
+                    }
+                </AnimatePresence>
             </div>
 
-            {/* PDF Modal */}
-            {showPdfModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className={`${isLightMode ? 'bg-white' : 'bg-gray-800'} rounded-lg w-full max-w-4xl h-[80vh] flex flex-col`}>
-                        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                            <h3 className={`text-lg font-semibold ${isLightMode ? 'text-gray-900' : 'text-white'}`}>
-                                {pdfTitle}
-                            </h3>
-                            <button
-                                onClick={() => setShowPdfModal(false)}
-                                className={`p-2 rounded-lg ${isLightMode ? 'hover:bg-gray-100' : 'hover:bg-gray-700'} transition-colors`}
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="flex-1 p-4">
-                            <iframe
-                                src={pdfUrl}
-                                className="w-full h-full rounded-lg"
-                                title={pdfTitle}
-                            />
-                        </div>
+            {/* ══════════════════════════════════════════════════
+                PDF MODAL
+            ══════════════════════════════════════════════════ */}
+            <AnimatePresence>
+                {showPdf && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/75" style={{ backdropFilter: 'blur(8px)' }}
+                            onClick={() => setShowPdf(false)} />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.97, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.97, y: 8 }}
+                            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+                            className="relative w-full max-w-4xl h-[82vh] rounded-2xl overflow-hidden flex flex-col"
+                            style={{ background: 'rgba(8,4,22,0.99)', border: '1px solid rgba(139,92,246,0.2)', boxShadow: '0 0 80px rgba(139,92,246,0.2)' }}
+                        >
+                            <div className="flex items-center justify-between px-5 py-3 flex-shrink-0"
+                                style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
+                                <p className="text-sm font-semibold text-white truncate pr-4">{pdfTitle}</p>
+                                <button onClick={() => setShowPdf(false)}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-white/6"
+                                    style={{ color: 'rgba(148,163,184,0.5)', flexShrink: 0 }}>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="flex-1 p-3">
+                                <iframe src={pdfUrl} className="w-full h-full rounded-xl" title={pdfTitle} />
+                            </div>
+                        </motion.div>
                     </div>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
         </div>
     );
 };

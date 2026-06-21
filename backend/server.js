@@ -425,6 +425,7 @@ app.use('/api/comments', require('./routes/commentRoutes'));
 app.use('/api/experiences', require('./routes/interviewExperienceRoutes').default || require('./routes/interviewExperienceRoutes'));
 app.use('/api/knowledge-base', require('./routes/knowledgeBaseRoutes'));
 app.use('/api/mentorship', require('./routes/mentorshipRoutes'));
+app.use('/api/discussions', require('./routes/discussionRoutes'));
 app.use('/api/academic', require('./modules/academic/academic.routes'));
 app.use('/api/whatsapp', require('./modules/whatsapp/whatsapp.routes'));
 app.use('/api/whatsapp', require('./routes/whatsappRoutes')); // Meta Cloud API
