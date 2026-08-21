@@ -1,38 +1,50 @@
+const mongoose = require('mongoose');
 const Company = require('../models/Company');
 const Experience = require('../models/Experience');
+
+const escapeRegExp = (str) => str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
 
 // GET /companies -> list all companies
 exports.getCompanies = async (req, res) => {
   try {
-    const companies = await Company.find();
+    const companies = await Company.find().lean();
     
-    // Add experience count and metadata for each company
-    const companiesWithCount = await Promise.all(companies.map(async (company) => {
-      const stats = await Experience.aggregate([
-        { $match: { companyId: company._id } },
-        { $group: { 
-          _id: null, 
-          count: { $sum: 1 },
-          mostRecentBatch: { $max: "$batch" },
-          representativeRole: { $first: "$role" },
-          representativeCtc: { $first: "$ctc" }
-        }}
+    // Single aggregation query across all companies to prevent N+1 query overhead
+    const statsMap = new Map();
+    try {
+      const allStats = await Experience.aggregate([
+        {
+          $group: { 
+            _id: "$companyId", 
+            count: { $sum: 1 },
+            mostRecentBatch: { $max: "$batch" },
+            representativeRole: { $first: "$role" },
+            representativeCtc: { $first: "$ctc" }
+          }
+        }
       ]);
+      allStats.forEach(s => {
+        if (s._id) statsMap.set(s._id.toString(), s);
+      });
+    } catch (aggErr) {
+      console.error('Aggregation error in getCompanies:', aggErr.message);
+    }
 
-      const result = stats[0] || { count: 0, mostRecentBatch: "2025", representativeRole: "SDE", representativeCtc: "Role Based" };
-
+    const companiesWithCount = companies.map((company) => {
+      const s = statsMap.get(company._id.toString()) || {};
       return {
-        ...company.toObject(),
-        experienceCount: result.count,
-        representativeBatch: result.mostRecentBatch,
-        representativeRole: result.representativeRole,
-        representativeCtc: result.representativeCtc
+        ...company,
+        experienceCount: s.count || 0,
+        representativeBatch: s.mostRecentBatch || "2025",
+        representativeRole: s.representativeRole || "SDE",
+        representativeCtc: s.representativeCtc || "Role Based"
       };
-    }));
+    });
 
     res.status(200).json(companiesWithCount);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error in getCompanies:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch companies' });
   }
 };
 
@@ -40,17 +52,36 @@ exports.getCompanies = async (req, res) => {
 exports.getCompanyRoles = async (req, res) => {
   try {
     const { id } = req.params;
-    const experiences = await Experience.find({ companyId: id });
+    let targetCompanyId = id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      const comp = await Company.findOne({
+        $or: [
+          { name: new RegExp('^' + escapeRegExp((id || '').replace(/-/g, ' ')) + '$', 'i') },
+          { name: new RegExp('^' + escapeRegExp(id) + '$', 'i') }
+        ]
+      }).lean();
+      if (comp) {
+        targetCompanyId = comp._id;
+      } else {
+        return res.status(200).json({});
+      }
+    }
+
+    const experiences = await Experience.find({ companyId: targetCompanyId }).lean();
     
     // Dynamically aggregate roles
     const roles = experiences.reduce((acc, exp) => {
-      acc[exp.role] = (acc[exp.role] || 0) + 1;
+      if (exp.role) {
+        acc[exp.role] = (acc[exp.role] || 0) + 1;
+      }
       return acc;
     }, {});
 
     res.status(200).json(roles);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error in getCompanyRoles:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch company roles' });
   }
 };
 
@@ -60,9 +91,26 @@ exports.getExperiences = async (req, res) => {
     const { companyId, role, selected, difficulty, batch, sort } = req.query;
     
     let query = {};
-    if (companyId) query.companyId = companyId;
+    if (companyId) {
+      if (mongoose.Types.ObjectId.isValid(companyId)) {
+        query.companyId = companyId;
+      } else {
+        const comp = await Company.findOne({
+          $or: [
+            { name: new RegExp('^' + escapeRegExp(companyId.replace(/-/g, ' ')) + '$', 'i') },
+            { name: new RegExp('^' + escapeRegExp(companyId) + '$', 'i') }
+          ]
+        }).lean();
+        if (comp) {
+          query.companyId = comp._id;
+        } else {
+          return res.status(200).json([]);
+        }
+      }
+    }
+
     if (role) {
-      query.role = { $regex: new RegExp(role.trim(), 'i') };
+      query.role = { $regex: new RegExp(escapeRegExp(role.trim()), 'i') };
     }
     if (batch) query.batch = batch;
     if (selected !== undefined) query.selected = selected === 'true';
@@ -71,10 +119,11 @@ exports.getExperiences = async (req, res) => {
     let sortOption = { createdAt: -1 };
     if (sort === 'upvotes') sortOption = { upvotes: -1 };
 
-    const experiences = await Experience.find(query).sort(sortOption);
+    const experiences = await Experience.find(query).sort(sortOption).lean();
     res.status(200).json(experiences);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Error in getExperiences:', error);
+    res.status(500).json({ message: error.message || 'Failed to fetch experiences' });
   }
 };
 
@@ -92,6 +141,9 @@ exports.createExperience = async (req, res) => {
 // POST /experiences/:id/upvote -> increment upvote
 exports.upvoteExperience = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ message: 'Experience not found' });
+    }
     const experience = await Experience.findByIdAndUpdate(
       req.params.id,
       { $inc: { upvotes: 1 } },
@@ -107,7 +159,10 @@ exports.upvoteExperience = async (req, res) => {
 // PUT /experiences/:id -> update experience (Admin)
 exports.updateExperience = async (req, res) => {
   try {
-    const { roundNumber, overview, questions, ...otherData } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ message: 'Experience not found' });
+    }
+    const { roundNumber, overview, questions } = req.body;
     
     if (roundNumber !== undefined) {
       const experience = await Experience.findById(req.params.id);
@@ -115,11 +170,8 @@ exports.updateExperience = async (req, res) => {
       
       const roundIndex = experience.rounds.findIndex(r => r.roundNumber === Number(roundNumber));
       if (roundIndex !== -1) {
-        // Update specific round fields
         experience.rounds[roundIndex].notes = Array.isArray(overview) ? overview : [overview];
         experience.rounds[roundIndex].questions = questions;
-        
-        // Save and return
         await experience.save();
         return res.status(200).json(experience);
       }

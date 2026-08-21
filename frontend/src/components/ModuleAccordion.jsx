@@ -4,6 +4,7 @@ import QuestionCard from './QuestionCard';
 import { calculateModuleProgress } from '../utils/constants';
 import { subjectAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import { logAcademicActivity } from '../utils/academicStreak';
 
 const ModuleAccordion = ({
     module,
@@ -43,6 +44,11 @@ const ModuleAccordion = ({
             const response = await subjectAPI.getModuleNotes(subject._id, module.moduleNumber);
             setPdfUrl(response.data.url);
             setShowPdfModal(true);
+            logAcademicActivity({
+                type: 'notes_preview',
+                label: `Previewed Notes: ${subject?.name || 'Subject'} Module ${module.moduleNumber}`,
+                meta: { subjectId: subject._id, moduleNumber: module.moduleNumber },
+            });
         } catch (error) {
             console.error('Error fetching notes:', error);
             alert(error.response?.data?.error || 'Failed to load notes');

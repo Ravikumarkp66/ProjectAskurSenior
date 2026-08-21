@@ -6,6 +6,10 @@ import UserManagementPage from './UserManagementPage';
 import AdminSupport from './admin/AdminSupport';
 import KnowledgeBase from './admin/KnowledgeBase';
 import AdminRequests from '../components/admin/AdminRequests';
+import AdminSubjects from '../components/admin/content/AdminSubjects';
+import AdminMaterials from '../components/admin/content/AdminMaterials';
+import MaterialHealth from '../components/admin/content/MaterialHealth';
+import AdminCmsManager from '../components/admin/AdminCmsManager';
 // import RoadmapManager from '../components/admin/RoadmapManager';
 import { apiClient, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 import { articleAPI } from '../services/articleAPI';
@@ -219,10 +223,14 @@ const AdminPanel = () => {
     return (
         <AdminLayout activeTab={activeTab} onTabChange={setActiveTab}>
 
+            {activeTab === 'cms' && <AdminCmsManager />}
             {activeTab === 'users' && <UserManagementPage />}
             {activeTab === 'support' && <AdminSupport />}
             {activeTab === 'knowledge-base' && <KnowledgeBase />}
             {activeTab === 'requests' && <AdminRequests />}
+            {activeTab === 'subjects' && <AdminSubjects />}
+            {activeTab === 'materials' && <AdminMaterials />}
+            {activeTab === 'health' && <MaterialHealth />}
             {/* {activeTab === 'roadmap' && <RoadmapManager />} */}
             {activeTab === 'reviews' && (
                 <div className="space-y-6">

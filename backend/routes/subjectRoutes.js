@@ -8,12 +8,16 @@ const {
     markQuestionCompleted,
     getModuleNotes,
     getContentUrl,
-    getSubjectContent
+    getSubjectContent,
+    getFirstYearStats,
+    getYearStats
 } = require('../controllers/subjectController');
 const authMiddleware = require('../middleware/auth');
 
 // Public routes (Guest access allowed for calculator/browsing)
 router.get('/', getAllSubjects);
+router.get('/stats/first-year', getFirstYearStats);
+router.get('/stats/:year', getYearStats);   // e.g. /stats/2nd-year or /stats/3rd-year
 router.get('/branch/:branch', getSubjectsByBranch);
 router.get('/code/:code', getSubjectsByCode);
 router.get('/:subjectId', getSubjectById);

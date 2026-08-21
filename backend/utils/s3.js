@@ -56,4 +56,28 @@ const getPresignedUrl = async (urlOrKey) => {
     }
 };
 
-module.exports = { s3, getPresignedUrl };
+/**
+ * Synchronous version of CloudFront URL generator for DTO mappings
+ */
+const getCloudFrontUrl = (urlOrKey) => {
+    if (!urlOrKey) return '';
+    if (urlOrKey.includes('X-Amz-Signature')) return urlOrKey;
+    if (urlOrKey.startsWith('https://d2mh2rnmjqdkgx.cloudfront.net/')) return urlOrKey;
+
+    let key = urlOrKey;
+    if (urlOrKey.startsWith('http')) {
+        const bucketName = process.env.AWS_BUCKET_NAME;
+        if (bucketName && urlOrKey.includes(bucketName)) {
+            try {
+                const urlObj = new URL(urlOrKey);
+                let path = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
+                key = path;
+            } catch (e) {
+                return urlOrKey;
+            }
+        }
+    }
+    return `https://d2mh2rnmjqdkgx.cloudfront.net/${key}`;
+};
+
+module.exports = { s3, getPresignedUrl, getCloudFrontUrl };

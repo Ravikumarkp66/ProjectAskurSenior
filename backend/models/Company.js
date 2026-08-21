@@ -14,6 +14,12 @@ const companySchema = new mongoose.Schema({
     type: String,
     enum: ['Product', 'Service'],
     required: true,
+  },
+  cutoff: {
+    type: Number,
+    default: null,
+    min: 0,
+    max: 10
   }
 }, { timestamps: true });
 

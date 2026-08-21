@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { interviewExperiencesAPI } from '../../services/api';
+import CompanyLogo from '../../components/CompanyLogo';
 import { 
     Search, 
     ArrowUpRight, 
@@ -73,18 +74,27 @@ const SkeletonCard = ({ isLightMode }) => (
     </div>
 );
 
-const CompanyRoleCard = ({ data, isLightMode }) => {
+const CompanyRoleCard = ({ data, isLightMode, index = 0 }) => {
     const navigate = useNavigate();
     const slug = data._navSlug || data.companyId || data._id;
 
+    // Formatting CTC String cleanly
+    const rawCtc = data.ctc || "Role Based";
+    const formattedCtc = (rawCtc === "Role Based" || rawCtc === "Not Disclosed") 
+        ? rawCtc 
+        : (/lpa|lakh|L$/i.test(rawCtc) ? rawCtc : `${rawCtc} LPA`);
+
     return (
         <motion.div 
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.35, delay: Math.min(index, 11) * 0.05, ease: [0.25, 0.1, 0.25, 1] }}
             whileHover={{ y: -6, scale: 1.01 }}
             onClick={() => navigate(`/interview/${slug}`)}
-            className={`p-8 rounded-[2rem] transition-all duration-500 shadow-2xl cursor-pointer flex flex-col h-full border group relative overflow-hidden ${
+            className={`p-6 sm:p-7 rounded-[2rem] transition-all duration-500 shadow-2xl cursor-pointer flex flex-col h-full border group relative overflow-hidden ${
                 isLightMode 
-                ? 'bg-white border-slate-200 text-slate-900' 
-                : 'bg-[#111827] border-white/5 text-white hover:border-purple-500/30'
+                ? 'bg-white border-slate-200 text-slate-900 shadow-slate-200/50' 
+                : 'bg-[#111827] border-white/10 text-white hover:border-purple-500/40 shadow-black/60'
             }`}
         >
             {/* Soft Glow on Hover */}
@@ -92,64 +102,70 @@ const CompanyRoleCard = ({ data, isLightMode }) => {
                 <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none blur-3xl" />
             )}
 
-            {/* Top Section */}
-            <div className="flex items-start justify-between mb-8 relative z-10">
-                <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 rounded-2xl bg-white p-3 flex items-center justify-center shrink-0 shadow-[0_10px_30px_rgba(0,0,0,0.1)] transition-transform group-hover:scale-110">
-                        <img src={data.logo} alt={data.company} className="w-full h-full object-contain" />
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <h2 className="text-xl font-black tracking-tight leading-tight">{data.company}</h2>
-
-                        </div>
-                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{data.role}</p>
+            {/* Top Section: Company Logo + Title */}
+            <div className="flex items-start justify-between mb-6 relative z-10">
+                <div className="flex items-center gap-4 min-w-0 pr-2">
+                    <CompanyLogo company={data.company} logoUrl={data.logo} className="w-14 h-14" />
+                    <div className="min-w-0">
+                        <h2 className="text-xl font-black tracking-tight leading-tight truncate" title={data.company}>
+                            {data.company}
+                        </h2>
+                        <p className="text-[10px] text-purple-400 font-black uppercase tracking-[0.15em] mt-0.5 truncate">
+                            {data.role || "Interview Experiences"}
+                        </p>
                     </div>
                 </div>
-                <div className="p-3 rounded-2xl bg-white/5 border border-white/5 group-hover:bg-purple-500/10 group-hover:border-purple-500/20 transition-all">
-                    <ArrowUpRight size={18} className="text-gray-500 group-hover:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <div className="p-2.5 rounded-2xl bg-white/5 border border-white/5 group-hover:bg-purple-500/10 group-hover:border-purple-500/30 transition-all shrink-0">
+                    <ArrowUpRight size={18} className="text-gray-400 group-hover:text-purple-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </div>
             </div>
 
-            {/* Content Section - Human Readable */}
-            <div className={`grid grid-cols-2 gap-3 mt-auto relative z-10`}>
-                <div className={`p-4 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
-                    <div className="flex items-center gap-2 mb-2 text-slate-500">
-                        <Building2 size={14} className="opacity-50" />
-                        <p className="text-[9px] font-black uppercase tracking-widest">Company</p>
+            {/* Content Section Grid */}
+            <div className="grid grid-cols-2 gap-3 mt-auto relative z-10">
+                {/* Box 1: ROLE */}
+                <div className={`p-3.5 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500">
+                        <Briefcase size={13} className="opacity-60 text-purple-400" />
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</p>
                     </div>
-                    <p className="font-bold text-sm truncate">{data.company}</p>
+                    <p className="font-bold text-xs sm:text-sm truncate" title={data.role}>
+                        {data.role || "SDE"}
+                    </p>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
-                    <div className="flex items-center gap-2 mb-2 text-slate-500">
-                        <Calendar size={14} className="opacity-50" />
-                        <p className="text-[9px] font-black uppercase tracking-widest">Batch</p>
+                {/* Box 2: BATCH */}
+                <div className={`p-3.5 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500">
+                        <Calendar size={13} className="opacity-60 text-indigo-400" />
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Batch</p>
                     </div>
-                    <p className="font-bold text-sm">{data.batch}</p>
+                    <p className="font-bold text-xs sm:text-sm">{data.batch}</p>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
-                    <div className="flex items-center gap-2 mb-2 text-slate-500">
-                        <Layout size={14} className="opacity-50" />
-                        <p className="text-[9px] font-black uppercase tracking-widest">Experiences</p>
+                {/* Box 3: EXPERIENCES */}
+                <div className={`p-3.5 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500">
+                        <Layout size={13} className="opacity-60 text-emerald-400" />
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Experiences</p>
                     </div>
-                    <p className="font-bold text-sm">{data.totalExperiences} Stories</p>
+                    <p className="font-bold text-xs sm:text-sm">{data.totalExperiences} Stories</p>
                 </div>
 
-                <div className={`p-4 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
-                    <div className="flex items-center gap-2 mb-2 text-slate-500">
-                        <CircleDollarSign size={14} className="opacity-50" />
-                        <p className="text-[9px] font-black uppercase tracking-widest">CTC Package</p>
+                {/* Box 4: CTC PACKAGE */}
+                <div className={`p-3.5 rounded-2xl border transition-colors ${isLightMode ? 'bg-slate-50 border-slate-100' : 'bg-[#1F2937]/50 border-white/5 group-hover:bg-purple-500/5 group-hover:border-purple-500/10'}`}>
+                    <div className="flex items-center gap-1.5 mb-1 text-slate-500">
+                        <CircleDollarSign size={13} className="opacity-60 text-amber-400" />
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">CTC Package</p>
                     </div>
-                    <p className="font-bold text-sm truncate">{(!data.ctc || data.ctc === "Role Based") ? (data.ctc || "Not Disclosed") : (/lpa|lakh|L$/i.test(data.ctc) ? data.ctc : `${data.ctc} LPA`)}</p>
+                    <p className="font-bold text-xs sm:text-sm truncate" title={formattedCtc}>
+                        {formattedCtc}
+                    </p>
                 </div>
             </div>
 
             {/* Footer Row */}
-            <div className="mt-8 flex justify-between items-center pt-6 border-t border-white/5 relative z-10">
-
-                <div className="flex items-center gap-2 text-purple-400 text-[10px] font-black uppercase tracking-[0.1em] group-hover:translate-x-1 transition-transform">
+            <div className="mt-6 flex justify-between items-center pt-4 border-t border-white/5 relative z-10">
+                <div className="flex items-center gap-2 text-purple-400 text-[10px] font-black uppercase tracking-[0.15em] group-hover:translate-x-1 transition-transform">
                     READ REVIEW 
                     <ArrowUpRight size={14} strokeWidth={3} />
                 </div>
@@ -247,10 +263,10 @@ const InterviewPage = () => {
                 });
 
                 setCompanies(processed);
+                setIsLoading(false);
             } catch (error) {
                 console.error('Failed to fetch companies:', error);
-            } finally {
-                setTimeout(() => setIsLoading(false), 800);
+                setIsLoading(false);
             }
         };
         fetchCompanies();
@@ -483,8 +499,8 @@ const InterviewPage = () => {
                         exit={{ opacity: 0 }}
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-8 pb-32"
                     >
-                        {filteredRoles.map((item) => (
-                            <CompanyRoleCard key={`${item._id}-${item.batch}`} data={item} isLightMode={isLightMode} />
+                        {filteredRoles.map((item, idx) => (
+                            <CompanyRoleCard key={`${item._id}-${item.batch}-${idx}`} data={item} isLightMode={isLightMode} index={idx} />
                         ))}
                     </motion.div>
                 ) : (

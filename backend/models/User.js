@@ -128,6 +128,11 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: null
         },
+        collegeName: {
+            type: String,
+            default: '',
+            trim: true
+        },
         whatsappEnabled: {
             type: Boolean,
             default: false

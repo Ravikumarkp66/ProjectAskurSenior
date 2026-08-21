@@ -142,7 +142,7 @@ const LoginPage = () => {
     /* ── redirect if already authed ── */
     useEffect(() => {
         if (!authLoading && isAuthenticated) {
-            navigate(user?.registrationComplete === false ? '/complete-profile' : '/dashboard');
+            navigate(user?.registrationComplete === false ? '/complete-profile' : '/');
         }
     }, [navigate, isAuthenticated, authLoading, user]);
 
@@ -178,7 +178,7 @@ const LoginPage = () => {
         setSuccessMessage(message || 'Welcome!');
         login(userData, token);
         setTimeout(() => navigate(
-            userData?.registrationComplete === false ? '/complete-profile' : '/dashboard'
+            userData?.registrationComplete === false ? '/complete-profile' : '/'
         ), 1400);
     };
 
@@ -239,10 +239,14 @@ const LoginPage = () => {
         setLoading(true); setError('');
         try {
             const res = await authAPI.verifyOtp(email, code);
-            const { token, user: u, message, needsCompletion } = res.data;
-            afterAuth(needsCompletion ? { ...u, registrationComplete: false } : u, token, message || 'Verified!');
+            const resData = res.data;
+            const token = resData.token || resData.data?.accessToken;
+            const u = resData.user || resData.data?.student;
+            const message = resData.message || 'Verified!';
+            const needsCompletion = resData.needsCompletion || resData.data?.registrationRequired;
+            afterAuth(needsCompletion ? { ...(u || {}), registrationComplete: false } : u, token, message);
         } catch (err) {
-            setError(err.response?.data?.error || 'Invalid or expired code.');
+            setError(err.response?.data?.message || err.response?.data?.error || 'Invalid or expired code.');
         } finally { setLoading(false); }
     };
 
@@ -286,7 +290,7 @@ const LoginPage = () => {
                             className="space-y-5">
 
                             {/* Brand */}
-                            <div className="flex flex-col items-center text-center space-y-3">
+                            <div onClick={() => { window.location.href = '/'; }} style={{ cursor: 'pointer' }} className="flex flex-col items-center text-center space-y-3 hover:opacity-90 transition-opacity">
                                 <div className="p-3 bg-purple-500/10 border border-purple-500/25 rounded-2xl">
                                     <ASLogo size={40} />
                                 </div>
@@ -380,7 +384,7 @@ const LoginPage = () => {
                             className="space-y-6">
 
                             {/* Header */}
-                            <div className="flex flex-col items-center text-center space-y-3">
+                            <div onClick={() => { window.location.href = '/'; }} style={{ cursor: 'pointer' }} className="flex flex-col items-center text-center space-y-3 hover:opacity-90 transition-opacity">
                                 <div className="p-3 bg-purple-500/10 border border-purple-500/25 rounded-2xl">
                                     <ASLogo size={40} />
                                 </div>

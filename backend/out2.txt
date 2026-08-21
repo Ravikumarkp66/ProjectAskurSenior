@@ -1,9 +1,0 @@
-Connected to DB.
-Testing with subject: Soft Skills
-Pro User Locked? false
-Pro User PYQ Count: 7 (Expected: 7)
-Free User (Allowed Subject) Locked? false
-Free User (Allowed) PYQ Count: 7 (Expected: 7)
-Free User (Locked Subject) Locked? true
-Free User (Locked) PYQ Count: 5 (Expected: 5 limit)
-Free User Interview Exps: 3 Remaining: 5

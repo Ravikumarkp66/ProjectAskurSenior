@@ -7,29 +7,40 @@
     <meta name="theme-color" content="#8B5CF6" />
     <meta name="description" content="AskUrSenior - Academic Tracking Platform for College Students" />
     <meta name="msapplication-TileColor" content="#0F0A1A" />
-    <title>AskUrSenior - Academic Tracker</title>
+    <title>AskUrSenior - One Stop Platform</title>
 
-    <!-- ============================================ -->
-    <!--  AskUrSenior Favicon & PWA Configuration     -->
-    <!-- ============================================ -->
-
-    <!-- Standard favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=2" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png?v=2" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=2" />
-    <link rel="shortcut icon" href="/favicon.ico?v=2" />
-
-    <!-- Apple Touch Icon (iOS / Safari) -->
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
-
-    <!-- Android Chrome / PWA -->
-    <link rel="manifest" href="/site.webmanifest?v=2" />
-
-    <!-- Fonts -->
+    <!-- Fonts & Icons (Preloaded first to prevent font-swap shifts) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@400;600;700&family=Outfit:wght@400;700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
         rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ti-icons@0.1.2/css/themify-icons.css" />
+
+    <!-- Critical Preloader Styles to prevent white edge flashes on refresh -->
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #030712 !important;
+            color: #F8FAFC;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #root {
+            min-height: 100vh;
+            background-color: #030712;
+        }
+    </style>
+
+    <!-- Standard favicon & Apple Touch Icon using official vector SVG brand logo -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <link rel="apple-touch-icon" href="/as-logo-source.png" />
+
+    <!-- Android Chrome / PWA -->
+    <link rel="manifest" href="/site.webmanifest?v=2" />
 
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-NKN6K4DNGT"></script>
@@ -43,7 +54,20 @@
 </head>
 
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div style="display:flex;align-items:center;justify-content:center;position:fixed;inset:0;width:100vw;height:100vh;background-color:#030712;margin:0;padding:0;font-family:'Plus Jakarta Sans','Inter',sans-serif;user-select:none;z-index:99999;">
+            <div style="display:flex;align-items:center;gap:14px;">
+                <svg width="76" height="76" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;filter:drop-shadow(0 0 10px rgba(139,92,246,0.45));">
+                    <path d="M105 380L205 205C220 180 240 170 270 170H405" stroke="#FFFFFF" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M405 170H290C250 170 220 200 220 240C220 280 250 310 290 310H345" stroke="#8B5CF6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+                    <path d="M285 240H360C400 240 430 270 430 310C430 350 400 380 360 380H210" stroke="#8B5CF6" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span style="font-family:'Plus Jakarta Sans','Inter',sans-serif;font-weight:700;font-size:2.25rem;letter-spacing:-0.025em;line-height:1;color:#FFFFFF;white-space:nowrap;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.1));">
+                    Ask<span style="color:#8B5CF6;">UR</span>Senior
+                </span>
+            </div>
+        </div>
+    </div>
     <script type="module" src="/src/index.jsx"></script>
 </body>
 

@@ -3,9 +3,9 @@ const User = require('../../models/User');
 const Timetable = require('../academic/Timetable');
 const { getTodaySchedule, getTomorrowSchedule } = require('./getScheduleData');
 const { generateMorningMessage, generateNightMessage } = require('./messageGenerator');
-const { sendWhatsAppMessage } = require('../whatsapp/whatsapp.service');
-const { sendClassEndReminder } = require('../whatsapp/attendanceHelper');
-const { sendNightWrapUp } = require('../whatsapp/wrapupHelper');
+const sendWhatsAppMessage = async () => ({ success: false });
+const sendClassEndReminder = async () => ({ success: false });
+const sendNightWrapUp = async () => ({ success: false });
 
 /**
  * Minute-by-Minute Job: Check for classes that just ended
@@ -76,6 +76,72 @@ cron.schedule('0 21 * * *', async () => {
     }
   } catch (error) {
     console.error('Night Cron Master Error:', error.message);
+  }
+}, { timezone: "Asia/Kolkata" });
+
+/**
+ * Daily Trash Purge Job (Run at midnight 12:00 AM)
+ * Permanently deletes materials that have been in the Trash for more than 30 days
+ */
+cron.schedule('0 0 * * *', async () => {
+  console.log('🗑 Running Daily Trash Purge Job...');
+  try {
+    const AcademicMaterial = require('../../models/AcademicMaterial');
+    const AcademicSubject = require('../../models/AcademicSubject');
+    const { DeleteObjectCommand } = require('@aws-sdk/client-s3');
+    const { s3 } = require('../../utils/s3');
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Find materials in trash older than 30 days
+    const expiredMaterials = await AcademicMaterial.find({
+      status: 'Hidden',
+      deletedAt: { $ne: null, $lte: thirtyDaysAgo }
+    });
+
+    console.log(`Found ${expiredMaterials.length} expired materials in trash.`);
+
+    for (const material of expiredMaterials) {
+      // 1. Delete from S3
+      let key = material.storedFileName;
+      if (!key || !(key.startsWith('materials/') || key.startsWith('pyqs/'))) {
+        const fileUrl = material.fileUrl || '';
+        if (fileUrl.includes('d2mh2rnmjqdkgx.cloudfront.net/')) {
+          key = fileUrl.split('d2mh2rnmjqdkgx.cloudfront.net/')[1];
+        } else if (fileUrl.includes('.amazonaws.com/')) {
+          key = fileUrl.split('.amazonaws.com/')[1];
+        } else {
+          key = fileUrl;
+        }
+      }
+
+      if (key) {
+        try {
+          const deleteCommand = new DeleteObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: key
+          });
+          await s3.send(deleteCommand);
+          console.log(`Deleted file from S3: ${key}`);
+        } catch (s3Err) {
+          console.error(`Failed to delete S3 file ${key}:`, s3Err.message);
+        }
+      }
+
+      // 2. Decrement subject count
+      if (material.subject) {
+        await AcademicSubject.findByIdAndUpdate(material.subject, {
+          $inc: { materialCount: -1 }
+        });
+      }
+
+      // 3. Delete document from Mongo
+      await AcademicMaterial.findByIdAndDelete(material._id);
+      console.log(`Permanently deleted material: "${material.title}"`);
+    }
+  } catch (error) {
+    console.error('Trash Purge Cron Error:', error.message);
   }
 }, { timezone: "Asia/Kolkata" });
 

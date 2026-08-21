@@ -64,7 +64,8 @@ const progressSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Method to calculate overall progress
+progressSchema.index({ userId: 1, updatedAt: -1 });
+
 progressSchema.methods.calculateProgress = function() {
     let totalQuestions = 0;
     let completedQuestions = 0;

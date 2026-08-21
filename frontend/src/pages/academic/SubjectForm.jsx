@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PREFILLED_CURRICULUM } from '../../data/curriculum';
+import { apiClient } from '../../services/api';
 
 const SUBJECT_COLORS = [
   '#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'
@@ -8,25 +9,99 @@ const SUBJECT_COLORS = [
 const SubjectForm = ({ subjects, setSubjects, branch, semester }) => {
   const [expandedIndex, setExpandedIndex] = useState(null);
 
-  const handleFetchCurriculum = () => {
-    const branchData = PREFILLED_CURRICULUM[branch];
-    if (branchData && branchData[semester]) {
-      const curriculumSubjects = branchData[semester].map((s, idx) => ({
-        subjectName: s.name,
-        totalClasses: 0,
-        attendedClasses: 0,
-        lastUpdatedDate: '',
-        internal01: '',
-        internal02: '',
-        quiz01: '',
-        quiz02: '',
-        abl01: '',
-        abl02: '',
-        color: SUBJECT_COLORS[idx % SUBJECT_COLORS.length]
-      }));
-      setSubjects(curriculumSubjects);
-    } else {
-      alert(`No curriculum found for ${branch} Semester ${semester}. You can add subjects manually.`);
+  const handleFetchCurriculum = async () => {
+    try {
+      // 1. Fetch branches to find the branch matching the shortName
+      const branchesRes = await apiClient.get('/lookups/branches');
+      const branchesList = branchesRes.data || [];
+      const matchedBranch = branchesList.find(
+        (b) => b.shortName.toUpperCase() === branch.toUpperCase()
+      );
+
+      if (!matchedBranch) {
+        throw new Error(`Branch ${branch} not found in database.`);
+      }
+
+      // 2. Fetch semesters to find the semester matching the number
+      const semestersRes = await apiClient.get('/lookups/semesters');
+      const semestersList = semestersRes.data || [];
+      const matchedSemester = semestersList.find(
+        (s) => s.number === Number(semester) && s.program?.toString() === matchedBranch.program?._id?.toString()
+      ) || semestersList.find((s) => s.number === Number(semester));
+
+      if (!matchedSemester) {
+        throw new Error(`Semester ${semester} not found in database.`);
+      }
+
+      // 3. Fetch subjects using the branchId and semesterId
+      const subjectsRes = await apiClient.get('/cms/subjects', {
+        params: {
+          branchId: matchedBranch._id,
+          semesterId: matchedSemester._id,
+        },
+      });
+
+      const dbSubjects = subjectsRes.data || [];
+
+      if (dbSubjects.length > 0) {
+        const curriculumSubjects = dbSubjects.map((s, idx) => ({
+          subjectName: s.name,
+          totalClasses: 0,
+          attendedClasses: 0,
+          lastUpdatedDate: '',
+          internal01: '',
+          internal02: '',
+          quiz01: '',
+          quiz02: '',
+          abl01: '',
+          abl02: '',
+          color: SUBJECT_COLORS[idx % SUBJECT_COLORS.length]
+        }));
+        setSubjects(curriculumSubjects);
+      } else {
+        // Fallback to local hardcoded PREFILLED_CURRICULUM if DB has nothing
+        const branchData = PREFILLED_CURRICULUM[branch];
+        if (branchData && branchData[semester]) {
+          const curriculumSubjects = branchData[semester].map((s, idx) => ({
+            subjectName: s.name,
+            totalClasses: 0,
+            attendedClasses: 0,
+            lastUpdatedDate: '',
+            internal01: '',
+            internal02: '',
+            quiz01: '',
+            quiz02: '',
+            abl01: '',
+            abl02: '',
+            color: SUBJECT_COLORS[idx % SUBJECT_COLORS.length]
+          }));
+          setSubjects(curriculumSubjects);
+        } else {
+          alert(`No subjects found in database or local curriculum for ${branch} Semester ${semester}. You can add subjects manually.`);
+        }
+      }
+    } catch (e) {
+      console.warn('CMS curriculum fetch failed/skipped, falling back to local curriculum:', e.message);
+      // Fallback on error
+      const branchData = PREFILLED_CURRICULUM[branch];
+      if (branchData && branchData[semester]) {
+        const curriculumSubjects = branchData[semester].map((s, idx) => ({
+          subjectName: s.name,
+          totalClasses: 0,
+          attendedClasses: 0,
+          lastUpdatedDate: '',
+          internal01: '',
+          internal02: '',
+          quiz01: '',
+          quiz02: '',
+          abl01: '',
+          abl02: '',
+          color: SUBJECT_COLORS[idx % SUBJECT_COLORS.length]
+        }));
+        setSubjects(curriculumSubjects);
+      } else {
+        alert('Failed to fetch subjects from server and no local fallback curriculum was found.');
+      }
     }
   };
 

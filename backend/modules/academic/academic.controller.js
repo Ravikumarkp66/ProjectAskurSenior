@@ -5,9 +5,10 @@ const DailyTask = require('./DailyTask');
 const AcademicEvent = require('./AcademicEvent');
 const AttendanceRecord = require('./AttendanceRecord');
 const TimetableOverride = require('./TimetableOverride');
+const AcademicCalendarEvent = require('./AcademicCalendarEvent');
 const User = require('../../models/User');
 const { format } = require('date-fns');
-const { sendWhatsAppMessage } = require('../whatsapp/whatsapp.service');
+const sendWhatsAppMessage = async () => ({ success: false });
 const { generateSetupCompleteMessage } = require('../assistant/messageGenerator');
 const { calculateAttendance, getTodaySubjects, getDaysLeft } = require('./utils');
 
@@ -120,11 +121,13 @@ exports.getDashboard = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const [config, subjects, timetable, user] = await Promise.all([
-      AcademicConfig.findOne({ userId }),
-      Subject.find({ userId }),
-      Timetable.findOne({ userId }),
-      User.findById(userId).select('phone whatsappEnabled priority name')
+    const [config, subjects, timetable, user, attendanceRecords, timetableOverrides] = await Promise.all([
+      AcademicConfig.findOne({ userId }).lean(),
+      Subject.find({ userId }).lean(),
+      Timetable.findOne({ userId }).lean(),
+      User.findById(userId).select('phone whatsappEnabled priority name').lean(),
+      AttendanceRecord.find({ userId }).lean(),
+      TimetableOverride.find({ userId }).lean()
     ]);
 
     if (!config) {
@@ -156,8 +159,8 @@ exports.getDashboard = async (req, res) => {
       attendanceData,
       daysToExams,
       timetable,
-      attendanceRecords: await AttendanceRecord.find({ userId }),
-      timetableOverrides: await TimetableOverride.find({ userId }),
+      attendanceRecords: attendanceRecords || [],
+      timetableOverrides: timetableOverrides || [],
       user
     });
   } catch (error) {
@@ -372,6 +375,15 @@ exports.saveAcademicEvent = async (req, res) => {
     });
 
     await event.save();
+
+    // Trigger attendance recalculation if the user is a student
+    try {
+      const authV2Controller = require('../auth/controllers/authV2.controller');
+      await authV2Controller.recalculateAllStudentAttendance(userId);
+    } catch (e) {
+      console.error('Failed to trigger attendance recalculation:', e);
+    }
+
     res.status(201).json({ message: 'Event added successfully', event });
   } catch (error) {
     console.error('Save Academic Event Error:', error);
@@ -389,6 +401,14 @@ exports.deleteAcademicEvent = async (req, res) => {
 
     const event = await AcademicEvent.findOneAndDelete({ _id: id, userId });
     if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    // Trigger attendance recalculation if the user is a student
+    try {
+      const authV2Controller = require('../auth/controllers/authV2.controller');
+      await authV2Controller.recalculateAllStudentAttendance(userId);
+    } catch (e) {
+      console.error('Failed to trigger attendance recalculation:', e);
+    }
 
     res.status(200).json({ message: 'Event deleted successfully' });
   } catch (error) {
@@ -613,5 +633,36 @@ exports.undoAttendance = async (req, res) => {
   } catch (error) {
     console.error('Undo Attendance Error:', error);
     res.status(500).json({ error: 'Failed to undo attendance' });
+  }
+};
+
+/**
+ * Get global/academic calendar events
+ */
+exports.getCalendarEvents = async (req, res) => {
+  try {
+    const { academicYear, startDate, endDate, category, scope } = req.query;
+
+    let query = { isActive: true };
+
+    if (academicYear) {
+      query.academicYear = academicYear;
+    } else if (startDate && endDate) {
+      query.date = { $gte: startDate, $lte: endDate };
+    }
+
+    if (category) {
+      query.category = category;
+    }
+
+    if (scope) {
+      query.scope = scope;
+    }
+
+    const events = await AcademicCalendarEvent.find(query).sort({ date: 1 });
+    res.status(200).json({ events });
+  } catch (error) {
+    console.error('Get Academic Calendar Events Error:', error);
+    res.status(500).json({ error: 'Failed to fetch calendar events' });
   }
 };

@@ -68,6 +68,12 @@ export const academicAPI = {
   getAcademicEvents: (params) => apiClient.get('/academic/academic-events', { params }),
 
   /**
+   * Get global academic calendar events
+   * @param {Object} params - { academicYear, startDate, endDate, category, scope }
+   */
+  getCalendarEvents: (params = {}) => apiClient.get('/academic/calendar', { params }),
+
+  /**
    * Save manual academic event
    */
   saveAcademicEvent: (data) => apiClient.post('/academic/academic-events', data),

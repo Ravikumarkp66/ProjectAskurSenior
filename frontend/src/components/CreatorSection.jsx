@@ -1,37 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Code, GraduationCap, Sparkles, User } from 'lucide-react';
-import { FaLinkedin } from "react-icons/fa";
+import { Target, Sparkles, ArrowRight, ExternalLink, User } from 'lucide-react';
+import { FaLinkedin } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { useAuthContext } from '../context/AuthContext';
 
 const ImageWithFallback = ({ src, alt }) => {
-    const [status, setStatus] = React.useState('loading');
+    const [status, setStatus] = useState('loading');
 
     return (
-        <div className="relative w-full h-full">
-            {/* Skeleton / Loading */}
-            {status === 'loading' && (
-                <div className="absolute inset-0 bg-white/5 animate-pulse flex items-center justify-center">
-                    <Sparkles className="text-purple-500/20 animate-spin" size={40} />
-                </div>
-            )}
-            
-            {/* Image */}
+        <div className="relative w-full aspect-[4/5] min-h-[380px] rounded-[24px] overflow-hidden bg-gradient-to-b from-[#180E38] via-[#0E0728] to-[#070314] border border-purple-500/20">
             <img 
                 src={src} 
                 alt={alt}
-                className={`w-full max-w-[420px] h-auto rounded-[20px] object-contain transition-all duration-700 shadow-[0_20px_60px_rgba(139,92,246,0.25)] group-hover:scale-[1.03] ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+                className={`w-full h-full object-cover rounded-[24px] transition-all duration-700 shadow-2xl group-hover:scale-[1.03] ${
+                    status === 'loaded' ? 'opacity-100 relative z-10' : 'opacity-0 absolute inset-0 z-0'
+                }`}
                 onLoad={() => setStatus('loaded')}
                 onError={() => setStatus('error')}
             />
 
-            {/* Error Placeholder */}
-            {status === 'error' && (
-                <div className="absolute inset-0 bg-[#0a0a0b] flex flex-col items-center justify-center p-8 text-center">
-                    <User className="text-white/10 mb-4" size={48} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Image not public</p>
-                    <p className="text-[8px] text-slate-600 mt-2 max-w-[150px]">Please check S3 permissions for "DocScanner..."</p>
+            {(status === 'loading' || status === 'error') && (
+                <div className="absolute inset-0 z-0 bg-gradient-to-b from-[#1A0C3B] via-[#0E0728] to-[#070314] rounded-[24px] flex flex-col items-center justify-center p-6 text-center border border-purple-500/20">
+                    <div className="relative mb-4">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 p-1 flex items-center justify-center shadow-xl shadow-purple-500/30">
+                            <div className="w-full h-full rounded-full bg-[#0A051D] flex items-center justify-center">
+                                <User className="text-purple-300" size={44} />
+                            </div>
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#0A051D]">
+                            🎓 SIT
+                        </div>
+                    </div>
+
+                    <h4 className="text-white font-extrabold text-xl tracking-tight mb-1 font-outfit">Ravikumar KP</h4>
+                    <p className="text-purple-400 text-xs font-semibold uppercase tracking-wider mb-3">Founder • AskUrSenior</p>
+
+                    <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[11px] text-slate-300 max-w-[250px] space-y-0.5">
+                        <p className="font-semibold text-slate-200">Information Science & Engineering</p>
+                        <p className="text-purple-300 font-medium">Siddaganga Institute of Technology</p>
+                    </div>
                 </div>
             )}
         </div>
@@ -39,174 +46,236 @@ const ImageWithFallback = ({ src, alt }) => {
 };
 
 const CreatorSection = () => {
-    const { isAuthenticated } = useAuthContext();
+    const scrollToSection = (id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
     return (
-        <section className="relative py-24 px-6 overflow-hidden bg-[#0a0a0b]">
-            {/* Background Decor */}
+        <section id="creator" className="relative py-28 px-6 overflow-hidden bg-[#030712]">
+            {/* Background Ambient Glows */}
             <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-1/2 right-0 -translate-y-1/2 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] opacity-50" />
-                <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-indigo-600/10 rounded-full blur-[100px] opacity-30" />
+                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-purple-600/10 rounded-full blur-[150px]" />
+                <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[130px]" />
             </div>
 
-            <div className="max-w-7xl mx-auto relative z-10">
-                <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16">
-                    
-                    {/* Left Content */}
-                    {/* TEXT — order-2 on mobile (below image), order-1 on desktop (left) */}
+            <div className="max-w-6xl mx-auto relative z-10 space-y-20">
+
+                {/* Section Header */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    className="text-center max-w-3xl mx-auto space-y-3"
+                >
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Founder Story</span>
+                    </div>
+
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white font-outfit tracking-tight leading-tight">
+                        Built by a student,<br />
+                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-purple-300 to-indigo-400">
+                            for every student.
+                        </span>
+                    </h2>
+
+                    <p className="text-slate-400 text-base sm:text-lg font-normal">
+                        Meet the student behind AskUrSenior.
+                    </p>
+                </motion.div>
+
+                {/* Top Founder Story Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16 items-center">
+
+                    {/* Founder Image & Floating Badges (Photo First) */}
                     <motion.div 
-                        initial={{ opacity: 0, x: -30 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="w-full md:w-1/2 space-y-8 order-2 md:order-1 text-center md:text-left"
-                    >
-                        <h2 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] font-outfit">
-                            Built by a student,<br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-indigo-400 to-purple-400">
-                                for students
-                            </span>
-                        </h2>
-
-                        <div className="space-y-6 max-w-xl">
-                            <p className="handwritten text-slate-300 font-medium">
-                                Hey, I’m <span className="text-white font-bold underline decoration-purple-500/50 decoration-2 underline-offset-4">Ravikumar KP</span> — a BE student in Information Science and Engineering at <span className="text-purple-400">Siddaganga Institute of Technology, Tumkur.</span>
-                            </p>
-                            
-                            <p className="handwritten text-slate-400">
-                                I’m the creator and founder of <span className="text-white font-bold">AskUrSenior</span> — a growing student community that has already helped <span className="text-white font-bold underline decoration-purple-500/20">1000+ students</span>, especially from the 2028 and 2029 graduating batches, understand the college curriculum and study smarter.
-                            </p>
-
-                            <p className="handwritten text-slate-400 italic">
-                                What started as a small idea is now something many students rely on — something I personally wish I had when I first joined college.
-                            </p>
-
-                            <div className="py-4 border-l-2 border-purple-500/30 pl-6 my-8 bg-white/5 rounded-r-2xl">
-                                <p className="handwritten text-3xl font-bold text-white mb-2 tracking-tighter shadow-purple-500/10">
-                                    Skills &gt;&gt;&gt; CGPA.
-                                </p>
-                                <p className="handwritten text-sm text-slate-400">
-                                    But I also understood a harsh reality — you still need a minimum CGPA to even get shortlisted in most companies.
-                                </p>
-                            </div>
-
-                            <p className="handwritten text-slate-300 font-medium leading-relaxed">
-                                That’s exactly why I built AskUrSenior. <br />
-                                Not just to study more — but to <span className="text-purple-400">study smarter, faster, and with clarity.</span>
-                            </p>
-
-                            <p className="handwritten text-slate-400 italic border-t border-white/5 pt-6 text-lg">
-                                "I wanted to create the platform I wished I had in my first year — a place where every SIT student can find what they need in seconds."
-                            </p>
-                        </div>
-
-                        <div className="pt-8 flex flex-col gap-6 items-center md:items-start">
-                            {/* LinkedIn Profile Badge - Large Version */}
-                            <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md px-6 py-3 rounded-full w-fit border border-white/10 shadow-[0_0_20px_rgba(59,130,246,0.15)] hover:border-blue-500/30 transition-all group/badge group-hover:scale-105 active:scale-95 cursor-pointer">
-                                <img 
-                                    src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/creator-section/DocScanner+Apr+20%2C+2022+9-12+AM_LE_upscale_prime_cleanup.jpg" 
-                                    alt="Ravikumar KP" 
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-white/20"
-                                />
-                                <div className="flex flex-col pr-2">
-                                    <span className="text-white font-black text-sm tracking-tight leading-none">Ravikumar KP</span>
-                                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1.5 leading-none">Creator of AskUrSenior</span>
-                                </div>
-                                <div className="w-px h-6 bg-white/10 mx-1" />
-                                <a 
-                                    href="https://www.linkedin.com/in/ravikumar-k-p-80b7a628b/" 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-500 hover:text-blue-400 hover:scale-110 transition-all p-1.5"
-                                >
-                                    <FaLinkedin size={22} />
-                                </a>
-                            </div>
-
-                            <Link 
-                                to={isAuthenticated ? "/dashboard" : "/login"} 
-                                className="group inline-flex items-center gap-3 bg-white text-black px-8 py-4 rounded-full font-black text-sm uppercase tracking-wider transition-all hover:bg-purple-500 hover:text-white shadow-xl shadow-purple-500/10 hover:shadow-purple-500/30 active:scale-95"
-                            >
-                                {isAuthenticated ? "Resume Learning" : "Sign in to Explore Platform"}
-                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
-                            </Link>
-                        </div>
-                    </motion.div>
-
-                    {/* IMAGE — order-1 on mobile (first), order-2 on desktop (right) */}
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.9 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                        className="w-full md:w-1/2 relative flex justify-center items-center order-1 md:order-2 mt-0 md:mt-0"
+                        transition={{ duration: 0.7 }}
+                        className="md:col-span-5 relative flex justify-center items-center"
                     >
-                        {/* Glow Behind Image */}
-                        <div className="absolute inset-0 bg-gradient-to-tr from-purple-600/20 to-indigo-600/20 rounded-[2rem] blur-2xl -rotate-6 scale-95" />
-                        
-                        {/* Premium Image Wrapper with Gradient Border */}
-                        <div className="relative p-1.5 bg-gradient-to-br from-purple-600 to-blue-500 rounded-[24px] group shadow-2xl flex items-center justify-center overflow-hidden w-full max-w-[420px]">
-                            <div className="relative bg-[#0a0a0b] rounded-[22px] overflow-hidden w-full">
+                        {/* Soft Purple Glow behind image */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-purple-600/30 via-indigo-600/20 to-purple-600/30 rounded-3xl blur-2xl transform scale-95" />
+
+                        {/* Floating Ambient Blobs */}
+                        <div className="absolute -top-6 -right-6 w-24 h-24 bg-purple-500/20 rounded-full blur-xl animate-pulse" />
+                        <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-indigo-500/20 rounded-full blur-xl animate-pulse" />
+
+                        {/* Premium Image Container */}
+                        <div className="relative p-1.5 bg-gradient-to-b from-purple-500/30 via-white/10 to-indigo-500/30 rounded-[28px] group shadow-2xl overflow-hidden w-full max-w-[380px] backdrop-blur-sm">
+                            <div className="relative bg-[#060913] rounded-[24px] overflow-hidden">
                                 <ImageWithFallback 
                                     src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/creator-section/DocScanner+Apr+20%2C+2022+9-12+AM_LE_upscale_prime_cleanup.jpg"
-                                    alt="Creator of AskUrSenior"
+                                    alt="Ravikumar KP - Founder of AskUrSenior"
                                 />
-                                {/* Gradient overlay from bottom — pro level polish */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
-                                {/* Soft transition at bottom */}
-                                <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0a0a0b] via-transparent to-transparent opacity-60 pointer-events-none" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#030712]/80 via-transparent to-transparent pointer-events-none" />
                             </div>
                         </div>
 
-                        {/* Floating Badges */}
-                        
-                        {/* Badge 1: SIT Student */}
+                        {/* Top Floating Badge: Founder */}
                         <motion.div 
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -top-6 -left-6 md:-left-12 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center gap-3 active:scale-95 transition-transform"
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                            className="absolute -top-4 -left-4 sm:-left-8 px-4 py-2.5 rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-xl flex items-center gap-2.5 z-20"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
-                                <GraduationCap size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Status</p>
-                                <p className="text-sm font-bold text-white leading-none">SIT Student</p>
-                            </div>
+                            <span className="text-base">🎓</span>
+                            <span className="text-xs font-bold text-white tracking-wide">Founder</span>
                         </motion.div>
 
-                        {/* Badge 2: Developer */}
+                        {/* Bottom Floating Badge: Building AskUrSenior */}
                         <motion.div 
-                            animate={{ y: [0, 10, 0] }}
+                            animate={{ y: [0, 6, 0] }}
                             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                            className="absolute bottom-12 -right-6 md:-right-12 p-4 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl flex items-center gap-3"
+                            className="absolute -bottom-4 -right-4 sm:-right-8 px-4 py-2.5 rounded-2xl bg-white/[0.06] backdrop-blur-xl border border-white/10 shadow-xl flex items-center gap-2.5 z-20"
                         >
-                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
-                                <Code size={20} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 leading-none mb-1">Expertise</p>
-                                <p className="text-sm font-bold text-white leading-none">Full Stack Dev</p>
-                            </div>
+                            <span className="text-base">🚀</span>
+                            <span className="text-xs font-bold text-white tracking-wide">Building AskUrSenior</span>
                         </motion.div>
+                    </motion.div>
 
-                        {/* Badge 3: Built Platform */}
-                        <motion.div 
-                            animate={{ x: [0, 10, 0] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                            className="absolute top-1/2 -right-4 md:-right-8 p-3 rounded-xl bg-purple-500 border border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.4)] flex items-center gap-2"
-                        >
-                            <Sparkles size={14} className="text-white fill-white" />
-                            <p className="text-[10px] font-black text-white uppercase tracking-tighter">Built AskUrSenior</p>
-                        </motion.div>
+                    {/* Creator Information & Body Story Content */}
+                    <motion.div 
+                        initial={{ opacity: 0, x: 30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.7, delay: 0.1 }}
+                        className="md:col-span-7 space-y-5 text-slate-300 font-normal"
+                    >
+                        <p className="handwritten text-white font-medium text-xl sm:text-2xl leading-snug">
+                            Hi, I'm <span className="text-purple-400 font-bold underline decoration-purple-500/40 decoration-2 underline-offset-4">Ravikumar KP</span>, an Information Science and Engineering student at Siddaganga Institute of Technology, Tumakuru.
+                        </p>
 
+                        <p className="handwritten text-slate-300 text-lg sm:text-xl">
+                            During my first year, I realized that finding reliable academic resources, understanding college procedures, and learning from seniors often took more time than studying itself.
+                        </p>
+
+                        <p className="handwritten text-slate-300 text-lg sm:text-xl">
+                            Important information was scattered across different groups, repeated questions were asked every semester, and many students struggled simply because they didn't know where to look.
+                        </p>
+
+                        <p className="handwritten text-white font-bold italic text-xl sm:text-2xl border-l-2 border-purple-500/60 pl-4 py-1 bg-white/[0.03] rounded-r-xl">
+                            That's why I created AskUrSenior.
+                        </p>
+
+                        <p className="handwritten text-slate-300 text-lg sm:text-xl">
+                            Today, AskUrSenior brings together study materials, previous year question papers, interview experiences, faculty insights, AI assistance, campus tools, and student guidance into one platform designed to make college life simpler.
+                        </p>
                     </motion.div>
 
                 </div>
-            </div>
-            
-            {/* Divider */}
-            <div className="max-w-7xl mx-auto mt-24">
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+
+                {/* Mission & Vision Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    {/* Mission Card - Slides from Left */}
+                    <motion.div
+                        initial={{ opacity: 0, x: -30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="p-7 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-all duration-300 backdrop-blur-md shadow-xl flex flex-col justify-between group"
+                    >
+                        <div>
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-4 group-hover:scale-110 transition-transform">
+                                <Target className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white font-outfit mb-2">My Mission</h3>
+                            <p className="text-slate-300 text-sm leading-relaxed font-normal">
+                                Help every student spend less time searching and more time learning by providing trusted resources, practical guidance, and the experience of seniors in one place.
+                            </p>
+                        </div>
+                    </motion.div>
+
+                    {/* Vision Card - Slides from Right */}
+                    <motion.div
+                        initial={{ opacity: 0, x: 30 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                        className="p-7 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-indigo-500/30 transition-all duration-300 backdrop-blur-md shadow-xl flex flex-col justify-between group"
+                    >
+                        <div>
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 group-hover:scale-110 transition-transform">
+                                <Sparkles className="w-5 h-5" />
+                            </div>
+                            <h3 className="text-lg font-bold text-white font-outfit mb-2">Vision</h3>
+                            <p className="text-slate-300 text-sm leading-relaxed font-normal">
+                                Build the most trusted student platform where knowledge, guidance, and opportunities are accessible to every student.
+                            </p>
+                        </div>
+                    </motion.div>
+
+                </div>
+
+                {/* Founder Quote */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-purple-900/15 via-white/[0.02] to-indigo-900/15 border border-purple-500/20 text-center relative overflow-hidden shadow-2xl"
+                >
+                    <div className="max-w-3xl mx-auto space-y-4 relative z-10">
+                        <p className="handwritten text-2xl sm:text-3xl text-slate-200 leading-relaxed italic font-medium">
+                            "I wanted to build the platform I wish I had during my first year—a place where every student can find the right information in seconds instead of spending hours searching for it."
+                        </p>
+                        <p className="text-xs sm:text-sm font-semibold uppercase tracking-widest text-purple-400 font-outfit">
+                            — Ravikumar KP
+                        </p>
+                    </div>
+                </motion.div>
+
+                {/* Bottom Bar: Founder Profile Card & Actions */}
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6 }}
+                    className="pt-6 border-t border-white/10 flex flex-col items-center justify-center gap-6"
+                >
+                    {/* Founder Mini Card */}
+                    <div className="flex flex-wrap sm:flex-nowrap items-center justify-center gap-3.5 p-3 px-5 sm:pr-6 rounded-2xl bg-white/[0.03] border border-white/10 shadow-lg">
+                        <img 
+                            src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/creator-section/DocScanner+Apr+20%2C+2022+9-12+AM_LE_upscale_prime_cleanup.jpg" 
+                            alt="Ravikumar KP" 
+                            className="w-12 h-12 rounded-xl object-cover border border-white/15 shrink-0"
+                        />
+                        <div className="text-center sm:text-left">
+                            <h4 className="text-white font-bold text-sm leading-tight font-outfit">Ravikumar KP</h4>
+                            <p className="text-slate-400 text-xs mt-0.5 font-medium">Founder • AskUrSenior</p>
+                        </div>
+
+                        <div className="hidden sm:block h-6 w-px bg-white/10 mx-1" />
+
+                        {/* Social Buttons */}
+                        <div className="flex items-center gap-2">
+                            <a 
+                                href="https://www.linkedin.com/in/ravikumar-k-p-80b7a628b/" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="min-h-[38px] min-w-[38px] flex items-center justify-center p-2 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all active:scale-95"
+                                title="LinkedIn Profile"
+                            >
+                                <FaLinkedin size={16} />
+                            </a>
+                            <a 
+                                href="https://ravikumar-kp.github.io/" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="min-h-[38px] min-w-[38px] flex items-center justify-center p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-600 hover:text-white transition-all active:scale-95"
+                                title="Portfolio"
+                            >
+                                <ExternalLink size={16} />
+                            </a>
+                        </div>
+                    </div>
+                </motion.div>
+
             </div>
         </section>
     );

@@ -1,5 +1,8 @@
+const subjectService = require('../services/subjectService');
 const Subject = require('../models/Subject');
 const Progress = require('../models/Progress');
+const AcademicSubject = require('../models/AcademicSubject');
+const AcademicMaterial = require('../models/AcademicMaterial');
 const { GetObjectCommand, HeadObjectCommand } = require("@aws-sdk/client-s3");
 const { s3 } = require("../utils/s3Client");
 
@@ -8,14 +11,7 @@ const getSubjectsByBranch = async (req, res) => {
         const { branch } = req.params;
         const { cycle } = req.query;
 
-        const query = { branch };
-        if (cycle === 'P' || cycle === 'C') query.cycle = cycle;
-
-        const subjects = await Subject.find(query)
-            .sort({ credits: -1, code: 1 })
-            .select('-__v')
-            .lean(); // Use lean() for faster queries
-
+        const subjects = await subjectService.getSubjectsByBranch(branch, cycle);
         res.json(subjects);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -25,32 +21,8 @@ const getSubjectsByBranch = async (req, res) => {
 const getAllSubjects = async (req, res) => {
     try {
         const { year, semester, branch, cycle } = req.query;
-        let query = {};
-        
-        if (cycle) query.cycle = cycle;
-        if (branch) query.branch = branch;
-        // In this system, first year subjects are usually cycle P or C
-        if (year === '1' && !cycle) query.cycle = { $in: ['P', 'C'] };
 
-        const subjects = await Subject.find(query)
-            .sort({ name: 1 })
-            .select('name code cycle color')
-            .lean();
-
-        // Deduplicate subjects by code if branch isn't specified, as they exist per-branch
-        const uniqueSubjects = [];
-        const seenCodes = new Set();
-        
-        for (const sub of subjects) {
-            if (sub.code && !seenCodes.has(sub.code)) {
-                seenCodes.add(sub.code);
-                uniqueSubjects.push(sub);
-            } else if (!sub.code && !seenCodes.has(sub.name)) {
-                seenCodes.add(sub.name);
-                uniqueSubjects.push(sub);
-            }
-        }
-
+        const uniqueSubjects = await subjectService.getAllUniqueSubjects(year, semester, branch, cycle);
         res.json(uniqueSubjects);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -61,7 +33,7 @@ const getSubjectById = async (req, res) => {
     try {
         const { subjectId } = req.params;
 
-        const subject = await Subject.findById(subjectId).lean();
+        const subject = await subjectService.getSubjectById(subjectId);
         if (!subject) {
             return res.status(404).json({ error: 'Subject not found' });
         }
@@ -76,12 +48,7 @@ const getSubjectsByCode = async (req, res) => {
     try {
         const { code } = req.params;
 
-        // Find all subjects with this code across all branches
-        const subjects = await Subject.find({ code: code.toUpperCase() })
-            .sort({ branch: 1, cycle: 1 })
-            .select('-__v')
-            .lean();
-
+        const subjects = await subjectService.getSubjectsByCode(code);
         res.json(subjects);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -126,7 +93,6 @@ const markQuestionCompleted = async (req, res) => {
 
 const calculateAndUpdateProgress = async (progress, userId, subject) => {
     try {
-        // Find or create subject progress entry
         let subjectProgressEntry = progress.subjectProgress.find(
             (sp) => sp.subjectId.toString() === subject._id.toString()
         );
@@ -142,7 +108,6 @@ const calculateAndUpdateProgress = async (progress, userId, subject) => {
             progress.subjectProgress.push(subjectProgressEntry);
         }
 
-        // Calculate totals
         let totalQuestions = 0;
         let completedQuestions = 0;
 
@@ -153,7 +118,6 @@ const calculateAndUpdateProgress = async (progress, userId, subject) => {
             totalQuestions += moduleTotal;
             completedQuestions += moduleCompleted;
 
-            // Update module progress
             let moduleProgress = subjectProgressEntry.modules.find(
                 (m) => m.moduleNumber === module.moduleNumber
             );
@@ -174,7 +138,6 @@ const calculateAndUpdateProgress = async (progress, userId, subject) => {
         subjectProgressEntry.totalQuestions = totalQuestions;
         subjectProgressEntry.completedQuestions = completedQuestions;
 
-        // Calculate overall progress
         progress.calculateProgress();
         await progress.save();
     } catch (error) {
@@ -205,7 +168,6 @@ const getModuleNotes = async (req, res) => {
             return res.status(404).json({ error: 'No notes available for this module' });
         }
 
-        // Verify the file actually exists in S3 to prevent confusing "Access Denied" XML errors from CloudFront
         try {
             const headCmd = new HeadObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME || 'askursenior-notes-storage',
@@ -219,7 +181,6 @@ const getModuleNotes = async (req, res) => {
             throw s3Err;
         }
 
-        // Construct permanent CloudFront URL
         const encodedKey = module.notesKey.split('/').map(encodeURIComponent).join('/');
         const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${encodedKey}`;
 
@@ -266,7 +227,6 @@ const getContentUrl = async (req, res) => {
             return res.status(404).json({ error: 'Content not found' });
         }
 
-        // Verify the file actually exists in S3 to prevent confusing "Access Denied" XML errors from CloudFront
         try {
             const headCmd = new HeadObjectCommand({
                 Bucket: process.env.AWS_BUCKET_NAME || 'askursenior-notes-storage',
@@ -280,7 +240,6 @@ const getContentUrl = async (req, res) => {
             throw s3Err;
         }
 
-        // Construct permanent CloudFront URL
         const encodedKey = contentItem.fileKey.split('/').map(encodeURIComponent).join('/');
         const fileUrl = `https://d2mh2rnmjqdkgx.cloudfront.net/${encodedKey}`;
 
@@ -304,12 +263,11 @@ const getSubjectContent = async (req, res) => {
     try {
         const { subjectId } = req.params;
 
-        const subject = await Subject.findById(subjectId).lean();
+        const subject = await subjectService.getSubjectById(subjectId);
         if (!subject) {
             return res.status(404).json({ error: 'Subject not found' });
         }
 
-        // Organize content by type
         const content = {
             subjectInfo: {
                 _id: subject._id,
@@ -327,7 +285,7 @@ const getSubjectContent = async (req, res) => {
             modules: subject.modules.map(m => ({
                 moduleNumber: m.moduleNumber,
                 title: m.title,
-                notesKey: m.notesKey, // Legacy support
+                notesKey: m.notesKey,
                 notes: m.notes || [],
                 pyqs: m.pyqs || [],
                 questionBanks: m.questionBanks || [],
@@ -342,6 +300,62 @@ const getSubjectContent = async (req, res) => {
     }
 };
 
+const computeYearStatsHelper = async (yearName) => {
+    const cmsSubjects = await AcademicSubject.find({ year: yearName }).select('_id name').lean();
+    const cmsSubjectIds = cmsSubjects.map(s => s._id);
+
+    const topSubjects = cmsSubjects.slice(0, 3).map(s => s.name);
+
+    const [notesCount, pyqsCount, qbanksCount, othersCount] = await Promise.all([
+        AcademicMaterial.countDocuments({ subject: { $in: cmsSubjectIds }, materialType: 'Notes', status: 'Published', deletedAt: null }),
+        AcademicMaterial.countDocuments({ subject: { $in: cmsSubjectIds }, materialType: 'SEE', status: 'Published', deletedAt: null }),
+        AcademicMaterial.countDocuments({ subject: { $in: cmsSubjectIds }, materialType: 'Internals', status: 'Published', deletedAt: null }),
+        AcademicMaterial.countDocuments({ subject: { $in: cmsSubjectIds }, materialType: 'Others', status: 'Published', deletedAt: null }),
+    ]);
+
+    const totalMaterials = notesCount + pyqsCount + qbanksCount + othersCount;
+
+    return {
+        subjectsCount: cmsSubjects.length,
+        materialsCount: totalMaterials,
+        topSubjects,
+        breakdown: {
+            notes: notesCount,
+            pyqs: pyqsCount,
+            qbanks: qbanksCount,
+            others: othersCount
+        }
+    };
+};
+
+const getFirstYearStats = async (req, res) => {
+    try {
+        const stats = await computeYearStatsHelper('1st Year');
+        res.json(stats);
+    } catch (error) {
+        console.error('Error getting first year stats:', error);
+        res.status(500).json({ error: 'Failed to get first year stats' });
+    }
+};
+
+const getYearStats = async (req, res) => {
+    try {
+        const VALID_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+        const rawYear = decodeURIComponent(req.params.year || '');
+        const year = rawYear.replace(/-/g, ' ');
+
+        if (!VALID_YEARS.includes(year)) {
+            return res.status(400).json({ error: `Invalid year. Must be one of: ${VALID_YEARS.join(', ')}` });
+        }
+
+        const stats = await computeYearStatsHelper(year);
+        res.json({ year, ...stats });
+    } catch (error) {
+        console.error('Error getting year stats:', error);
+        res.status(500).json({ error: 'Failed to get year stats' });
+    }
+};
+
 module.exports = {
     getAllSubjects,
     getSubjectsByBranch,
@@ -351,5 +365,7 @@ module.exports = {
     calculateAndUpdateProgress,
     getModuleNotes,
     getContentUrl,
-    getSubjectContent
+    getSubjectContent,
+    getFirstYearStats,
+    getYearStats
 };

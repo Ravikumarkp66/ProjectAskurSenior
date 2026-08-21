@@ -9,7 +9,6 @@ const {
     switchBranch,
     googleLogin,
     completeGoogleRegistration,
-    discordCallback,
     heartbeat,
     sendOtp,
     verifyOtp,
@@ -33,7 +32,6 @@ router.post('/admin-login', adminLogin);
 router.post('/google', googleLogin);
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);
-router.get('/discord/callback', discordCallback);
 
 // Protected routes
 router.get('/profile', authMiddleware, getUserProfile);

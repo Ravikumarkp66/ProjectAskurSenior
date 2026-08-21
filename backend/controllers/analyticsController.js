@@ -20,17 +20,15 @@ exports.getOverviewAnalytics = async (req, res) => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Total users
-        const totalUsers = await User.countDocuments().lean();
-
-        // User upload count
-        const userUploadCount = await UserUpload.countDocuments().lean();
-
-        // Pending uploads
-        const pendingUploads = await UserUpload.countDocuments({ status: "pending" }).lean();
-
-        // Total subjects
-        const totalSubjects = await Subject.countDocuments().lean();
+        // Execute count queries in parallel for high speed dashboard load
+        const [totalUsers, userUploadCount, pendingUploads, totalSubjects, uploadsThisMonth, liveUsers] = await Promise.all([
+            User.countDocuments(),
+            UserUpload.countDocuments(),
+            UserUpload.countDocuments({ status: "pending" }),
+            Subject.countDocuments(),
+            UserUpload.countDocuments({ createdAt: { $gte: startOfMonth } }),
+            User.countDocuments({ lastActiveAt: { $gte: new Date(Date.now() - 300000) } })
+        ]);
 
         // Total files across all subjects (with defensive checks)
         let totalFiles = 0;
@@ -62,11 +60,6 @@ exports.getOverviewAnalytics = async (req, res) => {
             totalFiles = 0;
         }
 
-        // Uploads this month
-        const uploadsThisMonth = await UserUpload.countDocuments({
-            createdAt: { $gte: startOfMonth }
-        }).lean();
-
         // New dashboard stats
         const result = {
             totalUsers,
@@ -75,7 +68,7 @@ exports.getOverviewAnalytics = async (req, res) => {
             pendingUploads,
             totalSubjects,
             uploadsThisMonth,
-            liveUsers: await User.countDocuments({ lastActiveAt: { $gte: new Date(Date.now() - 300000) } })
+            liveUsers
         };
 
         console.log("Overview analytics result:", result);

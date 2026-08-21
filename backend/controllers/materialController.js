@@ -1,6 +1,8 @@
 const Material = require("../models/Material");
 const Document = require("../models/Document");
 
+const escapeRegExp = (str) => str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+
 // Get materials with search and filter
 const getMaterials = async (req, res) => {
     try {
@@ -13,12 +15,13 @@ const getMaterials = async (req, res) => {
         }
         
         if (semester) query.semester = parseInt(semester);
-        if (subjectCode) query.subjectCode = new RegExp(subjectCode, 'i');
-        if (documentType) query.documentType = new RegExp(documentType, 'i');
+        if (subjectCode) query.subjectCode = new RegExp(escapeRegExp(subjectCode), 'i');
+        if (documentType) query.documentType = new RegExp(escapeRegExp(documentType), 'i');
         if (year) query.year = parseInt(year);
 
         const materials = await Material.find(query)
-            .sort(search ? { score: { $meta: "textScore" } } : { createdAt: -1 });
+            .sort(search ? { score: { $meta: "textScore" } } : { createdAt: -1 })
+            .lean();
 
         res.status(200).json(materials);
     } catch (error) {

@@ -1,1180 +1,515 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useRef, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../utils/hooks';
-import { useTheme } from '../context/ThemeContext';
-import { apiClient, notificationAPI, subjectAPI, uploadAPI, userUploadAPI } from '../services/api';
 import { ASLogo } from './Logo';
-import { ALL_KNOWN_SUBJECTS } from '../utils/constants';
-
-/* ─── Data ───────────────────────────────────────────────────────── */
-const W_OPEN   = 280;
-const W_CLOSED = 104;
+import { AuthContext } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import academicAPI from '../services/academicService';
+import { User, Settings, Star, Bell, Shield, Sun, Moon, MessageSquare, LogOut, HelpCircle, Map, Calendar, CheckSquare, BookOpenCheck, Sparkles } from 'lucide-react';
+import BottomProfileMenu from './BottomProfileMenu';
 
 /* ═══════════════════════════════════════════════════════════════════
-   TOOLTIP — reusable, portal-free, CSS-driven
+   SIDEBAR WIDTH — 80px fixed, icon-only (like Linear / Discord)
 ═══════════════════════════════════════════════════════════════════ */
-const Tip = ({ label, color, children, side = 'right' }) => (
-    <div className="relative group/tip flex items-center w-full">
-        {children}
-        <div
-            className="pointer-events-none absolute z-[200] opacity-0 group-hover/tip:opacity-100 transition-all duration-150 translate-x-1 group-hover/tip:translate-x-0"
-            style={{ left: '100%', top: '50%', transform: 'translateY(-50%) translateX(10px)', whiteSpace: 'nowrap' }}
-        >
-            <div
-                className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-white shadow-xl"
+export const SIDEBAR_WIDTH = 80;
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOOLTIP — appears to the right of hovered item
+═══════════════════════════════════════════════════════════════════ */
+const SideTooltip = ({ label, badge, visible }) => (
+    <AnimatePresence>
+        {visible && (
+            <motion.div
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -4 }}
+                transition={{ duration: 0.14, ease: [0.4, 0, 0.2, 1] }}
                 style={{
-                    background: 'rgba(12,7,30,0.97)',
-                    border: `1px solid ${color ? color + '50' : 'rgba(139,92,246,0.35)'}`,
-                    boxShadow: `0 4px 20px rgba(0,0,0,0.6)${color ? `, 0 0 10px ${color}25` : ''}`,
+                    position: 'absolute',
+                    left: 'calc(100% + 12px)',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 9999,
+                    pointerEvents: 'none',
+                    whiteSpace: 'nowrap',
                 }}
             >
-                {label}
-            </div>
-        </div>
-    </div>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 10,
+                    background: 'rgba(8, 4, 22, 0.97)',
+                    border: '1px solid rgba(139, 92, 246, 0.25)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.08)',
+                    backdropFilter: 'blur(20px)',
+                }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', letterSpacing: '-0.01em' }}>
+                        {label}
+                    </span>
+                    {badge && (
+                        <span style={{
+                            fontSize: 9,
+                            fontWeight: 700,
+                            color: 'rgba(139,92,246,0.9)',
+                            background: 'rgba(139,92,246,0.12)',
+                            border: '1px solid rgba(139,92,246,0.2)',
+                            padding: '2px 6px',
+                            borderRadius: 99,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                        }}>
+                            {badge}
+                        </span>
+                    )}
+                </div>
+                {/* Arrow */}
+                <div style={{
+                    position: 'absolute',
+                    left: -5,
+                    top: '50%',
+                    transform: 'translateY(-50%) rotate(45deg)',
+                    width: 8,
+                    height: 8,
+                    background: 'rgba(8, 4, 22, 0.97)',
+                    border: '1px solid rgba(139,92,246,0.25)',
+                    borderTop: 'none',
+                    borderRight: 'none',
+                }} />
+            </motion.div>
+        )}
+    </AnimatePresence>
 );
 
 /* ═══════════════════════════════════════════════════════════════════
-   SEARCH MODAL — command-palette style
+   NAV ITEM — Blue Border Card with Internal Icon & Text
 ═══════════════════════════════════════════════════════════════════ */
-const SearchModal = ({ open, onClose, onSelect, activeSubject, subjectsList }) => {
-    const [q, setQ] = useState('');
-    const inputRef = useRef(null);
+const NavItem = ({ icon, label, badge, isActive, onClick, disabled = false }) => {
+    const [hovered, setHovered] = useState(false);
+    const location = useLocation();
 
+    // Reset hovered state immediately whenever route changes
     useEffect(() => {
-        if (open) { setQ(''); setTimeout(() => inputRef.current?.focus(), 60); }
-    }, [open]);
+        setHovered(false);
+    }, [location.pathname]);
 
-    useEffect(() => {
-        const handler = (e) => { if (e.key === 'Escape') onClose(); };
-        if (open) window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [open, onClose]);
-
-    const results = useMemo(() => {
-        const query = q.trim().toLowerCase();
-        return query ? subjectsList.filter(s => s.name.toLowerCase().includes(query)) : subjectsList;
-    }, [q, subjectsList]);
-
-    if (!open) return null;
-
-    return createPortal(
-        <div className="fixed inset-0 z-[300] flex items-start justify-center pt-[18vh] px-4">
-            <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/70"
-                style={{ backdropFilter: 'blur(6px)' }}
-                onClick={onClose}
-            />
-            <motion.div
-                initial={{ opacity: 0, scale: 0.96, y: -12 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: -12 }}
-                transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                className="relative w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
-                style={{
-                    background: 'rgba(8,4,22,0.98)',
-                    border: '1px solid rgba(139,92,246,0.25)',
-                    boxShadow: '0 0 60px rgba(139,92,246,0.2), 0 32px 64px rgba(0,0,0,0.7)',
-                }}
-            >
-                {/* Input */}
-                <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
-                    <svg className="w-4 h-4 flex-shrink-0" style={{ color: 'rgba(139,92,246,0.6)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={q}
-                        onChange={e => setQ(e.target.value)}
-                        placeholder="Search subjects..."
-                        className="flex-1 bg-transparent outline-none text-sm text-white placeholder-slate-500"
-                        style={{ fontFamily: "'Inter',sans-serif", caretColor: '#8B5CF6' }}
-                    />
-                    <kbd className="hidden sm:flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-slate-500"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        ESC
-                    </kbd>
-                </div>
-
-                {/* Results */}
-                <div className="py-2 max-h-72 overflow-y-auto">
-                    {results.length === 0 ? (
-                        <p className="text-center py-6 text-sm text-slate-500">No subjects found</p>
-                    ) : results.map((s, i) => {
-                        const id = s._id || s.id;
-                        return (
-                            <motion.button
-                                key={id}
-                                initial={{ opacity: 0, x: -4 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.03 }}
-                                onClick={() => { onSelect(id); onClose(); }}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-all duration-100 group"
-                                style={{ background: activeSubject === id ? `rgba(139,92,246,0.15)` : 'transparent' }}
-                                onMouseEnter={e => e.currentTarget.style.background = `rgba(139,92,246,0.1)`}
-                                onMouseLeave={e => e.currentTarget.style.background = activeSubject === id ? `rgba(139,92,246,0.15)` : 'transparent'}
-                            >
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[13px] font-medium text-white truncate">{s.name}</p>
-                                    {s.code && <p className="text-[10px] text-slate-500 truncate mt-0.5">{s.code}</p>}
-                                </div>
-                                {activeSubject === id && (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-purple-500" style={{ boxShadow: `0 0 6px #a78bfa` }} />
-                                )}
-                            </motion.button>
-                        );
-                    })}
-                </div>
-
-                <div className="px-4 py-2.5 flex items-center gap-4" style={{ borderTop: '1px solid rgba(139,92,246,0.08)' }}>
-                    <span className="text-[10px] text-slate-600">↑↓ navigate</span>
-                    <span className="text-[10px] text-slate-600">↵ select</span>
-                    <span className="text-[10px] text-slate-600">esc close</span>
-                </div>
-            </motion.div>
-        </div>,
-        document.body
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════════
-   SIDEBAR
-═══════════════════════════════════════════════════════════════════ */
-const Sidebar = ({
-    currentBranch, cycle,
-    showProfile, onProfileClick,
-    subjectSearch, onSubjectSearchChange,
-    isCollapsed, onCollapsedChange,
-}) => {
-    const navigate = useNavigate();
-    const { user, logout } = useAuth();
-
-    /* ── modal state ── */
-    const [showProfileMenu,       setShowProfileMenu]       = useState(false);
-    const [showFeedbackModal,     setShowFeedbackModal]     = useState(false);
-    const [feedbackRating,        setFeedbackRating]        = useState(0);
-    const [feedbackMessage,       setFeedbackMessage]       = useState('');
-    const [feedbackSubmitting,    setFeedbackSubmitting]    = useState(false);
-    const [feedbackError,         setFeedbackError]         = useState('');
-    const [feedbackStats,         setFeedbackStats]         = useState({ total: 0, avgRating: 0 });
-    const [latestFeedback,        setLatestFeedback]        = useState(null);
-    const [feedbackMetaLoading,   setFeedbackMetaLoading]   = useState(false);
-    const [showBugModal,          setShowBugModal]          = useState(false);
-    const [bugTitle,              setBugTitle]              = useState('');
-    const [bugDescription,        setBugDescription]        = useState('');
-    const [bugSubmitting,         setBugSubmitting]         = useState(false);
-    const [bugError,              setBugError]              = useState('');
-    const [showNotificationModal, setShowNotificationModal] = useState(false);
-    const [notifications,         setNotifications]         = useState([]);
-    const [notificationsLoading,  setNotificationsLoading]  = useState(false);
-    const [unreadCount,           setUnreadCount]           = useState(0);
-    const [mobileMenuOpen,        setMobileMenuOpen]        = useState(false);
-    const [showAdminUploadModal,  setShowAdminUploadModal]  = useState(false);
-    const [showUserUploadModal,   setShowUserUploadModal]   = useState(false);
-    const [adminSubjects,         setAdminSubjects]         = useState([]);
-    const [adminSubjectsLoading,  setAdminSubjectsLoading]  = useState(false);
-    const [adminUploadLoading,    setAdminUploadLoading]    = useState(false);
-    const [adminUploadError,      setAdminUploadError]      = useState('');
-    const [adminSubjectId,        setAdminSubjectId]        = useState('');
-    const [adminContentType,      setAdminContentType]      = useState('');
-    const [adminFiles,            setAdminFiles]            = useState([]);
-    const [adminUploadProgress,   setAdminUploadProgress]   = useState(0);
-    const [adminUploadFileIndex,  setAdminUploadFileIndex]  = useState(0);
-    const [adminUploadFileTotal,  setAdminUploadFileTotal]  = useState(0);
-    const [userSubjects,          setUserSubjects]          = useState([]);
-    const [userSubjectsLoading,   setUserSubjectsLoading]   = useState(false);
-    const [userUploadLoading,     setUserUploadLoading]     = useState(false);
-    const [userUploadError,       setUserUploadError]       = useState('');
-    const [userSubjectCode,       setUserSubjectCode]       = useState('');
-    const [userContentType,       setUserContentType]       = useState('');
-    const [userFiles,             setUserFiles]             = useState([]);
-    const [userUploadProgress,    setUserUploadProgress]    = useState(0);
-    const [userUploadFileIndex,   setUserUploadFileIndex]   = useState(0);
-    const [userUploadFileTotal,   setUserUploadFileTotal]   = useState(0);
-
-    /* ── sidebar state ── */
-    const [searchQuery,   setSearchQuery]   = useState('');
-    const [activeSubject, setActiveSubject] = useState(null);
-    const [showSearch,    setShowSearch]    = useState(false);
-    
-    // Dynamic subjects
-    const [subjectsList,    setSubjectsList]    = useState([]);
-    const [subjectsLoading, setSubjectsLoading] = useState(true);
-
-    const [pinnedSubjects, setPinnedSubjects] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('pinnedSubjects') || '[]'); } catch { return []; }
-    });
-    useEffect(() => { localStorage.setItem('pinnedSubjects', JSON.stringify(pinnedSubjects)); }, [pinnedSubjects]);
-    const togglePin = (id) => { setPinnedSubjects(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]); };
-
-    const { isDark, toggleTheme } = useTheme();
-    const isLightMode = !isDark;
-    const collapsed   = !!isCollapsed;
-
-    useEffect(() => {
-        let isMounted = true;
-        const fetchSubjects = async () => {
-            try {
-                setSubjectsLoading(true);
-                const res = await apiClient.get('/documents/subjects');
-                const backendSubjects = res.data || [];
-                
-                // Keep only those that are NOT in ALL_KNOWN_SUBJECTS (matches exactly what the Materials page does for 1st Year)
-                const firstYearSubjects = backendSubjects.filter(s => {
-                    const n = (s.name || s).toLowerCase();
-                    return !ALL_KNOWN_SUBJECTS.some(k => k.name.toLowerCase() === n);
-                });
-                
-                // Format the objects for Sidebar
-                const formattedSubjects = firstYearSubjects.map((s, idx) => {
-                    const nameStr = typeof s === 'string' ? s : (s.name || s);
-                    const creditsVal = typeof s === 'string' ? 0 : (s.credits || 0);
-                    const codeStr = typeof s === 'string' ? '' : (s.code || '');
-                    return { id: nameStr, name: nameStr, credits: creditsVal, code: codeStr };
-                });
-
-                if (isMounted) setSubjectsList(formattedSubjects);
-            } catch (err) {
-                console.error('Failed to fetch subjects', err);
-            } finally {
-                if (isMounted) setSubjectsLoading(false);
-            }
-        };
-        fetchSubjects();
-        return () => { isMounted = false; };
-    }, []);
-
-    /* ── ⌘K global shortcut ── */
-    useEffect(() => {
-        const handler = (e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setShowSearch(true); }
-        };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, []);
-
-    /* ── notifications ── */
-    const fetchNotifications = useCallback(async () => {
-        try {
-            setNotificationsLoading(true);
-            const res = await notificationAPI.getNotifications(currentBranch, cycle, 30);
-            setNotifications(res.data.notifications || []);
-            setUnreadCount(res.data.unreadCount || 0);
-        } catch { setNotifications([]); setUnreadCount(0); }
-        finally { setNotificationsLoading(false); }
-    }, [currentBranch, cycle]);
-
-    useEffect(() => {
-        fetchNotifications();
-        const iv = setInterval(fetchNotifications, 120000);
-        return () => clearInterval(iv);
-    }, [fetchNotifications]);
-
-    const handleMarkAllAsRead = async () => {
-        try {
-            await notificationAPI.markAllAsRead(currentBranch, cycle);
-            setNotifications(p => p.map(n => ({ ...n, isRead: true })));
-            setUnreadCount(0);
-        } catch { /* ignore */ }
+    const handleResetHover = () => {
+        setHovered(false);
     };
 
-    /* ── feedback ── */
-    const closeFeedbackModal = () => { setShowFeedbackModal(false); setFeedbackSubmitting(false); setFeedbackError(''); };
-    const loadFeedbackMeta = async () => {
-        setFeedbackMetaLoading(true);
-        try {
-            const [sR, lR] = await Promise.all([apiClient.get('/feedback/stats'), apiClient.get('/feedback/me/latest')]);
-            setFeedbackStats(sR?.data?.stats || { total: 0, avgRating: 0 });
-            setLatestFeedback(lR?.data?.item || null);
-        } catch { /* ignore */ }
-        finally { setFeedbackMetaLoading(false); }
-    };
-    const closeBugModal = () => { setShowBugModal(false); setBugSubmitting(false); setBugError(''); };
-
-    const submitFeedback = async () => {
-        if (!feedbackRating || feedbackSubmitting) return;
-        setFeedbackSubmitting(true); setFeedbackError('');
-        try {
-            await apiClient.post('/feedback', { rating: feedbackRating, message: feedbackMessage?.trim() || undefined });
-            setFeedbackRating(0); setFeedbackMessage('');
-            await loadFeedbackMeta(); closeFeedbackModal();
-        } catch (e) { setFeedbackError(e?.response?.data?.error || 'Failed to submit'); }
-        finally { setFeedbackSubmitting(false); }
+    const handleClick = (e) => {
+        setHovered(false);
+        if (!disabled && onClick) {
+            onClick(e);
+        }
     };
 
-    const submitBug = async () => {
-        if (!bugTitle.trim() || !bugDescription.trim() || bugSubmitting) return;
-        setBugSubmitting(true); setBugError('');
-        try {
-            await apiClient.post('/bugs', { title: bugTitle.trim(), description: bugDescription.trim(), pageUrl: window.location.href });
-            setBugTitle(''); setBugDescription(''); closeBugModal();
-        } catch (e) { setBugError(e?.response?.data?.error || 'Failed to submit'); }
-        finally { setBugSubmitting(false); }
-    };
-
-    /* ── upload helpers ── */
-    const getUploadPercent = e => (!e || !e.total) ? 0 : Math.min(100, Math.round((e.loaded / e.total) * 100));
-    const isZipFile = f => f && ((f.name||'').toLowerCase().endsWith('.zip') || (f.type||'').includes('zip'));
-    const isPdfFile = f => f && ((f.name||'').toLowerCase().endsWith('.pdf') || (f.type||'').includes('pdf'));
-
-    const loadAdminSubjects = async () => {
-        if (!user?.isAdmin) return;
-        setAdminSubjectsLoading(true); setAdminUploadError('');
-        try {
-            const branches = ['CS','IS','EC','EE','ME','CV','CSE','ISE','ECE','EEE','MECH','CIVIL','AIML','DS','CSBS','IT','CI','BT','IM','CH','ET','EI'];
-            const results = await Promise.all(branches.flatMap(b => ['P','C'].map(c =>
-                subjectAPI.getSubjectsByBranch(b, c).then(r => ({ subjects: r.data || [] })).catch(() => ({ subjects: [] }))
-            )));
-            const map = new Map();
-            results.forEach(({ subjects }) => subjects.forEach(s => {
-                const code = String(s.code || '').trim();
-                if (code && !map.has(code)) map.set(code, s);
-            }));
-            setAdminSubjects([...map.values()].sort((a, b) => String(a.code).localeCompare(String(b.code))));
-        } catch { setAdminUploadError('Failed to load subjects'); }
-        finally { setAdminSubjectsLoading(false); }
-    };
-
-    const loadUserSubjects = async () => {
-        setUserSubjectsLoading(true); setUserUploadError('');
-        try { const r = await subjectAPI.getSubjectsByBranch(currentBranch, cycle); setUserSubjects(r.data || []); }
-        catch { setUserUploadError('Failed to load subjects'); }
-        finally { setUserSubjectsLoading(false); }
-    };
-
-    useEffect(() => { if (showAdminUploadModal && user?.isAdmin && !adminSubjects.length) loadAdminSubjects(); }, [showAdminUploadModal, user?.isAdmin]);
-    useEffect(() => { if (showUserUploadModal && !userSubjects.length) loadUserSubjects(); }, [showUserUploadModal, currentBranch, cycle]);
-
-    const handleAdminUploadSubmit = async (e) => {
-        e.preventDefault();
-        if (!adminSubjectId || !adminFiles.length) { setAdminUploadError('Please fill all required fields'); return; }
-        const zipFile = adminFiles.find(isZipFile);
-        if (zipFile && adminFiles.length > 1) { setAdminUploadError('Upload only one ZIP file at a time'); return; }
-        if (!zipFile && !adminContentType) { setAdminUploadError('Please select a content type'); return; }
-        if (!zipFile && adminFiles.some(f => !isPdfFile(f))) { setAdminUploadError('Only PDF files are supported'); return; }
-        const total = zipFile ? 1 : adminFiles.length;
-        setAdminUploadFileTotal(total); setAdminUploadFileIndex(0); setAdminUploadProgress(0);
-        setAdminUploadLoading(true); setAdminUploadError('');
-        try {
-            if (zipFile) {
-                setAdminUploadFileIndex(1);
-                await uploadAPI.uploadSubjectZip(adminSubjectId, zipFile, { onUploadProgress: ev => setAdminUploadProgress(getUploadPercent(ev)) });
-            } else {
-                for (let i = 0; i < adminFiles.length; i++) {
-                    setAdminUploadFileIndex(i + 1); setAdminUploadProgress(0);
-                    await uploadAPI.uploadSubjectFiles(adminSubjectId, adminContentType, [adminFiles[i]], { onUploadProgress: ev => setAdminUploadProgress(getUploadPercent(ev)) });
-                }
-            }
-            setAdminSubjectId(''); setAdminContentType(''); setAdminFiles([]);
-            setShowAdminUploadModal(false); alert('Upload complete. Study materials updated.');
-        } catch (err) { setAdminUploadError(err?.response?.data?.error || err?.message || 'Upload failed'); }
-        finally { setAdminUploadLoading(false); setAdminUploadProgress(0); setAdminUploadFileIndex(0); setAdminUploadFileTotal(0); }
-    };
-
-    const handleUserUploadSubmit = async (e) => {
-        e.preventDefault();
-        if (!userSubjectCode || !userContentType || !userFiles.length) { setUserUploadError('Please fill all required fields'); return; }
-        setUserUploadFileTotal(userFiles.length); setUserUploadFileIndex(0); setUserUploadProgress(0);
-        setUserUploadLoading(true); setUserUploadError('');
-        try {
-            const fd = new FormData();
-            userFiles.forEach(f => fd.append('files', f));
-            fd.append('contentType', userContentType); fd.append('subjectCode', userSubjectCode);
-            await userUploadAPI.createUpload(fd, { onUploadProgress: ev => {
-                const pct = getUploadPercent(ev); setUserUploadProgress(pct);
-                setUserUploadFileIndex(Math.min(userFiles.length, Math.max(1, Math.round((pct / 100) * userFiles.length))));
-            }});
-            setUserSubjectCode(''); setUserContentType(''); setUserFiles([]);
-            setShowUserUploadModal(false); alert('Upload sent to admin for review.');
-        } catch (err) { setUserUploadError(err?.response?.data?.error || err?.message || 'Upload failed'); }
-        finally { setUserUploadLoading(false); setUserUploadProgress(0); setUserUploadFileIndex(0); setUserUploadFileTotal(0); }
-    };
-
-    /* ── filtered dynamic subjects ── */
-    const filteredSubjects = useMemo(() => {
-        const q = searchQuery.trim().toLowerCase();
-        let list = q ? subjectsList.filter(s => s.name.toLowerCase().includes(q)) : [...subjectsList];
-        
-        return list.sort((a, b) => {
-            const aPinned = pinnedSubjects.includes(a.id);
-            const bPinned = pinnedSubjects.includes(b.id);
-            if (aPinned && !bPinned) return -1;
-            if (!aPinned && bPinned) return 1;
-            
-            if (b.credits !== a.credits) {
-                return b.credits - a.credits;
-            }
-            return a.name.localeCompare(b.name);
-        });
-    }, [subjectSearch, subjectsList, pinnedSubjects]);
-
-    /* ════════════════════════════════════════════════════════════════
-       RENDER
-    ════════════════════════════════════════════════════════════════ */
     return (
-        <>
-            {/* ── Search Command Palette ── */}
-            <AnimatePresence>
-                {showSearch && (
-                    <SearchModal
-                        open={showSearch}
-                        onClose={() => setShowSearch(false)}
-                        onSelect={(id) => { setActiveSubject(id); navigate(`/dashboard/subject/${encodeURIComponent(id)}/content`); }}
-                        activeSubject={activeSubject}
-                        subjectsList={subjectsList}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* Mobile hamburger */}
-            <button
-                onClick={() => setMobileMenuOpen(v => !v)}
-                className="sm:hidden fixed top-4 left-4 z-50 h-10 w-10 rounded-xl flex items-center justify-center"
-                style={{ background: 'rgba(8,4,22,0.97)', border: '1px solid rgba(139,92,246,0.35)', boxShadow: '0 0 16px rgba(139,92,246,0.2)' }}
-            >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    {mobileMenuOpen
-                        ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
-                </svg>
-            </button>
-
-            <AnimatePresence>
-                {mobileMenuOpen && (
-                    <motion.div key="bk"
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="sm:hidden fixed inset-0 z-40 bg-black/70"
-                        style={{ backdropFilter: 'blur(4px)' }}
-                        onClick={() => setMobileMenuOpen(false)}
-                    />
-                )}
-            </AnimatePresence>
-
-            {/* ══════════════════════════════════════════════════
-                SIDEBAR SHELL
-            ══════════════════════════════════════════════════ */}
-            <motion.div
-                animate={{ width: collapsed ? W_CLOSED : W_OPEN }}
-                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                className={`h-screen fixed left-0 top-0 z-40 flex flex-col overflow-hidden
-                    ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
+        <div
+            style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={handleResetHover}
+            onPointerLeave={handleResetHover}
+            onPointerUp={handleResetHover}
+            onTouchEnd={handleResetHover}
+            onBlur={handleResetHover}
+        >
+            <motion.button
+                onClick={handleClick}
+                onMouseLeave={handleResetHover}
+                onPointerLeave={handleResetHover}
+                onPointerUp={handleResetHover}
+                onTouchEnd={handleResetHover}
+                whileHover={disabled ? {} : { scale: 1.05 }}
+                whileTap={disabled ? {} : { scale: 0.95 }}
                 style={{
-                    background: 'linear-gradient(180deg,#080416 0%,#050110 50%,#030711 100%)',
-                    borderRight: '1px solid rgba(139,92,246,0.12)',
-                    boxShadow: '4px 0 32px rgba(0,0,0,0.6)',
+                    width: 56,
+                    height: 66,
+                    borderRadius: 14,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    border: isActive
+                        ? '1.5px solid #3b82f6'
+                        : hovered && !disabled
+                            ? '1.5px solid #60a5fa'
+                            : '1px solid rgba(59, 130, 246, 0.4)',
+                    outline: 'none',
+                    cursor: disabled ? 'default' : 'pointer',
+                    position: 'relative',
+                    transition: 'all 0.18s ease-in-out',
+                    background: isActive
+                        ? 'linear-gradient(135deg, rgba(30, 58, 138, 0.45), rgba(59, 130, 246, 0.18))'
+                        : hovered && !disabled
+                            ? 'rgba(30, 58, 138, 0.25)'
+                            : 'rgba(15, 23, 42, 0.65)',
+                    boxShadow: isActive
+                        ? '0 0 16px rgba(59, 130, 246, 0.35), inset 0 0 10px rgba(59, 130, 246, 0.15)'
+                        : hovered
+                            ? '0 0 12px rgba(59, 130, 246, 0.25)'
+                            : '0 2px 8px rgba(0, 0, 0, 0.4)',
                 }}
             >
-                {/* Decorative grid */}
-                <div className="absolute inset-0 pointer-events-none" style={{
-                    backgroundImage: 'linear-gradient(rgba(139,92,246,0.022) 1px,transparent 1px),linear-gradient(90deg,rgba(139,92,246,0.022) 1px,transparent 1px)',
-                    backgroundSize: '28px 28px',
-                }} />
-                {/* Top glow */}
-                <div className="absolute top-0 left-0 right-0 h-48 pointer-events-none" style={{
-                    background: 'radial-gradient(ellipse at 50% -20%,rgba(139,92,246,0.16) 0%,transparent 68%)',
-                }} />
-
-                {/* ── HEADER ─────────────────────────────────── */}
-                <div className="relative z-10 flex items-center flex-shrink-0 px-3"
-                    style={{ height: 64, borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
-
-                    {/* Logo — always centered when collapsed */}
-                    <motion.div
-                        animate={{ justifyContent: collapsed ? 'center' : 'flex-start' }}
-                        className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden"
-                    >
-                        <motion.div
-                            animate={{ width: collapsed ? 36 : 36, height: collapsed ? 36 : 36 }}
-                            className="flex-shrink-0 flex items-center justify-center rounded-xl"
-                            style={{
-                                background: 'rgba(139,92,246,0.1)',
-                                border: '1px solid rgba(139,92,246,0.28)',
-                                boxShadow: '0 0 16px rgba(139,92,246,0.2)',
-                            }}
-                        >
-                            <ASLogo size={22} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.75)]" strokeColor="#f8fafc" />
-                        </motion.div>
-
-                        <AnimatePresence initial={false}>
-                            {!collapsed && (
-                                <motion.span
-                                    key="wordmark"
-                                    initial={{ opacity: 0, width: 0 }}
-                                    animate={{ opacity: 1, width: 'auto' }}
-                                    exit={{ opacity: 0, width: 0 }}
-                                    transition={{ duration: 0.22 }}
-                                    className="overflow-hidden whitespace-nowrap select-none"
-                                    style={{ fontFamily: "'Plus Jakarta Sans','Inter',sans-serif", fontSize: 15, fontWeight: 800, letterSpacing: '-0.01em' }}
-                                >
-                                    <span style={{ color: '#f8fafc' }}>Ask</span>
-                                    <span style={{ color: '#8B5CF6' }}>UR</span>
-                                    <span style={{ color: '#f8fafc' }}>Senior</span>
-                                </motion.span>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-
-                    {/* Collapse button */}
-                    <Tip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-                        <motion.button
-                            onClick={() => onCollapsedChange?.(!collapsed)}
-                            whileHover={{ scale: 1.1, backgroundColor: 'rgba(139,92,246,0.16)' }}
-                            whileTap={{ scale: 0.9 }}
-                            className="hidden sm:flex items-center justify-center rounded-lg flex-shrink-0 transition-colors"
-                            style={{
-                                width: 28, height: 28,
-                                background: 'rgba(139,92,246,0.08)',
-                                border: '1px solid rgba(139,92,246,0.2)',
-                                color: 'rgba(139,92,246,0.75)',
-                                marginLeft: collapsed ? 'auto' : 4,
-                                marginRight: collapsed ? 'auto' : 0,
-                            }}
-                        >
-                            <motion.svg
-                                animate={{ rotate: collapsed ? 180 : 0 }}
-                                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                                className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-                            </motion.svg>
-                        </motion.button>
-                    </Tip>
-                </div>
-
-                {/* ── SEARCH ─────────────────────────────────── */}
-                <div className="relative z-10 px-2 flex-shrink-0" style={{ paddingTop: 10, paddingBottom: 6 }}>
-                    <AnimatePresence initial={false} mode="wait">
-                        {!collapsed ? (
-                            <motion.div
-                                key="search-full"
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="relative flex items-center overflow-hidden"
-                                style={{
-                                    background: 'rgba(139,92,246,0.05)',
-                                    border: '1px solid rgba(139,92,246,0.15)',
-                                    borderRadius: 100,
-                                }}
-                            >
-                                <svg className="absolute left-3 w-3.5 h-3.5 pointer-events-none flex-shrink-0"
-                                    style={{ color: 'rgba(139,92,246,0.5)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                                <input
-                                    id="sidebar-subject-search"
-                                    type="text" value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    onClick={() => setShowSearch(true)}
-                                    placeholder="Search subjects..."
-                                    className="w-full bg-transparent outline-none text-xs py-2.5 pl-9 pr-12 cursor-pointer"
-                                    style={{ color: '#e2e8f0', caretColor: '#8B5CF6', fontFamily: "'Inter',sans-serif" }}
-                                    readOnly
-                                />
-                                <span className="absolute right-2.5 text-[9px] font-mono px-1.5 py-0.5 rounded select-none"
-                                    style={{ color: 'rgba(139,92,246,0.45)', background: 'rgba(139,92,246,0.07)', border: '1px solid rgba(139,92,246,0.13)' }}>
-                                    ⌘K
-                                </span>
-                            </motion.div>
-                        ) : (
-                            <motion.div key="search-icon" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="flex justify-center">
-                                <Tip label="Search Subjects">
-                                    <motion.button
-                                        onClick={() => setShowSearch(true)}
-                                        whileHover={{ scale: 1.08, backgroundColor: 'rgba(139,92,246,0.14)' }}
-                                        whileTap={{ scale: 0.93 }}
-                                        className="w-full flex items-center justify-center rounded-xl transition-colors"
-                                        style={{
-                                            height: 36,
-                                            background: 'rgba(139,92,246,0.07)',
-                                            border: '1px solid rgba(139,92,246,0.15)',
-                                            color: 'rgba(139,92,246,0.65)',
-                                        }}
-                                    >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
-                                    </motion.button>
-                                </Tip>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* ── SUBJECT LIST ────────────────────────────── */}
-                <nav className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2 custom-scrollbar-premium">
-                    <div className={`mt-0.5 ${collapsed ? 'space-y-2' : 'space-y-0.5'}`}>
-                        {subjectsLoading ? (
-                            Array.from({ length: 4 }).map((_, i) => (
-                                <div key={i} className="w-full flex items-center gap-3 px-3 py-3 opacity-50">
-                                    {collapsed ? (
-                                        <div className="w-5 h-5 mx-auto rounded bg-slate-800 animate-pulse" />
-                                    ) : (
-                                        <div className="h-4 w-3/4 rounded bg-slate-800 animate-pulse" />
-                                    )}
-                                </div>
-                            ))
-                        ) : filteredSubjects.length > 0 ? (
-                            filteredSubjects.map((subject, i) => {
-                                const id = subject._id || subject.id;
-                                return (
-                                    <SubjectItem
-                                        key={id}
-                                        subject={subject}
-                                        index={i}
-                                        isActive={activeSubject === id}
-                                        collapsed={collapsed}
-                                        isPinned={pinnedSubjects.includes(id)}
-                                        onTogglePin={() => togglePin(id)}
-                                        onClick={() => { setActiveSubject(id); navigate(`/dashboard/subject/${encodeURIComponent(id)}/content`); }}
-                                    />
-                                );
-                            })
-                        ) : (
-                            !collapsed && (
-                                <p className="py-6 text-center text-xs" style={{ color: 'rgba(148,163,184,0.3)' }}>
-                                    No subjects available
-                                </p>
-                            )
-                        )}
-                    </div>
-                </nav>
-
-                {/* ── PROFILE ─────────────────────────────────── */}
-                <div className="relative z-10 flex-shrink-0 p-2 space-y-2"
-                    style={{ borderTop: '1px solid rgba(139,92,246,0.1)' }}>
-                    
-                    {/* Quick Actions Bar */}
-                    <div className="flex items-center gap-1.5 p-1.5 rounded-[14px]" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <button onClick={() => navigate('/')} className="flex-1 flex items-center justify-center gap-2 px-3 h-9 rounded-lg text-[12.5px] font-bold text-slate-300 hover:text-white transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <HomeIcon /> {!collapsed && "Home"}
-                        </button>
-                        
-                        {!collapsed && (
-                            <button className="flex-1 flex items-center justify-center gap-2 px-3 h-9 rounded-lg text-[12.5px] font-bold text-white transition-all hover:scale-[1.02] active:scale-[0.98]" style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.3)', boxShadow: '0 0 12px rgba(139,92,246,0.1)' }}>
-                                <TrackIcon /> Track
-                            </button>
-                        )}
-                    </div>
-
-                    <ProfileCard
-                        user={user}
-                        currentBranch={currentBranch}
-                        collapsed={collapsed}
-                        showProfileMenu={showProfileMenu}
-                        setShowProfileMenu={setShowProfileMenu}
-                        onFeedback={() => { setFeedbackError(''); setFeedbackRating(0); setFeedbackMessage(''); loadFeedbackMeta(); setShowFeedbackModal(true); }}
-                        onBug={() => { setBugError(''); setBugTitle(''); setBugDescription(''); setShowBugModal(true); }}
-                        isLightMode={isLightMode}
-                        toggleTheme={toggleTheme}
-                        logout={logout} navigate={navigate}
+                {/* Active left accent bar */}
+                {isActive && (
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: -12,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 3.5,
+                            height: 28,
+                            borderRadius: 99,
+                            background: 'linear-gradient(180deg, #3B82F6, #60A5FA)',
+                            boxShadow: '0 0 12px rgba(59, 130, 246, 0.8)',
+                            transition: 'all 0.2s ease',
+                        }}
                     />
+                )}
+
+                {/* SVG Icon */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transform: hovered ? 'scale(1.08)' : 'scale(1)',
+                    transition: 'transform 0.18s ease-in-out',
+                }}>
+                    {icon}
                 </div>
 
-                {/* ── MODALS ──────────────────────────────────── */}
-                {showFeedbackModal && (
-                    <ModalShell isLightMode={isLightMode} title="Feedback" onClose={closeFeedbackModal}>
-                        <div className="space-y-4">
-                            <div className={`rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-slate-200 bg-slate-50 text-slate-700' : 'border-white/10 bg-white/5 text-secondary-200'}`}>
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="font-semibold">Average rating</div>
-                                    <div className="font-extrabold">{feedbackMetaLoading ? '...' : `${feedbackStats.avgRating}/5`}</div>
-                                </div>
-                                <div className={`mt-1 text-xs ${isLightMode ? 'text-slate-500' : 'text-secondary-500'}`}>{feedbackMetaLoading ? 'Loading...' : `${feedbackStats.total} total feedbacks`}</div>
-                            </div>
-                            <div className={`rounded-xl border px-3 py-2 ${isLightMode ? 'border-slate-200 bg-white' : 'border-white/10 bg-white/5'}`}>
-                                <div className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Your last feedback</div>
-                                {!latestFeedback ? <div className={`mt-2 text-sm ${isLightMode ? 'text-slate-600' : 'text-secondary-300'}`}>No feedback yet.</div> : (
-                                    <div className="mt-2">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div className={`text-xs ${isLightMode ? 'text-slate-500' : 'text-secondary-500'}`}>{latestFeedback?.createdAt ? new Date(latestFeedback.createdAt).toLocaleString() : ''}</div>
-                                            <div className="text-sm font-extrabold text-amber-500">{latestFeedback.rating}/5</div>
-                                        </div>
-                                        <div className={`mt-2 text-sm whitespace-pre-wrap ${isLightMode ? 'text-slate-700' : 'text-secondary-200'}`}>{latestFeedback.message || 'No message'}</div>
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <p className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Rating</p>
-                                <div className="mt-2 flex items-center gap-2">
-                                    {[1,2,3,4,5].map(v => (
-                                        <button key={v} type="button" onClick={() => setFeedbackRating(v)}
-                                            className={`h-10 w-10 rounded-xl border text-lg font-extrabold transition ${feedbackRating >= v ? isLightMode ? 'bg-amber-50 border-amber-200 text-amber-600' : 'bg-amber-500/10 border-amber-400/20 text-amber-300' : isLightMode ? 'bg-white border-slate-200 text-slate-300 hover:bg-slate-50' : 'bg-white/5 border-white/10 text-secondary-500 hover:bg-white/10'}`}>★</button>
-                                    ))}
-                                </div>
-                                <p className={`mt-2 text-xs ${isLightMode ? 'text-gray-500' : 'text-secondary-500'}`}>{feedbackRating ? `You selected ${feedbackRating}/5` : 'Select a rating'}</p>
-                            </div>
-                            <div>
-                                <p className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Message (optional)</p>
-                                <textarea value={feedbackMessage} onChange={e => setFeedbackMessage(e.target.value)} rows={4} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900 focus:border-purple-400' : 'border-white/10 bg-white/5 text-secondary-100 focus:border-purple-500/60'}`} placeholder="Tell us what you liked..." />
-                            </div>
-                            {feedbackError && <div className={`rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-red-200 bg-red-50 text-red-700' : 'border-red-500/20 bg-red-500/10 text-red-200'}`}>{feedbackError}</div>}
-                            <div className="flex items-center justify-end gap-2">
-                                <button type="button" onClick={closeFeedbackModal} className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'}`} disabled={feedbackSubmitting}>Cancel</button>
-                                <button type="button" onClick={submitFeedback} className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${feedbackRating && !feedbackSubmitting ? 'bg-purple-600 hover:bg-purple-500' : 'bg-purple-600/40 cursor-not-allowed'}`} disabled={!feedbackRating || feedbackSubmitting}>{feedbackSubmitting ? 'Submitting...' : 'Submit'}</button>
-                            </div>
-                        </div>
-                    </ModalShell>
-                )}
+                {/* Text Label Inside Icon Rectangle Card */}
+                <span style={{
+                    fontSize: 10,
+                    fontWeight: isActive ? 700 : 600,
+                    color: isActive
+                        ? '#93C5FD'
+                        : hovered && !disabled
+                            ? '#E2E8F0'
+                            : '#94A3B8',
+                    letterSpacing: '-0.01em',
+                    lineHeight: 1,
+                    transition: 'color 0.18s',
+                }}>
+                    {label}
+                </span>
 
-                {showAdminUploadModal && (
-                    <ModalShell isLightMode={isLightMode} title="Admin Upload" onClose={() => { setShowAdminUploadModal(false); setAdminUploadError(''); }}>
-                        <form onSubmit={handleAdminUploadSubmit} className="space-y-4">
-                            <div>
-                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Subject</label>
-                                <select value={adminSubjectId} onChange={e => setAdminSubjectId(e.target.value)} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white text-slate-900'}`}>
-                                    <option value="">Select a subject</option>
-                                    {adminSubjects.map(s => <option key={s._id} value={s._id}>{s.code}</option>)}
-                                </select>
-                                {adminSubjectsLoading && <p className="text-xs mt-1 text-secondary-400">Loading subjects...</p>}
-                            </div>
-                            <div>
-                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Content Type</label>
-                                <select value={adminContentType} onChange={e => setAdminContentType(e.target.value)} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white text-slate-900'}`}>
-                                    <option value="">Select content type</option>
-                                    <option value="notes">Notes</option><option value="pyqs">PYQs</option><option value="questionBanks">Question Banks</option><option value="syllabus">Syllabus</option><option value="resources">Resources</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Files</label>
-                                <input type="file" multiple onChange={e => setAdminFiles(Array.from(e.target.files || []))} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white text-slate-900'}`} accept=".pdf,.zip" />
-                                <p className="mt-1 text-xs text-secondary-400">PDF or ZIP with folder structure.</p>
-                            </div>
-                            {adminUploadError && <div className="rounded-xl border px-3 py-2 text-sm border-red-500/20 bg-red-500/10 text-red-200">{adminUploadError}</div>}
-                            <div className="flex items-center justify-end gap-2">
-                                <button type="button" onClick={() => setShowAdminUploadModal(false)} className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'}`} disabled={adminUploadLoading}>Cancel</button>
-                                <button type="submit" className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${adminUploadLoading ? 'bg-purple-600/40 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500'}`} disabled={adminUploadLoading}>{adminUploadLoading ? `${adminUploadFileIndex}/${adminUploadFileTotal} (${adminUploadProgress}%)` : 'Upload'}</button>
-                            </div>
-                        </form>
-                    </ModalShell>
+                {/* Badge */}
+                {badge && (
+                    <span style={{
+                        position: 'absolute',
+                        top: 5,
+                        right: 5,
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: '#3B82F6',
+                        boxShadow: '0 0 6px rgba(59,130,246,0.8)',
+                    }} />
                 )}
-
-                {showUserUploadModal && (
-                    <ModalShell isLightMode={isLightMode} title="Upload Materials" onClose={() => { setShowUserUploadModal(false); setUserUploadError(''); }}>
-                        <form onSubmit={handleUserUploadSubmit} className="space-y-4">
-                            <div className="rounded-xl border px-3 py-2 text-xs border-white/10 bg-white/5 text-secondary-300">Your upload is sent to admin review.</div>
-                            <div>
-                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Subject</label>
-                                <select value={userSubjectCode} onChange={e => setUserSubjectCode(e.target.value)} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white text-slate-900'}`}>
-                                    <option value="">Select a subject</option>
-                                    {userSubjects.map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
-                                </select>
-                                {userSubjectsLoading && <p className="text-xs mt-1 text-secondary-400">Loading...</p>}
-                            </div>
-                            <div>
-                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Content Type</label>
-                                <select value={userContentType} onChange={e => setUserContentType(e.target.value)} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white text-slate-900'}`}>
-                                    <option value="">Select content type</option>
-                                    <option value="notes">Notes</option><option value="pyqs">PYQs</option><option value="questionBanks">Question Banks</option><option value="syllabus">Syllabus</option><option value="resources">Resources</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Files</label>
-                                <input type="file" multiple onChange={e => setUserFiles(Array.from(e.target.files || []))} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white text-slate-900'}`} accept=".pdf,.doc,.docx,.ppt,.pptx" />
-                            </div>
-                            {userUploadError && <div className="rounded-xl border px-3 py-2 text-sm border-red-500/20 bg-red-500/10 text-red-200">{userUploadError}</div>}
-                            <div className="flex items-center justify-end gap-2">
-                                <button type="button" onClick={() => setShowUserUploadModal(false)} className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'}`} disabled={userUploadLoading}>Cancel</button>
-                                <button type="submit" className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${userUploadLoading ? 'bg-purple-600/40 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-500'}`} disabled={userUploadLoading}>{userUploadLoading ? `${userUploadFileIndex}/${userUploadFileTotal} (${userUploadProgress}%)` : 'Submit'}</button>
-                            </div>
-                        </form>
-                    </ModalShell>
-                )}
-
-                {showBugModal && (
-                    <ModalShell isLightMode={isLightMode} title="Report a Bug" onClose={closeBugModal}>
-                        <div className="space-y-4">
-                            <div>
-                                <p className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Title</p>
-                                <input value={bugTitle} onChange={e => setBugTitle(e.target.value)} className={`mt-2 h-10 w-full rounded-xl border px-3 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white/5 text-secondary-100'}`} placeholder="Short summary" />
-                            </div>
-                            <div>
-                                <p className={`text-sm font-semibold ${isLightMode ? 'text-slate-800' : 'text-secondary-100'}`}>Description</p>
-                                <textarea value={bugDescription} onChange={e => setBugDescription(e.target.value)} rows={5} className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white/5 text-secondary-100'}`} placeholder="What happened?" />
-                            </div>
-                            <div className="rounded-xl border px-3 py-2 text-xs border-white/10 bg-white/5 text-secondary-300">
-                                <div className="font-semibold">Page URL</div>
-                                <div className="mt-1 break-all">{typeof window !== 'undefined' ? window.location.href : ''}</div>
-                            </div>
-                            {bugError && <div className="rounded-xl border px-3 py-2 text-sm border-red-500/20 bg-red-500/10 text-red-200">{bugError}</div>}
-                            <div className="flex items-center justify-end gap-2">
-                                <button type="button" onClick={closeBugModal} className={`h-10 rounded-xl px-4 text-sm font-semibold transition ${isLightMode ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/5 text-secondary-200 hover:bg-white/10'}`} disabled={bugSubmitting}>Cancel</button>
-                                <button type="button" onClick={submitBug} className={`h-10 rounded-xl px-4 text-sm font-semibold text-white transition ${bugTitle.trim() && bugDescription.trim() && !bugSubmitting ? 'bg-purple-600 hover:bg-purple-500' : 'bg-purple-600/40 cursor-not-allowed'}`} disabled={!bugTitle.trim() || !bugDescription.trim() || bugSubmitting}>{bugSubmitting ? 'Submitting...' : 'Submit'}</button>
-                            </div>
-                        </div>
-                    </ModalShell>
-                )}
-
-                {showNotificationModal && (
-                    <ModalShell isLightMode={isLightMode} title="Notifications" onClose={() => { setShowNotificationModal(false); handleMarkAllAsRead(); }}>
-                        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-                            {notificationsLoading ? (
-                                <div className="text-center py-8 text-secondary-400">
-                                    <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                                    <p className="text-sm">Loading...</p>
-                                </div>
-                            ) : notifications.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-sm text-secondary-400">No notifications yet</p>
-                                    <p className="text-xs mt-1 text-secondary-500 opacity-70">New content uploads will appear here</p>
-                                </div>
-                            ) : notifications.map(n => {
-                                const isUnread = !n.isRead;
-                                const typeColors = { notes:'bg-green-500/15 text-green-400 border-green-400/20', pyqs:'bg-purple-500/15 text-purple-400 border-purple-400/20', questionBanks:'bg-blue-500/15 text-blue-400 border-blue-400/20', syllabus:'bg-orange-500/15 text-orange-400 border-orange-400/20', feature:'bg-emerald-500/15 text-emerald-400 border-emerald-400/20', update:'bg-blue-500/15 text-blue-400 border-blue-400/20', announcement:'bg-amber-500/15 text-amber-400 border-amber-400/20' };
-                                const typeLabels = { notes:'Notes', pyqs:'PYQs', questionBanks:'Q-Bank', syllabus:'Syllabus', feature:'New Feature', update:'Update', announcement:'Announcement' };
-                                return (
-                                    <div key={n._id} className={`rounded-xl border p-4 ${isUnread ? 'border-purple-500/30 bg-purple-500/10' : 'border-white/10 bg-white/5'}`}>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="text-sm font-bold text-secondary-100">{n.title}</h3>
-                                            {isUnread && <span className="inline-flex items-center rounded-full bg-purple-500 text-white px-2 py-0.5 text-[10px] font-semibold">NEW</span>}
-                                        </div>
-                                        <p className="mt-1 text-sm text-secondary-300">{n.message}</p>
-                                        {n.subjectCode && <div className="mt-2 text-xs text-secondary-400">📍 {n.subjectCode}{n.moduleName && ` → ${n.moduleName}`}</div>}
-                                        <div className="mt-2 flex items-center gap-2">
-                                            <span className="text-xs text-secondary-500">{n.createdAt ? new Date(n.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) : ''}</span>
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${typeColors[n.type] || typeColors.update}`}>{typeLabels[n.type] || 'Update'}</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </ModalShell>
-                )}
-            </motion.div>
-        </>
+            </motion.button>
+        </div>
     );
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   SUBJECT ITEM (No Icons, Pure Typography)
+   ICONS
 ═══════════════════════════════════════════════════════════════════ */
-const SubjectItem = ({ subject, index, isActive, collapsed, onClick, isPinned, onTogglePin }) => {
-    const content = (
-        <motion.div
-            role="button"
-            tabIndex={0}
-            onClick={onClick}
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.035, duration: 0.2 }}
-            whileHover={!isActive ? { x: collapsed ? 0 : 2 } : {}}
-            whileTap={{ scale: 0.96 }}
-            className="w-full flex items-center rounded-lg text-left transition-all duration-200 relative overflow-hidden group"
+const HomeIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? '#3B82F6' : 'none'} stroke={filled ? '#60A5FA' : '#93C5FD'} strokeWidth={filled ? 1.5 : 1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+);
+
+const PlusIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="side-gem-tl" x1="5" y1="5" x2="10" y2="10" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#FF9F43" />
+                <stop offset="1" stopColor="#FF5252" />
+            </linearGradient>
+            <linearGradient id="side-gem-tc" x1="7" y1="5" x2="16" y2="10" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#FFC048" />
+                <stop offset="1" stopColor="#FF7800" />
+            </linearGradient>
+            <linearGradient id="side-gem-tr" x1="16" y1="5" x2="21" y2="10" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#A55EEA" />
+                <stop offset="1" stopColor="#786FA6" />
+            </linearGradient>
+            <linearGradient id="side-gem-bl" x1="3" y1="10" x2="12" y2="20" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#E056FD" />
+                <stop offset="1" stopColor="#BE2ED6" />
+            </linearGradient>
+            <linearGradient id="side-gem-bc" x1="8" y1="10" x2="12" y2="20" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#8854D0" />
+                <stop offset="1" stopColor="#3867D6" />
+            </linearGradient>
+            <linearGradient id="side-gem-br" x1="16" y1="10" x2="21" y2="10" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#4B7BEC" />
+                <stop offset="1" stopColor="#2D98DA" />
+            </linearGradient>
+        </defs>
+        <polygon points="7,5 12,5 8,10 3,10" fill="url(#side-gem-tl)" />
+        <polygon points="12,5 17,5 16,10 8,10" fill="url(#side-gem-tc)" />
+        <polygon points="17,5 21,10 16,10" fill="url(#side-gem-tr)" />
+        <polygon points="3,10 8,10 12,20" fill="url(#side-gem-bl)" />
+        <polygon points="8,10 16,10 12,20" fill="url(#side-gem-bc)" />
+        <polygon points="16,10 21,10 12,20" fill="url(#side-gem-br)" />
+    </svg>
+);
+
+const LostFoundIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={filled ? '#60A5FA' : '#93C5FD'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="7" />
+        <line x1="21" y1="21" x2="16.55" y2="16.55" />
+    </svg>
+);
+
+const CieIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" 
+            fill={filled ? "url(#cie-icon-grad)" : "none"} 
+            stroke={filled ? "#C4B5FD" : "#93C5FD"} 
+            strokeWidth="1.8" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+        />
+        <defs>
+            <linearGradient id="cie-icon-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#a78bfa" />
+                <stop offset="1" stopColor="#7c3aed" />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
+const SgpaIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" 
+            stroke={filled ? "#60A5FA" : "#93C5FD"} 
+            strokeWidth="1.8" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+        />
+        <rect x="8" y="2" width="8" height="4" rx="1" ry="1" fill={filled ? "url(#sgpa-icon-grad)" : "none"} stroke={filled ? "#60A5FA" : "#93C5FD"} strokeWidth="1.8" />
+        <path d="M9 12h6M9 16h6" stroke={filled ? "#93C5FD" : "#64748B"} strokeWidth="1.8" strokeLinecap="round" />
+        <defs>
+            <linearGradient id="sgpa-icon-grad" x1="8" y1="2" x2="16" y2="6" gradientUnits="userSpaceOnUse">
+                <stop stopColor="#3b82f6" />
+                <stop offset="1" stopColor="#1d4ed8" />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
+const SGPAIcon = SgpaIcon;
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIDEBAR COMPONENT
+═══════════════════════════════════════════════════════════════════ */
+const Sidebar = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { user, logout } = useContext(AuthContext);
+
+    const handleLogout = () => {
+        logout?.();
+        navigate('/login');
+    };
+
+    const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
+    const isProfileSection = location.pathname.startsWith('/profile');
+
+    return (
+        <div
             style={{
-                gap: collapsed ? 0 : 12,
-                padding: collapsed ? '10px 4px' : '9px 12px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                background: isActive
-                    ? 'rgba(139,92,246,0.12)'
-                    : 'transparent',
-                border: isActive
-                    ? '1px solid rgba(139,92,246,0.25)'
-                    : '1px solid transparent',
-            }}
-            onMouseEnter={e => {
-                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-            }}
-            onMouseLeave={e => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                bottom: 0,
+                width: SIDEBAR_WIDTH,
+                zIndex: 40,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                overflow: 'visible',
+                paddingTop: 0,
+                background: 'rgba(7, 5, 18, 0.92)',
+                borderRight: '1px solid rgba(139, 92, 246, 0.08)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
             }}
         >
-            {/* Active left bar */}
-            {isActive && (
-                <motion.div
-                    layoutId="active-bar"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full"
-                    style={{
-                        width: 3, height: 20,
-                        background: '#a78bfa',
-                        boxShadow: `0 0 8px #a78bfa, 0 0 16px rgba(167,139,250,0.6)`,
-                    }}
+            {/* Logo */}
+            <div
+                style={{
+                    width: '100%',
+                    height: 64,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderBottom: '1px solid rgba(139,92,246,0.07)',
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                }}
+                onClick={() => window.location.href = '/'}
+            >
+                <ASLogo
+                    size={34}
+                    style={{ filter: 'drop-shadow(0 0 8px rgba(139,92,246,0.5))' }}
                 />
-            )}
-
-            {/* Label (Expanded) */}
-            <AnimatePresence initial={false}>
-                {!collapsed && (
-                    <motion.span
-                        key="label"
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: 'auto' }}
-                        exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex-1 text-[13px] font-medium leading-[1.3] whitespace-normal pr-5 transition-colors duration-200"
-                        style={{ color: isActive ? '#ffffff' : 'rgba(148,163,184,0.85)', wordBreak: 'break-word' }}
-                    >
-                        {subject.name}
-                    </motion.span>
-                )}
-            </AnimatePresence>
-
-            {/* Pin Icon */}
-            {!collapsed && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); onTogglePin(subject.id); }}
-                    className={`absolute right-2 p-1 rounded-md transition-opacity duration-200 ${isPinned ? 'opacity-100 text-[#a78bfa]' : 'opacity-0 group-hover:opacity-100 text-slate-500 hover:text-white hover:bg-white/10'}`}
-                >
-                    <svg className="w-3.5 h-3.5" fill={isPinned ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={isPinned ? 1 : 2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                </button>
-            )}
-
-            {/* Collapsed Initial */}
-            <AnimatePresence initial={false}>
-                {collapsed && (
-                    <motion.span
-                        key="collapsed-label"
-                        initial={{ opacity: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.5 }}
-                        className="text-[11px] font-bold uppercase transition-colors duration-200 tracking-wider"
-                        style={{ color: isActive ? '#ffffff' : 'rgba(148,163,184,0.85)', textAlign: 'center', lineHeight: 1.1 }}
-                    >
-                        {subject.code || subject.name.substring(0, 3)}
-                    </motion.span>
-                )}
-            </AnimatePresence>
-            
-            {/* Active glow */}
-            {isActive && !collapsed && (
-                <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-purple-500/10 to-transparent pointer-events-none" />
-            )}
-        </motion.div>
-    );
-
-    // Wrap in tooltip when collapsed
-    return collapsed ? (
-        <Tip label={subject.name} color={subject.color}>{content}</Tip>
-    ) : content;
-};
-
-/* ═══════════════════════════════════════════════════════════════════
-   PROFILE CARD
-═══════════════════════════════════════════════════════════════════ */
-const ProfileCard = ({
-    user, currentBranch, collapsed,
-    showProfileMenu, setShowProfileMenu,
-    onFeedback, onBug,
-    isLightMode, toggleTheme,
-    logout, navigate,
-}) => {
-    const isAskPlus = user?.subscription === 'askplus';
-    const isExpiringSoon = isAskPlus && user?.subscriptionExpiry && (new Date(user.subscriptionExpiry) - new Date()) < 3 * 24 * 60 * 60 * 1000;
-    const avatarUrl = user?.profilePicture
-        ? (user.profilePicture.startsWith('http') ? user.profilePicture : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.profilePicture}`)
-        : null;
-
-    const [imgError, setImgError] = useState(false);
-    useEffect(() => {
-        setImgError(false);
-    }, [user?.profilePicture]);
-
-    const trigger = (
-        <motion.button
-            type="button"
-            onClick={() => setShowProfileMenu(v => !v)}
-            whileHover={{ backgroundColor: isLightMode ? 'rgba(15,23,42,0.04)' : 'rgba(139,92,246,0.1)' }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full flex items-center rounded-xl transition-all duration-200"
-            style={{
-                gap: collapsed ? 0 : 10,
-                padding: collapsed ? '7px' : '7px 10px',
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                background: showProfileMenu
-                    ? (isLightMode ? 'rgba(15,23,42,0.04)' : 'rgba(139,92,246,0.1)')
-                    : (isLightMode ? 'rgba(15,23,42,0.02)' : 'rgba(139,92,246,0.05)'),
-                border: isLightMode
-                    ? `1px solid ${showProfileMenu ? 'rgba(15,23,42,0.12)' : 'rgba(15,23,42,0.06)'}`
-                    : `1px solid ${showProfileMenu ? 'rgba(139,92,246,0.3)' : 'rgba(139,92,246,0.12)'}`,
-                boxShadow: showProfileMenu ? (isLightMode ? '0 0 10px rgba(0,0,0,0.04)' : '0 0 16px rgba(139,92,246,0.15)') : 'none',
-            }}
-        >
-            {/* Avatar */}
-            <div className="flex-shrink-0 relative" style={{ width: 30, height: 30 }}>
-                <div
-                    className={`w-full h-full rounded-full flex items-center justify-center ${isLightMode ? 'text-slate-800' : 'text-white'} font-bold overflow-hidden`}
-                    style={{
-                        background: 'linear-gradient(135deg,#8B5CF6,#3B82F6)',
-                        border: '1.5px solid rgba(139,92,246,0.45)',
-                        boxShadow: '0 0 10px rgba(139,92,246,0.3)',
-                        fontSize: 12,
-                    }}
-                >
-                    {avatarUrl && !imgError
-                        ? <img src={avatarUrl} alt={user?.usn} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; setImgError(true); }} />
-                        : (user?.usn || 'U').slice(0, 1).toUpperCase()
-                    }
-                </div>
             </div>
 
-            {/* Info */}
-            <AnimatePresence initial={false}>
-                {!collapsed && (
-                    <motion.div
-                        key="info"
-                        initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: 'auto' }} exit={{ opacity: 0, width: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="flex-1 min-w-0 text-left overflow-hidden"
-                    >
-                        <p className={`text-[12.5px] font-semibold truncate whitespace-nowrap leading-tight ${isLightMode ? 'text-slate-800' : 'text-white'}`}>
-                            {user?.usn || 'Student'}
-                        </p>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Nav Items */}
+            {(() => {
+                const isMaterials = location.pathname.includes('/materials');
+                const isInterviews = location.pathname.includes('/interview-experiences');
+                const isLostFound = location.pathname.includes('/lost-and-found');
+                const isMarketplace = location.pathname.includes('/marketplace');
+                const isSGPA = location.pathname.includes('/sgpa-calculator') || location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
+                const isCGPA = location.pathname.includes('/cgpa-calculator');
+                const isHomeExact = location.pathname === '/home' || location.pathname === '/home/';
+                const isAcademicRegister = location.pathname.includes('/academic-register');
+                const isAttendance = location.pathname.includes('/attendance');
+                const isCie = location.pathname.includes('/cie');
+                const isSgpa = location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
+                const isTimetable = location.pathname.includes('/timetable') || location.pathname.includes('/todays-classes');
+                const isAcademicNav = isAcademicRegister || isAttendance || isCie || isSgpa || isTimetable;
 
-            {!collapsed && (
-                <motion.svg animate={{ rotate: showProfileMenu ? 180 : 0 }} transition={{ duration: 0.2 }}
-                    className="w-3.5 h-3.5 flex-shrink-0" style={{ color: isLightMode ? 'rgba(15,23,42,0.45)' : 'rgba(139,92,246,0.45)' }}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 9l6 6 6-6" />
-                </motion.svg>
-            )}
-        </motion.button>
-    );
-
-    return (
-        <div className="relative">
-            {collapsed ? <Tip label={user?.usn || 'Profile'}>{trigger}</Tip> : trigger}
-
-            {/* Dropdown */}
-            <AnimatePresence>
-                {showProfileMenu && (
-                    <motion.div
-                        key="dropdown"
-                        initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                        transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                        className="absolute rounded-xl overflow-hidden"
+                return (
+                    <nav
                         style={{
-                            bottom: '100%', marginBottom: 8,
-                            left: collapsed ? '100%' : 0,
-                            marginLeft: collapsed ? 8 : 0,
-                            minWidth: 220,
-                            right: collapsed ? 'auto' : 0,
-                            background: isLightMode ? '#ffffff' : 'rgba(8,4,22,0.98)',
-                            border: isLightMode ? '1px solid rgba(15, 23, 42, 0.08)' : '1px solid rgba(139,92,246,0.22)',
-                            boxShadow: isLightMode ? '0 -8px 40px rgba(15, 23, 42, 0.08)' : '0 -8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.08)',
-                            backdropFilter: 'blur(20px)',
-                            zIndex: 100,
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            paddingTop: 20,
+                            paddingBottom: 20,
+                            gap: 8,
+                            width: '100%',
+                            paddingLeft: 16,
+                            paddingRight: 16,
                         }}
                     >
-                        {/* Header */}
-                        <div className="px-4 py-3" style={{ borderBottom: isLightMode ? '1px solid rgba(15,23,42,0.06)' : '1px solid rgba(139,92,246,0.1)' }}>
-                            <p className={`text-sm font-bold truncate ${isLightMode ? 'text-slate-800' : 'text-white'}`}>{user?.name || user?.usn}</p>
-                            <p className={`text-xs truncate mt-0.5 ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>{user?.email}</p>
-                            {currentBranch && (
-                                <span className="inline-flex mt-1.5 items-center rounded-full px-2 py-0.5 text-[10px] font-bold"
-                                    style={{ background: 'rgba(16,185,129,0.12)', color: '#34d399', border: '1px solid rgba(16,185,129,0.22)' }}>
-                                    {currentBranch}
-                                </span>
-                            )}
-                        </div>
+                        <NavItem
+                            icon={<HomeIcon filled={isHomeExact} />}
+                            label="Home"
+                            isActive={isHomeExact}
+                            onClick={() => navigate('/home')}
+                        />
+                        <NavItem
+                            icon={<PlusIcon />}
+                            label="Plus"
+                            isActive={location.pathname.startsWith('/plus')}
+                            onClick={() => navigate('/plus')}
+                        />
 
-                        <div className="py-1">
-                            {/* Divider — Tools */}
-                            <div className="mx-3 my-1">
-                                <p className="text-[9px] font-bold uppercase tracking-widest px-1 pt-2 pb-1" style={{ color: 'rgba(139,92,246,0.35)' }}>Tools</p>
-                            </div>
+                        {isAcademicNav && (
+                            <>
+                                <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
+                                {isCie ? (
+                                    <NavItem
+                                        icon={<CieIcon filled={true} />}
+                                        label="CIE"
+                                        isActive={true}
+                                        onClick={() => navigate('/home/cie')}
+                                    />
+                                ) : isSgpa ? (
+                                    <NavItem
+                                        icon={<SgpaIcon filled={true} />}
+                                        label="SGPA"
+                                        isActive={true}
+                                        onClick={() => navigate('/home/sgpa')}
+                                    />
+                                ) : (
+                                    <>
+                                        <NavItem
+                                            icon={<BookOpenCheck size={20} strokeWidth={1.8} />}
+                                            label="Register"
+                                            isActive={isAcademicRegister}
+                                            onClick={() => navigate('/home/academic-register')}
+                                        />
+                                        <NavItem
+                                            icon={<CheckSquare size={20} strokeWidth={1.8} />}
+                                            label="Attendance"
+                                            isActive={isAttendance}
+                                            onClick={() => navigate('/home/attendance')}
+                                        />
+                                    </>
+                                )}
+                                <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
+                            </>
+                        )}
 
-                            <PMI icon={<CalIcon />}      label="Academic Calendar" onClick={() => navigate('/dashboard/academic-calendar')} isLightMode={isLightMode} />
-                            <PMI icon={<BookIcon />}     label="Subjects Sheet"    onClick={() => navigate('/dashboard/subjects')} isLightMode={isLightMode} />
-                            <div className="mx-3 my-1 h-px" style={{ background: 'rgba(139,92,246,0.08)' }} />
-                            <PMI icon={<FbIcon />}       label="Feedback"         onClick={onFeedback} isLightMode={isLightMode} />
-                            <PMI icon={<BugIcon />}      label="Report a Bug"     onClick={onBug} isLightMode={isLightMode} />
-                            <PMI icon={<ThemeIcon />}    label={isLightMode ? 'Dark Mode' : 'Light Mode'} onClick={toggleTheme} isLightMode={isLightMode} />
-                            <div className="mx-3 my-1 h-px" style={{ background: 'rgba(139,92,246,0.1)' }} />
-                            <PMI icon={<OutIcon />}      label="Logout"           color="#f87171" onClick={() => { logout(); navigate('/'); }} isLightMode={isLightMode} />
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        {isMaterials && (
+                            <NavItem
+                                icon={<MaterialsIcon filled={isMaterials} />}
+                                label="Notes"
+                                isActive={isMaterials}
+                                onClick={() => navigate('/home/materials')}
+                            />
+                        )}
+
+                        {isInterviews && (
+                            <NavItem
+                                icon={<InterviewsIcon filled={isInterviews} />}
+                                label="Careers"
+                                isActive={isInterviews}
+                                onClick={() => navigate('/home/interview-experiences')}
+                            />
+                        )}
+
+                        {isLostFound && (
+                            <NavItem
+                                icon={<LostFoundIcon filled={isLostFound} />}
+                                label="Found"
+                                isActive={isLostFound}
+                                onClick={() => navigate('/home/lost-and-found')}
+                            />
+                        )}
+
+                        {isMarketplace && (
+                            <NavItem
+                                icon={<MarketplaceIcon filled={isMarketplace} />}
+                                label="Market"
+                                isActive={isMarketplace}
+                                onClick={() => navigate('/home/marketplace')}
+                            />
+                        )}
+
+                        {isProfileSection && (
+                            <NavItem
+                                icon={<User size={20} strokeWidth={1.8} />}
+                                label="Profile"
+                                isActive={isProfileSection}
+                                onClick={() => navigate('/profile')}
+                            />
+                        )}
+                    </nav>
+                );
+            })()}
+
+            {/* Profile Avatar Popover Menu at the bottom */}
+            <div style={{ marginBottom: 24, zIndex: 50, flexShrink: 0 }}>
+                <BottomProfileMenu user={user} />
+            </div>
+
+            {/* Bottom glow */}
+            <div style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 120,
+                background: 'linear-gradient(to top, rgba(124,58,237,0.04), transparent)',
+                pointerEvents: 'none',
+            }} />
         </div>
     );
 };
-
-/* ─── Profile menu item ─────────────────────────────────────────── */
-const PMI = ({ icon, label, onClick, color, badge, isLightMode }) => (
-    <button type="button" onClick={onClick}
-        className="w-full flex items-center gap-3 px-4 py-2 text-[12.5px] font-medium group transition-all duration-100"
-        style={{ color: color || (isLightMode ? 'rgba(15,23,42,0.8)' : 'rgba(148,163,184,0.85)') }}
-        onMouseEnter={e => e.currentTarget.style.background = color ? `${color}14` : (isLightMode ? 'rgba(15,23,42,0.05)' : 'rgba(139,92,246,0.07)')}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-    >
-        <span style={{ color: color || (isLightMode ? 'rgba(15,23,42,0.6)' : 'rgba(100,116,139,0.7)'), flexShrink: 0 }}>{icon}</span>
-        <span className={`flex-1 text-left transition-colors duration-100 ${isLightMode ? 'group-hover:text-black text-slate-800' : 'group-hover:text-white text-slate-300'}`}>{label}</span>
-        {badge > 0 && <span className="h-4 min-w-4 rounded-full bg-red-500 text-[9px] font-bold text-white flex items-center justify-center px-1">{badge > 9 ? '9+' : badge}</span>}
-    </button>
-);
-
-/* ─── Icon set ──────────────────────────────────────────────────── */
-const I = (d, extra) => (
-    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" {...extra}>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={d} />
-    </svg>
-);
-const HomeIcon    = () => I("M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6");
-const GridIcon    = () => I("M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z", { strokeWidth: 1.5 });
-const TrackIcon   = () => I("M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z");
-const SendIcon    = () => I("M12 19l9 2-9-18-9 18 9-2zm0 0v-8");
-const EditDocIcon = () => I("M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z");
-const UserIcon    = () => I("M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0");
-const FbIcon      = () => I("M7 8h10M7 12h6m-6 4h8M5 20l2-2h12a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v14z");
-const BugIcon     = () => I("M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z");
-const ThemeIcon   = () => I("M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M7.05 16.95l-1.414 1.414m12.728 0l-1.414-1.414M7.05 7.05L5.636 5.636M12 18a6 6 0 100-12 6 6 0 000 12z");
-const UpIcon      = () => I("M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12");
-const OutIcon     = () => I("M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1");
-const CalIcon     = () => I("M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z");
-const BookIcon    = () => I("M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253");
-const BellIcon    = ({ cnt }) => (
-    <span className="relative inline-flex">
-        {I("M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0m6 0H9")}
-        {cnt > 0 && <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-[7px] font-bold text-white flex items-center justify-center">{cnt > 9 ? '9+' : cnt}</span>}
-    </span>
-);
-const DiscordIcon = () => (
-    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.079.114 18.1.132 18.11a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
-    </svg>
-);
-
-/* ═══════════════════════════════════════════════════════════════════
-   MODAL SHELL
-═══════════════════════════════════════════════════════════════════ */
-const ModalShell = ({ isLightMode, title, onClose, children }) => createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-        <button type="button" className="absolute inset-0 bg-black/65"
-            onClick={onClose} aria-label="Close"
-            style={{ backdropFilter: 'blur(4px)' }} />
-        <motion.div
-            initial={{ opacity: 0, scale: 0.97, y: 8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 8 }}
-            transition={{ duration: 0.18 }}
-            className={`relative w-full max-w-lg rounded-2xl border shadow-2xl ${isLightMode ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-[#07041a] text-secondary-100'}`}
-            style={!isLightMode ? { boxShadow: '0 0 60px rgba(139,92,246,0.2)' } : {}}
-        >
-            <div className={`flex items-center justify-between px-5 py-4 border-b ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}>
-                <h2 className="text-sm font-bold">{title}</h2>
-                <button type="button" onClick={onClose}
-                    className={`h-8 w-8 rounded-lg flex items-center justify-center transition ${isLightMode ? 'hover:bg-slate-100' : 'hover:bg-white/5'}`}>
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div className="px-5 py-4">{children}</div>
-        </motion.div>
-    </div>,
-    document.body
-);
 
 export default Sidebar;

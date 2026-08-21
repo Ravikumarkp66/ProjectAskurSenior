@@ -32,6 +32,9 @@ router.get('/academic-events', authMiddleware, academicController.getAcademicEve
 router.post('/academic-events', authMiddleware, academicController.saveAcademicEvent);
 router.delete('/academic-events/:id', authMiddleware, academicController.deleteAcademicEvent);
 
+// Academic Calendar Events (Global/State/National/College)
+router.get('/calendar', authMiddleware, academicController.getCalendarEvents);
+
 // Admin Trigger
 router.post('/trigger-whatsapp', authMiddleware, academicController.triggerWhatsApp);
 

@@ -3,53 +3,60 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { subjectAPI, apiClient, uploadAPI, documentsAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
-import ResourceCard from '../components/ResourceCard';
 import { generatePDFThumbnail } from '../utils/pdfThumbnail';
+import { logAcademicActivity } from '../utils/academicStreak';
 import CIECalculatorModal from '../components/CIECalculatorPanel';
 import DiscussionPanel from '../components/DiscussionPanel';
+import ContentHeader from '../components/ContentHeader';
+import ContentTabs from '../components/ContentTabs';
+import ContentGrid from '../components/ContentGrid';
+import SubjectBottomSheet from '../components/SubjectBottomSheet';
+import { useSubjectContext } from '../contexts/SubjectContext';
+import { FileText, ClipboardList, FolderArchive, ChartColumn, MessagesSquare } from 'lucide-react';
 
 /* ─── Tab config ─────────────────────────────────────────────────── */
+const ICON_PROPS = { size: 20, strokeWidth: 1.75 };
 const TABS = [
     {
         id: 'notes',
         label: 'Notes',
         color: '#10B981',
-        placeholder: { emoji: '📖', headline: 'No notes available yet', sub: 'Check back later or upload notes to help your juniors.' },
+        placeholder: { icon: <FileText {...ICON_PROPS} />, headline: 'No notes available yet', sub: 'Check back later or upload notes to help your juniors.' },
     },
     {
         id: 'pyqs',
         label: 'PYQs',
         color: '#8B5CF6',
-        placeholder: { emoji: '📝', headline: 'No PYQs uploaded yet', sub: 'Previous year papers will appear here once available.' },
+        placeholder: { icon: <ClipboardList {...ICON_PROPS} />, headline: 'No PYQs uploaded yet', sub: 'Previous year papers will appear here once available.' },
     },
     {
         id: 'others',
         label: 'Others',
         color: '#3B82F6',
-        placeholder: { emoji: '📂', headline: 'No resources available yet', sub: 'Additional resources will be listed here.' },
+        placeholder: { icon: <FolderArchive {...ICON_PROPS} />, headline: 'No resources available yet', sub: 'Additional resources will be listed here.' },
     },
     {
         id: 'cie',
         label: 'CIE Analyzer',
         color: '#F59E0B',
-        placeholder: { emoji: '📊', headline: 'CIE Analyzer Coming Soon', sub: 'CIE tracking and eligibility analysis coming soon.' },
+        placeholder: { icon: <ChartColumn {...ICON_PROPS} />, headline: 'CIE Analyzer Coming Soon', sub: 'CIE tracking and eligibility analysis coming soon.' },
     },
     {
         id: 'discussion',
         label: 'Discussion',
         color: '#EC4899',
-        placeholder: { emoji: '💬', headline: 'Discussion Coming Soon', sub: 'Subject-specific discussions and doubt solving coming soon.' },
+        placeholder: { icon: <MessagesSquare {...ICON_PROPS} />, headline: 'Discussion Coming Soon', sub: 'Subject-specific discussions and doubt solving coming soon.' },
     },
 ];
 
 /* ─── Static sidebar IDs ─────────────────────────────────────────── */
 const LOCAL_SUBJECTS = {
-    math1:   { name: 'Mathematics-I',        code: 'AMS1',   credits: 4, semester: '1' },
-    physics: { name: 'Physics',              code: 'PHY101', credits: 4, semester: '1' },
-    chem:    { name: 'Chemistry',            code: 'CHE101', credits: 4, semester: '1' },
-    elec:    { name: 'Electronics',          code: 'ELE101', credits: 3, semester: '1' },
-    engraph: { name: 'Engineering Graphics', code: 'EG101',  credits: 3, semester: '1' },
-    ai:      { name: 'AI Fundamentals',      code: 'AI101',  credits: 3, semester: '1' },
+    math1: { name: 'Mathematics-I', code: 'AMS1', credits: 4, semester: '1' },
+    physics: { name: 'Physics', code: 'PHY101', credits: 4, semester: '1' },
+    chem: { name: 'Chemistry', code: 'CHE101', credits: 4, semester: '1' },
+    elec: { name: 'Electronics', code: 'ELE101', credits: 3, semester: '1' },
+    engraph: { name: 'Engineering Graphics', code: 'EG101', credits: 3, semester: '1' },
+    ai: { name: 'AI Fundamentals', code: 'AI101', credits: 3, semester: '1' },
 };
 const isObjectId = (id) => /^[a-f\d]{24}$/i.test(id);
 
@@ -66,12 +73,14 @@ const Placeholder = ({ tab }) => (
         className="flex flex-col items-center justify-center py-16 px-4 text-center select-none"
     >
         <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">{tab.placeholder.emoji}</span>
+            <span style={{ color: tab.color, opacity: 0.7, display: 'flex', alignItems: 'center' }}>
+                {tab.placeholder.icon}
+            </span>
             <h3 className="text-[13px] font-bold tracking-widest uppercase" style={{ color: tab.color }}>
-                {tab.placeholder.headline.replace(' Coming Soon', '')} Module
+                {(tab?.placeholder?.headline || '').replace(' Coming Soon', '')} Module
             </h3>
         </div>
-        
+
         <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest mb-3"
             style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(148,163,184,0.7)' }}>
             Coming Soon
@@ -86,43 +95,29 @@ const Placeholder = ({ tab }) => (
 /* ═══════════════════════════════════════════════════════════════════
    CONTENT LIST  (when API returns files)
 ═══════════════════════════════════════════════════════════════════ */
-const ContentList = ({ items, contentType, onView, onDownload, onDelete, showDelete, color }) => {
-    if (!items?.length) return null;
-    return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4 w-full">
-            {items.map((item, i) => (
-                <ResourceCard 
-                    key={item._id || i}
-                    resource={item}
-                    onPreview={() => onView(contentType, item._id)}
-                    onDownload={() => onDownload(item._id, item.originalName || item.fileName || 'download')}
-                    onDelete={onDelete}
-                    showDelete={showDelete}
-                    color={color}
-                />
-            ))}
-        </div>
-    );
-};
+// ContentList component has been extracted to ContentGrid.jsx
 
 /* ═══════════════════════════════════════════════════════════════════
    SUBJECT CONTENT PAGE
 ═══════════════════════════════════════════════════════════════════ */
 const SubjectContentPage = () => {
     const { subjectId } = useParams();
-    const navigate      = useNavigate();
-    const { user }      = useContext(AuthContext);
+    const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
+    const subjectCtx = useSubjectContext();
 
-    const [subject,      setSubject]      = useState(null);
-    const [content,      setContent]      = useState(null);
-    const [loading,      setLoading]      = useState(true);
-    const [error,        setError]        = useState(null);
-    const [activeTab,    setActiveTab]    = useState('notes');
-    const [pdfUrl,       setPdfUrl]       = useState(null);
-    const [pdfTitle,     setPdfTitle]     = useState('');
-    const [showPdf,      setShowPdf]      = useState(false);
+    const [subject, setSubject] = useState(null);
+    const [content, setContent] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [activeTab, setActiveTab] = useState('notes');
+    const [pdfUrl, setPdfUrl] = useState(null);
+    const [pdfTitle, setPdfTitle] = useState('');
+    const [showPdf, setShowPdf] = useState(false);
+    const [isSubjectsModalOpen, setIsSubjectsModalOpen] = useState(false);
 
     const fileInputRef = useRef(null);
+    const loggedSubjectRef = useRef(null);
 
     const handleAdminFastUpload = async (e) => {
         const files = Array.from(e.target.files);
@@ -171,80 +166,87 @@ const SubjectContentPage = () => {
         return () => window.removeEventListener('keydown', h);
     }, []);
 
-    /* Load subject */
     const loadContent = useCallback(async () => {
-        setLoading(true); setError(null);
-
-        if (!isObjectId(subjectId)) {
-            const decodedName = decodeURIComponent(subjectId);
-            const local = LOCAL_SUBJECTS[decodedName] || Object.values(LOCAL_SUBJECTS).find(s => s.name === decodedName);
-            setSubject(local || { name: decodedName, code: '—', credits: '—', semester: '1' });
-            
-            try {
-                // Fetch materials specifically for this string-based subject
-                const params = new URLSearchParams();
-                params.append('subject', decodedName.toLowerCase());
-                const res = await apiClient.get(`/documents/search?${params.toString()}`);
-                const docs = res.data.documents || res.data || [];
-                
-                setContent({
-                    notes:         docs.filter(d => d.documentType === 'notes'),
-                    pyqs:          docs.filter(d => d.documentType === 'see'),
-                    questionBanks: docs.filter(d => d.documentType === 'internals'),
-                    others:        docs.filter(d => d.documentType === 'others'),
-                    syllabus:      docs.filter(d => d.documentType === 'syllabus'),
-                });
-            } catch (err) {
-                console.error('Failed to fetch documents for generic subject', err);
-                setContent({ notes: [], pyqs: [], questionBanks: [], others: [], syllabus: [] });
-            }
-            setLoading(false);
-            return;
-        }
-
+        setLoading(true);
+        setError(null);
         try {
-            const res  = await subjectAPI.getSubjectContent(subjectId);
-            const data = res.data;
-            if (!data) { setError('Subject not found'); return; }
+            const res = await apiClient.get(`/subjects/${encodeURIComponent(subjectId)}/materials`);
+            const { subject: resolvedSubject, notes, see, internals, others } = res.data;
             
-            const subjName = data.subjectInfo?.name || data.name || 'Subject';
-            const subjCredits = parseFloat(data.subjectInfo?.credits ?? data.credits) || 0;
-            const subjNameLC = subjName.toLowerCase();
-            const isLab = /\blab(oratory)?\b|\bpractical\b/.test(subjNameLC) && !subjNameLC.includes('theory');
-            setSubject({
-                _id:      subjectId,
-                name:     subjName,
-                code:     data.subjectInfo?.code     || data.code     || '—',
-                credits:  subjCredits,
-                semester: data.subjectInfo?.semester || data.semester || '—',
-                isLab,
-            });
+            if (resolvedSubject) {
+                setSubject({
+                    _id: resolvedSubject._id,
+                    name: resolvedSubject.name,
+                    code: resolvedSubject.code,
+                    credits: resolvedSubject.credits ?? '—',
+                    semester: resolvedSubject.year || '—',
+                });
 
-            // Fetch materials from single source of truth based on subject name
-            const params = new URLSearchParams();
-            params.append('subject', subjName.toLowerCase());
-            const docRes = await apiClient.get(`/documents/search?${params.toString()}`);
-            const docs = docRes.data.documents || docRes.data || [];
-            
-            setContent({
-                notes:         docs.filter(d => d.documentType === 'notes'),
-                pyqs:          docs.filter(d => d.documentType === 'see'),
-                questionBanks: docs.filter(d => d.documentType === 'internals'),
-                others:        docs.filter(d => d.documentType === 'others'),
-                syllabus:      docs.filter(d => d.documentType === 'syllabus'),
-            });
+                const mapMaterial = (m) => ({
+                    _id: m._id,
+                    originalName: m.title || m.originalFileName,
+                    fileName: m.title,
+                    fileUrl: m.fileUrl,
+                    fileSize: m.fileSize || 0,
+                    documentType: m.materialType.toLowerCase() === 'see' ? 'see' : m.materialType.toLowerCase(),
+                    subjectName: resolvedSubject.name,
+                    subjectCode: resolvedSubject.code,
+                    uploadedAt: m.createdAt,
+                    tags: m.tags ? m.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+                    thumbnail: null,
+                });
+
+                setContent({
+                    notes: (notes || []).map(mapMaterial),
+                    pyqs: (see || []).map(mapMaterial),
+                    questionBanks: (internals || []).map(mapMaterial),
+                    others: (others || []).map(mapMaterial),
+                    syllabus: [],
+                });
+            } else {
+                setError('Subject not found');
+            }
         } catch (err) {
-            setError(err.response?.status === 404 ? 'Subject not found' : 'Failed to load. Please try again.');
-            setContent({ notes: [], pyqs: [], questionBanks: [], syllabus: [], others: [] });
-        } finally { setLoading(false); }
+            console.error('Failed to load content:', err);
+            setError(err.response?.status === 404 ? 'Subject not found' : 'Failed to load materials. Please try again.');
+            setContent({ notes: [], pyqs: [], questionBanks: [], others: [], syllabus: [] });
+        } finally {
+            setLoading(false);
+        }
     }, [subjectId]);
 
     useEffect(() => { loadContent(); }, [loadContent]);
+
+    useEffect(() => {
+        if (!subjectId || loggedSubjectRef.current === subjectId) return;
+        loggedSubjectRef.current = subjectId;
+        logAcademicActivity({ type: 'subject', label: `Opened Subject: ${decodeURIComponent(subjectId)}` });
+    }, [subjectId]);
+
+    const handleTabChange = (nextTab) => {
+        setActiveTab(nextTab);
+        if (nextTab === 'pyqs') {
+            logAcademicActivity({ type: 'pyqs', label: `Opened PYQs: ${subject?.name || decodeURIComponent(subjectId)}` });
+        }
+    };
 
     const handleView = async (contentType, contentId) => {
         try {
             const res = await apiClient.get(`/documents/${contentId}/preview-url`);
             setPdfUrl(res.data.previewUrl); setPdfTitle(res.data.title || 'Document'); setShowPdf(true);
+            if (contentType === 'notes') {
+                logAcademicActivity({
+                    type: 'notes_preview',
+                    label: `Previewed Notes: ${res.data.title || 'Document'}`,
+                    meta: { contentType, contentId },
+                });
+            } else if (contentType === 'pyqs') {
+                logAcademicActivity({
+                    type: 'pyqs',
+                    label: `Opened PYQs: ${res.data.title || 'Document'}`,
+                    meta: { contentType, contentId },
+                });
+            }
         } catch (err) { alert(err.response?.data?.error || 'Failed to load content'); }
     };
 
@@ -259,6 +261,13 @@ const SubjectContentPage = () => {
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
+                if (activeTab === 'notes') {
+                    logAcademicActivity({
+                        type: 'notes_download',
+                        label: `Downloaded Notes: ${originalName || res.data.title || 'Document'}`,
+                        meta: { contentId },
+                    });
+                }
             }
         } catch (err) {
             alert(err.response?.data?.error || 'Failed to download file');
@@ -277,120 +286,93 @@ const SubjectContentPage = () => {
         }
     };
 
-    const tab        = TABS.find(t => t.id === activeTab);
+    const tab = TABS.find(t => t.id === activeTab);
     const activeItems = content
         ? (activeTab === 'notes' ? content.notes : activeTab === 'pyqs' ? content.pyqs : activeTab === 'others' ? content.others : [])
         : [];
 
-    /* ── Loading ── */
+    /* ── Loading Skeleton Grid ── */
     if (loading) return (
-        <div className="min-h-[50vh] flex items-center justify-center">
-            <div className="w-6 h-6 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
+        <div style={{ width: '100%', padding: '24px 24px 24px 28px' }}>
+            {/* Header Skeleton */}
+            <div className="flex items-center justify-between mb-6 animate-pulse">
+                <div className="skeleton-block h-8 w-48 rounded-lg"></div>
+                <div className="skeleton-block h-10 w-32 rounded-xl"></div>
+            </div>
+
+            {/* Tabs Skeleton */}
+            <div className="flex gap-3 mb-8 animate-pulse">
+                <div className="skeleton-block h-9 w-24 rounded-full"></div>
+                <div className="skeleton-block h-9 w-20 rounded-full"></div>
+                <div className="skeleton-block h-9 w-22 rounded-full"></div>
+                <div className="skeleton-block h-9 w-28 rounded-full"></div>
+                <div className="skeleton-block h-9 w-26 rounded-full"></div>
+            </div>
+
+            {/* Grid Skeleton — responsive */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div key={i} className="skeleton-card rounded-3xl border p-5 flex flex-col gap-4 animate-pulse">
+                        <div className="flex justify-between items-start">
+                            <div className="skeleton-block h-6 w-3/4 rounded"></div>
+                            <div className="skeleton-block h-5 w-5 rounded"></div>
+                        </div>
+                        <div className="skeleton-block h-4 w-1/3 rounded"></div>
+                        <div className="skeleton-preview rounded-xl h-48 flex items-center justify-center">
+                            <div className="skeleton-block h-12 w-12 rounded-full"></div>
+                        </div>
+                        <div className="flex gap-3 mt-2">
+                            <div className="skeleton-block flex-1 h-10 rounded-xl"></div>
+                            <div className="skeleton-block flex-1 h-10 rounded-xl"></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 
     /* ── Error ── */
     if (error) return (
         <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-center px-6">
-            <p className="text-base font-bold text-white">{error}</p>
+            <p className="text-base font-bold" style={{ color: 'var(--theme-text)' }}>{error}</p>
             <button onClick={() => navigate('/dashboard')}
-                className="text-sm text-purple-400 hover:underline">← Dashboard</button>
+                className="text-sm text-purple-400 hover:underline cursor-pointer">← Dashboard</button>
         </div>
     );
+
 
     /* ═════════════════════════════════════════════════════════════
        RENDER
     ═════════════════════════════════════════════════════════════ */
     return (
-        /*
-         * Break out of DashboardLayout's side padding only.
-         * Top padding is perfectly handled by DashboardLayout (pt-56px).
-         */
-        <div className="-mx-4 sm:-mx-6 lg:-mx-10">
+        <div className="subject-content-container" style={{ width: '100%', height: '100%', padding: '0 24px 40px 28px' }}>
 
-            {/* ══════════════════════════════════════════════════
-                STICKY TAB NAV — directly below 56px TopBar
-            ══════════════════════════════════════════════════ */}
-            <div
-                className="sticky z-20 flex flex-col"
-                style={{
-                    top: '56px',
-                    background: 'rgba(8,4,22,0.97)',
-                    borderBottom: '1px solid rgba(139,92,246,0.1)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}
+            {/* ══ STICKY HEADER: Subject name + Upload + Tabs ══ */}
+            <ContentHeader
+                subjectName={subject?.name}
+                subjectCode={subject?.code}
+                user={user}
+                activeTab={activeTab}
+                tabLabel={tab?.label}
+                isSubjectsOpen={isSubjectsModalOpen}
+                onToggleSubjectsModal={() => setIsSubjectsModalOpen(prev => !prev)}
+                onOpenSubjectsModal={() => setIsSubjectsModalOpen(true)}
             >
-                {/* ── Breadcrumb ── */}
-                <div className="px-4 sm:px-6 lg:px-10 pt-2 flex items-center">
-                    <span className="text-[12px] font-medium text-slate-400 opacity-60 flex items-center gap-1.5 select-none">
-                        📘 {subject?.name || 'Subject'}
-                    </span>
-                </div>
+                {/* ── Category Tabs (pill style) ── */}
+                <ContentTabs
+                    tabs={TABS}
+                    activeTab={activeTab}
+                    setActiveTab={handleTabChange}
+                />
+            </ContentHeader>
 
-                <div className="flex w-full px-0 sm:px-2">
-                    {TABS.map(t => {
-                        const isActive = activeTab === t.id;
-                        return (
-                            <button
-                                key={t.id}
-                                onClick={() => setActiveTab(t.id)}
-                                className="relative flex-1 flex items-center justify-center py-3.5 text-[15px] sm:text-[16px] font-semibold transition-colors duration-200 outline-none border-none bg-transparent cursor-pointer tracking-wide"
-                                style={{ color: isActive ? t.color : 'rgba(100,116,139,0.7)' }}
-                                onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'rgba(203,213,225,0.9)'; }}
-                                onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'rgba(100,116,139,0.7)'; }}
-                            >
-                                {t.label}
-
-                                {/* Animated active underline */}
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="tab-indicator"
-                                        className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-t-full"
-                                        style={{ background: t.color, boxShadow: `0 -2px 10px ${t.color}40` }}
-                                        transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                                    />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* ══════════════════════════════════════════════════
-                TAB CONTENT
-            ══════════════════════════════════════════════════ */}
-            <div className="px-4 sm:px-6 lg:px-10 w-full">
-                
-                {/* Section Header for Admin Fast Upload */}
-                {user?.isAdmin && ['notes', 'pyqs', 'others'].includes(activeTab) && (
-                    <div className="flex justify-end pt-4 w-full">
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center justify-center gap-2 px-4 h-10 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold shadow-lg shadow-purple-600/20 transition-all hover:-translate-y-0.5"
-                            title={`Upload ${tab?.label}`}
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                            </svg>
-                            Upload {tab?.label}
-                        </button>
-                        <input
-                            type="file"
-                            multiple
-                            accept=".pdf,.zip,.rar"
-                            ref={fileInputRef}
-                            style={{ display: 'none' }}
-                            onChange={handleAdminFastUpload}
-                        />
-                    </div>
-                )}
-
+            {/* ══ TAB CONTENT ══ */}
+            <div style={{ width: '100%' }}>
                 <AnimatePresence mode="wait">
                     {activeTab === 'discussion' ? (
-                        <DiscussionPanel 
-                            key="discussion-panel" 
-                            subjectId={subjectId} 
+                        <DiscussionPanel
+                            key="discussion-panel"
+                            subjectId={subjectId}
                             subjectName={subject?.name || subjectId}
                             currentUser={user}
                         />
@@ -405,15 +387,31 @@ const SubjectContentPage = () => {
                             <CIECalculatorModal subject={subject} inline={true} />
                         </motion.div>
                     ) : activeItems.length > 0
-                        ? <ContentList key={activeTab + '-list'} items={activeItems} contentType={activeTab} onView={handleView} onDownload={handleDownload} onDelete={handleDeleteMaterial} showDelete={user?.isAdmin} color={tab?.color || '#8B5CF6'} />
+                        ? <ContentGrid key={activeTab + '-list'} items={activeItems} contentType={activeTab} onView={handleView} onDownload={handleDownload} onDelete={handleDeleteMaterial} showDelete={user?.isAdmin} color={tab?.color || '#8B5CF6'} />
                         : <Placeholder key={activeTab} tab={tab} />
                     }
                 </AnimatePresence>
             </div>
 
-            {/* ══════════════════════════════════════════════════
-                PDF MODAL
-            ══════════════════════════════════════════════════ */}
+            {/* ══ MOBILE SUBJECT DROPDOWN MENU ══ */}
+            <SubjectBottomSheet
+                isOpen={subjectCtx?.isSubjectsModalOpen ?? isSubjectsModalOpen}
+                onClose={() => {
+                    subjectCtx?.setIsSubjectsModalOpen?.(false);
+                    setIsSubjectsModalOpen(false);
+                }}
+                subjects={subjectCtx?.subjects || []}
+                filteredSubjects={subjectCtx?.filteredSubjects || []}
+                subjectSearch={subjectCtx?.subjectSearch || ''}
+                onSearchChange={subjectCtx?.setSubjectSearch}
+                activeSubjectId={subjectCtx?.activeSubjectId || subjectId}
+                onSelectSubject={subjectCtx?.onSelectSubject}
+                loading={subjectCtx?.loadingSubjects}
+                pinnedIds={subjectCtx?.pinnedIds}
+                onTogglePin={subjectCtx?.onTogglePin}
+            />
+
+            {/* ══ PDF MODAL ══ */}
             <AnimatePresence>
                 {showPdf && (
                     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -425,12 +423,16 @@ const SubjectContentPage = () => {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.97, y: 8 }}
                             transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-                            className="relative w-full max-w-4xl h-[82vh] rounded-2xl overflow-hidden flex flex-col"
-                            style={{ background: 'rgba(8,4,22,0.99)', border: '1px solid rgba(139,92,246,0.2)', boxShadow: '0 0 80px rgba(139,92,246,0.2)' }}
+                            className="pdf-modal-inner relative w-full max-w-4xl h-[82vh] rounded-2xl overflow-hidden flex flex-col"
+                            style={{
+                                background: 'var(--preview-modal-bg)',
+                                border: '1px solid var(--preview-modal-border)',
+                                boxShadow: '0 0 80px rgba(139,92,246,0.2)'
+                            }}
                         >
-                            <div className="flex items-center justify-between px-5 py-3 flex-shrink-0"
-                                style={{ borderBottom: '1px solid rgba(139,92,246,0.1)' }}>
-                                <p className="text-sm font-semibold text-white truncate pr-4">{pdfTitle}</p>
+                            <div className="pdf-modal-header flex items-center justify-between px-5 py-3 flex-shrink-0"
+                                style={{ borderBottom: '1px solid var(--preview-header-border)' }}>
+                                <p className="pdf-modal-title text-sm font-semibold truncate pr-4" style={{ color: 'var(--theme-text)' }}>{pdfTitle}</p>
                                 <button onClick={() => setShowPdf(false)}
                                     className="w-7 h-7 rounded-lg flex items-center justify-center transition hover:bg-white/6"
                                     style={{ color: 'rgba(148,163,184,0.5)', flexShrink: 0 }}>
@@ -446,6 +448,14 @@ const SubjectContentPage = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            <style dangerouslySetInnerHTML={{__html: `
+                @media (max-width: 767px) {
+                    .subject-content-container {
+                        padding: 0 16px 40px 16px !important;
+                    }
+                }
+            `}} />
         </div>
     );
 };

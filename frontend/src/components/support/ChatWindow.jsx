@@ -4,7 +4,6 @@ import { X, Minus, Send, Sparkles, BookOpen, AlertTriangle, GraduationCap, Thumb
 import toast from 'react-hot-toast';
 import ChatMessage from './ChatMessage';
 import MaterialCard from './MaterialCard';
-import PdfPreviewModal from './PdfPreviewModal';
 import InteractiveForm from './InteractiveForm';
 import socket from '../../services/socket';
 
@@ -40,6 +39,13 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
         }, 4000);
         return () => clearInterval(interval);
     }, [isOpen, chatMode, messageInput, isFocused]);
+
+    useEffect(() => {
+        if (previewMaterial?.url) {
+            window.open(previewMaterial.url, '_blank');
+            setPreviewMaterial(null);
+        }
+    }, [previewMaterial]);
 
     // Initialize AI messages from sessionStorage or default empty array
     const [aiMessages, setAiMessages] = useState(() => {
@@ -700,13 +706,6 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
                 </motion.div>
             )}
         </AnimatePresence>
-        
-        {previewMaterial && (
-            <PdfPreviewModal 
-                material={previewMaterial} 
-                onClose={() => setPreviewMaterial(null)} 
-            />
-        )}
         </>
     );
 };

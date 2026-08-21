@@ -7,6 +7,8 @@ const CompleteRegistrationPage = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
     const [formData, setFormData] = useState({
+        name: '',
+        collegeName: '',
         usn: '',
         password: '',
         confirmPassword: ''
@@ -48,8 +50,18 @@ const CompleteRegistrationPage = () => {
         e.preventDefault();
         setError('');
 
-        if (!formData.usn || !formData.password || !formData.confirmPassword) {
+        if (!formData.name || !formData.collegeName || !formData.usn || !formData.password || !formData.confirmPassword) {
             setError('All fields are required');
+            return;
+        }
+
+        if (formData.name.trim().length < 2) {
+            setError('Please enter your full name (at least 2 characters)');
+            return;
+        }
+
+        if (formData.collegeName.trim().length < 3) {
+            setError('Please enter your college name (at least 3 characters)');
             return;
         }
 
@@ -73,6 +85,8 @@ const CompleteRegistrationPage = () => {
 
         try {
             const response = await authAPI.completeGoogleRegistration({
+                name: formData.name.trim(),
+                collegeName: formData.collegeName.trim(),
                 usn: trimmedUSN,
                 password: formData.password
             });
@@ -107,6 +121,38 @@ const CompleteRegistrationPage = () => {
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Name Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-secondary-300 mb-2">
+                                Full Name
+                            </label>
+                            <input
+                                type="text"
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="e.g., Ravi Kumar"
+                                className="w-full px-4 py-3 bg-primary-700/50 border border-white/10 rounded-lg text-white placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                                required
+                            />
+                        </div>
+
+                        {/* College Name Input */}
+                        <div>
+                            <label className="block text-sm font-medium text-secondary-300 mb-2">
+                                College Name
+                            </label>
+                            <input
+                                type="text"
+                                name="collegeName"
+                                value={formData.collegeName}
+                                onChange={handleChange}
+                                placeholder="e.g., BMSCE / RVCE"
+                                className="w-full px-4 py-3 bg-primary-700/50 border border-white/10 rounded-lg text-white placeholder-secondary-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                                required
+                            />
+                        </div>
+
                         {/* USN Input */}
                         <div>
                             <label className="block text-sm font-medium text-secondary-300 mb-2">

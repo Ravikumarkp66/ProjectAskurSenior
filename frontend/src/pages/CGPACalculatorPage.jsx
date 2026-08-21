@@ -1,92 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../utils/hooks';
-import { subjectAPI } from '../services/api';
+import { subjectAPI, apiClient } from '../services/api';
 import { BRANCHES, deriveBranchFromUSN, toBackendBranch, toUiBranch } from '../utils/constants';
 import { getAllCIEResults } from '../utils/cieEngine';
 import LoginRequiredModal from '../components/LoginRequiredModal';
+import { CIE_RULES, detectSubjectType, getGradeFromTotal } from '../utils/cieRules';
+import SubjectConfetti from '../components/calculator/SubjectConfetti';
 
-// Universal CIE Rule Engine
-const CIE_RULES = {
-    IPCC: {
-        name: '4 Credit IPCC',
-        type: 'IPCC',
-        theoryMax: 50, // Test(34) + Quiz(8) + ABL(8)
-        practicalMax: 25, // Record(15) + Test(10)
-        theory: {
-            tests: { count: 2, max: 100, reducedTo: 34, minTotal: 40 },
-            quiz: { count: 2, max: 40, reducedTo: 8, minTotal: 16 },
-            abl: { count: 2, max: 40, reducedTo: 8, minTotal: 16 }
-        },
-        practical: {
-            record: { max: 350, reducedTo: 15, minTotal: 140 },
-            test: { max: 15, reducedTo: 10, minTotal: 6 }
-        },
-        scaleTheoryTo: 25, // Scale 50 -> 25
-        minTotal: 20
-    },
-    THEORY_ONLY: {
-        name: '3/4 Credit Theory Only',
-        type: 'THEORY_ONLY',
-        theoryMax: 50,
-        practicalMax: 0,
-        theory: {
-            tests: { count: 2, max: 100, reducedTo: 34, minTotal: 40 },
-            quiz: { count: 2, max: 40, reducedTo: 8, minTotal: 16 },
-            abl: { count: 2, max: 40, reducedTo: 8, minTotal: 16 }
-        },
-        minTotal: 20
-    },
-    LAB_ONLY: {
-        name: '1/2 Credit Lab Only',
-        type: 'LAB_ONLY',
-        theoryMax: 0,
-        practicalMax: 50,
-        practical: {
-            record: { max: 350, reducedTo: 35, minTotal: 140 },
-            test: { max: 15, reducedTo: 15, minTotal: 6 }
-        },
-        minTotal: 20
-    },
-    LOW_THEORY: {
-        name: '1/2 Credit Theory',
-        type: 'LOW_THEORY',
-        theoryMax: 50,
-        practicalMax: 0,
-        theory: {
-            tests: { count: 2, max: 100, reducedTo: 34, minTotal: 40 },
-            internal: { count: 2, max: 40, reducedTo: 16, minTotal: 16 } // Sum of Quiz + ABL
-        },
-        minTotal: 20
-    }
-};
-
-const detectSubjectType = (credits, hasLab) => {
-    const cr = parseFloat(credits) || 0;
-    // Rule 1: Credits >= 4 -> Lab + Theory (IPCC)
-    if (cr >= 4) return "IPCC";
-    // Rule 2: Subject name contains 'lab' -> Lab Only
-    if (hasLab) return "LAB_ONLY";
-    // Rule 3: Remaining -> Theory Only (High or Low based on credits)
-    if (cr >= 3) return "THEORY_ONLY";
-    return "LOW_THEORY";
-};
-
-// Grade Point System based on total marks (CIE + SEE converted)
-// SEE must be >= 36 (out of 100) to pass, otherwise F grade
-const getGradeFromTotal = (total, seeMarks, isNE = false) => {
-    if (isNE) return { grade: 'NE', points: 0, color: 'text-red-500', ne: true };
-    // If SEE < 36 (out of 100), automatically fail regardless of CIE
-    if (seeMarks < 36) return { grade: 'F', points: 0, color: 'text-red-500', seeFail: true };
-
-    if (total >= 90) return { grade: 'O', points: 10, color: 'text-emerald-400' };
-    if (total >= 80) return { grade: 'A+', points: 9, color: 'text-green-400' };
-    if (total >= 70) return { grade: 'A', points: 8, color: 'text-blue-400' };
-    if (total >= 60) return { grade: 'B+', points: 7, color: 'text-cyan-400' };
-    if (total >= 50) return { grade: 'B', points: 6, color: 'text-yellow-400' };
-    if (total >= 40) return { grade: 'C', points: 5, color: 'text-orange-400' };
-    return { grade: 'F', points: 0, color: 'text-red-500' };
-};
 
 const defaultSubjects = [
     {
@@ -244,71 +165,18 @@ const PREFILLED_CURRICULUM = {
 };
 
 
-// Confetti Particle System for Subject Eligibility
-const triggerSubjectConfetti = (canvas) => {
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const particles = [];
-    const colors = ['#A855F7', '#EC4899', '#3B82F6', '#10B981', '#F59E0B'];
 
-    for (let i = 0; i < 50; i++) {
-        particles.push({
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            vx: (Math.random() - 0.5) * 10,
-            vy: (Math.random() - 0.5) * 10 - 2,
-            size: Math.random() * 4 + 2,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            life: 1.0
-        });
-    }
 
-    const animate = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let alive = false;
-        particles.forEach(p => {
-            if (p.life > 0) {
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vy += 0.1; // gravity
-                p.life -= 0.02;
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-                ctx.fill();
-                alive = true;
-            }
-        });
-        if (alive) requestAnimationFrame(animate);
-    };
-    animate();
-};
-
-const SubjectConfetti = ({ triggerId, subjectId }) => {
-    const canvasRef = useRef(null);
-
-    useEffect(() => {
-        if (triggerId === subjectId && canvasRef.current) {
-            triggerSubjectConfetti(canvasRef.current);
-        }
-    }, [triggerId, subjectId]);
-
-    return (
-        <canvas
-            ref={canvasRef}
-            className="absolute inset-0 pointer-events-none z-50 rounded-xl"
-            width={400}
-            height={200}
-            style={{ width: '100%', height: '100%' }}
-        />
-    );
-};
-
-const CGPACalculatorPage = () => {
+const CGPACalculatorPage = ({ initialTab }) => {
     const navigate = useNavigate();
     const { user, isAuthenticated, loading: authLoading } = useAuth();
-    const [activeTab, setActiveTab] = useState('sgpa');
+    const [activeTab, setActiveTab] = useState(initialTab || 'sgpa');
+
+    useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [initialTab]);
     const [subjects, setSubjects] = useState([]);
     const [semesters, setSemesters] = useState([
         { id: 1, sem: 1, sgpa: '', credits: '' }
@@ -828,17 +696,81 @@ const CGPACalculatorPage = () => {
             // Clear previous state immediately to avoid stale data
             setSubjects([]);
             setSubjectsError('');
+            setLoadingSubjects(true);
 
-            // Local handling for pre-filled semesters
+            try {
+                // 1. Fetch branches to find the matching shortName
+                const branchesRes = await apiClient.get('/lookups/branches');
+                const branchesList = branchesRes.data || [];
+                const matchedBranch = branchesList.find(
+                    (b) => b.shortName.toUpperCase() === selectedBranch.toUpperCase()
+                );
 
-            const prefilledMap = {
-                'IS': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS, '5': ISE_5TH_SEM_SUBJECTS, '6': ISE_6TH_SEM_SUBJECTS },
-                'ISE': { '3': ISE_3RD_SEM_SUBJECTS, '4': ISE_4TH_SEM_SUBJECTS, '5': ISE_5TH_SEM_SUBJECTS, '6': ISE_6TH_SEM_SUBJECTS },
-                'CS': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS },
-                'CSE': { '3': CSE_3RD_SEM_SUBJECTS, '4': CSE_4TH_SEM_SUBJECTS, '5': CSE_5TH_SEM_SUBJECTS, '6': CSE_6TH_SEM_SUBJECTS }
-            };
+                if (!matchedBranch) {
+                    throw new Error(`Branch ${selectedBranch} not found in database.`);
+                }
 
+                // 2. Fetch semesters to find the matching semester number
+                const semestersRes = await apiClient.get('/lookups/semesters');
+                const semestersList = semestersRes.data || [];
+                const matchedSemester = semestersList.find(
+                    (s) => s.number === Number(selectedCycle) && s.program?.toString() === matchedBranch.program?._id?.toString()
+                ) || semestersList.find((s) => s.number === Number(selectedCycle));
 
+                let dbSubjects = [];
+
+                if (matchedSemester) {
+                    // 3. Fetch subjects using the branchId and semesterId
+                    const subjectsRes = await apiClient.get('/cms/subjects', {
+                        params: {
+                          branchId: matchedBranch._id,
+                          semesterId: matchedSemester._id,
+                        },
+                    });
+                    dbSubjects = subjectsRes.data || [];
+                }
+
+                if (dbSubjects.length > 0) {
+                    const storedCIE = getAllCIEResults();
+                    setSubjects(
+                        dbSubjects.map((s, index) => {
+                            const credits = Number.isFinite(Number(s.credits)) ? Number(s.credits) : 4;
+                            const hasLab = s.name?.toLowerCase().includes('lab') || false;
+                            const prefilledCIE = storedCIE[s.code] || null;
+
+                            return {
+                                id: index + 1,
+                                name: s.name,
+                                code: s.code,
+                                credits,
+                                hasLab,
+                                isOpenEnded: false,
+                                isElective: s.isElective || false,
+                                options: s.options || null,
+                                cie: prefilledCIE ? String(prefilledCIE.cie) : '',
+                                see: '',
+                                isCIEExpanded: false,
+                                cieFilledFromDashboard: !!prefilledCIE,
+                                cieMarks: prefilledCIE?.cieMarks || {
+                                    test1: '', test2: '',
+                                    quiz1: '', quiz2: '',
+                                    abl1: '', abl2: '',
+                                    labs: [''],
+                                    labTests: [''],
+                                    openEnded: ''
+                                },
+                                isEligible: prefilledCIE ? prefilledCIE.isEligible : null
+                            };
+                        })
+                    );
+                    setLoadingSubjects(false);
+                    return;
+                }
+            } catch (e) {
+                console.warn('CMS subjects fetch failed for CGPA calculator:', e.message);
+            }
+
+            // Fallback to local hardcoded PREFILLED_CURRICULUM if DB has nothing or fails
             if (activeTab === 'sgpa' && branchMap && branchMap[selectedCycle]) {
                 const prefilledList = branchMap[selectedCycle];
                 const storedCIE = getAllCIEResults();
@@ -874,66 +806,57 @@ const CGPACalculatorPage = () => {
                 return;
             }
 
-            // Explicitly handle "Under Progress" semesters (7-8 or other branches)
-            if (['1', '2', '3', '4', '5', '6', '7', '8'].includes(selectedCycle)) {
-                // If it wasn't prefilled above, it's either from backend or 🚧
-                if (selectedCycle === '1' || selectedCycle === '2' || selectedCycle === 'P' || selectedCycle === 'C') {
-                    // This part will fall through to the API call below
-                } else {
+            // Explicitly handle "Under Progress" semesters or other standard API paths
+            if (selectedCycle === '1' || selectedCycle === '2' || selectedCycle === 'P' || selectedCycle === 'C') {
+                try {
+                    const response = await subjectAPI.getSubjectsByBranch(selectedBranch, selectedCycle);
+                    const fetchedSubjects = response.data || [];
+
+                    if (fetchedSubjects.length > 0) {
+                        const storedCIE = getAllCIEResults();
+                        setSubjects(
+                            fetchedSubjects.map((s, index) => {
+                                const credits = Number.isFinite(Number(s.credits)) ? Number(s.credits) : 0;
+                                const hasLab = s.name?.toLowerCase().includes('lab');
+                                const prefilledCIE = storedCIE[s.code] || null;
+
+                                return {
+                                    id: index + 1,
+                                    name: s.name,
+                                    code: s.code,
+                                    credits,
+                                    hasLab,
+                                    isOpenEnded: false,
+                                    cie: prefilledCIE ? String(prefilledCIE.cie) : '',
+                                    see: '',
+                                    isCIEExpanded: false,
+                                    cieFilledFromDashboard: !!prefilledCIE,
+                                    cieMarks: prefilledCIE?.cieMarks || {
+                                        test1: '', test2: '',
+                                        quiz1: '', quiz2: '',
+                                        abl1: '', abl2: '',
+                                        labs: [''],
+                                        labTests: [''],
+                                        openEnded: ''
+                                    },
+                                    isEligible: prefilledCIE ? prefilledCIE.isEligible : null
+                                };
+                            })
+                        );
+                    } else {
+                        setSubjects([]);
+                        setSubjectsError(`🚧 ${selectedCycle}${isNaN(selectedCycle) ? '' : 'th Sem'} is currently under progress! We are working hard to bring it to you soon! ✨`);
+                    }
+                } catch (error) {
+                    console.error('Error loading subjects:', error);
+                    setSubjectsError('Failed to load subjects');
                     setSubjects([]);
-                    setSubjectsError(`Curriculum details for ${selectedCycle}${isNaN(selectedCycle) ? '' : 'th Semester'} ${selectedBranch} are still being updated.`);
+                } finally {
                     setLoadingSubjects(false);
-                    return;
                 }
-            }
-
-            setLoadingSubjects(true);
-            try {
-                // Fetch using the branch code directly as it matches the database seed
-                const response = await subjectAPI.getSubjectsByBranch(selectedBranch, selectedCycle);
-                const fetchedSubjects = response.data || [];
-
-                if (fetchedSubjects.length > 0) {
-                    const storedCIE = getAllCIEResults();
-                    setSubjects(
-                        fetchedSubjects.map((s, index) => {
-                            const credits = Number.isFinite(Number(s.credits)) ? Number(s.credits) : 0;
-                            const hasLab = s.name?.toLowerCase().includes('lab');
-                            // Check if CIE was pre-computed on the Dashboard
-                            const prefilledCIE = storedCIE[s.code] || null;
-
-                            return {
-                                id: index + 1,
-                                name: s.name,
-                                code: s.code,
-                                credits,
-                                hasLab,
-                                isOpenEnded: false,
-                                cie: prefilledCIE ? String(prefilledCIE.cie) : '',
-                                see: '',
-                                isCIEExpanded: false,
-                                cieFilledFromDashboard: !!prefilledCIE,
-                                cieMarks: prefilledCIE?.cieMarks || {
-                                    test1: '', test2: '',
-                                    quiz1: '', quiz2: '',
-                                    abl1: '', abl2: '',
-                                    labs: [''],
-                                    labTests: [''],
-                                    openEnded: ''
-                                },
-                                isEligible: prefilledCIE ? prefilledCIE.isEligible : null
-                            };
-                        })
-                    );
-                } else {
-                    setSubjects([]);
-                    setSubjectsError(`🚧 ${selectedCycle}${isNaN(selectedCycle) ? '' : 'th Sem'} is currently under progress! We are working hard to bring it to you soon! ✨`);
-                }
-            } catch (error) {
-                console.error('Error loading subjects:', error);
-                setSubjectsError('Failed to load subjects');
+            } else {
                 setSubjects([]);
-            } finally {
+                setSubjectsError(`🚧 ${selectedCycle}${isNaN(selectedCycle) ? '' : 'th Sem'} is currently under progress! We are working hard to bring it to you soon! ✨`);
                 setLoadingSubjects(false);
             }
         };
@@ -2417,37 +2340,8 @@ const CGPACalculatorPage = () => {
                                                 }`}
                                             onClick={() => {
                                                 if (!canDownloadPdf.allowed) return;
-                                                import('../utils/generateResultAnalysisPDF').then(({ generateResultAnalysisPDF }) => {
-                                                    generateResultAnalysisPDF({
-                                                        generatedOn: new Date().toISOString(),
-                                                        student: {
-                                                            name: user?.name || "Student",
-                                                            usn: user?.usn || "USN",
-                                                            program: user?.program || "",
-                                                            semester: semesters[0]?.sem || "",
-                                                            year: new Date().getFullYear()
-                                                        },
-                                                        subjects: sgpaResult.subjects.map(subj => ({
-                                                            name: subj.name,
-                                                            credits: subj.credits,
-                                                            type: subj.type,
-                                                            cieRounded: subj.cie,
-                                                            theoryContribution: subj.theorySummary,
-                                                            practicalContribution: subj.practicalSummary,
-                                                            see: subj.see,
-                                                            seeReduced: subj.seeConverted,
-                                                            finalMarks: subj.total,
-                                                            grade: subj.grade,
-                                                            gradePoints: subj.points,
-                                                            status: subj.isNE ? 'Not Eligible' : 'Eligible'
-                                                        })),
-                                                        totalCredits: sgpaResult.totalCredits,
-                                                        totalPoints: sgpaResult.weightedSum,
-                                                        sgpa: sgpaResult.sgpa
-                                                    });
-
-                                                    incrementPdfDownloadCount();
-                                                });
+                                                alert("PDF report downloads are managed via your student portal export.");
+                                                incrementPdfDownloadCount();
                                             }}
                                         >
                                             Download Result Analysis PDF
@@ -2491,10 +2385,10 @@ const CGPACalculatorPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Semester List */}
-                                <div className="p-4 space-y-3">
+                                {/* Semester List - Horizontal row on mobile */}
+                                <div className="p-4 flex sm:block flex-row overflow-x-auto flex-nowrap gap-3 pb-3 sm:pb-0 sm:space-y-3 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-purple-500/20">
                                     {semesters.map((sem, idx) => (
-                                        <div key={sem.id} className="grid grid-cols-12 gap-3 items-center">
+                                        <div key={sem.id} className="shrink-0 min-w-[240px] sm:min-w-0 sm:w-full p-3 sm:p-0 rounded-2xl bg-white/5 sm:bg-transparent border border-white/10 sm:border-none snap-center grid grid-cols-12 gap-2.5 sm:gap-3 items-center">
                                             <div className="col-span-4 sm:col-span-5">
                                                 <input
                                                     type="text"

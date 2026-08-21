@@ -50,7 +50,8 @@ const updateProfile = async (req, res) => {
 
         if (usn !== undefined && usn.toUpperCase() !== user.usn) {
             // Check if new USN is already taken
-            const existingUser = await User.findOne({ usn: usn.toUpperCase() });
+            const StudentAccount = require('../models/StudentAccount');
+            const existingUser = await StudentAccount.findOne({ usn: usn.toUpperCase(), isDeleted: false });
             if (existingUser) {
                 return res.status(400).json({ error: 'This USN is already registered by another user' });
             }
@@ -126,10 +127,20 @@ const uploadProfilePicture = async (req, res) => {
         // Save new S3 URL
         // req.file.location is the S3 URL provided by multer-s3
         user.profilePicture = req.file.location;
-
         await user.save();
 
-        // Generate signed URL for immediate display
+        try {
+            const StudentAccount = require('../models/StudentAccount');
+            const student = await StudentAccount.findById(userId);
+            if (student) {
+                student.profilePicture = req.file.location;
+                await student.save();
+            }
+        } catch (e) {
+            console.error('Failed to sync profilePicture to StudentAccount:', e);
+        }
+
+        // Generate signed/CloudFront URL for immediate display
         const signedUrl = await getPresignedUrl(user.profilePicture);
 
         res.json({
