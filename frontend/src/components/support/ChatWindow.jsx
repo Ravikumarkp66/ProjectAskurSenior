@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage';
 import MaterialCard from './MaterialCard';
 import InteractiveForm from './InteractiveForm';
 import socket from '../../services/socket';
+import { getBaseApiUrl } from '../../services/api';
 
 const ChatWindow = ({ isOpen, onClose, user }) => {
     const [messageInput, setMessageInput] = useState('');
@@ -182,7 +183,7 @@ const ChatWindow = ({ isOpen, onClose, user }) => {
 
         try {
             const token = localStorage.getItem('authToken');
-            const res = await fetch('/api/knowledge-base/ask', {
+            const res = await fetch(getBaseApiUrl('/knowledge-base/ask'), {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',

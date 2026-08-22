@@ -1,10 +1,7 @@
 import axios from 'axios';
+import { getBaseApiUrl } from './api/apiClient';
 
-// Dev: localhost:5000 via Vite proxy
-// Production: VITE_API_URL (no /api suffix) + '/api', or relative '/api' via vercel.json proxy
-const API_URL = import.meta.env.DEV
-    ? 'http://localhost:5000/api'
-    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api');
+const API_URL = getBaseApiUrl();
 
 const api = axios.create({
     baseURL: API_URL,

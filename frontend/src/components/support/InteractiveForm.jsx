@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { apiClient } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const InteractiveForm = ({ type, originalQuestion, onSuccess }) => {
@@ -24,39 +25,28 @@ const InteractiveForm = ({ type, originalQuestion, onSuccess }) => {
         e.preventDefault();
         setStatus('submitting');
         
-        const token = localStorage.getItem('authToken');
         let endpoint = '';
         let payload = {};
 
         if (type === 'material') {
-            endpoint = '/api/requests/material';
+            endpoint = '/requests/material';
             payload = { subject, branch, semester, materialType, additionalNotes };
         } else if (type === 'mentorship') {
-            endpoint = '/api/requests/mentorship';
+            endpoint = '/requests/mentorship';
             payload = { topic, description, preferredCommunication };
         } else if (type === 'issue') {
-            endpoint = '/api/requests/issue';
+            endpoint = '/requests/issue';
             payload = { issueType, description, originalQuestion };
         }
 
         try {
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Submission failed');
-            
-            setResult(data.request);
+            const res = await apiClient.post(endpoint, payload);
+            setResult(res.data?.request || res.data);
             setStatus('success');
-            if (onSuccess) onSuccess(data.request);
+            if (onSuccess) onSuccess(res.data?.request || res.data);
         } catch (err) {
             console.error(err);
-            toast.error(err.message);
+            toast.error(err.response?.data?.error || err.message || 'Submission failed');
             setStatus('idle');
         }
     };

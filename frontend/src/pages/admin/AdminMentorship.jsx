@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { GraduationCap, CheckCircle, XCircle, Clock, Search, MessageCircle } from 'lucide-react';
+import { apiClient } from '../../services/api';
 import { toast } from 'react-hot-toast';
 
 const AdminMentorship = () => {
@@ -15,15 +16,10 @@ const AdminMentorship = () => {
 
     const fetchRequests = async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch('/api/mentorship', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) throw new Error('Failed to fetch requests');
-            const data = await res.json();
-            setRequests(data);
+            const res = await apiClient.get('/mentorship');
+            setRequests(res.data || []);
         } catch (error) {
-            toast.error(error.message);
+            toast.error(error.response?.data?.error || error.message || 'Failed to fetch requests');
         } finally {
             setLoading(false);
         }
@@ -31,22 +27,11 @@ const AdminMentorship = () => {
 
     const handleUpdateStatus = async (id, status) => {
         try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch(`/api/mentorship/${id}/status`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` 
-                },
-                body: JSON.stringify({ status })
-            });
-
-            if (!res.ok) throw new Error('Failed to update status');
-            
+            await apiClient.put(`/mentorship/${id}/status`, { status });
             toast.success(`Request marked as ${status}`);
             setRequests(prev => prev.map(r => r._id === id ? { ...r, status } : r));
         } catch (error) {
-            toast.error(error.message);
+            toast.error(error.response?.data?.error || error.message || 'Failed to update status');
         }
     };
 

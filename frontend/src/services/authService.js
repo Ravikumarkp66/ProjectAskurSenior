@@ -1,12 +1,8 @@
 import axios from 'axios';
+import { getBaseApiUrl } from './api/apiClient';
 
-const API_BASE_URL = import.meta.env.DEV
-    ? 'http://localhost:5000/api/auth'
-    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/auth` : '/api/auth');
-
-const EXPERIENCES_BASE_URL = import.meta.env.DEV
-    ? 'http://localhost:5000/api/experiences'
-    : (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/experiences` : '/api/experiences');
+const API_BASE_URL = getBaseApiUrl('/auth');
+const EXPERIENCES_BASE_URL = getBaseApiUrl('/experiences');
 
 export const experiencesClient = axios.create({
     baseURL: EXPERIENCES_BASE_URL,

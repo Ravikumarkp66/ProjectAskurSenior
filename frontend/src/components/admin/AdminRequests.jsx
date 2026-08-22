@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, GraduationCap, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { apiClient } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const AdminRequests = () => {
@@ -12,19 +13,11 @@ const AdminRequests = () => {
 
     const fetchRequests = async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch('/api/requests/admin', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setMaterials(data.materials);
-                setMentorships(data.mentorships);
-                setIssues(data.issues);
-                setAnalytics(data.analytics);
-            } else {
-                toast.error('Failed to fetch requests');
-            }
+            const res = await apiClient.get('/requests/admin');
+            setMaterials(res.data.materials || []);
+            setMentorships(res.data.mentorships || []);
+            setIssues(res.data.issues || []);
+            setAnalytics(res.data.analytics || null);
         } catch (error) {
             console.error(error);
             toast.error('Error fetching requests');
@@ -39,22 +32,9 @@ const AdminRequests = () => {
 
     const updateStatus = async (type, id, status) => {
         try {
-            const token = localStorage.getItem('authToken');
-            const res = await fetch(`/api/requests/admin/${type}/${id}/status`, {
-                method: 'PUT',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ status })
-            });
-            
-            if (res.ok) {
-                toast.success(`Marked as ${status}`);
-                fetchRequests();
-            } else {
-                toast.error('Update failed');
-            }
+            await apiClient.put(`/requests/admin/${type}/${id}/status`, { status });
+            toast.success(`Marked as ${status}`);
+            fetchRequests();
         } catch (error) {
             console.error(error);
             toast.error('Error updating status');

@@ -1,4 +1,4 @@
-export { apiClient } from './api/apiClient';
+export { apiClient, getBaseApiUrl, API_BASE_URL } from './api/apiClient';
 export { authAPI } from './api/authApi';
 export { subjectAPI } from './api/subjectApi';
 export { 

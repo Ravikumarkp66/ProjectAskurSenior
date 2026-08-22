@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaBell } from 'react-icons/fa';
 import { analyticsAPI } from '../services/analyticsAPI';
+import { apiClient } from '../services/api';
 import { useAuthContext } from '../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -29,15 +30,9 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
                 setStats(response.data);
                 setUnreadCount(response.data.totalNotifications || 0);
             } else {
-                const token = localStorage.getItem('authToken');
-                const response = await fetch('/api/user-notifications', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setUserNotifications(data.notifications || []);
-                    setUnreadCount(data.unreadCount || 0);
-                }
+                const response = await apiClient.get('/user-notifications');
+                setUserNotifications(response.data.notifications || []);
+                setUnreadCount(response.data.unreadCount || 0);
             }
         } catch (err) {
             console.error('Error loading notifications:', err);
@@ -48,11 +43,7 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
 
     const handleMarkAsRead = async (id) => {
         try {
-            const token = localStorage.getItem('authToken');
-            await fetch(`/api/user-notifications/${id}/read`, {
-                method: 'PATCH',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await apiClient.patch(`/user-notifications/${id}/read`);
             setUserNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
             setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (err) {
@@ -62,11 +53,7 @@ const NotificationBell = ({ isLightMode, onNavigate }) => {
 
     const handleMarkAllRead = async () => {
         try {
-            const token = localStorage.getItem('authToken');
-            await fetch('/api/user-notifications/mark-all-read', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await apiClient.post('/user-notifications/mark-all-read');
             setUserNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
             setUnreadCount(0);
         } catch (err) {

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { useAuth } from './utils/hooks';
-import { authAPI } from './services/api';
+import { authAPI, apiClient } from './services/api';
 import socket from './services/socket';
 import { Toaster } from 'react-hot-toast';
 
@@ -116,18 +116,8 @@ function AppContent() {
     // Track page views
     React.useEffect(() => {
         if (isAuthenticated) {
-            const token = localStorage.getItem('token');
-            if (token) {
-                const baseUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:5000' : '');
-                fetch(`${baseUrl}/api/events/track`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ path: location.pathname })
-                }).catch(err => console.error("Event tracking error:", err));
-            }
+            apiClient.post('/events/track', { path: location.pathname })
+                .catch(err => console.error("Event tracking error:", err));
         }
     }, [location.pathname, isAuthenticated]);
     
