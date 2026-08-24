@@ -285,10 +285,16 @@ const DashboardPage = () => {
                     subjectAPI.getYearStats('3rd Year'),
                     subjectAPI.getYearStats('4th Year'),
                 ]);
-                if (r1.status === 'fulfilled' && r1.value.data) setFirstYearStats({ subjects: r1.value.data.subjectsCount, materials: r1.value.data.materialsCount });
-                if (r2.status === 'fulfilled' && r2.value.data) setSecondYearStats({ subjects: r2.value.data.subjectsCount, materials: r2.value.data.materialsCount });
-                if (r3.status === 'fulfilled' && r3.value.data) setThirdYearStats({ subjects: r3.value.data.subjectsCount, materials: r3.value.data.materialsCount });
-                if (r4.status === 'fulfilled' && r4.value.data) setFourthYearStats({ subjects: r4.value.data.subjectsCount, materials: r4.value.data.materialsCount });
+                const mapYearData = (d) => ({
+                    subjects: d.subjectsCount ?? 0,
+                    materials: d.materialsCount ?? 0,
+                    topSubjects: d.topSubjects || [],
+                    breakdown: d.breakdown || { notes: 0, pyqs: 0, qbanks: 0, others: 0 }
+                });
+                if (r1.status === 'fulfilled' && r1.value.data) setFirstYearStats(mapYearData(r1.value.data));
+                if (r2.status === 'fulfilled' && r2.value.data) setSecondYearStats(mapYearData(r2.value.data));
+                if (r3.status === 'fulfilled' && r3.value.data) setThirdYearStats(mapYearData(r3.value.data));
+                if (r4.status === 'fulfilled' && r4.value.data) setFourthYearStats(mapYearData(r4.value.data));
             } catch (err) {
                 console.error('Failed to fetch year stats', err);
             }
@@ -468,6 +474,27 @@ const DashboardPage = () => {
                                         ctaText="View summary →"
                                     />
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. PRACTICE */}
+                    <div>
+                        <SectionHeader 
+                            title="Practice" 
+                            subtitle="Hands-on college programming lab programs & code exercises"
+                            badge={{ text: '4 languages · Lab-wise', color: '#A855F7', borderColor: 'rgba(168,85,247,.3)', bgColor: 'rgba(168,85,247,.08)' }} 
+                        />
+                        <div className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pb-2 md:pb-0">
+                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
+                                <IllustrationCard
+                                    presetKey="labPrograms"
+                                    title="Lab Programs"
+                                    subtitle="Practice and master your college lab programs."
+                                    metadataText="4 Languages • Lab-wise Practice"
+                                    ctaText="Explore →"
+                                    onClick={() => navigate('/plus/lab-programs')}
+                                />
                             </div>
                         </div>
                     </div>

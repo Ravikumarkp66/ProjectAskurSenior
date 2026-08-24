@@ -64,6 +64,9 @@ const ShareExperience = lazy(() => import('./pages/interviews/ShareExperience'))
 const CampusHub = lazy(() => import('./pages/CampusHub'));
 const CampusMap = lazy(() => import('./pages/CampusMap'));
 
+// Coding Playground Module
+const CodingPlaygroundPage = lazy(() => import('./features/coding-playground/pages/CodingPlaygroundPage'));
+
 import Logo from './components/Logo';
 
 // Brand Preloader fallback for Suspense & route loading
@@ -293,6 +296,12 @@ function AppContent() {
                         <Route path="leaderboard" element={<DashboardPage />} />
                         <Route path="whatsapp-community" element={<DashboardPage />} />
                     </Route>
+                    
+                    {/* Coding Playground Workspace */}
+                    <Route path="/lab-programs" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/playground" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/plus/lab-programs" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/plus/playground" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
                     
                     {/* Academic Setup & Quizzes */}
                     <Route path="/academic-setup" element={<Navigate to="/plus/subject-registration" replace />} />

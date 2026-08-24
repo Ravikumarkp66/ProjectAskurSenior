@@ -1,8 +1,16 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-    Sparkles, ChevronDown, Download, RefreshCw, CheckCircle2, 
-    Calendar, BarChart2, AlertCircle, FileText, BookOpen
+    Sparkles, ChevronDown, 
+    Calendar, BarChart2, AlertCircle, BookOpen
 } from 'lucide-react';
+
+const SettingsSvgIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+        <circle cx="12" cy="12" r="3" />
+    </svg>
+);
 
 const AttendanceHeader = ({
     activeTab,
@@ -13,12 +21,10 @@ const AttendanceHeader = ({
     currentStudentSemester,
     readOnly,
     loading,
-    onPromoteSemester,
-    onRecalculate,
-    onExport,
-    isExportDropdownOpen,
-    setIsExportDropdownOpen
+    onOpenSettings,
 }) => {
+    const navigate = useNavigate();
+
     return (
         <div style={{
             display: 'flex',
@@ -83,139 +89,41 @@ const AttendanceHeader = ({
                         <ChevronDown size={14} style={{ position: 'absolute', right: '12px', color: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }} />
                     </div>
 
-                    {/* Promote Semester (only visible for current active semester) */}
-                    {selectedSemester === currentStudentSemester && !loading && (
-                        <button
-                            type="button"
-                            onClick={onPromoteSemester}
-                            style={{
-                                background: 'rgba(16, 185, 129, 0.08)',
-                                border: '1px solid rgba(16, 185, 129, 0.25)',
-                                color: '#6ee7b7',
-                                borderRadius: '8px',
-                                padding: '8px 14px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)'; }}
-                        >
-                            <CheckCircle2 size={13} />
-                            Finish Semester
-                        </button>
-                    )}
-
-                    {/* Semester Report Exports Dropdown */}
-                    <div style={{ position: 'relative' }}>
-                        <button
-                            type="button"
-                            onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
-                            style={{
-                                background: 'rgba(255,255,255,0.03)',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                                color: 'rgba(255,255,255,0.85)',
-                                borderRadius: '8px',
-                                padding: '8px 14px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                            }}
-                        >
-                            <Download size={13} />
-                            Report
-                            <ChevronDown size={12} />
-                        </button>
-
-                        {isExportDropdownOpen && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '38px',
-                                right: 0,
-                                background: '#13111A',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                borderRadius: '8px',
-                                zIndex: 10,
-                                minWidth: '120px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                padding: '4px',
-                                boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                            }}>
-                                <button
-                                    type="button"
-                                    onClick={() => onExport('csv')}
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: '#fff',
-                                        padding: '8px 12px',
-                                        fontSize: '12px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        borderRadius: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                    }}
-                                >
-                                    <FileText size={12} />
-                                    CSV Report
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => onExport('pdf')}
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: '#fff',
-                                        padding: '8px 12px',
-                                        fontSize: '12px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        borderRadius: '4px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '6px'
-                                    }}
-                                >
-                                    <FileText size={12} />
-                                    PDF Report
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Sync / Recalculate */}
-                    {!readOnly && (
-                        <button
-                            type="button"
-                            onClick={onRecalculate}
-                            style={{
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid rgba(255,255,255,0.06)',
-                                color: 'rgba(255,255,255,0.8)',
-                                borderRadius: '8px',
-                                padding: '8px 12px',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                            }}
-                        >
-                            <RefreshCw size={13} />
-                            Sync
-                        </button>
-                    )}
+                    {/* Settings Button with clean SVG gear icon */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (onOpenSettings) onOpenSettings();
+                            else navigate('/home/timetable');
+                        }}
+                        style={{
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: 'rgba(255,255,255,0.85)',
+                            borderRadius: '8px',
+                            padding: '8px 14px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)';
+                            e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                            e.currentTarget.style.color = '#c4b5fd';
+                        }}
+                        onMouseLeave={e => {
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                            e.currentTarget.style.color = 'rgba(255,255,255,0.85)';
+                        }}
+                    >
+                        <SettingsSvgIcon />
+                        Settings
+                    </button>
                 </div>
             </div>
 
@@ -239,84 +147,121 @@ const AttendanceHeader = ({
                 </div>
             )}
 
-            {/* Global Attendance Tabs */}
+            {/* Global Attendance Tabs (4 Clean Primary Views) */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                paddingBottom: '2px'
+                paddingBottom: '2px',
+                overflowX: 'auto'
             }}>
-                <button
-                    type="button"
-                    onClick={() => onTabChange('daily')}
-                    style={{
-                        background: activeTab === 'daily' ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === 'daily' ? '2px solid #a78bfa' : '2px solid transparent',
-                        color: activeTab === 'daily' ? '#ffffff' : '#94a3b8',
-                        padding: '10px 16px',
-                        fontSize: '13px',
-                        fontWeight: activeTab === 'daily' ? 700 : 500,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        borderRadius: '8px 8px 0 0',
-                        transition: 'all 0.15s'
-                    }}
-                >
-                    <Calendar size={15} />
-                    Daily Attendance
-                </button>
+                {(() => {
+                    const isSchedule = activeTab === 'schedule' || activeTab === 'timetable';
+                    const isToday = activeTab === 'today' || activeTab === 'daily';
+                    const isSubjects = activeTab === 'subjects' || activeTab === 'subject-summary';
+                    const isOverview = activeTab === 'overview' || activeTab === 'summary';
 
+                    return (
+                        <>
+                            <button
+                                type="button"
+                                onClick={() => onTabChange('schedule')}
+                                style={{
+                                    background: isSchedule ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
+                                    border: 'none',
+                                    borderBottom: isSchedule ? '2px solid #a78bfa' : '2px solid transparent',
+                                    color: isSchedule ? '#ffffff' : '#94a3b8',
+                                    padding: '10px 18px',
+                                    fontSize: '13.5px',
+                                    fontWeight: isSchedule ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    borderRadius: '8px 8px 0 0',
+                                    transition: 'all 0.15s',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <Calendar size={15} />
+                                Schedule
+                            </button>
 
+                            <button
+                                type="button"
+                                onClick={() => onTabChange('today')}
+                                style={{
+                                    background: isToday ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
+                                    border: 'none',
+                                    borderBottom: isToday ? '2px solid #a78bfa' : '2px solid transparent',
+                                    color: isToday ? '#ffffff' : '#94a3b8',
+                                    padding: '10px 18px',
+                                    fontSize: '13.5px',
+                                    fontWeight: isToday ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    borderRadius: '8px 8px 0 0',
+                                    transition: 'all 0.15s',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <Calendar size={15} />
+                                Today
+                            </button>
 
-                <button
-                    type="button"
-                    onClick={() => onTabChange('subject-summary')}
-                    style={{
-                        background: activeTab === 'subject-summary' ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === 'subject-summary' ? '2px solid #a78bfa' : '2px solid transparent',
-                        color: activeTab === 'subject-summary' ? '#ffffff' : '#94a3b8',
-                        padding: '10px 16px',
-                        fontSize: '13px',
-                        fontWeight: activeTab === 'subject-summary' ? 700 : 500,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        borderRadius: '8px 8px 0 0',
-                        transition: 'all 0.15s'
-                    }}
-                >
-                    <BookOpen size={15} />
-                    Subject Summary
-                </button>
+                            <button
+                                type="button"
+                                onClick={() => onTabChange('subjects')}
+                                style={{
+                                    background: isSubjects ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
+                                    border: 'none',
+                                    borderBottom: isSubjects ? '2px solid #a78bfa' : '2px solid transparent',
+                                    color: isSubjects ? '#ffffff' : '#94a3b8',
+                                    padding: '10px 18px',
+                                    fontSize: '13.5px',
+                                    fontWeight: isSubjects ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    borderRadius: '8px 8px 0 0',
+                                    transition: 'all 0.15s',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <BookOpen size={15} />
+                                Subjects
+                            </button>
 
-                <button
-                    type="button"
-                    onClick={() => onTabChange('summary')}
-                    style={{
-                        background: activeTab === 'summary' ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === 'summary' ? '2px solid #a78bfa' : '2px solid transparent',
-                        color: activeTab === 'summary' ? '#ffffff' : '#94a3b8',
-                        padding: '10px 16px',
-                        fontSize: '13px',
-                        fontWeight: activeTab === 'summary' ? 700 : 500,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        borderRadius: '8px 8px 0 0',
-                        transition: 'all 0.15s'
-                    }}
-                >
-                    <BarChart2 size={15} />
-                    Semester Summary
-                </button>
+                            <button
+                                type="button"
+                                onClick={() => onTabChange('overview')}
+                                style={{
+                                    background: isOverview ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
+                                    border: 'none',
+                                    borderBottom: isOverview ? '2px solid #a78bfa' : '2px solid transparent',
+                                    color: isOverview ? '#ffffff' : '#94a3b8',
+                                    padding: '10px 18px',
+                                    fontSize: '13.5px',
+                                    fontWeight: isOverview ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    borderRadius: '8px 8px 0 0',
+                                    transition: 'all 0.15s',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                <BarChart2 size={15} />
+                                Overview
+                            </button>
+                        </>
+                    );
+                })()}
             </div>
         </div>
     );

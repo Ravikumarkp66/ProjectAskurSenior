@@ -1,9 +1,15 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, Plus, User, Sun, Moon, LogOut, X } from 'lucide-react';
+import { Home, User, Sun, Moon, LogOut, X } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../utils/hooks';
 import NavLogo from './navbar/NavLogo';
+
+const PlusDashboardIcon = ({ className, size = 19 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path d="M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0-18v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1z" />
+    </svg>
+);
 
 const UniversalMobileDrawer = ({ isOpen, onClose }) => {
     const location = useLocation();
@@ -82,7 +88,7 @@ const UniversalMobileDrawer = ({ isOpen, onClose }) => {
             id: 'plus',
             label: 'Plus',
             path: '/plus',
-            icon: Plus,
+            icon: PlusDashboardIcon,
             isActive: location.pathname.startsWith('/plus'),
         },
         {

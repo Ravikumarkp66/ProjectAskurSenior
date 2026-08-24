@@ -124,9 +124,8 @@ const SubjectFooter = ({ onHome, onTrack, isCollapsed, isHomeActive, isTrackActi
                     className={`dock-item ${isHomeActive ? 'active' : ''}`}
                     title="Plus"
                 >
-                    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
+                    <svg className="w-4 h-4 shrink-0" fill="#8B5CF6" viewBox="0 0 24 24">
+                        <path d="M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0-18v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1z" />
                     </svg>
                     <span className="dock-label">Plus</span>
                 </button>

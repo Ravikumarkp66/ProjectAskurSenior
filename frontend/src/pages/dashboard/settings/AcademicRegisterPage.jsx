@@ -16,7 +16,11 @@ import {
     Trash2, 
     RefreshCw, 
     ArrowRight,
-    AlertCircle
+    AlertCircle,
+    Target,
+    Edit3,
+    X,
+    Check
 } from 'lucide-react';
 
 const AcademicRegisterPage = () => {
@@ -31,6 +35,10 @@ const AcademicRegisterPage = () => {
 
     const [registeredSubjectsList, setRegisteredSubjectsList] = useState([]);
     const [editedWeeklyPlan, setEditedWeeklyPlan] = useState({});
+    const [backupWeeklyPlan, setBackupWeeklyPlan] = useState({});
+    const [isEditingWeeklyPlan, setIsEditingWeeklyPlan] = useState(false);
+    const [collegeThreshold, setCollegeThreshold] = useState(85);
+    const [myThreshold, setMyThreshold] = useState(85);
 
     // Smart default date helper
     const getSmartDefaultDates = () => {
@@ -120,9 +128,14 @@ const AcademicRegisterPage = () => {
                 setLoading(true);
                 // 1. Fetch Timetable Config
                 const configRes = await apiV2.getTimetableConfig();
+                let initialTarget = 85;
                 if (configRes.data?.success && configRes.data?.data) {
                     const dbConfig = configRes.data.data;
                     const defaults = getSmartDefaultDates();
+                    if (dbConfig.attendanceThreshold) {
+                        initialTarget = dbConfig.attendanceThreshold;
+                        setMyThreshold(dbConfig.attendanceThreshold);
+                    }
                     setConfig({
                         semesterStartDate: formatDateForInput(dbConfig.semesterStartDate) || defaults.start,
                         lastWorkingDate: formatDateForInput(dbConfig.lastWorkingDate) || defaults.end,
@@ -155,7 +168,8 @@ const AcademicRegisterPage = () => {
                     list.forEach(item => {
                         planMap[item._id] = {
                             theory: item.weeklyPlan?.theory?.required ?? 3,
-                            lab: item.weeklyPlan?.lab?.required ?? 0
+                            lab: item.weeklyPlan?.lab?.required ?? 0,
+                            threshold: initialTarget
                         };
                     });
                     setEditedWeeklyPlan(planMap);
@@ -173,7 +187,14 @@ const AcademicRegisterPage = () => {
 
     // Handlers for subject theory/lab counts
     const handleTheoryChange = (regId, value) => {
-        const val = Math.max(0, parseInt(value, 10) || 0);
+        if (value === '') {
+            setEditedWeeklyPlan(prev => ({
+                ...prev,
+                [regId]: { ...prev[regId], theory: '' }
+            }));
+            return;
+        }
+        const val = Math.max(0, Math.min(30, parseInt(value, 10) || 0));
         setEditedWeeklyPlan(prev => ({
             ...prev,
             [regId]: {
@@ -183,8 +204,59 @@ const AcademicRegisterPage = () => {
         }));
     };
 
+    const [autoSaveStatus, setAutoSaveStatus] = useState(''); // '' | 'saving' | 'saved'
+
+    const autoSaveWeeklyPlan = async (currentPlan, currentThreshold) => {
+        try {
+            setAutoSaveStatus('saving');
+            const safeThreshold = Math.min(100, Math.max(collegeThreshold, parseInt(currentThreshold, 10) || collegeThreshold));
+            const updatesArray = Object.keys(currentPlan).map(regSubjectId => {
+                const theoryCount = Math.max(0, parseInt(currentPlan[regSubjectId]?.theory, 10) || 0);
+                const labCount = Math.max(0, parseInt(currentPlan[regSubjectId]?.lab, 10) || 0);
+                return {
+                    registeredSubjectId: regSubjectId,
+                    regSubjectId,
+                    theoryClassesPerWeek: theoryCount,
+                    labSessionsPerWeek: labCount,
+                    theoryRequired: theoryCount,
+                    labRequired: labCount
+                };
+            });
+            if (updatesArray.length > 0) {
+                await apiV2.updateWeeklyPlan({ plans: updatesArray, subjects: updatesArray });
+            }
+            try {
+                await apiV2.updateAttendanceTarget({ targetPercentage: safeThreshold });
+            } catch (tErr) {
+                console.warn('Target save fallback:', tErr);
+            }
+            setAutoSaveStatus('saved');
+            setTimeout(() => setAutoSaveStatus(''), 2500);
+        } catch (err) {
+            console.error('[AcademicRegisterPage] Auto-save weekly plan error:', err);
+            setAutoSaveStatus('');
+        }
+    };
+
+    const handleTheoryBlur = (regId) => {
+        const val = Math.max(0, parseInt(editedWeeklyPlan[regId]?.theory, 10) || 0);
+        const updated = {
+            ...editedWeeklyPlan,
+            [regId]: { ...editedWeeklyPlan[regId], theory: val }
+        };
+        setEditedWeeklyPlan(updated);
+        autoSaveWeeklyPlan(updated, myThreshold);
+    };
+
     const handleLabChange = (regId, value) => {
-        const val = Math.max(0, parseInt(value, 10) || 0);
+        if (value === '') {
+            setEditedWeeklyPlan(prev => ({
+                ...prev,
+                [regId]: { ...prev[regId], lab: '' }
+            }));
+            return;
+        }
+        const val = Math.max(0, Math.min(20, parseInt(value, 10) || 0));
         setEditedWeeklyPlan(prev => ({
             ...prev,
             [regId]: {
@@ -192,6 +264,70 @@ const AcademicRegisterPage = () => {
                 lab: val
             }
         }));
+    };
+
+    const handleLabBlur = (regId) => {
+        const val = Math.max(0, parseInt(editedWeeklyPlan[regId]?.lab, 10) || 0);
+        const updated = {
+            ...editedWeeklyPlan,
+            [regId]: { ...editedWeeklyPlan[regId], lab: val }
+        };
+        setEditedWeeklyPlan(updated);
+        autoSaveWeeklyPlan(updated, myThreshold);
+    };
+
+    const handleThresholdChange = (regId, value) => {
+        if (value === '') {
+            setEditedWeeklyPlan(prev => ({
+                ...prev,
+                [regId]: {
+                    ...prev[regId],
+                    threshold: ''
+                }
+            }));
+            return;
+        }
+        let val = parseInt(value, 10);
+        if (isNaN(val)) return;
+        
+        // If user enters value > 100, automatically cap at 100
+        if (val > 100) {
+            val = 100;
+        }
+
+        setEditedWeeklyPlan(prev => ({
+            ...prev,
+            [regId]: {
+                ...prev[regId],
+                threshold: val
+            }
+        }));
+        if (val >= collegeThreshold) {
+            setMyThreshold(val);
+        }
+    };
+
+    const handleThresholdBlur = (regId) => {
+        const raw = editedWeeklyPlan[regId]?.threshold;
+        let val = parseInt(raw, 10);
+        
+        // If empty or below college threshold, automatically set to college threshold
+        if (isNaN(val) || val < collegeThreshold) {
+            val = collegeThreshold;
+        } else if (val > 100) {
+            val = 100;
+        }
+
+        const updated = {
+            ...editedWeeklyPlan,
+            [regId]: {
+                ...editedWeeklyPlan[regId],
+                threshold: val
+            }
+        };
+        setEditedWeeklyPlan(updated);
+        setMyThreshold(val);
+        autoSaveWeeklyPlan(updated, val);
     };
 
     // Break Handlers
@@ -248,8 +384,10 @@ const AcademicRegisterPage = () => {
     const handleSaveBasicSetup = async () => {
         try {
             setIsSavingBasic(true);
+            const safeThreshold = Math.min(100, Math.max(collegeThreshold, parseInt(myThreshold, 10) || collegeThreshold));
             const payload = {
                 ...config,
+                attendanceThreshold: safeThreshold,
                 semesterStartDate: formatDateForInput(config.semesterStartDate),
                 lastWorkingDate: formatDateForInput(config.lastWorkingDate)
             };
@@ -263,21 +401,46 @@ const AcademicRegisterPage = () => {
         }
     };
 
+    // Edit Mode Handlers for Weekly Plan
+    const handleStartEditWeeklyPlan = () => {
+        setBackupWeeklyPlan(JSON.parse(JSON.stringify(editedWeeklyPlan)));
+        setIsEditingWeeklyPlan(true);
+    };
+
+    const handleCancelEditWeeklyPlan = () => {
+        if (backupWeeklyPlan && Object.keys(backupWeeklyPlan).length > 0) {
+            setEditedWeeklyPlan(backupWeeklyPlan);
+        }
+        setIsEditingWeeklyPlan(false);
+    };
+
     // Save Weekly Plan (Tab 2)
     const handleSaveWeeklyPlan = async () => {
         try {
             setIsSavingPlan(true);
-            const updatesArray = Object.keys(editedWeeklyPlan).map(regSubjectId => ({
-                registeredSubjectId: regSubjectId,
-                regSubjectId,
-                theoryClassesPerWeek: editedWeeklyPlan[regSubjectId].theory,
-                labSessionsPerWeek: editedWeeklyPlan[regSubjectId].lab,
-                theoryRequired: editedWeeklyPlan[regSubjectId].theory,
-                labRequired: editedWeeklyPlan[regSubjectId].lab
-            }));
+            const safeThreshold = Math.min(100, Math.max(collegeThreshold, parseInt(myThreshold, 10) || collegeThreshold));
+            const updatesArray = Object.keys(editedWeeklyPlan).map(regSubjectId => {
+                const theoryCount = Math.max(0, parseInt(editedWeeklyPlan[regSubjectId]?.theory, 10) || 0);
+                const labCount = Math.max(0, parseInt(editedWeeklyPlan[regSubjectId]?.lab, 10) || 0);
+                return {
+                    registeredSubjectId: regSubjectId,
+                    regSubjectId,
+                    theoryClassesPerWeek: theoryCount,
+                    labSessionsPerWeek: labCount,
+                    theoryRequired: theoryCount,
+                    labRequired: labCount
+                };
+            });
             if (updatesArray.length > 0) {
                 await apiV2.updateWeeklyPlan({ plans: updatesArray, subjects: updatesArray });
             }
+            try {
+                await apiV2.updateAttendanceTarget({ targetPercentage: safeThreshold });
+            } catch (tErr) {
+                console.warn('Target save fallback:', tErr);
+            }
+            setMyThreshold(safeThreshold);
+            setIsEditingWeeklyPlan(false);
             toast.success('Weekly plan saved successfully!');
         } catch (err) {
             console.error('[AcademicRegisterPage] Save weekly plan error:', err);
@@ -291,26 +454,37 @@ const AcademicRegisterPage = () => {
     const handleGenerateTimetable = async () => {
         try {
             setGenerating(true);
+            const safeThreshold = Math.min(100, Math.max(collegeThreshold, parseInt(myThreshold, 10) || collegeThreshold));
 
             // 1. Save Timetable Configuration
             const payload = {
                 ...config,
+                attendanceThreshold: safeThreshold,
                 semesterStartDate: formatDateForInput(config.semesterStartDate),
                 lastWorkingDate: formatDateForInput(config.lastWorkingDate)
             };
             await apiV2.saveTimetableConfig(payload);
 
             // 2. Save Weekly Subjects Plan
-            const updatesArray = Object.keys(editedWeeklyPlan).map(regSubjectId => ({
-                registeredSubjectId: regSubjectId,
-                regSubjectId,
-                theoryClassesPerWeek: editedWeeklyPlan[regSubjectId].theory,
-                labSessionsPerWeek: editedWeeklyPlan[regSubjectId].lab,
-                theoryRequired: editedWeeklyPlan[regSubjectId].theory,
-                labRequired: editedWeeklyPlan[regSubjectId].lab
-            }));
+            const updatesArray = Object.keys(editedWeeklyPlan).map(regSubjectId => {
+                const theoryCount = Math.max(0, parseInt(editedWeeklyPlan[regSubjectId]?.theory, 10) || 0);
+                const labCount = Math.max(0, parseInt(editedWeeklyPlan[regSubjectId]?.lab, 10) || 0);
+                return {
+                    registeredSubjectId: regSubjectId,
+                    regSubjectId,
+                    theoryClassesPerWeek: theoryCount,
+                    labSessionsPerWeek: labCount,
+                    theoryRequired: theoryCount,
+                    labRequired: labCount
+                };
+            });
             if (updatesArray.length > 0) {
                 await apiV2.updateWeeklyPlan({ plans: updatesArray, subjects: updatesArray });
+            }
+            try {
+                await apiV2.updateAttendanceTarget({ targetPercentage: safeThreshold });
+            } catch (tErr) {
+                console.warn('Target save fallback:', tErr);
             }
 
             // 3. Generate Timetable Grid
@@ -346,6 +520,16 @@ const AcademicRegisterPage = () => {
 
     return (
         <div className="min-h-screen bg-[#07050e] text-white p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto flex flex-col gap-6">
+            <style>{`
+                input[type="number"]::-webkit-outer-spin-button,
+                input[type="number"]::-webkit-inner-spin-button {
+                    -webkit-appearance: none;
+                    margin: 0;
+                }
+                input[type="number"] {
+                    -moz-appearance: textfield;
+                }
+            `}</style>
             
             {/* TOP SEGMENTED TAB SWITCHER */}
             <div className="flex items-center justify-center w-full">
@@ -578,27 +762,64 @@ const AcademicRegisterPage = () => {
             {activeTab === 'weekly' && (
                 <div className="p-6 rounded-2xl bg-[#0f0b21]/90 border border-purple-500/20 flex flex-col gap-5 shadow-xl text-left w-full">
                     
-                    {/* Header & Save Button */}
+                    {/* Header & Action Buttons */}
                     <div className="flex items-center justify-between border-b border-purple-500/10 pb-4">
                         <div className="flex items-center gap-2">
                             <BookOpen size={20} className="text-purple-400" />
                             <h2 className="text-lg font-black text-white">Weekly Subject Schedule Plan</h2>
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleSaveWeeklyPlan}
-                            disabled={isSavingPlan || registeredSubjectsList.length === 0}
-                            className="px-4 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 cursor-pointer transition-all shadow-md disabled:opacity-50"
-                        >
-                            {isSavingPlan ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                            <span>Save Weekly Plan</span>
-                        </button>
+                        
+                        <div className="flex items-center gap-2.5">
+                            {autoSaveStatus === 'saving' && (
+                                <span className="text-[11px] text-purple-300 font-bold flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg animate-pulse">
+                                    <RefreshCw size={11} className="animate-spin" /> Saving...
+                                </span>
+                            )}
+                            {autoSaveStatus === 'saved' && (
+                                <span className="text-[11px] text-emerald-300 font-bold flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                                    <Check size={12} /> Auto-saved
+                                </span>
+                            )}
+
+                            {!isEditingWeeklyPlan ? (
+                                <button
+                                    type="button"
+                                    onClick={handleStartEditWeeklyPlan}
+                                    disabled={registeredSubjectsList.length === 0}
+                                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center gap-2 cursor-pointer transition-all shadow-md disabled:opacity-50"
+                                >
+                                    <Edit3 size={14} />
+                                    <span>Edit Plan</span>
+                                </button>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={handleCancelEditWeeklyPlan}
+                                        className="px-3.5 py-2.5 rounded-xl text-xs font-black bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
+                                    >
+                                        <X size={14} />
+                                        <span>Cancel</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveWeeklyPlan}
+                                        disabled={isSavingPlan}
+                                        className="px-4 py-2.5 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 cursor-pointer transition-all shadow-md disabled:opacity-50"
+                                    >
+                                        {isSavingPlan ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                                        <span>Save Weekly Plan</span>
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
 
                     <div className="p-3.5 rounded-xl bg-purple-500/5 border border-purple-500/15 flex items-center gap-2.5 text-xs text-purple-300">
                         <Lock size={16} className="flex-shrink-0 text-purple-400" />
                         <span>
-                            Subjects are read-only (synced from Subject Registration). Set your theory classes and lab sessions per week for each subject.
+                            Subjects are read-only (synced from Subject Registration). {isEditingWeeklyPlan ? 'Edit theory classes, lab sessions, and your attendance target percentage below.' : 'Click "Edit Plan" to modify weekly theory, lab sessions, and target threshold.'}
                         </span>
                     </div>
 
@@ -620,6 +841,8 @@ const AcademicRegisterPage = () => {
                                         <th className="py-3.5 px-4 text-center">Credits</th>
                                         <th className="py-3.5 px-4 text-center">Theory Classes / Week</th>
                                         <th className="py-3.5 px-4 text-center">Lab Sessions / Week</th>
+                                        <th className="py-3.5 px-4 text-center">College Threshold</th>
+                                        <th className="py-3.5 px-4 text-center">My Threshold</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5 text-xs font-medium">
@@ -629,6 +852,7 @@ const AcademicRegisterPage = () => {
                                         const credits = item.registeredCredits || item.subject?.credits || 0;
                                         const theoryVal = editedWeeklyPlan[item._id]?.theory ?? item.weeklyPlan?.theory?.required ?? 3;
                                         const labVal = editedWeeklyPlan[item._id]?.lab ?? item.weeklyPlan?.lab?.required ?? 0;
+                                        const targetVal = editedWeeklyPlan[item._id]?.threshold ?? myThreshold ?? 85;
 
                                         return (
                                             <tr key={item._id} className="hover:bg-white/[0.02]">
@@ -648,57 +872,74 @@ const AcademicRegisterPage = () => {
                                                         {credits} Credits
                                                     </span>
                                                 </td>
+
+                                                {/* Theory Classes / Week */}
                                                 <td className="py-3.5 px-4 text-center">
-                                                    <div className="inline-flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleTheoryChange(item._id, theoryVal - 1)}
-                                                            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
-                                                        >
-                                                            -
-                                                        </button>
+                                                    {isEditingWeeklyPlan ? (
                                                         <input
                                                             type="number"
                                                             min="0"
                                                             max="15"
                                                             value={theoryVal}
                                                             onChange={(e) => handleTheoryChange(item._id, e.target.value)}
-                                                            className="w-12 h-7 text-center rounded-lg bg-[#0d091f] border border-purple-500/30 text-purple-200 font-bold text-xs outline-none"
+                                                            onBlur={() => handleTheoryBlur(item._id)}
+                                                            className="w-14 h-8 text-center rounded-lg bg-[#0d091f] border border-purple-500/40 text-purple-200 font-bold text-xs outline-none focus:border-purple-400"
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleTheoryChange(item._id, theoryVal + 1)}
-                                                            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
+                                                    ) : (
+                                                        <span className="font-bold text-slate-200 text-xs">
+                                                            {theoryVal} / week
+                                                        </span>
+                                                    )}
                                                 </td>
+
+                                                {/* Lab Sessions / Week */}
                                                 <td className="py-3.5 px-4 text-center">
-                                                    <div className="inline-flex items-center gap-1.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleLabChange(item._id, labVal - 1)}
-                                                            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
-                                                        >
-                                                            -
-                                                        </button>
+                                                    {isEditingWeeklyPlan ? (
                                                         <input
                                                             type="number"
                                                             min="0"
                                                             max="10"
                                                             value={labVal}
                                                             onChange={(e) => handleLabChange(item._id, e.target.value)}
-                                                            className="w-12 h-7 text-center rounded-lg bg-[#0d091f] border border-purple-500/30 text-purple-200 font-bold text-xs outline-none"
+                                                            onBlur={() => handleLabBlur(item._id)}
+                                                            className="w-14 h-8 text-center rounded-lg bg-[#0d091f] border border-purple-500/40 text-purple-200 font-bold text-xs outline-none focus:border-purple-400"
                                                         />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleLabChange(item._id, labVal + 1)}
-                                                            className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-sm cursor-pointer flex items-center justify-center"
-                                                        >
-                                                            +
-                                                        </button>
+                                                    ) : (
+                                                        <span className="font-bold text-slate-200 text-xs">
+                                                            {labVal} Lab
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* College Threshold */}
+                                                <td className="py-3.5 px-4 text-center">
+                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-bold text-xs" title="College Minimum (Immutable)">
+                                                        <Lock size={11} className="text-slate-400" />
+                                                        <span>{collegeThreshold}%</span>
                                                     </div>
+                                                </td>
+
+                                                {/* My Threshold */}
+                                                <td className="py-3.5 px-4 text-center">
+                                                    {isEditingWeeklyPlan ? (
+                                                        <div className="relative inline-flex items-center justify-center">
+                                                            <input
+                                                                type="number"
+                                                                min={collegeThreshold}
+                                                                max="100"
+                                                                value={targetVal}
+                                                                onChange={(e) => handleThresholdChange(item._id, e.target.value)}
+                                                                onBlur={() => handleThresholdBlur(item._id)}
+                                                                className="w-16 h-8 text-center pr-4 rounded-lg bg-[#0d091f] border border-purple-500/40 text-purple-200 font-extrabold text-xs outline-none focus:border-purple-400"
+                                                            />
+                                                            <span className="absolute right-2 text-[10px] text-purple-400 font-bold pointer-events-none">%</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-500/15 border border-purple-500/25 text-purple-300 font-extrabold text-xs" title="Personal Target">
+                                                            <Target size={11} className="text-purple-400" />
+                                                            <span>{targetVal}%</span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                             </tr>
                                         );
@@ -710,28 +951,6 @@ const AcademicRegisterPage = () => {
 
                 </div>
             )}
-
-            {/* BOTTOM GENERATE TIMETABLE CTA */}
-            <div className="flex flex-col items-center gap-3 pt-2 max-w-xl mx-auto w-full">
-                <button
-                    type="button"
-                    onClick={handleGenerateTimetable}
-                    disabled={generating || registeredSubjectsList.length === 0}
-                    className={`w-full py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2.5 transition-all shadow-xl cursor-pointer ${
-                        generating || registeredSubjectsList.length === 0
-                            ? 'bg-purple-950 text-slate-500 border border-purple-900/30 cursor-not-allowed'
-                            : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white ring-2 ring-purple-400/50 shadow-purple-900/50 scale-[1.02]'
-                    }`}
-                >
-                    {generating ? (
-                        <RefreshCw size={18} className="animate-spin" />
-                    ) : (
-                        <Sparkles size={18} />
-                    )}
-                    <span>{generating ? 'Generating Timetable...' : 'Generate Timetable'}</span>
-                    <ArrowRight size={18} />
-                </button>
-            </div>
 
         </div>
     );

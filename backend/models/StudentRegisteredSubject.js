@@ -72,6 +72,12 @@ const studentRegisteredSubjectSchema = new mongoose.Schema({
             min: 0
         }
     },
+    userThreshold: {
+        type: Number,
+        default: null,
+        min: 0,
+        max: 100
+    },
     isOptional: {
         type: Boolean,
         default: false

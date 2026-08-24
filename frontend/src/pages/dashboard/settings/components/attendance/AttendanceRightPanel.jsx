@@ -1,5 +1,6 @@
 import React from 'react';
-import { CheckCircle2, XCircle, PauseCircle, Clock, ShieldCheck, AlertTriangle, Target } from 'lucide-react';
+import { CheckCircle2, XCircle, PauseCircle, Clock, ShieldCheck, AlertTriangle, AlertCircle, Lock, Target } from 'lucide-react';
+import { getAttendanceState } from '../SubjectProgressList';
 
 const AttendanceRightPanel = ({
     selectedDate,
@@ -9,25 +10,37 @@ const AttendanceRightPanel = ({
 }) => {
     // Calculate Day Summary numbers
     const totalDayClasses = dayClasses.length;
-    const presentCount = dayClasses.filter(c => c.status === 'Present' || c.status === 'On Duty').length;
-    const absentCount = dayClasses.filter(c => c.status === 'Absent').length;
-    const suspendedCount = dayClasses.filter(c => c.status === 'Suspended').length;
-    const remainingCount = dayClasses.filter(c => !c.status || c.status === 'Yet To Be Taken' || c.status === 'NOT_MARKED').length;
+    const norm = (s) => (s ? String(s).trim().toUpperCase() : '');
+    const presentCount = dayClasses.filter(c => ['PRESENT', 'ON DUTY', 'ON_DUTY'].includes(norm(c.status))).length;
+    const absentCount = dayClasses.filter(c => ['ABSENT', 'MEDICAL LEAVE', 'MEDICAL_LEAVE'].includes(norm(c.status))).length;
+    const suspendedCount = dayClasses.filter(c => ['SUSPENDED', 'CANCELLED'].includes(norm(c.status))).length;
+    const remainingCount = dayClasses.filter(c => {
+        const s = norm(c.status);
+        return !s || s === 'YET TO BE TAKEN' || s === 'NOT_MARKED' || s === 'PENDING';
+    }).length;
 
     // Overall metrics threshold and health counts
-    const threshold = overallMetrics?.threshold || 75;
+    const collegeThreshold = overallMetrics?.collegeThreshold || 85;
+    const userThreshold = overallMetrics?.userThreshold || overallMetrics?.threshold || collegeThreshold;
     const overallPct = overallMetrics?.attendance ?? 0;
 
     let safeSubjectsCount = 0;
-    let warningSubjectsCount = 0;
+    let attentionSubjectsCount = 0;
+    let criticalSubjectsCount = 0;
 
     progressList.forEach(s => {
-        if (s.attendancePercentage >= threshold) {
+        const pct = s.attendancePercentage ?? 100;
+        const state = getAttendanceState(pct, collegeThreshold, userThreshold);
+        if (state.stateKey === 'SAFE') {
             safeSubjectsCount++;
+        } else if (state.stateKey === 'ATTENTION') {
+            attentionSubjectsCount++;
         } else {
-            warningSubjectsCount++;
+            criticalSubjectsCount++;
         }
     });
+
+    const overallState = getAttendanceState(overallPct, collegeThreshold, userThreshold);
 
     const formatDateLabel = (dateStr) => {
         if (!dateStr) return 'SELECTED DAY';
@@ -159,60 +172,130 @@ const AttendanceRightPanel = ({
                     <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.05em' }}>
                         ATTENDANCE OVERVIEW
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a78bfa', fontWeight: 600 }}>
-                        <Target size={11} />
-                        Min {threshold}%
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px' }}>
+                        <span style={{ color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '3px' }} title="College Minimum">
+                            <Lock size={10} style={{ color: '#94a3b8' }} />
+                            {collegeThreshold}%
+                        </span>
+                        {userThreshold !== collegeThreshold && (
+                            <span style={{ color: '#c4b5fd', display: 'flex', alignItems: 'center', gap: '3px' }} title="My Personal Target">
+                                <Target size={10} style={{ color: '#a78bfa' }} />
+                                {userThreshold}%
+                            </span>
+                        )}
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                        <span style={{
+                            fontSize: '32px',
+                            fontWeight: 800,
+                            letterSpacing: '-0.02em',
+                            color: overallState.color
+                        }}>
+                            {overallPct}%
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>overall</span>
+                    </div>
+
                     <span style={{
-                        fontSize: '32px',
-                        fontWeight: 800,
-                        letterSpacing: '-0.02em',
-                        color: overallPct >= threshold ? '#10b981' : '#ef4444'
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: overallState.text,
+                        background: overallState.bg,
+                        border: `1px solid ${overallState.border}`,
+                        padding: '2px 8px',
+                        borderRadius: '6px'
                     }}>
-                        {overallPct}%
+                        {overallState.badge}
                     </span>
-                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>overall</span>
                 </div>
 
-                {/* Progress bar */}
+                {/* Progress bar with dual markers */}
                 <div style={{
                     width: '100%',
-                    height: '6px',
+                    height: '8px',
                     background: 'rgba(255, 255, 255, 0.08)',
-                    borderRadius: '3px',
-                    overflow: 'hidden',
+                    borderRadius: '4px',
+                    overflow: 'visible',
                     position: 'relative'
                 }}>
                     <div style={{
                         width: `${Math.min(100, Math.max(0, overallPct))}%`,
                         height: '100%',
-                        background: overallPct >= threshold
-                            ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)'
-                            : 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)',
-                        borderRadius: '3px',
-                        transition: 'width 0.3s ease'
+                        background: overallState.color,
+                        borderRadius: '4px',
+                        transition: 'width 0.3s ease, background-color 0.3s ease',
+                        boxShadow: `0 0 8px ${overallState.color}40`
                     }} />
+
+                    {/* College threshold line marker */}
+                    <div
+                        title={`College Minimum: ${collegeThreshold}%`}
+                        style={{
+                            position: 'absolute',
+                            left: `${collegeThreshold}%`,
+                            top: '-2px',
+                            bottom: '-2px',
+                            width: '2px',
+                            background: '#94a3b8',
+                            zIndex: 2,
+                            borderRadius: '1px'
+                        }}
+                    />
+
+                    {/* Personal target line marker */}
+                    {userThreshold !== collegeThreshold && (
+                        <div
+                            title={`My Target: ${userThreshold}%`}
+                            style={{
+                                position: 'absolute',
+                                left: `${userThreshold}%`,
+                                top: '-2px',
+                                bottom: '-2px',
+                                width: '2px',
+                                background: '#a78bfa',
+                                zIndex: 3,
+                                borderRadius: '1px'
+                            }}
+                        />
+                    )}
                 </div>
 
-                {/* Subject status counts */}
+                {/* Subject status counts (3-State Safe / Attention / Critical) */}
                 <div style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    fontSize: '11px',
-                    paddingTop: '4px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+                    flexDirection: 'column',
+                    gap: '6px',
+                    paddingTop: '6px',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                    fontSize: '11px'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#6ee7b7' }}>
-                        <ShieldCheck size={12} />
-                        <span>{safeSubjectsCount} Safe</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#6ee7b7' }}>
+                            <ShieldCheck size={12} />
+                            <span>Safe (Target Met)</span>
+                        </div>
+                        <span style={{ fontWeight: 700, color: '#6ee7b7' }}>{safeSubjectsCount}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: warningSubjectsCount > 0 ? '#fca5a5' : '#94a3b8' }}>
-                        <AlertTriangle size={12} />
-                        <span>{warningSubjectsCount} Needs Attention</span>
+
+                    {userThreshold !== collegeThreshold && attentionSubjectsCount > 0 && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#fcd34d' }}>
+                                <AlertTriangle size={12} />
+                                <span>Attention (Below Target)</span>
+                            </div>
+                            <span style={{ fontWeight: 700, color: '#fcd34d' }}>{attentionSubjectsCount}</span>
+                        </div>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: criticalSubjectsCount > 0 ? '#fca5a5' : '#94a3b8' }}>
+                            <AlertCircle size={12} />
+                            <span>Critical (Below College)</span>
+                        </div>
+                        <span style={{ fontWeight: 700, color: criticalSubjectsCount > 0 ? '#fca5a5' : '#94a3b8' }}>{criticalSubjectsCount}</span>
                     </div>
                 </div>
             </div>

@@ -121,7 +121,7 @@ const requireRegistrationCompleted = (req, res, next) => {
 
 const v2AuthLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: process.env.NODE_ENV === 'production' ? 100 : 10000,
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again later.',
@@ -129,7 +129,12 @@ const v2AuthLimiter = rateLimit({
         errors: null
     },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    skip: (req) => {
+        if (process.env.NODE_ENV !== 'production') return true;
+        const ip = req.ip || req.connection?.remoteAddress || '';
+        return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    }
 });
 
 const v2OtpLimiter = rateLimit({

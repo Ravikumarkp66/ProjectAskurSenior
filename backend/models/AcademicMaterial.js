@@ -134,6 +134,8 @@ academicMaterialSchema.index({ legacyDocumentId: 1 }, { unique: true, sparse: tr
 academicMaterialSchema.index({ subject: 1 });
 academicMaterialSchema.index({ status: 1 });
 academicMaterialSchema.index({ materialType: 1 });
+academicMaterialSchema.index({ subject: 1, status: 1, materialType: 1 });
+academicMaterialSchema.index({ subject: 1, status: 1, deletedAt: 1 });
 academicMaterialSchema.index({ migrationStatus: 1 });
 academicMaterialSchema.index({ uploadedBy: 1 });
 academicMaterialSchema.index({ createdAt: -1 });

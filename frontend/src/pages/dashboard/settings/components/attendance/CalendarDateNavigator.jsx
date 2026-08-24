@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Check } from 'lucide-react';
 
 const CalendarDateNavigator = ({
     selectedDate,
     onSelectDate,
     timetableConfig,
-    groupedTimeline = []
+    groupedTimeline = [],
+    selectedDayClasses = []
 }) => {
     // Current viewed month date state
     const [viewDate, setViewDate] = useState(() => {
@@ -59,8 +60,30 @@ const CalendarDateNavigator = ({
     const prevMonthLastDay = new Date(currentYear, currentMonth, 0).getDate();
     const calendarDays = [];
 
-    // Map of dates that have classes
-    const classDatesSet = new Set(groupedTimeline.map(g => g.date));
+    const isMarkedStatus = (status) => {
+        if (!status) return false;
+        const s = String(status).trim().toUpperCase();
+        return s !== 'YET TO BE TAKEN' && s !== 'NOT_MARKED' && s !== 'PENDING' && s !== '' && s !== 'NULL' && s !== 'UNDEFINED';
+    };
+
+    // Map of date status: { hasClasses, allMarked }
+    const dateStatusMap = new Map();
+    for (const g of groupedTimeline) {
+        if (!g.date) continue;
+        const dateKey = String(g.date).split('T')[0];
+        const slots = g.slots || g.classes || [];
+        const hasClasses = slots.length > 0;
+        const allMarked = hasClasses && slots.every(s => isMarkedStatus(s.status));
+        dateStatusMap.set(dateKey, { hasClasses, allMarked });
+    }
+
+    // Overlay live state for the currently selected date only if dayClasses is active for selectedDate
+    if (selectedDate && selectedDayClasses && selectedDayClasses.length > 0) {
+        const dateKey = String(selectedDate).split('T')[0];
+        const hasClasses = selectedDayClasses.length > 0;
+        const allMarked = hasClasses && selectedDayClasses.every(s => isMarkedStatus(s.status));
+        dateStatusMap.set(dateKey, { hasClasses, allMarked });
+    }
 
     for (let i = startDayIdx - 1; i >= 0; i--) {
         const d = new Date(currentYear, currentMonth - 1, prevMonthLastDay - i);
@@ -86,6 +109,9 @@ const CalendarDateNavigator = ({
     ];
 
     const weekDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Hovered date state for date-number reveal
+    const [hoveredDate, setHoveredDate] = useState(null);
 
     return (
         <div style={{
@@ -174,7 +200,11 @@ const CalendarDateNavigator = ({
                 {calendarDays.map((item, idx) => {
                     const isSelected = item.dateStr === selectedDate;
                     const isToday = item.dateStr === todayStr;
-                    const hasClasses = classDatesSet.has(item.dateStr);
+                    const isHovered = hoveredDate === item.dateStr;
+                    
+                    const dateStatus = dateStatusMap.get(item.dateStr) || { hasClasses: false, allMarked: false };
+                    const hasClasses = dateStatus.hasClasses;
+                    const allMarked = dateStatus.allMarked;
 
                     // Check bounds if timetableConfig has semester bounds
                     const isOutOfTimeline = (startDateStr && item.dateStr < startDateStr) || (endDateStr && item.dateStr > endDateStr);
@@ -182,11 +212,22 @@ const CalendarDateNavigator = ({
                     let bg = 'transparent';
                     let color = item.isCurrentMonth ? '#cbd5e1' : 'rgba(255, 255, 255, 0.2)';
                     let border = '1px solid transparent';
+                    let boxShadow = 'none';
 
                     if (isSelected) {
-                        bg = '#7c3aed';
+                        bg = allMarked
+                            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                            : '#7c3aed';
                         color = '#ffffff';
-                        border = '1px solid #a78bfa';
+                        border = allMarked ? '1.5px solid #34d399' : '1px solid #a78bfa';
+                        boxShadow = allMarked ? '0 0 12px rgba(16, 185, 129, 0.55)' : '0 0 12px rgba(124, 58, 237, 0.45)';
+                    } else if (allMarked) {
+                        bg = isHovered
+                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.32) 0%, rgba(5, 150, 105, 0.42) 100%)'
+                            : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(5, 150, 105, 0.26) 100%)';
+                        border = isHovered ? '1px solid #10b981' : '1px solid rgba(16, 185, 129, 0.45)';
+                        color = '#6ee7b7';
+                        boxShadow = '0 0 8px rgba(16, 185, 129, 0.25)';
                     } else if (isToday) {
                         bg = 'rgba(124, 58, 237, 0.15)';
                         color = '#c4b5fd';
@@ -203,45 +244,67 @@ const CalendarDateNavigator = ({
                             type="button"
                             disabled={isOutOfTimeline}
                             onClick={() => onSelectDate(item.dateStr)}
+                            onMouseEnter={() => setHoveredDate(item.dateStr)}
+                            onMouseLeave={() => setHoveredDate(null)}
                             style={{
                                 background: bg,
                                 border: border,
                                 borderRadius: '8px',
                                 color: color,
                                 fontSize: '12px',
-                                fontWeight: isSelected || isToday ? 700 : 500,
-                                height: '32px',
+                                fontWeight: isSelected || isToday || allMarked ? 700 : 500,
+                                height: '34px',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 cursor: isOutOfTimeline ? 'not-allowed' : 'pointer',
                                 position: 'relative',
-                                transition: 'all 0.15s',
-                                opacity: isOutOfTimeline ? 0.4 : 1
-                            }}
-                            onMouseEnter={e => {
-                                if (!isSelected && !isOutOfTimeline) {
-                                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                                }
-                            }}
-                            onMouseLeave={e => {
-                                if (!isSelected && !isOutOfTimeline) {
-                                    e.currentTarget.style.background = bg;
-                                }
+                                transition: 'all 0.15s ease-in-out',
+                                opacity: isOutOfTimeline ? 0.35 : 1,
+                                boxShadow: boxShadow
                             }}
                         >
-                            <span>{item.date.getDate()}</span>
-                            {/* Classes dot indicator */}
-                            {hasClasses && !isSelected && (
-                                <span style={{
-                                    width: '4px',
-                                    height: '4px',
-                                    borderRadius: '50%',
-                                    background: isToday ? '#a78bfa' : '#38bdf8',
-                                    position: 'absolute',
-                                    bottom: '3px'
-                                }} />
+                            {allMarked ? (
+                                isHovered ? (
+                                    <span style={{
+                                        fontSize: '12px',
+                                        fontWeight: 800,
+                                        color: isSelected ? '#ffffff' : '#6ee7b7'
+                                    }}>
+                                        {item.date.getDate()}
+                                    </span>
+                                ) : (
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        width: '100%',
+                                        height: '100%'
+                                    }}>
+                                        <Check
+                                            size={16}
+                                            strokeWidth={3.5}
+                                            color={isSelected ? '#ffffff' : '#34d399'}
+                                            style={{
+                                                filter: isSelected ? 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 4px rgba(52, 211, 153, 0.6))'
+                                            }}
+                                        />
+                                    </div>
+                                )
+                            ) : (
+                                <>
+                                    <span style={{ lineHeight: 1 }}>{item.date.getDate()}</span>
+                                    {hasClasses && !isSelected && (
+                                        <span style={{
+                                            width: '4px',
+                                            height: '4px',
+                                            borderRadius: '50%',
+                                            background: isToday ? '#a78bfa' : '#38bdf8',
+                                            marginTop: '3px'
+                                        }} />
+                                    )}
+                                </>
                             )}
                         </button>
                     );

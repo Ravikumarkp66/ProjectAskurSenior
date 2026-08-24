@@ -7,6 +7,7 @@ const StudentAcademicEvent = require('../models/StudentAcademicEvent');
 const StudentExpectedSchedule = require('../models/StudentExpectedSchedule');
 const StudentAttendanceEntry = require('../models/StudentAttendanceEntry');
 const SemesterSnapshot = require('../models/SemesterSnapshot');
+const { getCollegeAcademicRules } = require('./collegeAcademicRules');
 
 /**
  * Format Date to YYYY-MM-DD local string
@@ -90,8 +91,28 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
         }
     }
 
-    // Fetch entries (decisions)
-    entries = await StudentAttendanceEntry.find({ student: studentId, semester });
+    // Fetch class occurrences as primary authoritative source of truth
+    const ClassOccurrence = require('../models/ClassOccurrence');
+    entries = await ClassOccurrence.find({ student: studentId, semester });
+    if (!entries || entries.length === 0) {
+        entries = await StudentAttendanceEntry.find({ student: studentId, semester });
+    }
+
+    // Fetch timetable slots to derive weekly frequency (classes/week & lab/week)
+    const StudentTimetable = require('../models/StudentTimetable');
+    const timetableSlots = await StudentTimetable.find({ student: studentId, semester });
+    const timetableSlotsBySubj = new Map();
+    for (const s of (timetableSlots || [])) {
+        const sId = s.subject?.toString();
+        if (!sId) continue;
+        if (!timetableSlotsBySubj.has(sId)) {
+            timetableSlotsBySubj.set(sId, { theory: 0, lab: 0 });
+        }
+        const isLab = s.lectureType?.toLowerCase() === 'lab';
+        const rec = timetableSlotsBySubj.get(sId);
+        if (isLab) rec.lab++;
+        else rec.theory++;
+    }
 
     // 3. Compile Timeline
     let timeline = compileRawTimeline(expectedClasses, entries);
@@ -101,7 +122,7 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     // 4. Apply Filters to Timeline
     let filteredTimeline = [...timeline];
     if (filters.subjectId) {
-        filteredTimeline = filteredTimeline.filter(t => t.subject.toString() === filters.subjectId.toString());
+        filteredTimeline = filteredTimeline.filter(t => t.subject && t.subject.toString() === filters.subjectId.toString());
     }
     if (filters.category) {
         const catLower = filters.category.toLowerCase();
@@ -150,14 +171,22 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     let totalOnDuty = 0;
     let totalCancelled = 0;
 
-    const threshold = configuration?.attendanceThreshold || 75;
+    // Institutional & User Thresholds
+    const collegeRules = getCollegeAcademicRules(student.collegeName || 'SIT');
+    const collegeThreshold = collegeRules.attendance?.minimumPercentage || 85;
+    
+    // Student personal threshold (default to college threshold if unset or lower)
+    let userThreshold = configuration?.attendanceThreshold;
+    if (!userThreshold || userThreshold < collegeThreshold) {
+        userThreshold = collegeThreshold;
+    }
 
     for (const reg of subjects) {
         const subjectId = reg.subject?._id || reg.subject;
         if (!subjectId) continue;
 
         const subjectIdStr = subjectId.toString();
-        const subjTimeline = timeline.filter(t => t.subject.toString() === subjectIdStr);
+        const subjTimeline = timeline.filter(t => t.subject && t.subject.toString() === subjectIdStr);
 
         const theoryTimeline = subjTimeline.filter(t => t.lectureType?.toLowerCase() !== 'lab');
         const labTimeline = subjTimeline.filter(t => t.lectureType?.toLowerCase() === 'lab');
@@ -195,21 +224,61 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
                 : 0.0;
 
             const subjPct = subjAnalytics.conducted > 0 
-                ? (subjAnalytics.present / subjAnalytics.conducted * 100) 
-                : 100.0;
+                ? parseFloat((subjAnalytics.present / subjAnalytics.conducted * 100).toFixed(2))
+                : null;
+
+            // Subject-specific user target (from StudentRegisteredSubject) fallback to student global target or college min
+            const subjectUserThreshold = reg.userThreshold || userThreshold || collegeThreshold;
+
+            // Controlled Attendance Status Logic
             let healthStatus = '🟢 Safe';
-            if (subjPct < threshold) {
+            let statusCategory = 'SAFE';
+            let statusMessage = 'Target reached';
+
+            if (subjPct === null) {
+                healthStatus = '⚪ Not Started';
+                statusCategory = 'NOT_STARTED';
+                statusMessage = 'No classes conducted yet';
+            } else if (subjPct < collegeThreshold) {
                 healthStatus = '🔴 Critical';
-            } else if (ifMissNext3 < threshold) {
-                healthStatus = '🟡 Warning';
+                statusCategory = 'CRITICAL';
+                statusMessage = 'Below college minimum';
+            } else if (collegeThreshold !== subjectUserThreshold && subjPct < subjectUserThreshold) {
+                healthStatus = '🟡 Attention';
+                statusCategory = 'ATTENTION';
+                statusMessage = 'Below your target';
+            } else {
+                healthStatus = '🟢 Safe';
+                statusCategory = 'SAFE';
+                statusMessage = 'Target reached';
             }
 
-            const reqFrac = threshold / 100;
-            const canMiss = Math.max(0, Math.floor(subjAnalytics.present / reqFrac - subjAnalytics.conducted));
-            const needToAttend = reqFrac >= 1 ? 0 : Math.max(0, Math.ceil((threshold * subjAnalytics.conducted - 100 * subjAnalytics.present) / (100 - threshold)));
+            // Calculation of buffers relative to college threshold and personal target
+            const collegeFrac = collegeThreshold / 100;
+            const userFrac = subjectUserThreshold / 100;
+
+            const canMiss = (subjPct !== null && collegeFrac > 0)
+                ? Math.max(0, Math.floor(subjAnalytics.present / collegeFrac - subjAnalytics.conducted))
+                : 0;
+            const needToAttend = (subjPct !== null && userFrac < 1)
+                ? Math.max(0, Math.ceil((subjectUserThreshold * subjAnalytics.conducted - 100 * subjAnalytics.present) / (100 - subjectUserThreshold)))
+                : 0;
 
             const codeBase = reg.customCode || reg.subject?.code || '';
             const nameBase = reg.customName || reg.subject?.name || 'Unknown';
+
+            // Auto-derive weekly frequencies from StudentTimetable slots if configured, otherwise fallback to registered plan
+            const slotFreq = timetableSlotsBySubj.get(subjectIdStr);
+            const derivedTheory = slotFreq ? slotFreq.theory : null;
+            const derivedLab = slotFreq ? slotFreq.lab : null;
+
+            const classesPerWeek = (derivedTheory !== null)
+                ? (categoryType === 'Lab' ? 0 : derivedTheory)
+                : (reg.weeklyPlan?.theory?.required ?? (categoryType === 'Lab' ? 0 : (reg.weeklyPlan?.theory?.required || 0)));
+
+            const labSessionsPerWeek = (derivedLab !== null)
+                ? (categoryType === 'Lab' ? derivedLab : 0)
+                : (reg.weeklyPlan?.lab?.required ?? (categoryType === 'Lab' ? (reg.weeklyPlan?.lab?.required || 0) : 0));
 
             subjectsData.push({
                 subjectId,
@@ -217,10 +286,18 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
                 code: codeBase + codeSuffix,
                 category: categoryType,
                 credits: reg.registeredCredits || 0,
-                attendancePercentage: parseFloat(subjPct.toFixed(2)),
+                classesPerWeek,
+                labSessionsPerWeek,
+                collegeThreshold,
+                userThreshold: subjectUserThreshold,
+                attendancePercentage: subjPct !== null ? parseFloat(subjPct.toFixed(2)) : null,
                 analytics: {
                     ...subjAnalytics,
                     healthStatus,
+                    statusCategory,
+                    statusMessage,
+                    collegeThreshold,
+                    userThreshold: subjectUserThreshold,
                     canMiss,
                     needToAttend,
                     predictions: {
@@ -245,7 +322,7 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     }
 
     // Overall Analytics Calculations
-    const overallPct = totalConducted > 0 ? parseFloat(((totalPresent / totalConducted) * 100).toFixed(2)) : 0.0;
+    const overallPct = totalConducted > 0 ? parseFloat(((totalPresent / totalConducted) * 100).toFixed(2)) : null;
     
     // Streaks (Daily Overall Streak)
     const overallStreaks = calculateDailyOverallStreak(groupedTimeline, todayStr);
@@ -263,15 +340,23 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
         : 0.0;
 
     let overallHealthStatus = '🟢 Safe';
-    if (overallPct < threshold) {
+    let overallStatusCategory = 'SAFE';
+    let overallStatusMessage = 'Target reached';
+
+    if (overallPct < collegeThreshold) {
         overallHealthStatus = '🔴 Critical';
-    } else if (overallIfMissNext3 < threshold) {
-        overallHealthStatus = '🟡 Warning';
+        overallStatusCategory = 'CRITICAL';
+        overallStatusMessage = 'Below college minimum';
+    } else if (collegeThreshold !== userThreshold && overallPct < userThreshold) {
+        overallHealthStatus = '🟡 Attention';
+        overallStatusCategory = 'ATTENTION';
+        overallStatusMessage = 'Below your target';
     }
 
-    const overallReqFrac = threshold / 100;
-    const overallCanMiss = Math.max(0, Math.floor(totalPresent / overallReqFrac - totalConducted));
-    const overallNeedToAttend = overallReqFrac >= 1 ? 0 : Math.max(0, Math.ceil((threshold * totalConducted - 100 * totalPresent) / (100 - threshold)));
+    const collegeReqFrac = collegeThreshold / 100;
+    const userReqFrac = userThreshold / 100;
+    const overallCanMiss = Math.max(0, Math.floor(totalPresent / collegeReqFrac - totalConducted));
+    const overallNeedToAttend = userReqFrac >= 1 ? 0 : Math.max(0, Math.ceil((userThreshold * totalConducted - 100 * totalPresent) / (100 - userThreshold)));
 
     // Semester Progress Completion Days
     let completedDays = 0;
@@ -412,7 +497,9 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
             filtersUsed: filters
         },
         overall: {
-            threshold,
+            collegeThreshold,
+            userThreshold,
+            threshold: userThreshold,
             attendance: overallPct,
             expected: totalExpected,
             conducted: totalConducted,
@@ -425,6 +512,8 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
             canMiss: overallCanMiss,
             needToAttend: overallNeedToAttend,
             healthStatus: overallHealthStatus,
+            statusCategory: overallStatusCategory,
+            statusMessage: overallStatusMessage,
             semesterProgressPct,
             completedDays,
             remainingDays,
@@ -480,36 +569,49 @@ function compileRawTimeline(expectedClasses, entries) {
         if (entry.isExtraClass) {
             extraEntries.push(entry);
         } else {
-            const schedSubjId = entry.scheduledSubject ? entry.scheduledSubject.toString() : entry.subject.toString();
+            const schedSubjId = entry.scheduledSubject 
+                ? (entry.scheduledSubject._id ? entry.scheduledSubject._id.toString() : entry.scheduledSubject.toString()) 
+                : (entry.subject ? (entry.subject._id ? entry.subject._id.toString() : entry.subject.toString()) : (entry.actualSubject ? (entry.actualSubject._id ? entry.actualSubject._id.toString() : entry.actualSubject.toString()) : ''));
             const keyWithSubj = `${schedSubjId}_${entry.date}_${entry.timeSlot || ''}`;
-            const keySlotOnly = `${entry.date}_${entry.timeSlot || ''}`;
             entryMap.set(keyWithSubj, entry);
-            if (entry.timeSlot) {
-                entryMap.set(keySlotOnly, entry);
-            }
         }
     }
 
     for (const exp of expectedClasses) {
+        if (!exp || !exp.subject) continue;
         const subjectIdStr = exp.subject.toString();
         const keyWithSubj = `${subjectIdStr}_${exp.date}_${exp.timeSlot}`;
-        const keySlotOnly = `${exp.date}_${exp.timeSlot}`;
         
-        const matchedEntry = entryMap.get(keyWithSubj) || entryMap.get(keySlotOnly);
+        let matchedEntry = entryMap.get(keyWithSubj);
+
+        // Multi-hour / Merged slot range matching fallback
+        if (!matchedEntry) {
+            const expTimes = parseTimeSlot(exp.timeSlot);
+            matchedEntry = entries.find(e => {
+                if (e.date !== exp.date || !e.timeSlot || !e.timeSlot.includes('-')) return false;
+                const eTimes = parseTimeSlot(e.timeSlot);
+                const eSchedSubj = e.scheduledSubject ? e.scheduledSubject.toString() : (e.subject ? e.subject.toString() : (e.actualSubject ? e.actualSubject.toString() : ''));
+                const eActSubj = e.actualSubject ? e.actualSubject.toString() : (e.subject ? e.subject.toString() : '');
+                const isSubjMatch = eSchedSubj === subjectIdStr || eActSubj === subjectIdStr;
+                const isTimeCovered = eTimes.start <= expTimes.start && expTimes.end <= eTimes.end;
+                return isSubjMatch && isTimeCovered;
+            });
+        }
 
         if (matchedEntry) {
+            const actSubj = matchedEntry.actualSubject || matchedEntry.subject || exp.subject;
             timeline.push({
                 _id: matchedEntry._id,
                 date: exp.date,
                 timeSlot: exp.timeSlot,
                 scheduledSubject: exp.subject,
-                subject: matchedEntry.subject,
-                isSubjectChanged: matchedEntry.subject.toString() !== exp.subject.toString(),
+                subject: actSubj,
+                isSubjectChanged: Boolean(actSubj && actSubj.toString() !== exp.subject.toString()),
                 lectureType: exp.lectureType || 'Lecture',
                 status: matchedEntry.status,
                 isExtraClass: false,
                 remarks: matchedEntry.remarks || '',
-                createdBy: matchedEntry.createdBy || 'Student'
+                createdBy: matchedEntry.markedBy || matchedEntry.createdBy || 'Student'
             });
         } else {
             timeline.push({
@@ -554,20 +656,29 @@ function compileRawTimeline(expectedClasses, entries) {
     return timeline;
 }
 
+const norm = (s) => (s ? String(s).trim().toUpperCase() : '');
+const isPresent = (s) => ['PRESENT', 'ON DUTY', 'ON_DUTY'].includes(norm(s));
+const isAbsent = (s) => ['ABSENT', 'MEDICAL LEAVE', 'MEDICAL_LEAVE'].includes(norm(s));
+const isSuspended = (s) => ['SUSPENDED', 'CANCELLED'].includes(norm(s));
+const isUnmarked = (s) => {
+    const sn = norm(s);
+    return !sn || sn === 'YET TO BE TAKEN' || sn === 'NOT_MARKED' || sn === 'PENDING';
+};
+
 /**
  * Computes analytics stats for a timeline subset
  */
 function computeTimelineStats(timeline, todayStr) {
-    const conductedRecords = timeline.filter(t => t.date <= todayStr && t.status !== 'Cancelled' && t.status !== 'Suspended' && t.status !== 'Yet To Be Taken');
+    const conductedRecords = timeline.filter(t => t.date <= todayStr && !isSuspended(t.status) && !isUnmarked(t.status));
     const conducted = conductedRecords.length;
-    const present = conductedRecords.filter(t => t.status === 'Present' || t.status === 'On Duty').length;
-    const absent = conductedRecords.filter(t => t.status === 'Absent').length;
-    const medicalLeave = conductedRecords.filter(t => t.status === 'Medical Leave').length;
-    const onDuty = conductedRecords.filter(t => t.status === 'On Duty').length;
-    const suspended = timeline.filter(t => t.status === 'Suspended').length;
-    const cancelled = timeline.filter(t => t.status === 'Cancelled').length;
+    const present = conductedRecords.filter(t => isPresent(t.status)).length;
+    const absent = conductedRecords.filter(t => isAbsent(t.status)).length;
+    const medicalLeave = conductedRecords.filter(t => norm(t.status) === 'MEDICAL_LEAVE' || norm(t.status) === 'MEDICAL LEAVE').length;
+    const onDuty = conductedRecords.filter(t => norm(t.status) === 'ON_DUTY' || norm(t.status) === 'ON DUTY').length;
+    const suspended = timeline.filter(t => isSuspended(t.status)).length;
+    const cancelled = suspended;
 
-    const toBeConductedRecords = timeline.filter(t => t.date > todayStr && t.status !== 'Cancelled' && t.status !== 'Suspended');
+    const toBeConductedRecords = timeline.filter(t => t.date > todayStr && !isSuspended(t.status));
     const toBeConducted = toBeConductedRecords.length;
 
     const expected = conducted + toBeConducted;
@@ -592,7 +703,7 @@ function computeTimelineStats(timeline, todayStr) {
  */
 function calculateTimelineStreaks(timeline, todayStr) {
     const sorted = [...timeline]
-        .filter(t => t.status !== 'Cancelled' && t.date <= todayStr)
+        .filter(t => !isSuspended(t.status) && t.date <= todayStr)
         .sort((a, b) => {
             const dateCompare = a.date.localeCompare(b.date);
             if (dateCompare !== 0) return dateCompare;
@@ -603,10 +714,10 @@ function calculateTimelineStreaks(timeline, todayStr) {
     let temp = 0;
 
     for (const t of sorted) {
-        if (t.status === 'Present' || t.status === 'On Duty') {
+        if (isPresent(t.status)) {
             temp++;
             if (temp > longest) longest = temp;
-        } else if (t.status === 'Absent' || t.status === 'Medical Leave') {
+        } else if (isAbsent(t.status)) {
             temp = 0;
         }
     }
@@ -614,9 +725,9 @@ function calculateTimelineStreaks(timeline, todayStr) {
     let current = 0;
     for (let i = sorted.length - 1; i >= 0; i--) {
         const t = sorted[i];
-        if (t.status === 'Present' || t.status === 'On Duty') {
+        if (isPresent(t.status)) {
             current++;
-        } else if (t.status === 'Absent' || t.status === 'Medical Leave') {
+        } else if (isAbsent(t.status)) {
             break;
         }
     }
@@ -655,7 +766,7 @@ function calculateDailyOverallStreak(groupedTimeline, todayStr) {
  */
 function calculateLongestAbsenceStreak(timeline, todayStr) {
     const sorted = [...timeline]
-        .filter(t => t.status !== 'Cancelled' && t.date <= todayStr)
+        .filter(t => !isSuspended(t.status) && t.date <= todayStr)
         .sort((a, b) => {
             const dateCompare = a.date.localeCompare(b.date);
             if (dateCompare !== 0) return dateCompare;
@@ -666,7 +777,7 @@ function calculateLongestAbsenceStreak(timeline, todayStr) {
     let temp = 0;
 
     for (const t of sorted) {
-        if (t.status === 'Absent') {
+        if (isAbsent(t.status)) {
             temp++;
             if (temp > longest) longest = temp;
         } else {
@@ -696,9 +807,9 @@ function groupTimelineByDate(timeline) {
         const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
         const formattedDateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-        const presentCount = items.filter(i => i.status === 'Present' || i.status === 'On Duty').length;
-        const absentCount = items.filter(i => i.status === 'Absent' || i.status === 'Medical Leave').length;
-        const expectedCount = items.filter(i => i.status !== 'Cancelled').length;
+        const presentCount = items.filter(i => isPresent(i.status)).length;
+        const absentCount = items.filter(i => isAbsent(i.status)).length;
+        const expectedCount = items.filter(i => !isSuspended(i.status)).length;
 
         grouped.push({
             date,
@@ -764,7 +875,7 @@ function mergeConsecutiveLabs(timelineList) {
         const isConsecutiveLab = 
             prev.lectureType?.toLowerCase() === 'lab' &&
             prev.date === item.date &&
-            prev.subject.toString() === item.subject.toString() &&
+            Boolean(prev.subject && item.subject && prev.subject.toString() === item.subject.toString()) &&
             prevTimes.end === itemTimes.start;
             
         if (isConsecutiveLab) {

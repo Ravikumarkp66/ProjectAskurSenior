@@ -67,21 +67,23 @@ const YearCardSVG = ({
     // TOP SUBJECTS FROM DB
     const topSubjectsList = (stats && stats.topSubjects && stats.topSubjects.length > 0) 
         ? stats.topSubjects.slice(0, 3)
-        : data.topSubjects;
+        : (subjectCountDisplay > 0 ? (data.topSubjects || []) : []);
 
     const remainingSubjectsCount = Math.max(0, subjectCountDisplay - topSubjectsList.length);
 
     // BREAKDOWN COUNTS FROM DB
     const totalMat = resourceCountDisplay || 0;
-    const notesCount = (stats?.breakdown?.notes !== undefined) ? stats.breakdown.notes : Math.round(totalMat * 0.55);
-    const pyqsCount = (stats?.breakdown?.pyqs !== undefined) ? stats.breakdown.pyqs : Math.round(totalMat * 0.25);
-    const qbanksCount = (stats?.breakdown?.qbanks !== undefined) ? stats.breakdown.qbanks : Math.round(totalMat * 0.12);
-    const othersCount = (stats?.breakdown?.others !== undefined) ? stats.breakdown.others : Math.max(0, totalMat - notesCount - pyqsCount - qbanksCount);
+    const notesCount = (stats?.breakdown?.notes !== undefined) ? stats.breakdown.notes : (totalMat > 0 ? Math.round(totalMat * 0.55) : 0);
+    const pyqsCount = (stats?.breakdown?.pyqs !== undefined) ? stats.breakdown.pyqs : (totalMat > 0 ? Math.round(totalMat * 0.25) : 0);
+    const qbanksCount = (stats?.breakdown?.qbanks !== undefined) ? stats.breakdown.qbanks : (totalMat > 0 ? Math.round(totalMat * 0.12) : 0);
+    const othersCount = (stats?.breakdown?.others !== undefined) ? stats.breakdown.others : (totalMat > 0 ? Math.max(0, totalMat - notesCount - pyqsCount - qbanksCount) : 0);
 
     // SUBTITLE FORMAT
-    const subtitleText = totalMat > 0 
-        ? `${subjectCountDisplay} Subjects • ${totalMat} Resources`
-        : `${subjectCountDisplay} Subjects • Resources Coming Soon`;
+    const subtitleText = subjectCountDisplay > 0
+        ? (totalMat > 0 
+            ? `${subjectCountDisplay} Subjects • ${totalMat} Resources`
+            : `${subjectCountDisplay} Subjects • Resources Coming Soon`)
+        : 'Sem 7–8 • Coming Soon';
 
     return (
         <div
@@ -244,15 +246,24 @@ const YearCardSVG = ({
                             <line x1="20" y1="74" x2="195" y2="74" stroke="rgba(255, 255, 255, 0.12)" strokeWidth="1.2" />
 
                             {/* Subject Item Pills */}
-                            {topSubjectsList.map((subName, idx) => (
-                                <g key={idx} transform={`translate(18, ${90 + idx * 44})`}>
-                                    <rect width="179" height="34" rx="10" fill="rgba(139, 92, 246, 0.14)" stroke="rgba(167, 139, 250, 0.25)" strokeWidth="1" />
-                                    <circle cx="14" cy="17" r="4" fill="#A78BFA" />
-                                    <text x="28" y="22" fill="#EDE9FE" fontSize="13" fontWeight="700">
-                                        {subName.length > 17 ? subName.substring(0, 15) + '…' : subName}
+                            {topSubjectsList.length === 0 ? (
+                                <g transform="translate(18, 90)">
+                                    <rect width="179" height="34" rx="10" fill="rgba(167, 139, 250, 0.1)" stroke="rgba(167, 139, 250, 0.2)" strokeWidth="1" />
+                                    <text x="20" y="22" fill="#C4B5FD" fontSize="13" fontWeight="700">
+                                        Coming Soon
                                     </text>
                                 </g>
-                            ))}
+                            ) : (
+                                topSubjectsList.map((subName, idx) => (
+                                    <g key={idx} transform={`translate(18, ${90 + idx * 44})`}>
+                                        <rect width="179" height="34" rx="10" fill="rgba(139, 92, 246, 0.14)" stroke="rgba(167, 139, 250, 0.25)" strokeWidth="1" />
+                                        <circle cx="14" cy="17" r="4" fill="#A78BFA" />
+                                        <text x="28" y="22" fill="#EDE9FE" fontSize="13" fontWeight="700">
+                                            {subName.length > 17 ? subName.substring(0, 15) + '…' : subName}
+                                        </text>
+                                    </g>
+                                ))
+                            )}
 
                             {/* Remaining Count Pill */}
                             {remainingSubjectsCount > 0 && (

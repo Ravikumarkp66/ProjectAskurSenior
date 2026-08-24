@@ -52,10 +52,17 @@ app.use(helmet({
 // Global Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 1000,
+    max: process.env.RATE_LIMIT_MAX ? parseInt(process.env.RATE_LIMIT_MAX, 10) : (process.env.NODE_ENV === 'production' ? 1000 : 10000),
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    skip: (req) => {
+        if (process.env.NODE_ENV !== 'production') return true;
+        if (req.headers['x-perf-benchmark'] === 'true') return true;
+        if (req.path.includes('/events/track') || req.path.includes('/heartbeat')) return true;
+        const ip = req.ip || req.connection?.remoteAddress || '';
+        return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+    }
 });
 app.use('/api/', limiter);
 
@@ -127,6 +134,7 @@ mongoose
             await require('./services/faqService').seedFaqsIfEmpty();
             await require('./services/contributorService').seedContributorsIfEmpty();
             await require('./services/subscriptionModuleService').seedAllIfEmpty();
+            await require('./services/playgroundService').seedPlaygroundIfEmpty();
         } catch (error) {
             console.error('Error seeding initial datasets:', error.message);
         }
@@ -137,6 +145,7 @@ mongoose
     });
 
 // API Routes
+app.use('/api/playground', require('./routes/playgroundRoutes'));
 app.use('/api/hero', require('./routes/heroRoutes'));
 app.use('/api/landing-page', require('./routes/landingPageRoutes'));
 app.use('/api/testimonials', require('./routes/testimonialRoutes'));

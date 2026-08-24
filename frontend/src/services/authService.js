@@ -93,6 +93,7 @@ export const authService = {
     getAttendanceAnalytics: (semester) => apiV2Client.get('/profile/attendance/analytics', { params: { semester } }),
     getSubjectAttendanceDetail: (subjectId, semester, category) => apiV2Client.get(`/profile/attendance/subject/${subjectId}`, { params: { semester, category } }),
     updateAttendanceHistoryV2: (data) => apiV2Client.put('/profile/attendance/entry', data),
+    updateAttendanceTarget: (data) => apiV2Client.put('/profile/attendance/target', data),
     addExtraClassV2: (data) => apiV2Client.post('/profile/attendance/extra-class', data),
     deleteExtraClassV2: (historyId) => apiV2Client.delete(`/profile/attendance/extra-class/${historyId}`),
     resetTimetable: () => apiV2Client.post('/profile/timetable/reset'),

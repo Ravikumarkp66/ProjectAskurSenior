@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, AlertTriangle, Sliders, FileText, CheckCircle2 } from 'lucide-react';
+import { getAttendanceState } from '../SubjectProgressList';
 
 const AttendanceSummaryView = ({
     progressList = [],
@@ -129,8 +130,10 @@ const AttendanceSummaryView = ({
                                     const expected = analytics.expected || 0;
                                     const toBeConducted = Math.max(0, expected - conducted);
                                     const predictedTotal = conducted + toBeConducted;
-                                    const pct = item.attendancePercentage ?? 0;
-                                    const isSafe = pct >= threshold;
+                                    const cThresh = item.collegeThreshold || threshold || 85;
+                                    const uThresh = item.userThreshold || cThresh;
+                                    const pct = item.attendancePercentage ?? null;
+                                    const state = getAttendanceState(pct, cThresh, uThresh);
 
                                     return (
                                         <tr key={idx} style={{
@@ -170,19 +173,25 @@ const AttendanceSummaryView = ({
                                                 {predictedTotal}
                                             </td>
                                             <td style={{ padding: '16px', textAlign: 'center' }}>
-                                                <span style={{
-                                                    fontSize: '14px',
-                                                    fontWeight: 800,
-                                                    color: isSafe ? '#10b981' : '#ef4444'
-                                                }}>
-                                                    {pct.toFixed(1)}%
-                                                </span>
+                                                {pct === null ? (
+                                                    <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>
+                                                        Not started
+                                                    </span>
+                                                ) : (
+                                                    <span style={{
+                                                        fontSize: '14px',
+                                                        fontWeight: 800,
+                                                        color: state.color
+                                                    }}>
+                                                        {pct.toFixed(1)}%
+                                                    </span>
+                                                )}
                                             </td>
                                             <td style={{ padding: '16px', textAlign: 'center' }}>
                                                 <span style={{
-                                                    background: isSafe ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                    border: isSafe ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)',
-                                                    color: isSafe ? '#6ee7b7' : '#fca5a5',
+                                                    background: `${state.color}18`,
+                                                    border: `1px solid ${state.color}40`,
+                                                    color: state.color,
                                                     padding: '4px 10px',
                                                     borderRadius: '12px',
                                                     fontSize: '11px',
@@ -191,8 +200,10 @@ const AttendanceSummaryView = ({
                                                     alignItems: 'center',
                                                     gap: '4px'
                                                 }}>
-                                                    {isSafe ? <ShieldCheck size={12} /> : <AlertTriangle size={12} />}
-                                                    {isSafe ? 'Safe' : 'Critical'}
+                                                    {state.stateKey === 'SAFE' && <ShieldCheck size={12} />}
+                                                    {state.stateKey === 'ATTENTION' && <AlertTriangle size={12} />}
+                                                    {state.stateKey === 'CRITICAL' && <AlertTriangle size={12} />}
+                                                    {state.stateKey === 'SAFE' ? 'Safe' : state.stateKey === 'ATTENTION' ? 'Attention' : state.stateKey === 'CRITICAL' ? 'Critical' : 'Not started'}
                                                 </span>
                                             </td>
                                         </tr>

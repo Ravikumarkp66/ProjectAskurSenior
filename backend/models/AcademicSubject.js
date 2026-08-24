@@ -72,6 +72,8 @@ const academicSubjectSchema = new mongoose.Schema({
 academicSubjectSchema.index({ code: 1 }, { unique: true });
 academicSubjectSchema.index({ slug: 1 }, { unique: true });
 academicSubjectSchema.index({ year: 1 });
+academicSubjectSchema.index({ status: 1 });
+academicSubjectSchema.index({ year: 1, status: 1 });
 academicSubjectSchema.index({ branch: 1 });
 academicSubjectSchema.index({ scheme: 1 });
 academicSubjectSchema.index({ branch: 1, year: 1, status: 1 });

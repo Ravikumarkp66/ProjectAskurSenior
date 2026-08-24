@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { apiV2 } from '../../../services/authService';
 
@@ -10,16 +11,37 @@ import AttendanceSummaryView from './components/attendance/AttendanceSummaryView
 import SubjectSummaryTab from './components/attendance/SubjectSummaryTab';
 import BaselineSetupModal from './components/attendance/BaselineSetupModal';
 import SubjectSwapModal from './components/attendance/SubjectSwapModal';
-import AttendanceHistoryDrawer from './components/AttendanceHistoryDrawer';
 import WeeklyTimetableGrid from './components/WeeklyTimetableGrid';
+import TimetableSettings from './TimetableSettings';
+
+const normalizeTabName = (tab) => {
+    if (!tab) return 'today';
+    const t = String(tab).toLowerCase();
+    if (t === 'schedule' || t === 'timetable') return 'schedule';
+    if (t === 'today' || t === 'daily') return 'today';
+    if (t === 'subjects' || t === 'subject-summary') return 'subjects';
+    if (t === 'overview' || t === 'summary') return 'overview';
+    return 'today';
+};
 
 const AttendanceSettings = () => {
+    const location = useLocation();
+    const queryTab = new URLSearchParams(location.search).get('tab');
+
     const [loading, setLoading] = useState(true);
     const [isDayLoading, setIsDayLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Active View Tab: 'daily' | 'timetable' | 'summary'
-    const [activeTab, setActiveTab] = useState('daily');
+    // Active View Tab: 'schedule' | 'today' | 'subjects' | 'overview'
+    const [activeTab, setActiveTabState] = useState(() => normalizeTabName(queryTab));
+
+    const setActiveTab = (tab) => {
+        const normalized = normalizeTabName(tab);
+        setActiveTabState(normalized);
+        const url = new URL(window.location);
+        url.searchParams.set('tab', normalized);
+        window.history.replaceState({}, '', url);
+    };
 
     // Date state (YYYY-MM-DD)
     const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -62,19 +84,18 @@ const AttendanceSettings = () => {
     // 1. Fetch student profile
     const fetchStudentProfile = async () => {
         try {
-            const res = await apiV2.getMe();
+            const res = await apiV2.getStudentProfile();
             if (res.data?.success) {
-                const student = res.data.data.student || {};
-                const studentSem = student.semester || 1;
-                setCurrentStudentSemester(studentSem);
+                const student = res.data.student || res.data.data;
                 setUserProfile(student);
-
-                const sems = [];
-                for (let i = 1; i <= studentSem; i++) {
-                    sems.push(i);
+                const sem = Number(student?.semester) || 1;
+                setCurrentStudentSemester(sem);
+                const list = [];
+                for (let i = 1; i <= Math.max(sem, 8); i++) {
+                    list.push({ semester: i, isCurrent: i === sem, isPast: i < sem });
                 }
-                setSemestersList(sems);
-                return studentSem;
+                setSemestersList(list);
+                return sem;
             }
         } catch (err) {
             console.error('Error fetching student profile:', err);
@@ -83,8 +104,8 @@ const AttendanceSettings = () => {
     };
 
     // 2. Fetch semester metrics and config
-    const fetchSemesterData = async (sem) => {
-        setLoading(true);
+    const fetchSemesterData = async (sem, showLoading = false) => {
+        if (showLoading) setLoading(true);
         setError(null);
         try {
             // Load dashboard metrics
@@ -127,13 +148,13 @@ const AttendanceSettings = () => {
             console.error('Error fetching attendance metrics:', err);
             setError(err.response?.data?.message || 'An error occurred while loading attendance metrics.');
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
     // 3. Fetch day classes for selected date
-    const fetchDayAttendance = async (dateStr, sem) => {
-        setIsDayLoading(true);
+    const fetchDayAttendance = async (dateStr, sem, showLoading = false) => {
+        if (showLoading) setIsDayLoading(true);
         try {
             const res = await apiV2.getAttendanceDay(dateStr, sem);
             if (res.data?.success) {
@@ -142,7 +163,7 @@ const AttendanceSettings = () => {
         } catch (err) {
             console.error('Error fetching day attendance:', err);
         } finally {
-            setIsDayLoading(false);
+            if (showLoading) setIsDayLoading(false);
         }
     };
 
@@ -153,8 +174,8 @@ const AttendanceSettings = () => {
             setSelectedSemester(currentSem);
             const today = new Date().toISOString().split('T')[0];
             setSelectedDate(today);
-            await fetchSemesterData(currentSem);
-            await fetchDayAttendance(today, currentSem);
+            await fetchSemesterData(currentSem, true);
+            await fetchDayAttendance(today, currentSem, true);
         };
         init();
     }, []);
@@ -162,14 +183,16 @@ const AttendanceSettings = () => {
     // Change semester
     const handleSemesterChange = async (sem) => {
         setSelectedSemester(sem);
-        await fetchSemesterData(sem);
-        await fetchDayAttendance(selectedDate, sem);
+        await fetchSemesterData(sem, true);
+        await fetchDayAttendance(selectedDate, sem, true);
     };
 
     // Change date
     const handleSelectDate = async (dateStr) => {
+        if (dateStr === selectedDate) return;
         setSelectedDate(dateStr);
-        await fetchDayAttendance(dateStr, selectedSemester);
+        setDayClasses([]); // Clear stale dayClasses to prevent flash of previous date
+        await fetchDayAttendance(dateStr, selectedSemester, true);
     };
 
     // Mark / Edit attendance for a specific class slot
@@ -181,8 +204,13 @@ const AttendanceSettings = () => {
 
         const slotId = classItem._id || `${classItem.subjectId}_${classItem.timeSlot}`;
         const previousDayClasses = [...dayClasses];
+        const previousGroupedTimeline = [...groupedTimeline];
 
-        // Optimistic update
+        const constituentSlots = classItem.subSlots && classItem.subSlots.length > 0
+            ? classItem.subSlots.map(s => s.timeSlot)
+            : [classItem.timeSlot];
+
+        // Optimistic update of dayClasses
         setDayClasses(prev => prev.map(c => {
             const cId = c._id || `${c.subjectId}_${c.timeSlot}`;
             if (cId === slotId) {
@@ -191,27 +219,49 @@ const AttendanceSettings = () => {
             return c;
         }));
 
+        // Optimistic update of groupedTimeline so calendar right mark (✓) appears immediately
+        const dateKey = String(selectedDate).split('T')[0];
+        setGroupedTimeline(prev => {
+            return prev.map(g => {
+                if (String(g.date).split('T')[0] === dateKey) {
+                    const currentSlots = g.slots || g.classes || [];
+                    const updatedSlots = currentSlots.map(s => {
+                        const isMatch = s.timeSlot === classItem.timeSlot || constituentSlots.includes(s.timeSlot);
+                        if (isMatch) {
+                            return { ...s, status };
+                        }
+                        return s;
+                    });
+                    return { ...g, slots: updatedSlots, classes: updatedSlots };
+                }
+                return g;
+            });
+        });
+
         try {
             const res = await apiV2.updateAttendanceHistoryV2({
                 subjectId: classItem.subjectId,
+                scheduledSubjectId: classItem.scheduledSubjectId || classItem.subjectId,
                 date: selectedDate,
                 timeSlot: classItem.timeSlot,
+                constituentSlots,
                 status
             });
 
             if (res.data?.success) {
                 toast.success(`Marked ${classItem.subjectName} as ${status}`);
-                // Refresh metrics in background
-                await fetchSemesterData(selectedSemester);
-                await fetchDayAttendance(selectedDate, selectedSemester);
+                // Refresh overall metrics in background silently (NO re-fetching dayClasses to prevent flicker / overwrites)
+                fetchSemesterData(selectedSemester, false);
                 window.dispatchEvent(new Event('attendance-updated'));
             } else {
                 setDayClasses(previousDayClasses);
+                setGroupedTimeline(previousGroupedTimeline);
                 toast.error(res.data?.message || 'Failed to update attendance');
             }
         } catch (err) {
             console.error('Error marking attendance:', err);
             setDayClasses(previousDayClasses);
+            setGroupedTimeline(previousGroupedTimeline);
             toast.error('Failed to update attendance. Please try again.');
         }
     };
@@ -223,8 +273,8 @@ const AttendanceSettings = () => {
         try {
             const res = await apiV2.recalculateAttendance();
             if (res.data?.success) {
-                await fetchSemesterData(selectedSemester);
-                await fetchDayAttendance(selectedDate, selectedSemester);
+                await fetchSemesterData(selectedSemester, true);
+                await fetchDayAttendance(selectedDate, selectedSemester, true);
                 toast.success('Attendance synced and recalculated successfully!');
             } else {
                 setError(res.data?.message || 'Failed to recalculate attendance');
@@ -234,6 +284,177 @@ const AttendanceSettings = () => {
             setError(err.response?.data?.message || 'An error occurred while recalculating.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    // One-Tap Mark All Present Today
+    const handleMarkAllPresentToday = async () => {
+        if (readOnly) {
+            toast.error('Attendance is read-only for archived semesters.');
+            return;
+        }
+        const unrecorded = dayClasses.filter(c => !c.status || c.status === 'Yet To Be Taken' || c.status === 'NOT_MARKED');
+        if (unrecorded.length === 0) {
+            toast('All classes for today are already recorded.', { icon: 'ℹ️' });
+            return;
+        }
+
+        // Optimistic update
+        setDayClasses(prev => prev.map(c => ({ ...c, status: 'Present' })));
+        
+        const dateKey = String(selectedDate).split('T')[0];
+        setGroupedTimeline(prev => {
+            return prev.map(g => {
+                if (String(g.date).split('T')[0] === dateKey) {
+                    const currentSlots = g.slots || g.classes || [];
+                    const updatedSlots = currentSlots.map(s => ({ ...s, status: 'Present' }));
+                    return { ...g, slots: updatedSlots, classes: updatedSlots };
+                }
+                return g;
+            });
+        });
+
+        try {
+            for (const item of unrecorded) {
+                const constituentSlots = item.subSlots && item.subSlots.length > 0
+                    ? item.subSlots.map(s => s.timeSlot)
+                    : [item.timeSlot];
+
+                await apiV2.updateAttendanceHistoryV2({
+                    subjectId: item.subjectId,
+                    scheduledSubjectId: item.scheduledSubjectId || item.subjectId,
+                    date: selectedDate,
+                    timeSlot: item.timeSlot,
+                    constituentSlots,
+                    status: 'Present'
+                });
+            }
+            toast.success(`Marked all ${unrecorded.length} classes as Present!`);
+            fetchSemesterData(selectedSemester, false);
+            window.dispatchEvent(new Event('attendance-updated'));
+        } catch (err) {
+            console.error('Error marking all present:', err);
+            toast.error('Failed to mark all classes. Please try again.');
+            await fetchDayAttendance(selectedDate, selectedSemester, false);
+        }
+    };
+
+    // Helper to check if a class slot has recorded attendance
+    const isMarkedStatus = (status) => {
+        if (!status) return false;
+        const s = String(status).trim().toUpperCase();
+        return s !== 'YET TO BE TAKEN' && s !== 'NOT_MARKED' && s !== 'PENDING' && s !== '' && s !== 'NULL' && s !== 'UNDEFINED';
+    };
+
+    // Calculate unconfirmed past classes count
+    const unconfirmedPastCount = useMemo(() => {
+        const today = new Date().toISOString().split('T')[0];
+        let count = 0;
+        (groupedTimeline || []).forEach(dayGroup => {
+            if (!dayGroup.date) return;
+            const dateStr = String(dayGroup.date).split('T')[0];
+            if (dateStr < today) {
+                const daySlots = dayGroup.slots || dayGroup.classes || [];
+                daySlots.forEach(c => {
+                    if (!isMarkedStatus(c.status)) {
+                        count++;
+                    }
+                });
+            }
+        });
+        return count;
+    }, [groupedTimeline]);
+
+    // Quick-Mark all past unconfirmed classes as Present (Instant 0ms Optimistic Update + Single Bulk API)
+    const handleQuickMarkPastAsPresent = async () => {
+        if (readOnly) return;
+        const today = new Date().toISOString().split('T')[0];
+
+        // 1. Instantly update groupedTimeline optimistically so banner disappears and calendar turns green immediately
+        setGroupedTimeline(prev => {
+            return prev.map(dayGroup => {
+                if (!dayGroup.date) return dayGroup;
+                const dateStr = String(dayGroup.date).split('T')[0];
+                if (dateStr < today) {
+                    const daySlots = dayGroup.slots || dayGroup.classes || [];
+                    const updatedSlots = daySlots.map(s => ({ ...s, status: 'Present' }));
+                    return { ...dayGroup, slots: updatedSlots, classes: updatedSlots };
+                }
+                return dayGroup;
+            });
+        });
+
+        // 2. If viewing a past date, immediately mark active day classes as Present
+        if (selectedDate < today) {
+            setDayClasses(prev => prev.map(c => ({ ...c, status: 'Present' })));
+        }
+
+        toast.success('All past classes marked as Present!');
+
+        // 3. Single bulk background operation to backend
+        try {
+            await apiV2.updateAttendanceHistoryV2({ markAllPast: true });
+            fetchSemesterData(selectedSemester, false);
+            window.dispatchEvent(new Event('attendance-updated'));
+        } catch (err) {
+            console.error('Error quick marking past classes:', err);
+            fetchSemesterData(selectedSemester, false);
+            fetchDayAttendance(selectedDate, selectedSemester, false);
+        }
+    };
+
+    // Reset Day Attendance to Original Timetable State
+    const handleResetDayAttendance = async () => {
+        if (readOnly) {
+            toast.error('Attendance is read-only for archived semesters.');
+            return;
+        }
+        const markedCount = dayClasses.filter(c => c.status && c.status !== 'Yet To Be Taken' && c.status !== 'NOT_MARKED').length;
+        if (markedCount === 0) {
+            toast('No recorded classes to reset for this date.', { icon: 'ℹ️' });
+            return;
+        }
+
+        // Optimistically clear statuses to Yet To Be Taken and restore original scheduled subjects
+        setDayClasses(prev => prev.map(c => ({
+            ...c,
+            status: 'Yet To Be Taken',
+            subjectId: c.scheduledSubjectId || c.subjectId,
+            subjectName: c.scheduledSubjectName || c.subjectName,
+            subjectCode: c.scheduledSubjectCode || c.subjectCode,
+            isSubjectChanged: false
+        })));
+
+        const dateKey = String(selectedDate).split('T')[0];
+        setGroupedTimeline(prev => {
+            return prev.map(g => {
+                if (String(g.date).split('T')[0] === dateKey) {
+                    const currentSlots = g.slots || g.classes || [];
+                    const updatedSlots = currentSlots.map(s => ({
+                        ...s,
+                        status: 'Yet To Be Taken',
+                        subject: s.scheduledSubject || s.subject,
+                        isSubjectChanged: false
+                    }));
+                    return { ...g, slots: updatedSlots, classes: updatedSlots };
+                }
+                return g;
+            });
+        });
+
+        try {
+            await apiV2.updateAttendanceHistoryV2({
+                date: selectedDate,
+                resetDay: true
+            });
+            toast.success('Restored to original timetable classes!');
+            await fetchSemesterData(selectedSemester, false);
+            await fetchDayAttendance(selectedDate, selectedSemester, false);
+            window.dispatchEvent(new Event('attendance-updated'));
+        } catch (err) {
+            console.error('Error resetting day attendance:', err);
+            toast.error('Failed to reset attendance.');
+            await fetchDayAttendance(selectedDate, selectedSemester, false);
         }
     };
 
@@ -296,6 +517,25 @@ const AttendanceSettings = () => {
         setIsExportDropdownOpen(false);
         const url = apiV2.getReportExportUrl(selectedSemester, format);
         window.open(url, '_blank');
+    };
+
+    // Update Student Personal Attendance Target
+    const handleUpdateAttendanceTarget = async (newTarget) => {
+        try {
+            const res = await apiV2.updateAttendanceTarget({
+                semester: selectedSemester,
+                targetPercentage: newTarget
+            });
+            if (res.data?.success) {
+                toast.success(`Attendance target updated to ${newTarget}%`);
+                await fetchSemesterData(selectedSemester);
+            } else {
+                toast.error(res.data?.message || 'Failed to update attendance target');
+            }
+        } catch (err) {
+            console.error('Error updating target:', err);
+            toast.error(err.response?.data?.message || 'Failed to update attendance target');
+        }
     };
 
     // Open Drawer for Subject Timeline History
@@ -428,6 +668,7 @@ const AttendanceSettings = () => {
                 currentStudentSemester={currentStudentSemester}
                 readOnly={readOnly}
                 loading={loading}
+                onOpenSettings={() => setActiveTab('timetable')}
                 onPromoteSemester={handlePromoteSemester}
                 onRecalculate={handleRecalculate}
                 onExport={handleExport}
@@ -449,8 +690,15 @@ const AttendanceSettings = () => {
                 </div>
             )}
 
-            {/* TAB CONTENT 1: DAILY ATTENDANCE (DESKTOP 3-COLUMN LAYOUT 16% / 64% / 20%) */}
-            {activeTab === 'daily' && (
+            {/* TAB CONTENT 1: SCHEDULE (WEEKLY TIMETABLE) */}
+            {(activeTab === 'schedule' || activeTab === 'timetable') && (
+                <div style={{ width: '100%' }}>
+                    <TimetableSettings isEmbedded={true} />
+                </div>
+            )}
+
+            {/* TAB CONTENT 2: TODAY / DAILY ATTENDANCE (DESKTOP 3-COLUMN LAYOUT 16% / 64% / 20%) */}
+            {(activeTab === 'today' || activeTab === 'daily') && (
                 <div className="attendance-daily-grid" style={{
                     display: 'grid',
                     gridTemplateColumns: 'minmax(200px, 16%) minmax(300px, 64%) minmax(220px, 20%)',
@@ -465,6 +713,7 @@ const AttendanceSettings = () => {
                             onSelectDate={handleSelectDate}
                             timetableConfig={timetableConfig}
                             groupedTimeline={groupedTimeline}
+                            selectedDayClasses={dayClasses}
                         />
                     </div>
 
@@ -475,6 +724,10 @@ const AttendanceSettings = () => {
                             dayClasses={dayClasses}
                             isLoading={isDayLoading}
                             onMarkAttendance={handleMarkAttendance}
+                            onMarkAllPresent={handleMarkAllPresentToday}
+                            onResetDayAttendance={handleResetDayAttendance}
+                            unconfirmedPastCount={unconfirmedPastCount}
+                            onQuickMarkPast={handleQuickMarkPastAsPresent}
                             readOnly={readOnly}
                             overallMetrics={overallMetrics}
                             progressList={progressList}
@@ -496,21 +749,20 @@ const AttendanceSettings = () => {
                 </div>
             )}
 
-
-
-            {/* TAB CONTENT 3: SUBJECT SUMMARY VIEW */}
-            {activeTab === 'subject-summary' && (
+            {/* TAB CONTENT 3: SUBJECTS (ANALYTICAL BREAKDOWN & STREAKS) */}
+            {(activeTab === 'subjects' || activeTab === 'subject-summary') && (
                 <div style={{ width: '100%' }}>
                     <SubjectSummaryTab
                         overallMetrics={overallMetrics}
                         progressList={progressList}
                         onEditSubjectHistory={handleEditSubjectHistory}
+                        onUpdateTarget={handleUpdateAttendanceTarget}
                     />
                 </div>
             )}
 
-            {/* TAB CONTENT 4: SEMESTER SUMMARY VIEW */}
-            {activeTab === 'summary' && (
+            {/* TAB CONTENT 4: OVERVIEW (SEMESTER SUMMARY VIEW) */}
+            {(activeTab === 'overview' || activeTab === 'summary') && (
                 <div style={{ width: '100%' }}>
                     <AttendanceSummaryView
                         progressList={progressList}
@@ -543,17 +795,6 @@ const AttendanceSettings = () => {
                 classItem={selectedSwapClass}
                 registeredSubjects={registeredSubjectsList}
                 onSwapConfirmed={handleConfirmSubjectSwap}
-            />
-            <AttendanceHistoryDrawer
-                isOpen={isDrawerOpen}
-                onClose={() => setIsDrawerOpen(false)}
-                subject={activeSubjectData}
-                history={attendanceHistory}
-                forecast={subjectForecast}
-                onUpdateStatus={handleUpdateDrawerStatus}
-                onAddExtra={handleAddExtraClass}
-                onDeleteExtra={handleDeleteExtraClass}
-                readOnly={readOnly}
             />
 
             {/* CSS Media Queries for Mobile Responsiveness */}

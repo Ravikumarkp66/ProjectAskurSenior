@@ -301,10 +301,29 @@ const getSubjectContent = async (req, res) => {
 };
 
 const computeYearStatsHelper = async (yearName) => {
-    const cmsSubjects = await AcademicSubject.find({ year: yearName }).select('_id name').lean();
+    const cmsSubjects = await AcademicSubject.find({ year: yearName, status: 'Published' }).select('_id name code').lean();
     const cmsSubjectIds = cmsSubjects.map(s => s._id);
 
-    const topSubjects = cmsSubjects.slice(0, 3).map(s => s.name);
+    // Get subjects sorted by highest material count
+    const topCounts = await AcademicMaterial.aggregate([
+        { $match: { subject: { $in: cmsSubjectIds }, status: 'Published', deletedAt: null } },
+        { $group: { _id: '$subject', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 3 }
+    ]);
+
+    const subjectMap = new Map(cmsSubjects.map(s => [s._id.toString(), s.name]));
+    let topSubjects = topCounts.map(t => subjectMap.get(t._id.toString())).filter(Boolean);
+
+    // If fewer than 3 have materials, fill from remaining subjects
+    if (topSubjects.length < 3) {
+        for (const s of cmsSubjects) {
+            if (!topSubjects.includes(s.name)) {
+                topSubjects.push(s.name);
+                if (topSubjects.length >= 3) break;
+            }
+        }
+    }
 
     const [notesCount, pyqsCount, qbanksCount, othersCount] = await Promise.all([
         AcademicMaterial.countDocuments({ subject: { $in: cmsSubjectIds }, materialType: 'Notes', status: 'Published', deletedAt: null }),

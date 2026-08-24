@@ -226,39 +226,8 @@ const HomeIcon = ({ filled }) => (
 );
 
 const PlusIcon = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-            <linearGradient id="dash-gem-tl" x1="5" y1="5" x2="10" y2="10" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#FF9F43" />
-                <stop offset="1" stopColor="#FF5252" />
-            </linearGradient>
-            <linearGradient id="dash-gem-tc" x1="7" y1="5" x2="16" y2="10" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#FFC048" />
-                <stop offset="1" stopColor="#FF7800" />
-            </linearGradient>
-            <linearGradient id="dash-gem-tr" x1="16" y1="5" x2="21" y2="10" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#A55EEA" />
-                <stop offset="1" stopColor="#786FA6" />
-            </linearGradient>
-            <linearGradient id="dash-gem-bl" x1="3" y1="10" x2="12" y2="20" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#E056FD" />
-                <stop offset="1" stopColor="#BE2ED6" />
-            </linearGradient>
-            <linearGradient id="dash-gem-bc" x1="8" y1="10" x2="12" y2="20" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#8854D0" />
-                <stop offset="1" stopColor="#3867D6" />
-            </linearGradient>
-            <linearGradient id="dash-gem-br" x1="16" y1="10" x2="21" y2="10" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#4B7BEC" />
-                <stop offset="1" stopColor="#2D98DA" />
-            </linearGradient>
-        </defs>
-        <polygon points="7,5 12,5 8,10 3,10" fill="url(#dash-gem-tl)" />
-        <polygon points="12,5 17,5 16,10 8,10" fill="url(#dash-gem-tc)" />
-        <polygon points="17,5 21,10 16,10" fill="url(#dash-gem-tr)" />
-        <polygon points="3,10 8,10 12,20" fill="url(#dash-gem-bl)" />
-        <polygon points="8,10 16,10 12,20" fill="url(#dash-gem-bc)" />
-        <polygon points="16,10 21,10 12,20" fill="url(#dash-gem-br)" />
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="#8B5CF6">
+        <path d="M4 13h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0 8h6c.55 0 1-.45 1-1v-4c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v4c0 .55.45 1 1 1zm10 0h6c.55 0 1-.45 1-1v-8c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1v8c0 .55.45 1 1 1zm0-18v4c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V4c0-.55-.45-1-1-1h-6c-.55 0-1 .45-1 1z" />
     </svg>
 );
 

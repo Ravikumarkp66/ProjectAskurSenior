@@ -11,7 +11,7 @@ import WeeklyTimetableGrid from './components/WeeklyTimetableGrid';
 import TimetableSettingsDrawer from './components/TimetableSettingsDrawer';
 import TimetableEditorModal from './components/TimetableEditorModal';
 
-const TimetableSettings = () => {
+const TimetableSettings = ({ isEmbedded = false }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
     
@@ -203,6 +203,38 @@ const TimetableSettings = () => {
     const hasConfiguration = useMemo(() => {
         return Boolean(initialConfig?.semesterStartDate);
     }, [initialConfig]);
+
+    // Fallback slots ensuring an empty timetable grid is always displayed even before initial config
+    const effectiveSlots = useMemo(() => {
+        if (slots && slots.length > 0) return slots;
+
+        const startMin = config?.collegeStartMinute ?? 480; // 08:00 AM
+        const endMin = config?.collegeEndMinute ?? 1020;    // 05:00 PM
+        const duration = config?.classDuration ?? 50;
+        const workingDays = config?.workingDays && Object.keys(config.workingDays).length > 0
+            ? config.workingDays 
+            : { 1: true, 2: true, 3: true, 4: true, 5: true, 6: true };
+
+        const defaultSlots = [];
+        for (let day = 1; day <= 7; day++) {
+            if (!workingDays[day]) continue;
+            let current = startMin;
+            while (current + duration <= endMin) {
+                defaultSlots.push({
+                    dayOfWeek: day,
+                    startMinute: current,
+                    endMinute: current + duration,
+                    lectureType: 'Lecture',
+                    subject: null,
+                    room: '',
+                    faculty: '',
+                    status: 'Scheduled'
+                });
+                current += duration;
+            }
+        }
+        return defaultSlots;
+    }, [slots, config]);
 
     // Handle config fields change — persist date fields to localStorage immediately
     const handleConfigChange = (field, value) => {
@@ -732,23 +764,51 @@ const TimetableSettings = () => {
                 </div>
             )}
 
-            {/* Layout Fork: No Configuration -> Onboarding Setup View */}
-            {!hasConfiguration ? (
-                <TimetableSetupView 
-                    config={config} 
-                    onChange={handleConfigChange} 
-                    onCreate={handleInitialSetupSave} 
-                    saving={savingConfig}
-                />
-            ) : (
-                /* Layout Fork: Configuration Exists -> Timetable Workspace */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    
-                    {/* Compact Configuration Summary Strip */}
+            {/* Timetable Workspace (Always shows clean timetable grid) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Configuration Summary Strip */}
+                {hasConfiguration ? (
                     <ConfigurationSummary 
                         config={config} 
-                        onEditClick={() => navigate('/home/academic-register')} 
+                        onEditClick={() => setIsDrawerOpen(true)} 
                     />
+                ) : (
+                    <div style={{
+                        background: 'rgba(124, 58, 237, 0.08)',
+                        border: '1px solid rgba(124, 58, 237, 0.25)',
+                        borderRadius: '10px',
+                        padding: '12px 18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <Info size={16} style={{ color: '#a78bfa' }} />
+                            <span style={{ fontSize: '12.5px', color: '#e2e8f0' }}>
+                                Showing default schedule (Mon–Sat, 08:00 AM – 05:00 PM). Click any cell to assign subjects.
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsDrawerOpen(true)}
+                            style={{
+                                background: 'linear-gradient(135deg, #7C3AED, #6366F1)',
+                                border: 'none',
+                                color: '#fff',
+                                borderRadius: '6px',
+                                padding: '6px 14px',
+                                fontSize: '11.5px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Configure Hours
+                        </button>
+                    </div>
+                )}
 
                     {/* Weekly Grid Form */}
                     <form onSubmit={(e) => { e.preventDefault(); handleSaveAssignments(); }} style={{ display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' }}>
@@ -836,7 +896,7 @@ const TimetableSettings = () => {
                         )}
 
                         <WeeklyTimetableGrid 
-                            slots={slots} 
+                            slots={effectiveSlots} 
                             config={config}
                             subjects={registeredSubjects.map(r => r.subject).filter(Boolean)}
                             registeredSubjects={registeredSubjects}
@@ -868,7 +928,6 @@ const TimetableSettings = () => {
                     />
 
                 </div>
-            )}
 
             {/* Popup Cell Editor Modal */}
             <TimetableEditorModal

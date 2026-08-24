@@ -89,6 +89,7 @@ router.get('/profile/attendance/analytics', authenticateStudent, requireActiveAc
 router.get('/profile/attendance/today', authenticateStudent, requireActiveAccount, authV2Controller.getTodayAttendance);
 router.get('/profile/attendance/subject/:subjectId', authenticateStudent, requireActiveAccount, authV2Controller.getSubjectAttendanceDetailV2);
 router.put('/profile/attendance/entry', authenticateStudent, requireActiveAccount, authV2Controller.updateAttendanceHistoryV2);
+router.put('/profile/attendance/target', authenticateStudent, requireActiveAccount, authV2Controller.updateAttendanceTarget);
 router.put('/profile/attendance/baseline', authenticateStudent, requireActiveAccount, authV2Controller.saveBaselineAttendance);
 router.post('/profile/attendance/extra-class', authenticateStudent, requireActiveAccount, authV2Controller.addExtraClassV2);
 router.delete('/profile/attendance/extra-class/:historyId', authenticateStudent, requireActiveAccount, authV2Controller.deleteExtraClassV2);

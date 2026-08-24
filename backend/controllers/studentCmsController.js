@@ -7,26 +7,70 @@ const Branch = require('../models/Branch');
 // Student-facing: fetches published/available subjects
 const getPublicSubjects = async (req, res) => {
     try {
-        const { search, branch } = req.query;
+        const { search, branch, year } = req.query;
 
-        const filter = {};
+        const academicFilter = { status: 'Published' };
 
+        if (year) {
+            academicFilter.year = year;
+        }
+
+        if (search) {
+            const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            academicFilter.$or = [
+                { name: regex },
+                { code: regex }
+            ];
+        }
+
+        let branchDoc = null;
         if (branch) {
             const branchUpper = branch.toString().trim().toUpperCase();
             const branchMap = {
-                CSE: 'CS',
-                ISE: 'IS',
-                ECE: 'EC',
-                MECH: 'ME',
-                CIVIL: 'CV',
-                EEE: 'EE',
-                AIML: 'CI',
-                ETC: 'ET',
-                EIE: 'EI'
+                CS: 'CSE', CSE: 'CSE',
+                IS: 'ISE', ISE: 'ISE',
+                EC: 'ECE', ECE: 'ECE',
+                ME: 'MECH', MECH: 'MECH',
+                CV: 'CIVIL', CIVIL: 'CIVIL',
+                EE: 'EEE', EEE: 'EEE',
+                CI: 'AIML', AIML: 'AIML',
+                ET: 'ETC', ETC: 'ETC',
+                EI: 'EIE', EIE: 'EIE'
+            };
+            const targetShortName = branchMap[branchUpper] || branchUpper;
+            branchDoc = await Branch.findOne({ shortName: targetShortName }).select('_id').lean();
+        }
+
+        // Fetch from AcademicSubject
+        let subjects = await AcademicSubject.find(academicFilter)
+            .populate('branch', 'name shortName')
+            .sort({ year: 1, name: 1 })
+            .lean();
+
+        // If branch filter specified, filter non-1st-year subjects by branch
+        if (branchDoc) {
+            subjects = subjects.filter(s => {
+                // First Year subjects are common across all branches
+                if (s.year === '1st Year' || !s.year) return true;
+                if (!s.branch) return true;
+                return s.branch._id?.toString() === branchDoc._id?.toString() || s.branch.shortName === 'Common';
+            });
+        }
+
+        // Return AcademicSubject list if found
+        if (subjects && subjects.length > 0) {
+            return res.status(200).json(subjects);
+        }
+
+        // Fallback to legacy Subject model
+        const legacyFilter = {};
+        if (branch) {
+            const branchUpper = branch.toString().trim().toUpperCase();
+            const branchMap = {
+                CSE: 'CS', ISE: 'IS', ECE: 'EC', MECH: 'ME', CIVIL: 'CV', EEE: 'EE', AIML: 'CI', ETC: 'ET', EIE: 'EI'
             };
             const mappedBranch = branchMap[branchUpper] || branchUpper;
-
-            filter.$or = [
+            legacyFilter.$or = [
                 { branch: mappedBranch },
                 { branch: branchUpper },
                 { branch: 'ALL' },
@@ -37,30 +81,17 @@ const getPublicSubjects = async (req, res) => {
 
         if (search) {
             const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            const searchOr = [
-                { name: regex },
-                { code: regex }
-            ];
-            if (filter.$or) {
-                filter.$and = [
-                    { $or: filter.$or },
-                    { $or: searchOr }
-                ];
-                delete filter.$or;
+            const searchOr = [{ name: regex }, { code: regex }];
+            if (legacyFilter.$or) {
+                legacyFilter.$and = [{ $or: legacyFilter.$or }, { $or: searchOr }];
+                delete legacyFilter.$or;
             } else {
-                filter.$or = searchOr;
+                legacyFilter.$or = searchOr;
             }
         }
 
-        // Fetch subjects from Subject model (primary database collection with 198 records)
-        let subjects = await Subject.find(filter).lean();
-        
-        // Fallback to AcademicSubject if Subject collection is empty
-        if (!subjects || subjects.length === 0) {
-            subjects = await AcademicSubject.find().populate('branch', 'name shortName').lean();
-        }
-
-        res.status(200).json(subjects);
+        const legacySubjects = await Subject.find(legacyFilter).lean();
+        res.status(200).json(legacySubjects);
     } catch (error) {
         console.error('getPublicSubjects error:', error);
         res.status(500).json({ error: 'Server error', details: error.message });

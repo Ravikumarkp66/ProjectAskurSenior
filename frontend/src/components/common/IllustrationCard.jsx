@@ -1297,6 +1297,219 @@ const SCENE_PRESETS = {
                 </div>
             </>
         )
+    },
+    labPrograms: {
+        accent: '#A855F7',
+        subtitle: 'Practice and master your college lab programs.',
+        bgGradient: 'radial-gradient(circle at 50% 35%, rgba(168, 85, 247, 0.28) 0%, rgba(9, 5, 20, 0.98) 100%)',
+        render: (accent, isHovered) => (
+            <svg viewBox="0 0 540 280" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '100%', height: '100%', display: 'block' }}>
+                <defs>
+                    <style>{`
+                        @keyframes strokeFlow {
+                            from { stroke-dashoffset: 24; }
+                            to { stroke-dashoffset: 0; }
+                        }
+                        @keyframes cursorPulse {
+                            0%, 100% { opacity: 1; }
+                            50% { opacity: 0; }
+                        }
+                        .lp-flow-line {
+                            stroke-dasharray: 5 5;
+                            stroke-dashoffset: 0;
+                            transition: stroke 0.3s ease;
+                        }
+                        .lp-flow-animated {
+                            animation: strokeFlow 0.65s linear infinite !important;
+                        }
+                        .lp-cursor {
+                            animation: cursorPulse 0.9s ease-in-out infinite;
+                        }
+                    `}</style>
+                    <filter id="lpGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="10" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <filter id="lpSoftGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="5" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <linearGradient id="lpWindowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#1B0E36" />
+                        <stop offset="100%" stopColor="#0B0518" />
+                    </linearGradient>
+                    <linearGradient id="lpHeaderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#25124A" />
+                        <stop offset="100%" stopColor="#140A28" />
+                    </linearGradient>
+                    <linearGradient id="lpTabGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#3B1768" />
+                        <stop offset="100%" stopColor="#240D42" />
+                    </linearGradient>
+                    <linearGradient id="cGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#0E2847" />
+                        <stop offset="100%" stopColor="#061324" />
+                    </linearGradient>
+                    <linearGradient id="cppGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#1E164D" />
+                        <stop offset="100%" stopColor="#0A0724" />
+                    </linearGradient>
+                    <linearGradient id="javaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#331A05" />
+                        <stop offset="100%" stopColor="#170A02" />
+                    </linearGradient>
+                    <linearGradient id="pyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#062922" />
+                        <stop offset="100%" stopColor="#021410" />
+                    </linearGradient>
+                </defs>
+
+                {/* 1. Pedestal Base Lighting */}
+                <g transform="translate(270, 235)">
+                    <ellipse cx="0" cy="15" rx="145" ry="24" fill="#0C051D" stroke="rgba(168,85,247,0.4)" strokeWidth="2" filter="url(#lpGlow)" />
+                    <ellipse cx="0" cy="15" rx="105" ry="15" fill="none" stroke="#C084FC" strokeWidth="1.5" opacity="0.65" />
+                </g>
+
+                {/* 2. Connecting Flow Paths from Languages to Main IDE */}
+                <g stroke="#C084FC" strokeWidth="2" opacity="0.75">
+                    {/* C connector */}
+                    <path className={`lp-flow-line ${isHovered ? 'lp-flow-animated' : ''}`} d="M 115 85 C 135 85, 140 100, 155 105" />
+                    {/* C++ connector */}
+                    <path className={`lp-flow-line ${isHovered ? 'lp-flow-animated' : ''}`} d="M 125 170 C 145 170, 145 155, 155 145" />
+                    {/* Java connector */}
+                    <path className={`lp-flow-line ${isHovered ? 'lp-flow-animated' : ''}`} d="M 425 85 C 405 85, 400 100, 385 105" />
+                    {/* Python connector */}
+                    <path className={`lp-flow-line ${isHovered ? 'lp-flow-animated' : ''}`} d="M 415 170 C 395 170, 395 155, 385 145" />
+                </g>
+
+                {/* 3. Left Language Badges: C & C++ */}
+                {/* C Badge */}
+                <g transform="translate(35, 55)">
+                    <rect width="80" height="60" rx="14" fill="url(#cGrad)" stroke="#38BDF8" strokeWidth="1.8" filter="url(#lpSoftGlow)" />
+                    <text x="40" y="32" textAnchor="middle" fill="#38BDF8" fontSize="22" fontWeight="900" fontFamily="Outfit, sans-serif" letterSpacing="0.5">C</text>
+                    <text x="40" y="48" textAnchor="middle" fill="#93C5FD" fontSize="10" fontWeight="700" letterSpacing="0.8">PROGRAM</text>
+                    <circle cx="68" cy="14" r="3" fill="#38BDF8" />
+                </g>
+
+                {/* C++ Badge */}
+                <g transform="translate(38, 140)">
+                    <rect width="88" height="60" rx="14" fill="url(#cppGrad)" stroke="#818CF8" strokeWidth="1.8" filter="url(#lpSoftGlow)" />
+                    <text x="44" y="32" textAnchor="middle" fill="#A5B4FC" fontSize="20" fontWeight="900" fontFamily="Outfit, sans-serif" letterSpacing="0.5">C++</text>
+                    <text x="44" y="48" textAnchor="middle" fill="#C7D2FE" fontSize="10" fontWeight="700" letterSpacing="0.8">OOP LAB</text>
+                    <circle cx="76" cy="14" r="3" fill="#818CF8" />
+                </g>
+
+                {/* 4. Right Language Badges: Java & Python */}
+                {/* Java Badge */}
+                <g transform="translate(425, 55)">
+                    <rect width="80" height="60" rx="14" fill="url(#javaGrad)" stroke="#F59E0B" strokeWidth="1.8" filter="url(#lpSoftGlow)" />
+                    <text x="40" y="32" textAnchor="middle" fill="#FBBF24" fontSize="19" fontWeight="900" fontFamily="Outfit, sans-serif" letterSpacing="0.5">Java</text>
+                    <text x="40" y="48" textAnchor="middle" fill="#FDE68A" fontSize="10" fontWeight="700" letterSpacing="0.8">LAB CODE</text>
+                    <circle cx="68" cy="14" r="3" fill="#F59E0B" />
+                </g>
+
+                {/* Python Badge */}
+                <g transform="translate(414, 140)">
+                    <rect width="88" height="60" rx="14" fill="url(#pyGrad)" stroke="#10B981" strokeWidth="1.8" filter="url(#lpSoftGlow)" />
+                    <text x="44" y="32" textAnchor="middle" fill="#34D399" fontSize="18" fontWeight="900" fontFamily="Outfit, sans-serif" letterSpacing="0.5">Python</text>
+                    <text x="44" y="48" textAnchor="middle" fill="#A7F3D0" fontSize="10" fontWeight="700" letterSpacing="0.8">DATA LAB</text>
+                    <circle cx="76" cy="14" r="3" fill="#10B981" />
+                </g>
+
+                {/* 5. Center Code Terminal / IDE Window */}
+                <g transform="translate(155, 30)">
+                    {/* Main Window Box */}
+                    <rect width="230" height="175" rx="18" fill="url(#lpWindowGrad)" stroke="#A855F7" strokeWidth="2.5" filter="url(#lpGlow)" />
+                    
+                    {/* Title Bar Header */}
+                    <path d="M 0 18 C 0 8, 8 0, 18 0 H 212 C 222 0, 230 8, 230 18 V 32 H 0 Z" fill="url(#lpHeaderGrad)" />
+                    <line x1="0" y1="32" x2="230" y2="32" stroke="rgba(168,85,247,0.3)" strokeWidth="1" />
+
+                    {/* Window Controls (Red, Amber, Green) */}
+                    <circle cx="16" cy="16" r="4" fill="#F43F5E" />
+                    <circle cx="28" cy="16" r="4" fill="#F59E0B" />
+                    <circle cx="40" cy="16" r="4" fill="#10B981" />
+
+                    {/* Active Tab */}
+                    <g transform="translate(58, 6)">
+                        <rect width="105" height="20" rx="6" fill="url(#lpTabGrad)" stroke="rgba(168,85,247,0.4)" strokeWidth="1" />
+                        {/* Terminal Icon */}
+                        <path d="M 10 7 L 14 10 L 10 13 M 16 13 H 20" stroke="#C084FC" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        <text x="58" y="14" textAnchor="middle" fill="#E9D5FF" fontSize="10" fontWeight="700" fontFamily="monospace">lab_suite.c</text>
+                    </g>
+
+                    {/* Line Numbers Gutter */}
+                    <g fill="#7C3AED" fontSize="10.5" fontFamily="monospace" fontWeight="600" opacity="0.75">
+                        <text x="16" y="56">1</text>
+                        <text x="16" y="76">2</text>
+                        <text x="16" y="96">3</text>
+                        <text x="16" y="116">4</text>
+                        <text x="16" y="136">5</text>
+                        <text x="16" y="156">6</text>
+                    </g>
+                    <line x1="28" y1="40" x2="28" y2="165" stroke="rgba(168,85,247,0.2)" strokeWidth="1" />
+
+                    {/* Code Syntax Highlighting Lines */}
+                    {/* Line 1: #include <stdio.h> */}
+                    <g transform="translate(36, 56)" fontFamily="monospace" fontSize="11" fontWeight="600">
+                        <text x="0" y="0" fill="#F472B6">#include</text>
+                        <text x="56" y="0" fill="#38BDF8">&lt;stdio.h&gt;</text>
+                    </g>
+
+                    {/* Line 2: void runCollegeLab() { */}
+                    <g transform="translate(36, 76)" fontFamily="monospace" fontSize="11" fontWeight="600">
+                        <text x="0" y="0" fill="#818CF8">void</text>
+                        <text x="32" y="0" fill="#FCD34D">runCollegeLab</text>
+                        <text x="114" y="0" fill="#E2E8F0">{"() {"}</text>
+                    </g>
+
+                    {/* Line 3: // compile & test code */}
+                    <g transform="translate(48, 96)" fontFamily="monospace" fontSize="10" fontWeight="500">
+                        <text x="0" y="0" fill="#6EE7B7">// compile &amp; test code</text>
+                    </g>
+
+                    {/* Line 4: execute_lab(cases); */}
+                    <g transform="translate(48, 116)" fontFamily="monospace" fontSize="11" fontWeight="600">
+                        <text x="0" y="0" fill="#C084FC">execute_lab</text>
+                        <text x="74" y="0" fill="#E2E8F0">(cases);</text>
+                    </g>
+
+                    {/* Line 5: return SUCCESS; */}
+                    <g transform="translate(48, 136)" fontFamily="monospace" fontSize="11" fontWeight="600">
+                        <text x="0" y="0" fill="#F472B6">return</text>
+                        <text x="46" y="0" fill="#34D399">SUCCESS;</text>
+                    </g>
+
+                    {/* Line 6: } + Pulsing Cursor */}
+                    <g transform="translate(36, 156)" fontFamily="monospace" fontSize="11" fontWeight="700">
+                        <text x="0" y="0" fill="#E2E8F0">{"}"}</text>
+                        <rect className="lp-cursor" x="14" y="-10" width="7" height="12" rx="1.5" fill="#34D399" />
+                    </g>
+                </g>
+
+                {/* 6. Floating Status Pill / Badge on Terminal */}
+                <g transform="translate(290, 178)">
+                    <rect width="112" height="28" rx="9" fill="#0C2419" stroke="#10B981" strokeWidth="1.5" filter="url(#lpSoftGlow)" />
+                    {/* Checkmark */}
+                    <circle cx="15" cy="14" r="7" fill="rgba(16,185,129,0.25)" stroke="#34D399" strokeWidth="1.2" />
+                    <path d="M 12 14 L 14 16 L 18 12" stroke="#6EE7B7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <text x="63" y="18" textAnchor="middle" fill="#6EE7B7" fontSize="10.5" fontWeight="800" fontFamily="Outfit, sans-serif" letterSpacing="0.4">LAB READY</text>
+                </g>
+
+                {/* 7. Ambient Sparkles / Tech Accents */}
+                <g fill="#E9D5FF" opacity="0.85">
+                    <circle cx="75" cy="35" r="2" />
+                    <circle cx="465" cy="38" r="2.5" />
+                    <circle cx="475" cy="215" r="2" />
+                    <circle cx="70" cy="220" r="2.5" />
+                    <circle cx="270" cy="20" r="2" />
+                </g>
+                
+                {/* Subtle Brackets / Operators Floating */}
+                <text x="135" y="45" fill="#A855F7" fontSize="14" fontWeight="800" opacity="0.4" fontFamily="monospace">&lt;/&gt;</text>
+                <text x="395" y="45" fill="#A855F7" fontSize="14" fontWeight="800" opacity="0.4" fontFamily="monospace">{"{ }"}</text>
+            </svg>
+        )
     }
 };
 
@@ -1318,6 +1531,7 @@ const IllustrationCard = ({
     dependencyText,
     onGoToRegistration,
     ctaText,
+    metadataText,
     isActiveGlow = false
 }) => {
     const [hovered, setHovered] = useState(false);
@@ -1328,7 +1542,7 @@ const IllustrationCard = ({
     const bgGradient = customBgGradient || preset.bgGradient;
     const cardSubtitle = subtitle || preset.subtitle;
 
-    const isFullHeight = ['cieAnalyzer', 'eligibilityChecker', 'yearbackPredictor', 'branchChange', 'roadmaps', 'sessions', 'subjectRegistration', 'attendance', 'sgpaGpa', 'academicSummary'].includes(presetKey) || !!subtitle;
+    const isFullHeight = ['cieAnalyzer', 'eligibilityChecker', 'yearbackPredictor', 'branchChange', 'roadmaps', 'sessions', 'subjectRegistration', 'attendance', 'sgpaGpa', 'academicSummary', 'labPrograms'].includes(presetKey) || !!subtitle;
 
     const handleCardClick = (e) => {
         if (isSubdued) {
@@ -1476,23 +1690,39 @@ const IllustrationCard = ({
                             </span>
                         ) : (
                             <>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: accent, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    {ctaText || 'Continue →'}
+                                <span style={{ 
+                                    fontSize: metadataText ? 11 : 12, 
+                                    fontWeight: metadataText ? 500 : 700, 
+                                    color: metadataText ? '#94A3B8' : accent, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 4,
+                                    fontFamily: 'Outfit, sans-serif',
+                                    letterSpacing: metadataText ? '0.01em' : 'normal'
+                                }}>
+                                    {metadataText || ctaText || 'Continue →'}
                                 </span>
                                 
-                                <div style={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: 10,
-                                    border: `1px solid ${hovered ? accent : 'rgba(255, 255, 255, 0.12)'}`,
-                                    backgroundColor: hovered ? `${accent}25` : 'rgba(255, 255, 255, 0.03)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    transition: 'all 0.2s ease',
-                                    flexShrink: 0
-                                }}>
-                                    <ArrowRight size={15} color={hovered ? accent : '#94A3B8'} style={{ transition: 'transform 0.2s ease', transform: hovered ? 'translateX(2px)' : 'none' }} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    {metadataText && (
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: hovered ? '#FFFFFF' : accent, fontFamily: 'Outfit, sans-serif', transition: 'color 0.15s ease' }}>
+                                            {ctaText || 'Explore →'}
+                                        </span>
+                                    )}
+                                    <div style={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 10,
+                                        border: `1px solid ${hovered ? accent : 'rgba(255, 255, 255, 0.12)'}`,
+                                        backgroundColor: hovered ? `${accent}25` : 'rgba(255, 255, 255, 0.03)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s ease',
+                                        flexShrink: 0
+                                    }}>
+                                        <ArrowRight size={15} color={hovered ? accent : '#94A3B8'} style={{ transition: 'transform 0.2s ease', transform: hovered ? 'translateX(2px)' : 'none' }} />
+                                    </div>
                                 </div>
                             </>
                         )}

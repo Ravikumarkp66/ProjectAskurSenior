@@ -30,9 +30,17 @@ const SubjectList = ({ subjects, activeId, onSelect, loading, pinnedIds = [], on
         const isActive = activeId === s.id;
 
         return (
-            <button
+            <div
                 key={s.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect(s)}
+                onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onSelect(s);
+                    }
+                }}
                 className={`subject-list-item group w-full text-left rounded-xl cursor-pointer border-none outline-none mb-0.5 flex items-start justify-between gap-2 relative ${isActive ? 'active' : ''}`}
                 style={{
                     padding: '8px 10px 8px 13px',
@@ -53,6 +61,7 @@ const SubjectList = ({ subjects, activeId, onSelect, loading, pinnedIds = [], on
                     transitionProperty: 'background, border-color, color, box-shadow, backdrop-filter',
                     transitionDuration: '200ms',
                     transitionTimingFunction: 'ease-in-out',
+                    userSelect: 'none',
                 }}
                 onMouseEnter={e => {
                     if (!isActive) e.currentTarget.style.background = 'var(--sidebar-item-hover-bg)';
@@ -79,6 +88,7 @@ const SubjectList = ({ subjects, activeId, onSelect, loading, pinnedIds = [], on
                 {/* Pin button — appears on hover; filled when pinned */}
                 {onTogglePin && (
                     <button
+                        type="button"
                         onClick={e => { e.stopPropagation(); onTogglePin(s.id); }}
                         className={`shrink-0 p-1 rounded-md cursor-pointer border-none outline-none flex items-center justify-center transition-all duration-150 mt-0.5 ${
                             isPinned ? 'opacity-80' : 'opacity-0 group-hover:opacity-60'
@@ -102,7 +112,7 @@ const SubjectList = ({ subjects, activeId, onSelect, loading, pinnedIds = [], on
                         <PinSVG pinned={isPinned} />
                     </button>
                 )}
-            </button>
+            </div>
         );
     };
 

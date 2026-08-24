@@ -3,7 +3,11 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "test:perf:db": "node performance/db-profiler.js",
+    "test:perf:load": "node performance/load-tester.js",
+    "test:perf:journey": "playwright test performance/user-journey.bench.spec.js",
+    "test:perf:all": "node performance/run-benchmarks.js"
   },
   "dependencies": {
     "twilio": "^5.13.1"

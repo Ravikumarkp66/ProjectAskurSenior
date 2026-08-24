@@ -1,0 +1,90 @@
+name: Build and Publish Runner Images to GHCR
+
+on:
+  push:
+    paths:
+      - 'code-execution/**'
+      - '.github/workflows/runner-images.yml'
+    branches:
+      - main
+      - master
+      - staging
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version tag for runner images (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push-runners:
+    name: Build & Push ${{ matrix.language }} Runner Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c
+            context: ./code-execution/c
+            image_name: askursenior-c-runner
+          - language: cpp
+            context: ./code-execution/cpp
+            image_name: askursenior-cpp-runner
+          - language: java
+            context: ./code-execution/java
+            image_name: askursenior-java-runner
+          - language: python
+            context: ./code-execution/python
+            image_name: askursenior-python-runner
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine Image Tags
+        id: tags
+        run: |
+          # Lowercase owner repository path for Docker compatibility
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_PATH="${{ env.REGISTRY }}/${OWNER}/${{ matrix.image_name }}"
+          
+          VERSION="${{ github.event.inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+              VERSION="${GITHUB_REF#refs/tags/v}"
+            else
+              VERSION="1.0.0"
+            fi
+          fi
+          
+          TAGS="${IMAGE_PATH}:${VERSION},${IMAGE_PATH}:latest"
+          echo "Building with tags: ${TAGS}"
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

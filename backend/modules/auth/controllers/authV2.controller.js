@@ -1744,19 +1744,24 @@ class AuthV2Controller {
                 success: true,
                 message: 'Attendance dashboard retrieved successfully',
                 data: {
-                    subjects: analytics.subjects.map(s => ({
+                    overall: analytics.overall || {},
+                    subjects: (analytics.subjects || []).map(s => ({
                         subjectId: s.subjectId,
                         name: s.name,
                         code: s.code,
                         credits: s.credits,
                         category: s.category,
+                        classesPerWeek: s.classesPerWeek,
+                        labSessionsPerWeek: s.labSessionsPerWeek,
+                        collegeThreshold: s.collegeThreshold,
+                        userThreshold: s.userThreshold,
                         attendancePercentage: s.attendancePercentage,
-                        analytics: s.analytics,
-                        streak: s.analytics.streak,
-                        canMiss: s.analytics.canMiss,
-                        needToAttend: s.analytics.needToAttend
+                        analytics: s.analytics || {},
+                        streak: s.analytics?.streak || { current: 0, longest: 0 },
+                        canMiss: s.analytics?.canMiss || 0,
+                        needToAttend: s.analytics?.needToAttend || 0
                     })),
-                    groupedTimeline: analytics.groupedTimeline,
+                    groupedTimeline: analytics.groupedTimeline || [],
                     isArchived: requestedSemester < req.student.semester,
                     readOnly: requestedSemester < req.student.semester
                 }
@@ -1783,6 +1788,7 @@ class AuthV2Controller {
                 message: 'Analytics retrieved successfully',
                 data: {
                     overall: analytics.overall,
+                    subjects: analytics.subjects,
                     isArchived,
                     readOnly: isArchived
                 }
@@ -1791,6 +1797,69 @@ class AuthV2Controller {
             return res.status(400).json({
                 success: false,
                 message: error.message || 'Failed to fetch analytics'
+            });
+        }
+    }
+
+    async updateAttendanceTarget(req, res) {
+        try {
+            const studentId = req.student._id;
+            const semester = req.body.semester ? parseInt(req.body.semester, 10) : (req.student.semester || 1);
+            const { targetPercentage } = req.body;
+
+            const { getCollegeAcademicRules } = require('../../../services/collegeAcademicRules');
+            const rules = getCollegeAcademicRules(req.student.collegeName || 'SIT');
+            const collegeThreshold = rules.attendance?.minimumPercentage || 85;
+
+            const target = parseFloat(targetPercentage);
+            if (isNaN(target) || target < collegeThreshold || target > 100) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Your threshold cannot be below the college minimum of ${collegeThreshold}%.`
+                });
+            }
+
+            let config = await StudentTimetableConfiguration.findOne({
+                student: studentId,
+                $or: [{ semester }, { semester: { $exists: false } }]
+            });
+            if (!config) {
+                config = new StudentTimetableConfiguration({
+                    student: studentId,
+                    semester,
+                    semesterStartDate: new Date(),
+                    lastWorkingDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                });
+            }
+
+            if (req.body.subjectId) {
+                const StudentRegisteredSubject = require('../../../models/StudentRegisteredSubject');
+                await StudentRegisteredSubject.findOneAndUpdate(
+                    {
+                        student: studentId,
+                        semester,
+                        $or: [{ _id: req.body.subjectId }, { subject: req.body.subjectId }]
+                    },
+                    { $set: { userThreshold: target } }
+                );
+            }
+
+            config.attendanceThreshold = target;
+            config.semester = semester;
+            await config.save();
+
+            return res.status(200).json({
+                success: true,
+                message: 'Attendance target updated successfully',
+                data: {
+                    collegeThreshold,
+                    userThreshold: target
+                }
+            });
+        } catch (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message || 'Failed to update attendance target'
             });
         }
     }
@@ -1813,8 +1882,12 @@ class AuthV2Controller {
                 return res.status(404).json({ success: false, message: 'Subject not registered' });
             }
 
-            const finalIfMissNext = parseFloat(((s.analytics.present / (s.analytics.conducted + 1)) * 100).toFixed(1));
-            const finalIfAttendNext8 = parseFloat((((s.analytics.present + 8) / (s.analytics.conducted + 8)) * 100).toFixed(1));
+            const finalIfMissNext = (s.analytics?.conducted || 0) + 1 > 0
+                ? parseFloat((((s.analytics?.present || 0) / ((s.analytics?.conducted || 0) + 1)) * 100).toFixed(1))
+                : 0.0;
+            const finalIfAttendNext8 = (s.analytics?.conducted || 0) + 8 > 0
+                ? parseFloat(((((s.analytics?.present || 0) + 8) / ((s.analytics?.conducted || 0) + 8)) * 100).toFixed(1))
+                : 100.0;
 
             return res.status(200).json({
                 success: true,
@@ -1841,14 +1914,15 @@ class AuthV2Controller {
         try {
             const studentId = req.student._id;
             const semester = req.query.semester ? Number(req.query.semester) : (req.student.semester || 1);
-            let today = new Date();
+            
+            let todayStr = new Date().toISOString().split('T')[0];
             if (req.query.date) {
-                today = new Date(req.query.date);
+                todayStr = req.query.date;
             }
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const day = String(today.getDate()).padStart(2, '0');
-            const todayStr = `${year}-${month}-${day}`;
+
+            const dateObj = new Date(todayStr + 'T12:00:00');
+            const jsDay = dateObj.getDay();
+            const dayOfWeek = jsDay === 0 ? 7 : jsDay;
 
             const now = new Date();
             const nowYear = now.getFullYear();
@@ -1856,9 +1930,6 @@ class AuthV2Controller {
             const nowDay = String(now.getDate()).padStart(2, '0');
             const nowStr = `${nowYear}-${nowMonth}-${nowDay}`;
             const currentMinute = now.getHours() * 60 + now.getMinutes();
-
-            const jsDay = today.getDay();
-            const dayOfWeek = jsDay === 0 ? 7 : jsDay;
 
             // Fetch timetable slots for today
             const StudentTimetable = require('../../../models/StudentTimetable');
@@ -1868,24 +1939,32 @@ class AuthV2Controller {
                 dayOfWeek
             }).populate('subject');
 
-            // Fetch existing attendance entries for today
+            // Fetch existing attendance occurrences for today
+            const ClassOccurrence = require('../../../models/ClassOccurrence');
             const StudentAttendanceEntry = require('../../../models/StudentAttendanceEntry');
-            const entries = await StudentAttendanceEntry.find({
+            let entries = await ClassOccurrence.find({
                 student: studentId,
                 semester,
                 date: todayStr
-            }).populate('subject scheduledSubject');
+            }).populate('actualSubject scheduledSubject');
 
-            // Map slots to entries by scheduledSubject OR date+timeSlot
+            if (!entries || entries.length === 0) {
+                entries = await StudentAttendanceEntry.find({
+                    student: studentId,
+                    semester,
+                    date: todayStr
+                }).populate('subject scheduledSubject');
+            }
+
+            // Map slots to entries strictly by scheduledSubject and timeSlot
             const entryMap = new Map();
             for (const entry of entries) {
-                const schedSubjId = entry.scheduledSubject ? entry.scheduledSubject._id.toString() : entry.subject._id.toString();
+                const schedSubjId = entry.scheduledSubject 
+                    ? (entry.scheduledSubject._id ? entry.scheduledSubject._id.toString() : entry.scheduledSubject.toString())
+                    : (entry.subject ? (entry.subject._id ? entry.subject._id.toString() : entry.subject.toString()) : (entry.actualSubject ? (entry.actualSubject._id ? entry.actualSubject._id.toString() : entry.actualSubject.toString()) : ''));
+                
                 const keyWithSubj = `${schedSubjId}_${entry.timeSlot || ''}`;
-                const keySlotOnly = `${entry.timeSlot || ''}`;
                 entryMap.set(keyWithSubj, entry);
-                if (entry.timeSlot) {
-                    entryMap.set(keySlotOnly, entry);
-                }
             }
 
             // Filter to only keep allotted slots with a valid registered subject
@@ -1903,8 +1982,26 @@ class AuthV2Controller {
                 const timeSlotStr = `${timeStartStr}-${timeEndStr}`;
 
                 const keyWithSubj = `${slot.subject?._id?.toString()}_${timeSlotStr}`;
-                const keySlotOnly = `${timeSlotStr}`;
-                const matchedEntry = entryMap.get(keyWithSubj) || entryMap.get(keySlotOnly);
+                let matchedEntry = entryMap.get(keyWithSubj);
+
+                // Range matching fallback (e.g. entry covers multiple slots like 08:00-10:00)
+                if (!matchedEntry) {
+                    matchedEntry = entries.find(e => {
+                        if (!e.timeSlot || !e.timeSlot.includes('-')) return false;
+                        const [eStartStr, eEndStr] = e.timeSlot.split('-');
+                        const [eStartH, eStartM] = (eStartStr || '').split(':').map(Number);
+                        const [eEndH, eEndM] = (eEndStr || '').split(':').map(Number);
+                        if (isNaN(eStartH) || isNaN(eEndH)) return false;
+                        const eStartMin = eStartH * 60 + (eStartM || 0);
+                        const eEndMin = eEndH * 60 + (eEndM || 0);
+
+                        const eSubjId = e.scheduledSubject?._id?.toString() || e.scheduledSubject?.toString() || e.actualSubject?._id?.toString() || e.actualSubject?.toString() || e.subject?._id?.toString() || e.subject?.toString();
+                        const slotSubjId = slot.subject?._id?.toString() || slot.subject?.toString();
+                        const isSubjectMatch = !eSubjId || eSubjId === slotSubjId;
+                        const isTimeCovered = eStartMin <= slot.startMinute && slot.endMinute <= eEndMin;
+                        return isSubjectMatch && isTimeCovered;
+                    });
+                }
 
                 let isFuture = false;
                 if (todayStr > nowStr) {
@@ -1919,11 +2016,12 @@ class AuthV2Controller {
                 const scheduledSubjectName = slot.subject?.name || slot.customName || 'Lecture';
                 const scheduledSubjectCode = slot.subject?.code || '';
 
-                const actualSubjectId = matchedEntry ? matchedEntry.subject?._id : scheduledSubjectId;
-                const actualSubjectName = matchedEntry && matchedEntry.subject ? matchedEntry.subject.name : scheduledSubjectName;
-                const actualSubjectCode = matchedEntry && matchedEntry.subject ? matchedEntry.subject.code : scheduledSubjectCode;
+                const actualSubjDoc = matchedEntry ? (matchedEntry.actualSubject || matchedEntry.subject) : null;
+                const actualSubjectId = actualSubjDoc ? (actualSubjDoc._id || actualSubjDoc) : scheduledSubjectId;
+                const actualSubjectName = actualSubjDoc?.name || scheduledSubjectName;
+                const actualSubjectCode = actualSubjDoc?.code || scheduledSubjectCode;
 
-                const isSubjectChanged = matchedEntry ? (matchedEntry.subject?._id?.toString() !== scheduledSubjectId?.toString()) : false;
+                const isSubjectChanged = matchedEntry ? (actualSubjectId?.toString() !== scheduledSubjectId?.toString()) : false;
 
                 return {
                     _id: slot._id,
@@ -1978,10 +2076,10 @@ class AuthV2Controller {
                     
                     prev.subSlots.push({ _id: slot._id, timeSlot: slot.timeSlot, status: slot.status });
 
-                    const statuses = prev.subSlots.map(s => s.status);
-                    const uniqueStatuses = [...new Set(statuses)];
-                    if (uniqueStatuses.length === 1) {
-                        prev.status = uniqueStatuses[0];
+                    const statuses = prev.subSlots.map(s => s.status).filter(Boolean);
+                    const nonPending = statuses.filter(s => s !== 'Yet To Be Taken' && s !== 'NOT_MARKED' && s !== 'PENDING');
+                    if (nonPending.length > 0) {
+                        prev.status = nonPending[0];
                     } else {
                         prev.status = 'Yet To Be Taken';
                     }
@@ -2020,29 +2118,197 @@ class AuthV2Controller {
             }
 
             const StudentAttendanceEntry = require('../../../models/StudentAttendanceEntry');
-            
+            const ClassOccurrence = require('../../../models/ClassOccurrence');
+            const { validateStatusTransition, normalizeStatus } = require('../../../services/occurrenceEngine');
+
+            // Support Bulk Confirm All Past Classes as Present
+            if (req.body.markAllPast) {
+                const now = new Date();
+                const nowYear = now.getFullYear();
+                const nowMonth = String(now.getMonth() + 1).padStart(2, '0');
+                const nowDay = String(now.getDate()).padStart(2, '0');
+                const today = `${nowYear}-${nowMonth}-${nowDay}`;
+
+                const StudentExpectedSchedule = require('../../../models/StudentExpectedSchedule');
+                let cachedSchedule = await StudentExpectedSchedule.findOne({ student: studentId, semester });
+                if (!cachedSchedule || !cachedSchedule.classes || cachedSchedule.classes.length === 0) {
+                    const { generateAndCacheExpectedSchedule } = require('../../../services/expectedClassGenerator');
+                    const classes = await generateAndCacheExpectedSchedule(studentId, semester);
+                    cachedSchedule = { classes };
+                }
+                const pastClasses = (cachedSchedule.classes || []).filter(c => c.date < today);
+                
+                if (pastClasses.length > 0) {
+                    const ops = pastClasses.map(c => ({
+                        updateOne: {
+                            filter: { student: studentId, semester, date: c.date, timeSlot: c.timeSlot },
+                            update: {
+                                $setOnInsert: {
+                                    student: studentId,
+                                    semester,
+                                    scheduledSubject: c.subject,
+                                    subject: c.subject,
+                                    date: c.date,
+                                    timeSlot: c.timeSlot,
+                                    status: 'Present',
+                                    createdBy: 'Student'
+                                }
+                            },
+                            upsert: true
+                        }
+                    }));
+                    await StudentAttendanceEntry.bulkWrite(ops);
+                }
+                await StudentExpectedSchedule.deleteOne({ student: studentId, semester });
+                return res.status(200).json({
+                    success: true,
+                    message: 'All past classes confirmed as Present',
+                    data: null
+                });
+            }
+
+            // Support Resetting entire date or single slot to original state
+            if (req.body.resetDay || timeSlot === 'ALL') {
+                await StudentAttendanceEntry.deleteMany({
+                    student: studentId,
+                    semester,
+                    date
+                });
+                await ClassOccurrence.deleteMany({
+                    student: studentId,
+                    semester,
+                    date
+                });
+                const StudentExpectedSchedule = require('../../../models/StudentExpectedSchedule');
+                await StudentExpectedSchedule.deleteOne({ student: studentId, semester });
+                return res.status(200).json({
+                    success: true,
+                    message: 'Day attendance reset to original state',
+                    data: null
+                });
+            }
+
             const slotsToUpdate = Array.isArray(req.body.constituentSlots) && req.body.constituentSlots.length > 0
                 ? req.body.constituentSlots
                 : [timeSlot || ''];
 
+            if (status === 'RESET' || status === 'NOT_MARKED' || status === null) {
+                for (const slot of slotsToUpdate) {
+                    await StudentAttendanceEntry.deleteMany({
+                        student: studentId,
+                        semester,
+                        date,
+                        timeSlot: slot
+                    });
+                    await ClassOccurrence.deleteMany({
+                        student: studentId,
+                        semester,
+                        date,
+                        timeSlot: slot
+                    });
+                }
+                const StudentExpectedSchedule = require('../../../models/StudentExpectedSchedule');
+                await StudentExpectedSchedule.deleteOne({ student: studentId, semester });
+                return res.status(200).json({
+                    success: true,
+                    message: 'Attendance entry reset to original state',
+                    data: null
+                });
+            }
+
+            // Validate transition & future protection
+            const validatedStatus = validateStatusTransition('PENDING', status, date);
             const schedSubj = scheduledSubjectId || subjectId;
+            const actSubj = subjectId;
 
             let entry = null;
             for (const slot of slotsToUpdate) {
-                const queryFilter = { student: studentId, semester, date, timeSlot: slot };
+                // Compute numeric minutes from timeSlot
+                let startMinute = 0;
+                let endMinute = 0;
+                if (slot && slot.includes('-')) {
+                    const [sStr, eStr] = slot.split('-');
+                    const [sH, sM] = (sStr || '').split(':').map(Number);
+                    const [eH, eM] = (eStr || '').split(':').map(Number);
+                    if (!isNaN(sH)) startMinute = sH * 60 + (sM || 0);
+                    if (!isNaN(eH)) endMinute = eH * 60 + (eM || 0);
+                }
 
+                const isSubjectSwap = schedSubj.toString() !== actSubj.toString();
+                const occurrenceType = req.body.isExtraClass 
+                    ? 'EXTRA' 
+                    : (isSubjectSwap ? 'SWAPPED' : (validatedStatus === 'SUSPENDED' ? 'SUSPENDED' : 'REGULAR'));
+
+                // Update legacy entry for backward compatibility
+                const queryFilter = { student: studentId, semester, date, timeSlot: slot };
                 entry = await StudentAttendanceEntry.findOneAndUpdate(
                     queryFilter,
                     {
                         student: studentId,
                         semester,
                         scheduledSubject: schedSubj,
-                        subject: subjectId,
+                        subject: actSubj,
                         date,
                         timeSlot: slot,
-                        status,
+                        status: status === 'Present' || status === 'PRESENT' ? 'Present' : (status === 'Absent' || status === 'ABSENT' ? 'Absent' : status),
                         remarks: remarks || '',
                         createdBy: 'Student'
+                    },
+                    { upsert: true, new: true }
+                );
+
+                // Update ClassOccurrence event with structured audit log
+                const existingOccurrence = await ClassOccurrence.findOne({
+                    student: studentId,
+                    semester,
+                    date,
+                    timeSlot: slot
+                });
+
+                const auditHistory = existingOccurrence?.auditHistory || [];
+                if (existingOccurrence && existingOccurrence.status !== validatedStatus) {
+                    auditHistory.push({
+                        changedAt: new Date(),
+                        changedBy: 'STUDENT',
+                        action: 'STATUS_CHANGED',
+                        field: 'status',
+                        from: existingOccurrence.status,
+                        to: validatedStatus,
+                        previous: { status: existingOccurrence.status },
+                        next: { status: validatedStatus }
+                    });
+                }
+                if (existingOccurrence && existingOccurrence.actualSubject?.toString() !== actSubj.toString()) {
+                    auditHistory.push({
+                        changedAt: new Date(),
+                        changedBy: 'STUDENT',
+                        action: 'SUBJECT_SWAPPED',
+                        field: 'actualSubject',
+                        from: existingOccurrence.actualSubject,
+                        to: actSubj,
+                        previous: { actualSubject: existingOccurrence.actualSubject },
+                        next: { actualSubject: actSubj }
+                    });
+                }
+
+                await ClassOccurrence.findOneAndUpdate(
+                    { student: studentId, semester, date, timeSlot: slot, scheduledSubject: schedSubj },
+                    {
+                        student: studentId,
+                        semester,
+                        date,
+                        startMinute,
+                        endMinute,
+                        timeSlot: slot,
+                        scheduledSubject: schedSubj,
+                        actualSubject: actSubj,
+                        occurrenceType,
+                        status: validatedStatus,
+                        isExtraClass: Boolean(req.body.isExtraClass),
+                        remarks: remarks || '',
+                        markedAt: new Date(),
+                        markedBy: 'STUDENT',
+                        auditHistory
                     },
                     { upsert: true, new: true }
                 );
