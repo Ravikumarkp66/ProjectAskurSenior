@@ -477,6 +477,7 @@ exports.getProblemSubmissions = async (req, res) => {
  * Evaluates student code against all MongoDB test cases and records a real submission
  */
 exports.submitProblem = async (req, res) => {
+    const startTime = Date.now();
     const studentId = req.userId;
     if (!studentId) {
         return res.status(401).json({ error: 'Authentication required to submit code' });
@@ -485,13 +486,16 @@ exports.submitProblem = async (req, res) => {
     const { slugOrId } = req.params;
     const { languageSlug, code } = req.body;
 
+    console.log(`[PlaygroundController] POST /submit received: Problem="${slugOrId}", Student="${studentId}", LangParam="${languageSlug || req.body.language}", CodeBytes=${Buffer.byteLength(code || '', 'utf8')}`);
+
     if (!code || !code.trim()) {
         return res.status(400).json({ error: 'Code cannot be empty' });
     }
 
     const lang = normalizeExecutableLanguage(languageSlug || req.body.language);
-const submissionLockKey = `${studentId}_${slugOrId}`;
+    const submissionLockKey = `${studentId}_${slugOrId}`;
     if (activeSubmissions.has(submissionLockKey)) {
+        console.warn(`[PlaygroundController] Concurrent submission rejected for lock "${submissionLockKey}"`);
         return res.status(429).json({ error: 'Submission already in progress. Please wait.' });
     }
 
@@ -503,6 +507,7 @@ const submissionLockKey = `${studentId}_${slugOrId}`;
         );
 
         if (!problem) {
+            console.warn(`[PlaygroundController] Problem not found: "${slugOrId}"`);
             return res.status(404).json({ error: 'Problem not found' });
         }
 
@@ -510,8 +515,11 @@ const submissionLockKey = `${studentId}_${slugOrId}`;
         const testCases = await PlaygroundTestCase.find({ problemId: problem._id }).sort({ displayOrder: 1 });
 
         if (!testCases || testCases.length === 0) {
+            console.warn(`[PlaygroundController] No test cases found in DB for problem "${problem.slug}" (${problem._id})`);
             return res.status(400).json({ error: 'No test cases available to evaluate this problem.' });
         }
+
+        console.log(`[PlaygroundController] Evaluating submission for "${problem.slug}" against ${testCases.length} DB test cases in "${lang}"...`);
 
         // Execute code against test cases using the language-agnostic evaluation service
         const evaluation = await codeExecutionService.evaluateProblemTestCases({
@@ -567,6 +575,9 @@ const submissionLockKey = `${studentId}_${slugOrId}`;
             stderr: evaluation.stderr || ''
         });
 
+        const elapsed = Date.now() - startTime;
+        console.log(`[PlaygroundController] Submission saved: ID="${submission._id}", Problem="${problem.slug}", Status="${finalStatus}", Passed=${evaluation.summary.passed}/${evaluation.summary.total}, Runtime=${totalRuntimeMs}ms, TotalElapsed=${elapsed}ms`);
+
         return res.status(201).json({
             success: true,
             submission: {
@@ -585,7 +596,13 @@ const submissionLockKey = `${studentId}_${slugOrId}`;
             evaluation
         });
     } catch (error) {
-        console.error('Error submitting code:', error);
+        console.error('[PlaygroundController] ❌ Error in submitProblem:', {
+            problem: slugOrId,
+            studentId,
+            message: error.message,
+            code: error.code || null,
+            stack: error.stack
+        });
         return res.status(500).json({ error: error.message || 'Failed to evaluate and save submission' });
     } finally {
         activeSubmissions.delete(submissionLockKey);
@@ -620,7 +637,7 @@ exports.getStudentProgress = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error fetching student progress:', error);
+        console.error('[PlaygroundController] Error fetching student progress:', error);
         res.status(500).json({ error: 'Failed to load progress' });
     }
 };
@@ -630,11 +647,14 @@ exports.getStudentProgress = async (req, res) => {
  * Execute student code inside Docker sandbox container
  */
 exports.executeCode = async (req, res) => {
+    const startTime = Date.now();
     try {
         const { language, code, input } = req.body;
-
         const lang = normalizeExecutableLanguage(language);
-if (code === undefined || code === null) {
+
+        console.log(`[PlaygroundController] POST /execute: Lang="${lang}", CodeBytes=${Buffer.byteLength(code || '', 'utf8')}, InputBytes=${Buffer.byteLength(input || '', 'utf8')}`);
+
+        if (code === undefined || code === null) {
             return res.status(400).json({ error: 'Code is required' });
         }
 
@@ -644,12 +664,19 @@ if (code === undefined || code === null) {
             input: typeof input === 'string' ? input : (input ? String(input) : '')
         });
 
+        const elapsed = Date.now() - startTime;
+        console.log(`[PlaygroundController] POST /execute finished: Lang="${lang}", Status="${result.status}", Runtime=${result.runtimeMs}ms, Elapsed=${elapsed}ms`);
+
         return res.json({
             success: true,
             ...result
         });
     } catch (error) {
-        console.error('Code execution error:', error);
+        console.error('[PlaygroundController] ❌ Code execution error:', {
+            message: error.message,
+            code: error.code || null,
+            stack: error.stack
+        });
         const statusCode = error.statusCode || 500;
         return res.status(statusCode).json({
             error: error.message || 'Execution service failed'
@@ -662,11 +689,15 @@ if (code === undefined || code === null) {
  * Evaluates student code against all MongoDB test cases for the problem
  */
 exports.evaluateProblem = async (req, res) => {
+    const startTime = Date.now();
     try {
         const { slugOrId } = req.params;
         const { language, languageSlug, code } = req.body;
         const lang = normalizeExecutableLanguage(languageSlug || language);
-if (code === undefined || code === null) {
+
+        console.log(`[PlaygroundController] POST /evaluate: Problem="${slugOrId}", Lang="${lang}", CodeBytes=${Buffer.byteLength(code || '', 'utf8')}`);
+
+        if (code === undefined || code === null) {
             return res.status(400).json({ error: 'Code is required' });
         }
 
@@ -675,6 +706,7 @@ if (code === undefined || code === null) {
         );
 
         if (!problem) {
+            console.warn(`[PlaygroundController] Problem not found for evaluation: "${slugOrId}"`);
             return res.status(404).json({ error: 'Problem not found' });
         }
 
@@ -684,6 +716,7 @@ if (code === undefined || code === null) {
         }).sort({ displayOrder: 1 });
 
         if (!testCases || testCases.length === 0) {
+            console.warn(`[PlaygroundController] No test cases found in DB for "${problem.slug}"`);
             return res.json({
                 success: true,
                 status: 'no_test_cases',
@@ -695,11 +728,16 @@ if (code === undefined || code === null) {
             });
         }
 
+        console.log(`[PlaygroundController] Running evaluation for "${problem.slug}" (${testCases.length} test cases) in "${lang}"...`);
+
         const evaluation = await codeExecutionService.evaluateProblemTestCases({
             language: lang,
             code,
             testCases
         });
+
+        const elapsed = Date.now() - startTime;
+        console.log(`[PlaygroundController] Evaluation completed for "${problem.slug}": Status="${evaluation.status}", Passed=${evaluation.summary?.passed}/${evaluation.summary?.total}, TotalElapsed=${elapsed}ms`);
 
         return res.json({
             success: true,
@@ -709,10 +747,38 @@ if (code === undefined || code === null) {
             ...evaluation
         });
     } catch (error) {
-        console.error('Problem evaluation error:', error);
+        console.error('[PlaygroundController] ❌ Problem evaluation error:', {
+            problem: req.params?.slugOrId,
+            message: error.message,
+            code: error.code || null,
+            stack: error.stack
+        });
         const statusCode = error.statusCode || 500;
         return res.status(statusCode).json({
             error: error.message || 'Problem evaluation failed'
+        });
+    }
+};
+
+/**
+ * GET /api/playground/diagnostic/docker
+ * Diagnostic endpoint for verifying Docker CLI and daemon connectivity
+ */
+exports.getDockerDiagnostic = async (req, res) => {
+    try {
+        console.log(`[PlaygroundController] Diagnostic check requested by user "${req.userId || 'anonymous'}"`);
+        const diagnostic = await codeExecutionService.checkDockerAvailability();
+        return res.json({
+            success: true,
+            timestamp: new Date().toISOString(),
+            environment: process.env.NODE_ENV || 'development',
+            diagnostic
+        });
+    } catch (error) {
+        console.error('[PlaygroundController] ❌ Diagnostic check error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Diagnostic failed'
         });
     }
 };

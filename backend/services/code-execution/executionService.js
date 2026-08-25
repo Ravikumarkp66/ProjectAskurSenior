@@ -1,6 +1,7 @@
 const runnerRegistry = require('./runnerRegistry');
 const CONFIG = require('./config');
 const { parseDiagnostics } = require('./diagnosticParser');
+const { checkDockerAvailability } = require('./dockerHealth');
 
 /**
  * Generic Language-Independent Execution Service & Evaluator
@@ -36,6 +37,8 @@ function compareOutputs(actual, expected) {
  * @returns {Promise<Object>} Standardized execution response
  */
 async function executeCode({ language, code, input = '' }) {
+    console.log(`[ExecutionService] executeCode called: language="${language}", codeBytes=${Buffer.byteLength(code || '', 'utf8')}, inputBytes=${Buffer.byteLength(input || '', 'utf8')}`);
+
     if (!language) {
         const err = new Error('Language is required for execution');
         err.statusCode = 400;
@@ -50,12 +53,16 @@ async function executeCode({ language, code, input = '' }) {
         throw err;
     }
 
+    const startTime = Date.now();
     const execRes = await runner.execute({ code, input });
     const diagnostics = parseDiagnostics({
         stderr: execRes.stderr,
         language,
         status: execRes.status
     });
+
+    const totalElapsed = Date.now() - startTime;
+    console.log(`[ExecutionService] executeCode completed: language="${language}", status="${execRes.status}", exitCode=${execRes.exitCode}, runtimeMs=${execRes.runtimeMs}ms, totalElapsed=${totalElapsed}ms`);
 
     return {
         ...execRes,
@@ -76,6 +83,8 @@ async function executeCode({ language, code, input = '' }) {
  * @returns {Promise<Object>} Standardized evaluation summary and per-case results
  */
 async function evaluateProblemTestCases({ language, code, testCases = [] }) {
+    console.log(`[ExecutionService] evaluateProblemTestCases called: language="${language}", testCasesCount=${testCases.length}, codeBytes=${Buffer.byteLength(code || '', 'utf8')}`);
+
     if (!language) {
         const err = new Error('Language is required for evaluation');
         err.statusCode = 400;
@@ -91,6 +100,7 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
     }
 
     if (!testCases || testCases.length === 0) {
+        console.warn(`[ExecutionService] No test cases provided for evaluation.`);
         return {
             status: 'no_test_cases',
             diagnostics: [],
@@ -99,6 +109,7 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
         };
     }
 
+    const startTime = Date.now();
     const results = [];
     let passedCount = 0;
     let failedCount = 0;
@@ -108,6 +119,8 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
         const caseNumber = i + 1;
         const testCaseId = tc._id ? tc._id.toString() : (tc.id || `tc-${caseNumber}`);
 
+        console.log(`[ExecutionService] Evaluating testcase ${caseNumber}/${testCases.length} (ID: ${testCaseId}, isSample: ${!!tc.isSample})...`);
+
         // Execute against resolved language runner
         const execRes = await runner.execute({
             code,
@@ -116,6 +129,7 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
 
         // Check for compilation failure (compilation failed before any test case could run)
         if (execRes.status === 'compilation_error') {
+            console.warn(`[ExecutionService] Compilation error detected on testcase ${caseNumber}: ${execRes.stderr.slice(0, 200)}`);
             const diagnostics = parseDiagnostics({
                 stderr: execRes.stderr,
                 language,
@@ -152,34 +166,32 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
             failedCount++;
         }
 
+        console.log(`[ExecutionService] Testcase ${caseNumber}/${testCases.length} result: Status="${caseStatus}", ExitCode=${execRes.exitCode}, Runtime=${execRes.runtimeMs}ms`);
+
+        // Push test case result
         results.push({
-            testCaseId,
             caseNumber,
-            name: `Case ${caseNumber}`,
-            status: caseStatus,
-            input: tc.input,
-            expectedOutput: tc.expectedOutput,
+            testCaseId,
+            name: tc.name || `Case ${caseNumber}`,
+            input: tc.input || '',
+            expectedOutput: tc.expectedOutput || '',
             actualOutput: execRes.stdout || '',
             stderr: execRes.stderr || '',
-            runtimeMs: execRes.runtimeMs || 0
+            status: caseStatus,
+            exitCode: execRes.exitCode,
+            runtimeMs: execRes.runtimeMs,
+            isSample: !!tc.isSample
         });
     }
 
-    // Check for runtime error diagnostics if any test case threw a runtime exception
-    let diagnostics = [];
-    const firstRuntimeErr = results.find(r => r.status === 'runtime_error');
-    if (firstRuntimeErr && firstRuntimeErr.stderr) {
-        diagnostics = parseDiagnostics({
-            stderr: firstRuntimeErr.stderr,
-            language,
-            status: 'runtime_error'
-        });
-    }
+    const totalElapsed = Date.now() - startTime;
+    const finalEvaluationStatus = failedCount === 0 ? 'accepted' : 'rejected';
+
+    console.log(`[ExecutionService] Problem evaluation finished: TotalCases=${testCases.length}, Passed=${passedCount}, Failed=${failedCount}, Status="${finalEvaluationStatus}", TotalElapsed=${totalElapsed}ms`);
 
     return {
-        status: 'evaluated',
-        stderr: '',
-        diagnostics,
+        status: finalEvaluationStatus,
+        diagnostics: [],
         summary: {
             total: testCases.length,
             passed: passedCount,
@@ -194,7 +206,7 @@ module.exports = {
     executeCode,
     evaluateProblemTestCases,
     compareOutputs,
+    checkDockerAvailability,
     runnerRegistry,
-    parseDiagnostics,
     CONFIG
 };

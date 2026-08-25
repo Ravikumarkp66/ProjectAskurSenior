@@ -9,7 +9,7 @@ const CONFIG = require('../config');
  * Python Language Execution Runner (Python 3.12)
  * 
  * Executes student Python source code inside askursenior-python-runner Docker container
- * with full security sandbox constraints.
+ * with full security sandbox constraints and comprehensive server-side logging.
  */
 class PythonRunner extends BaseRunner {
     constructor() {
@@ -23,8 +23,13 @@ class PythonRunner extends BaseRunner {
      */
     forceKillContainer(containerName) {
         if (!containerName) return;
-        exec(`docker kill ${containerName}`, () => {
-            // Container might have already exited cleanly with --rm
+        console.log(`[PythonRunner] Issuing emergency docker kill for container: "${containerName}"`);
+        exec(`docker kill ${containerName}`, (killErr) => {
+            if (killErr) {
+                console.log(`[PythonRunner] Container kill cleanup note (${containerName}): ${killErr.message}`);
+            } else {
+                console.log(`[PythonRunner] Container "${containerName}" killed successfully`);
+            }
         });
     }
 
@@ -55,8 +60,9 @@ class PythonRunner extends BaseRunner {
 
         // 4. Generate unique container name for lifecycle tracking & emergency kill
         const containerName = `askursenior-py-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
         const startTime = Date.now();
+
+        console.log(`[PythonRunner] Preparing execution: Container="${containerName}", Image="${this.imageName}", Mount="${dockerMountPath}", CodeBytes=${Buffer.byteLength(code, 'utf8')}, InputBytes=${Buffer.byteLength(input, 'utf8')}`);
 
         return new Promise((resolve) => {
             let stdoutData = '';
@@ -72,7 +78,7 @@ class PythonRunner extends BaseRunner {
                         fs.rmSync(tempDir, { recursive: true, force: true });
                     }
                 } catch (cleanupErr) {
-                    console.error('Failed to clean up temporary execution directory:', cleanupErr);
+                    console.error('[PythonRunner] Failed to clean up temporary execution directory:', cleanupErr);
                 }
             };
 
@@ -93,11 +99,35 @@ class PythonRunner extends BaseRunner {
                 this.imageName
             ];
 
-            const child = spawn('docker', dockerArgs);
+            console.log(`[PythonRunner] Spawning Docker process: command="docker", args=[${dockerArgs.join(' ')}]`);
+
+            let child;
+            try {
+                child = spawn('docker', dockerArgs);
+            } catch (spawnSyncErr) {
+                console.error(`[PythonRunner] ❌ Synchronous spawn error for container "${containerName}":`, {
+                    code: spawnSyncErr.code,
+                    message: spawnSyncErr.message,
+                    stack: spawnSyncErr.stack
+                });
+                cleanupTempDir();
+                return resolve({
+                    status: 'runtime_error',
+                    stdout: '',
+                    stderr: 'Execution service initialization failed',
+                    exitCode: 1,
+                    runtimeMs: Date.now() - startTime
+                });
+            }
+
+            if (child.pid) {
+                console.log(`[PythonRunner] Docker process spawned: PID=${child.pid}, Container="${containerName}"`);
+            }
 
             // 6. Hard Execution Timeout Management
             const timer = setTimeout(() => {
                 isTimedOut = true;
+                console.warn(`[PythonRunner] ⏱️ Execution TIMEOUT (${CONFIG.TIMEOUT_MS}ms) for container "${containerName}"`);
                 this.forceKillContainer(containerName);
                 try {
                     child.kill('SIGKILL');
@@ -118,6 +148,7 @@ class PythonRunner extends BaseRunner {
                 if (totalOutputBytes > CONFIG.OUTPUT_LIMIT_BYTES) {
                     if (!isOutputExceeded) {
                         isOutputExceeded = true;
+                        console.warn(`[PythonRunner] ⚠️ Output limit exceeded (${CONFIG.OUTPUT_LIMIT_BYTES} bytes) for container "${containerName}"`);
                         this.forceKillContainer(containerName);
                         try {
                             child.kill('SIGKILL');
@@ -133,6 +164,7 @@ class PythonRunner extends BaseRunner {
                 if (totalOutputBytes > CONFIG.OUTPUT_LIMIT_BYTES) {
                     if (!isOutputExceeded) {
                         isOutputExceeded = true;
+                        console.warn(`[PythonRunner] ⚠️ Output limit exceeded (${CONFIG.OUTPUT_LIMIT_BYTES} bytes) for container "${containerName}"`);
                         this.forceKillContainer(containerName);
                         try {
                             child.kill('SIGKILL');
@@ -143,10 +175,19 @@ class PythonRunner extends BaseRunner {
                 stderrData += chunk.toString();
             });
 
+            // 9. Error Handler (e.g. docker binary not in PATH / spawn failure)
             child.on('error', (err) => {
                 clearTimeout(timer);
                 cleanupTempDir();
                 this.forceKillContainer(containerName);
+
+                console.error(`[PythonRunner] ❌ Process spawn error for container "${containerName}":`, {
+                    code: err.code || null,
+                    errno: err.errno || null,
+                    syscall: err.syscall || null,
+                    message: err.message || 'Unknown spawn error',
+                    stack: err.stack || null
+                });
 
                 if (isResolved) return;
                 isResolved = true;
@@ -161,15 +202,21 @@ class PythonRunner extends BaseRunner {
                 });
             });
 
+            // 10. Process Close Handler
             child.on('close', (exitCode, signal) => {
                 clearTimeout(timer);
                 cleanupTempDir();
-                this.forceKillContainer(containerName);
+                if (isTimedOut || isOutputExceeded) {
+                    this.forceKillContainer(containerName);
+                }
 
                 if (isResolved) return;
                 isResolved = true;
 
                 const runtimeMs = Date.now() - startTime;
+                const actualCode = exitCode !== null ? exitCode : (signal ? 1 : 0);
+
+                console.log(`[PythonRunner] Process closed: Container="${containerName}", ExitCode=${exitCode}, Signal=${signal || 'none'}, Duration=${runtimeMs}ms, StderrBytes=${Buffer.byteLength(stderrData, 'utf8')}, StdoutBytes=${Buffer.byteLength(stdoutData, 'utf8')}`);
 
                 // Handle Output Limit Exceeded
                 if (isOutputExceeded) {
@@ -193,8 +240,6 @@ class PythonRunner extends BaseRunner {
                     });
                 }
 
-                const actualCode = exitCode !== null ? exitCode : (signal ? 1 : 0);
-
                 // Handle Out-Of-Memory (OOM Kill = 137 / SIGKILL or Python MemoryError)
                 if (actualCode === 137 || stderrData.includes('MemoryError')) {
                     return resolve({
@@ -208,7 +253,6 @@ class PythonRunner extends BaseRunner {
 
                 // Determine Status
                 let status = 'success';
-
                 if (actualCode !== 0) {
                     const isSyntaxError = stderrData.includes('SyntaxError:') || 
                                           stderrData.includes('IndentationError:') ||
@@ -223,6 +267,8 @@ class PythonRunner extends BaseRunner {
 
                 // Sanitize Stderr to remove any leaked host directories
                 const sanitizedStderr = stderrData.replace(new RegExp(tempDir.replace(/\\/g, '[\\\\/]'), 'g'), '/app');
+
+                console.log(`[PythonRunner] Completed: Container="${containerName}", FinalStatus="${status}", Runtime=${runtimeMs}ms`);
 
                 resolve({
                     status,

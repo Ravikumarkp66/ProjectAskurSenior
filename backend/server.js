@@ -119,6 +119,11 @@ mongoose
             console.log(`📝 Environment: ${process.env.NODE_ENV}`);
             console.log(`🔗 Current Directory: ${process.cwd()}`);
             console.log(`⏰ Started at: ${new Date().toISOString()}`);
+
+            // Inspect Docker environment on startup for staging/production visibility
+            try {
+                require('./services/code-execution/dockerHealth').checkDockerAvailability().catch(() => {});
+            } catch (dErr) {}
         });
 
         if (process.env.NODE_ENV !== 'production') {

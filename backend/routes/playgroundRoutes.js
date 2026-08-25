@@ -50,4 +50,7 @@ router.post('/execute', optionalAuth, playgroundController.executeCode);
 // Problem Test Cases Evaluation (Milestone 5)
 router.post('/problems/:slugOrId/evaluate', optionalAuth, playgroundController.evaluateProblem);
 
+// Diagnostic: Docker availability check
+router.get('/diagnostic/docker', optionalAuth, playgroundController.getDockerDiagnostic);
+
 module.exports = router;

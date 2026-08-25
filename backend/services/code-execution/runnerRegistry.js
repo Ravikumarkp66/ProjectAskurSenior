@@ -36,7 +36,9 @@ class RunnerRegistry {
         if (!languageSlug) {
             throw new Error('Language slug is required for registration');
         }
-        this.runners.set(languageSlug.toLowerCase().trim(), runner);
+        const key = languageSlug.toLowerCase().trim();
+        this.runners.set(key, runner);
+        console.log(`[RunnerRegistry] Registered runner: "${key}" -> ${runner.constructor.name} (${runner.imageName})`);
     }
 
     /**
@@ -46,7 +48,14 @@ class RunnerRegistry {
      */
     getRunner(languageSlug) {
         if (!languageSlug) return null;
-        return this.runners.get(languageSlug.toLowerCase().trim()) || null;
+        const key = languageSlug.toLowerCase().trim();
+        const runner = this.runners.get(key) || null;
+        if (runner) {
+            console.log(`[RunnerRegistry] Resolved runner for "${key}": ${runner.constructor.name} (Image: ${runner.imageName})`);
+        } else {
+            console.warn(`[RunnerRegistry] ⚠️ No runner found for language "${key}". Available: [${this.getSupportedLanguages().join(', ')}]`);
+        }
+        return runner;
     }
 
     /**
@@ -60,7 +69,7 @@ class RunnerRegistry {
     }
 
     /**
-     * Get list of currently supported language slugs
+     * Get list of all registered language slugs
      * @returns {string[]}
      */
     getSupportedLanguages() {
@@ -68,5 +77,5 @@ class RunnerRegistry {
     }
 }
 
-const runnerRegistry = new RunnerRegistry();
-module.exports = runnerRegistry;
+// Export singleton instance
+module.exports = new RunnerRegistry();
