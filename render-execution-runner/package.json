@@ -1,0 +1,17 @@
+{
+  "name": "askursenior-render-execution-runner",
+  "version": "1.0.0",
+  "description": "Standalone C execution microservice for Render Docker deployment experiment",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/test-runner-e2e.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "private": true
+}
