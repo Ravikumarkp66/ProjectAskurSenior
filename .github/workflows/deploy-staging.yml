@@ -62,9 +62,24 @@ jobs:
             sudo systemctl is-active --quiet askursenior-backend
             echo "Service askursenior-backend is active."
 
-            echo "=== 5. Verifying local health endpoint ==="
-            sleep 2
-            curl --fail --silent --show-error http://127.0.0.1:5000/api/health
+            echo "=== 5. Verifying local health endpoint with retry polling ==="
+            HEALTH_OK=false
+            for i in {1..30}; do
+              if curl --fail --silent --show-error http://127.0.0.1:5000/api/health; then
+                echo -e "\nBackend health check passed on attempt $i."
+                HEALTH_OK=true
+                break
+              fi
+              echo "Backend not ready yet. Retrying in 2s (Attempt $i/30)..."
+              sleep 2
+            done
+
+            if [ "$HEALTH_OK" != "true" ]; then
+              echo "ERROR: Backend failed to become healthy within 60 seconds."
+              sudo systemctl status askursenior-backend --no-pager
+              sudo journalctl -u askursenior-backend -n 50 --no-pager
+              exit 1
+            fi
 
             echo -e "\n=== Staging backend deployment verified and complete! ==="
           EOF
