@@ -1,20 +1,230 @@
-﻿name: Deploy Staging Backend to EC2
+﻿name: Deploy Staging Backend & Runners to EC2
 
 on:
   push:
     branches:
       - development
   workflow_dispatch:
+    inputs:
+      force_rebuild_all_runners:
+        description: 'Force rebuild all Docker runner images on GHCR'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: staging-deployment
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Deploy to EC2 Staging
+  detect-changes:
+    name: Detect Changed Components
     runs-on: ubuntu-latest
+    outputs:
+      c: ${{ steps.filter.outputs.c == 'true' || github.event.inputs.force_rebuild_all_runners == 'true' }}
+      cpp: ${{ steps.filter.outputs.cpp == 'true' || github.event.inputs.force_rebuild_all_runners == 'true' }}
+      java: ${{ steps.filter.outputs.java == 'true' || github.event.inputs.force_rebuild_all_runners == 'true' }}
+      python: ${{ steps.filter.outputs.python == 'true' || github.event.inputs.force_rebuild_all_runners == 'true' }}
+      backend: ${{ steps.filter.outputs.backend }}
+      any_runner: ${{ steps.filter.outputs.c == 'true' || steps.filter.outputs.cpp == 'true' || steps.filter.outputs.java == 'true' || steps.filter.outputs.python == 'true' || github.event.inputs.force_rebuild_all_runners == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      - name: Path Filter Detection
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            c:
+              - 'code-execution/c/**'
+            cpp:
+              - 'code-execution/cpp/**'
+            java:
+              - 'code-execution/java/**'
+            python:
+              - 'code-execution/python/**'
+            backend:
+              - 'backend/**'
+              - 'package*.json'
+              - '.github/workflows/deploy-staging.yml'
+
+  build-c-runner:
+    name: Build & Push C Runner
+    needs: detect-changes
+    if: needs.detect-changes.outputs.c == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Normalize Repository Owner to Lowercase
+        id: repo-owner
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push C Runner Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code-execution/c
+          push: true
+          tags: ghcr.io/${{ steps.repo-owner.outputs.owner }}/askursenior-c-runner:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-cpp-runner:
+    name: Build & Push C++ Runner
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cpp == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Normalize Repository Owner to Lowercase
+        id: repo-owner
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push C++ Runner Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code-execution/cpp
+          push: true
+          tags: ghcr.io/${{ steps.repo-owner.outputs.owner }}/askursenior-cpp-runner:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-java-runner:
+    name: Build & Push Java Runner
+    needs: detect-changes
+    if: needs.detect-changes.outputs.java == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Normalize Repository Owner to Lowercase
+        id: repo-owner
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Java Runner Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code-execution/java
+          push: true
+          tags: ghcr.io/${{ steps.repo-owner.outputs.owner }}/askursenior-java-runner:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-python-runner:
+    name: Build & Push Python Runner
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Normalize Repository Owner to Lowercase
+        id: repo-owner
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner=${OWNER}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Python Runner Image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./code-execution/python
+          push: true
+          tags: ghcr.io/${{ steps.repo-owner.outputs.owner }}/askursenior-python-runner:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to EC2 Staging
+    needs:
+      - detect-changes
+      - build-c-runner
+      - build-cpp-runner
+      - build-java-runner
+      - build-python-runner
+    if: >-
+      always() &&
+      needs.detect-changes.result == 'success' &&
+      (needs.build-c-runner.result == 'success' || needs.build-c-runner.result == 'skipped') &&
+      (needs.build-cpp-runner.result == 'success' || needs.build-cpp-runner.result == 'skipped') &&
+      (needs.build-java-runner.result == 'success' || needs.build-java-runner.result == 'skipped') &&
+      (needs.build-python-runner.result == 'success' || needs.build-python-runner.result == 'skipped')
+    runs-on: ubuntu-latest
     steps:
       - name: Configure SSH
         run: |
@@ -41,28 +251,117 @@ jobs:
           cp ~/.ssh/ec2_host_key ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
-      - name: Deploy and Restart Backend on EC2
+      - name: Deploy Runners and Backend on EC2
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} 'bash -e -s' << 'EOF'
-            echo "=== 1. Pulling latest development branch on EC2 ==="
+            OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+            # Authenticate to GHCR on EC2 if GHCR_READ_TOKEN secret is configured
+            if [ -n "${{ secrets.GHCR_READ_TOKEN }}" ]; then
+              echo "Authenticating to GHCR on EC2..."
+              echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            fi
+
+            # 1. Pull, verify digest, and retag C Runner if updated
+            if [ "${{ needs.detect-changes.outputs.c }}" == "true" ]; then
+              EXPECTED_C_DIGEST="${{ needs.build-c-runner.outputs.digest }}"
+              echo "=== Pulling C runner from GHCR by digest: ${EXPECTED_C_DIGEST} ==="
+              docker pull "ghcr.io/${OWNER}/askursenior-c-runner@${EXPECTED_C_DIGEST}"
+              
+              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-c-runner@${EXPECTED_C_DIGEST}"
+              ACTUAL_C_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              echo "Expected digest: $EXPECTED_C_DIGEST"
+              echo "Actual digest:   $ACTUAL_C_DIGEST"
+
+              if [ "$ACTUAL_C_DIGEST" != "$EXPECTED_C_DIGEST" ]; then
+                echo "ERROR: Digest mismatch for C runner! Expected $EXPECTED_C_DIGEST but got $ACTUAL_C_DIGEST"
+                exit 1
+              fi
+
+              # Retag only after successful verification
+              docker tag "$PULLED_IMAGE" askursenior-c-runner:latest
+              echo "Successfully verified and tagged askursenior-c-runner:latest"
+            fi
+
+            # 2. Pull, verify digest, and retag C++ Runner if updated
+            if [ "${{ needs.detect-changes.outputs.cpp }}" == "true" ]; then
+              EXPECTED_CPP_DIGEST="${{ needs.build-cpp-runner.outputs.digest }}"
+              echo "=== Pulling C++ runner from GHCR by digest: ${EXPECTED_CPP_DIGEST} ==="
+              docker pull "ghcr.io/${OWNER}/askursenior-cpp-runner@${EXPECTED_CPP_DIGEST}"
+              
+              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-cpp-runner@${EXPECTED_CPP_DIGEST}"
+              ACTUAL_CPP_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              echo "Expected digest: $EXPECTED_CPP_DIGEST"
+              echo "Actual digest:   $ACTUAL_CPP_DIGEST"
+
+              if [ "$ACTUAL_CPP_DIGEST" != "$EXPECTED_CPP_DIGEST" ]; then
+                echo "ERROR: Digest mismatch for C++ runner! Expected $EXPECTED_CPP_DIGEST but got $ACTUAL_CPP_DIGEST"
+                exit 1
+              fi
+
+              docker tag "$PULLED_IMAGE" askursenior-cpp-runner:latest
+              echo "Successfully verified and tagged askursenior-cpp-runner:latest"
+            fi
+
+            # 3. Pull, verify digest, and retag Java Runner if updated
+            if [ "${{ needs.detect-changes.outputs.java }}" == "true" ]; then
+              EXPECTED_JAVA_DIGEST="${{ needs.build-java-runner.outputs.digest }}"
+              echo "=== Pulling Java runner from GHCR by digest: ${EXPECTED_JAVA_DIGEST} ==="
+              docker pull "ghcr.io/${OWNER}/askursenior-java-runner@${EXPECTED_JAVA_DIGEST}"
+              
+              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-java-runner@${EXPECTED_JAVA_DIGEST}"
+              ACTUAL_JAVA_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              echo "Expected digest: $EXPECTED_JAVA_DIGEST"
+              echo "Actual digest:   $ACTUAL_JAVA_DIGEST"
+
+              if [ "$ACTUAL_JAVA_DIGEST" != "$EXPECTED_JAVA_DIGEST" ]; then
+                echo "ERROR: Digest mismatch for Java runner! Expected $EXPECTED_JAVA_DIGEST but got $ACTUAL_JAVA_DIGEST"
+                exit 1
+              fi
+
+              docker tag "$PULLED_IMAGE" askursenior-java-runner:latest
+              echo "Successfully verified and tagged askursenior-java-runner:latest"
+            fi
+
+            # 4. Pull, verify digest, and retag Python Runner if updated
+            if [ "${{ needs.detect-changes.outputs.python }}" == "true" ]; then
+              EXPECTED_PYTHON_DIGEST="${{ needs.build-python-runner.outputs.digest }}"
+              echo "=== Pulling Python runner from GHCR by digest: ${EXPECTED_PYTHON_DIGEST} ==="
+              docker pull "ghcr.io/${OWNER}/askursenior-python-runner@${EXPECTED_PYTHON_DIGEST}"
+              
+              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-python-runner@${EXPECTED_PYTHON_DIGEST}"
+              ACTUAL_PYTHON_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              echo "Expected digest: $EXPECTED_PYTHON_DIGEST"
+              echo "Actual digest:   $ACTUAL_PYTHON_DIGEST"
+
+              if [ "$ACTUAL_PYTHON_DIGEST" != "$EXPECTED_PYTHON_DIGEST" ]; then
+                echo "ERROR: Digest mismatch for Python runner! Expected $EXPECTED_PYTHON_DIGEST but got $ACTUAL_PYTHON_DIGEST"
+                exit 1
+              fi
+
+              docker tag "$PULLED_IMAGE" askursenior-python-runner:latest
+              echo "Successfully verified and tagged askursenior-python-runner:latest"
+            fi
+
+            echo "=== 5. Pulling latest development branch on EC2 ==="
             cd ~/ProjectAskurSenior
 
             git fetch origin
             git checkout development
             git reset --hard origin/development
 
-            echo "=== 2. Installing backend dependencies ==="
+            echo "=== 6. Installing backend dependencies ==="
             cd backend
             npm ci
 
-            echo "=== 3. Restarting askursenior-backend systemd service ==="
+            echo "=== 7. Restarting askursenior-backend systemd service ==="
             sudo systemctl restart askursenior-backend
 
-            echo "=== 4. Verifying systemd service status ==="
+            echo "=== 8. Verifying systemd service status ==="
             sudo systemctl is-active --quiet askursenior-backend
             echo "Service askursenior-backend is active."
 
-            echo "=== 5. Verifying local health endpoint with retry polling ==="
+            echo "=== 9. Verifying local health endpoint with retry polling ==="
             HEALTH_OK=false
             for i in {1..30}; do
               if curl --fail --silent --show-error http://127.0.0.1:5000/api/health; then
