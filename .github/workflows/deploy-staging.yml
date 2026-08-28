@@ -16,22 +16,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Configure SSH and Known Hosts
+      - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ secrets.EC2_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
+
           eval $(ssh-agent -s)
           echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' | ssh-add -
           echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
           echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
+
+          ssh-keyscan -t ed25519 "${{ secrets.EC2_HOST }}" > ~/.ssh/ec2_host_key
+
+          ACTUAL_FINGERPRINT=$(ssh-keygen -lf ~/.ssh/ec2_host_key | awk '{print $2}')
+
+          echo "Expected fingerprint: ${{ secrets.EC2_HOST_FINGERPRINT }}"
+          echo "Actual fingerprint:   $ACTUAL_FINGERPRINT"
+
+          if [ "$ACTUAL_FINGERPRINT" != "${{ secrets.EC2_HOST_FINGERPRINT }}" ]; then
+            echo "ERROR: EC2 host fingerprint does not match!"
+            exit 1
+          fi
+
+          cp ~/.ssh/ec2_host_key ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Deploy and Restart Backend on EC2
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} 'bash -e -s' << 'EOF'
             echo "=== 1. Pulling latest development branch on EC2 ==="
             cd ~/ProjectAskurSenior
+
             git fetch origin
             git checkout development
             git reset --hard origin/development
@@ -50,5 +65,6 @@ jobs:
             echo "=== 5. Verifying local health endpoint ==="
             sleep 2
             curl --fail --silent --show-error http://127.0.0.1:5000/api/health
+
             echo -e "\n=== Staging backend deployment verified and complete! ==="
           EOF
