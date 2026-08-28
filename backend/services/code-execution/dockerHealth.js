@@ -1,15 +1,16 @@
 const { exec } = require('child_process');
 
 /**
- * Check Docker binary availability and daemon connectivity.
+ * Check Docker binary availability and daemon connectivity on the local host.
+ * 
  * Safe for server logs and diagnostic endpoints without exposing secrets.
  * 
- * @returns {Promise<{ available: boolean, daemonRunning: boolean, version: string|null, error: string|null, details: Object }>}
+ * @returns {Promise<{ available: boolean, daemonRunning: boolean, mode: string, version: string|null, error: string|null, details: Object }>}
  */
-function checkDockerAvailability() {
+async function checkDockerAvailability() {
     return new Promise((resolve) => {
         const startTime = Date.now();
-        console.log('[DockerDiagnostic] Checking Docker binary and daemon status...');
+        console.log('[DockerDiagnostic] Checking local Docker binary and daemon status...');
 
         exec('docker --version', { timeout: 5000 }, (verErr, verStdout, verStderr) => {
             const durationMs = Date.now() - startTime;
@@ -18,6 +19,7 @@ function checkDockerAvailability() {
                 const errorInfo = {
                     available: false,
                     daemonRunning: false,
+                    mode: 'local_docker',
                     version: null,
                     error: `Docker CLI unavailable: ${verErr.code || 'UNKNOWN'} - ${verErr.message}`,
                     details: {
@@ -42,6 +44,7 @@ function checkDockerAvailability() {
                     const daemonInfo = {
                         available: true,
                         daemonRunning: false,
+                        mode: 'local_docker',
                         version: dockerVersion,
                         error: `Docker daemon unreachable: ${infoErr.code || 'UNKNOWN'} - ${infoErr.message}`,
                         details: {
@@ -59,6 +62,7 @@ function checkDockerAvailability() {
                 const successInfo = {
                     available: true,
                     daemonRunning: true,
+                    mode: 'local_docker',
                     version: dockerVersion,
                     serverVersion: serverVersion || 'unknown',
                     error: null,

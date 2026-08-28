@@ -6,8 +6,9 @@ const { checkDockerAvailability } = require('./dockerHealth');
 /**
  * Generic Language-Independent Execution Service & Evaluator
  * 
- * Contains NO compiler commands, GCC/G++ references, or Docker image names.
- * Delegates execution to the appropriate runner resolved by runnerRegistry.
+ * Direct Local Docker Execution Mode (EC2 Staging & Production):
+ * Executes untrusted student code directly inside hardened local Docker containers
+ * via runnerRegistry and specialized BaseRunner implementations.
  */
 
 /**
@@ -28,16 +29,16 @@ function compareOutputs(actual, expected) {
 }
 
 /**
- * Execute code using the resolved language runner
+ * Execute code directly using local Docker sandbox containers
  * 
  * @param {Object} params
- * @param {string} params.language - Language slug (e.g. 'c')
+ * @param {string} params.language - Language slug (e.g. 'c', 'cpp', 'java', 'python')
  * @param {string} params.code - Source code
  * @param {string} [params.input=''] - Stdin stream input
  * @returns {Promise<Object>} Standardized execution response
  */
 async function executeCode({ language, code, input = '' }) {
-    console.log(`[ExecutionService] executeCode called: language="${language}", codeBytes=${Buffer.byteLength(code || '', 'utf8')}, inputBytes=${Buffer.byteLength(input || '', 'utf8')}`);
+    console.log(`[ExecutionService] executeCode called: language="${language}", codeBytes=${Buffer.byteLength(code || '', 'utf8')}, inputBytes=${Buffer.byteLength(input || '', 'utf8')}, mode="LOCAL_DOCKER"`);
 
     if (!language) {
         const err = new Error('Language is required for execution');
@@ -62,7 +63,7 @@ async function executeCode({ language, code, input = '' }) {
     });
 
     const totalElapsed = Date.now() - startTime;
-    console.log(`[ExecutionService] executeCode completed: language="${language}", status="${execRes.status}", exitCode=${execRes.exitCode}, runtimeMs=${execRes.runtimeMs}ms, totalElapsed=${totalElapsed}ms`);
+    console.log(`[ExecutionService] Docker execution completed: language="${language}", status="${execRes.status}", exitCode=${execRes.exitCode}, runtimeMs=${execRes.runtimeMs}ms, totalElapsed=${totalElapsed}ms`);
 
     return {
         ...execRes,
@@ -74,7 +75,7 @@ async function executeCode({ language, code, input = '' }) {
  * Language-agnostic test case evaluator
  * 
  * Evaluates student code against an array of test cases from MongoDB
- * using the resolved language runner.
+ * using the active execution pipeline (remote EC2 or local Docker).
  * 
  * @param {Object} params
  * @param {string} params.language - Language slug
@@ -87,14 +88,6 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
 
     if (!language) {
         const err = new Error('Language is required for evaluation');
-        err.statusCode = 400;
-        throw err;
-    }
-
-    const runner = runnerRegistry.getRunner(language);
-    if (!runner) {
-        const supported = runnerRegistry.getSupportedLanguages();
-        const err = new Error(`Unsupported language '${language}'. Supported languages: [${supported.join(', ')}].`);
         err.statusCode = 400;
         throw err;
     }
@@ -121,8 +114,9 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
 
         console.log(`[ExecutionService] Evaluating testcase ${caseNumber}/${testCases.length} (ID: ${testCaseId}, isSample: ${!!tc.isSample})...`);
 
-        // Execute against resolved language runner
-        const execRes = await runner.execute({
+        // Execute against active pipeline (remote EC2 or local Docker)
+        const execRes = await executeCode({
+            language,
             code,
             input: tc.input || ''
         });
@@ -130,7 +124,7 @@ async function evaluateProblemTestCases({ language, code, testCases = [] }) {
         // Check for compilation failure (compilation failed before any test case could run)
         if (execRes.status === 'compilation_error') {
             console.warn(`[ExecutionService] Compilation error detected on testcase ${caseNumber}: ${execRes.stderr.slice(0, 200)}`);
-            const diagnostics = parseDiagnostics({
+            const diagnostics = execRes.diagnostics || parseDiagnostics({
                 stderr: execRes.stderr,
                 language,
                 status: 'compilation_error'

@@ -8,6 +8,7 @@ const {
     executeCode,
     evaluateProblemTestCases,
     compareOutputs,
+    checkDockerAvailability,
     runnerRegistry,
     CONFIG
 } = require('./code-execution/executionService');
@@ -16,6 +17,7 @@ module.exports = {
     executeCode,
     evaluateProblemTestCases,
     compareOutputs,
+    checkDockerAvailability,
     runnerRegistry,
     CONFIG
 };
