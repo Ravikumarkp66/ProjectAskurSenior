@@ -1,0 +1,54 @@
+﻿name: Deploy Staging Backend to EC2
+
+on:
+  push:
+    branches:
+      - development
+  workflow_dispatch:
+
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EC2 Staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH and Known Hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.EC2_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          eval $(ssh-agent -s)
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' | ssh-add -
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
+
+      - name: Deploy and Restart Backend on EC2
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} 'bash -e -s' << 'EOF'
+            echo "=== 1. Pulling latest development branch on EC2 ==="
+            cd ~/ProjectAskurSenior
+            git fetch origin
+            git checkout development
+            git reset --hard origin/development
+
+            echo "=== 2. Installing backend dependencies ==="
+            cd backend
+            npm ci
+
+            echo "=== 3. Restarting askursenior-backend systemd service ==="
+            sudo systemctl restart askursenior-backend
+
+            echo "=== 4. Verifying systemd service status ==="
+            sudo systemctl is-active --quiet askursenior-backend
+            echo "Service askursenior-backend is active."
+
+            echo "=== 5. Verifying local health endpoint ==="
+            sleep 2
+            curl --fail --silent --show-error http://127.0.0.1:5000/api/health
+            echo -e "\n=== Staging backend deployment verified and complete! ==="
+          EOF
