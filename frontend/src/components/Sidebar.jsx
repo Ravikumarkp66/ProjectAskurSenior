@@ -277,6 +277,28 @@ const SgpaIcon = ({ filled }) => (
 
 const SGPAIcon = SgpaIcon;
 
+const MaterialsIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={filled ? '#60A5FA' : '#93C5FD'} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" fill={filled ? 'rgba(59, 130, 246, 0.25)' : 'none'} />
+    </svg>
+);
+
+const InterviewsIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={filled ? '#60A5FA' : '#93C5FD'} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" fill={filled ? 'rgba(59, 130, 246, 0.25)' : 'none'} />
+        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+);
+
+const MarketplaceIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={filled ? '#60A5FA' : '#93C5FD'} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" fill={filled ? 'rgba(59, 130, 246, 0.25)' : 'none'} />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+    </svg>
+);
+
 /* ═══════════════════════════════════════════════════════════════════
    SIDEBAR COMPONENT
 ═══════════════════════════════════════════════════════════════════ */
