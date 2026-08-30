@@ -19,7 +19,7 @@ class SubjectService {
         if (branch) query.branch = branch.toUpperCase();
         if (year === '1' && !cycle) query.cycle = { $in: ['P', 'C'] };
 
-        const subjects = await subjectRepository.find(query, 'name code cycle color', { sort: { name: 1 }, lean: true });
+        const subjects = await subjectRepository.find(query, 'name code cycle color modules credits branch', { sort: { name: 1 }, lean: true });
 
         const uniqueSubjects = [];
         const seenCodes = new Set();

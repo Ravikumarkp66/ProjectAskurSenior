@@ -224,4 +224,4 @@ studentAccountSchema.methods.comparePassword = async function (password) {
     return bcrypt.compare(password, this.password);
 };
 
-module.exports = mongoose.model('StudentAccount', studentAccountSchema);
+module.exports = mongoose.models.StudentAccount || mongoose.model('StudentAccount', studentAccountSchema);

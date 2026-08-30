@@ -58,6 +58,9 @@ const StudentAcademicsLayout  = lazy(() => import('./pages/dashboard/student-aca
 
 // Interview Experiences Module
 const InterviewExperiencesPage = lazy(() => import('./pages/interviews/InterviewPage'));
+
+// My Subjects Workspace
+const MySubjectsPage = lazy(() => import('./pages/my-subjects/MySubjectsPage'));
 const CompanyRolePage = lazy(() => import('./pages/interviews/CompanyRolePage'));
 const ShareExperience = lazy(() => import('./pages/interviews/ShareExperience'));
 
@@ -238,6 +241,18 @@ function AppContent() {
                     <Route path="/academic" element={<Navigate to="/student-academics" replace />} />
                     <Route path="/academic-setup" element={<Navigate to="/student-academics/subjects" replace />} />
 
+                    {/* My Subjects Dedicated Workspace */}
+                    <Route path="/my-subjects" element={
+                        <ProtectedRoute>
+                            <DashboardLayout />
+                        </ProtectedRoute>
+                    }>
+                        <Route index element={<MySubjectsPage />} />
+                        <Route path=":subjectSlug" element={<MySubjectsPage />} />
+                        <Route path=":subjectSlug/:moduleSlug" element={<MySubjectsPage />} />
+                        <Route path=":subjectSlug/:moduleSlug/:section" element={<MySubjectsPage />} />
+                    </Route>
+
                     {/* Academic Dashboard Layout Group */}
                     <Route path="/home" element={
                         <ProtectedRoute>
@@ -292,6 +307,10 @@ function AppContent() {
                         </Route>
 
                         {/* Nested Plus Feature Routes */}
+                        <Route path="my-subjects" element={<MySubjectsPage />} />
+                        <Route path="my-subjects/:subjectSlug" element={<MySubjectsPage />} />
+                        <Route path="my-subjects/:subjectSlug/:moduleSlug" element={<MySubjectsPage />} />
+                        <Route path="my-subjects/:subjectSlug/:moduleSlug/:section" element={<MySubjectsPage />} />
                         <Route path="subject-registration" element={<Navigate to="/student-academics/subjects" replace />} />
                         <Route path="cie-analyzer" element={<CieSettings />} />
                         <Route path="cie" element={<CieSettings />} />

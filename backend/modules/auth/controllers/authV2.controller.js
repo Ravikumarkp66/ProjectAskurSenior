@@ -6,6 +6,7 @@ const StudentTimetableConfiguration = require('../../../models/StudentTimetableC
 const StudentTimetable = require('../../../models/StudentTimetable');
 const AcademicSubjectCms = require('../../../models/AcademicSubject');
 const CmsSubject = require('../../../models/CmsSubject');
+const Subject = require('../../../models/Subject');
 const StudentRegisteredSubject = require('../../../models/StudentRegisteredSubject');
 const StudentAttendanceRecord = require('../../../models/StudentAttendanceRecord');
 const StudentAttendanceSummary = require('../../../models/StudentAttendanceSummary');
@@ -1037,23 +1038,117 @@ class AuthV2Controller {
 
     async getRegisteredSubjects(req, res) {
         try {
-            const studentId = req.student._id;
+            const studentId = req.student?._id;
+            if (!studentId) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Unauthorized: Student account not found',
+                    data: null,
+                    errors: null
+                });
+            }
+
             const semester = req.query.semester ? Number(req.query.semester) : (req.student.semester || 1);
-            const registered = await StudentRegisteredSubject.find({
+            const query = {
                 student: studentId,
-                $and: [
-                    { $or: [ { semester }, { semester: { $exists: false } } ] },
-                    { $or: [ { isActive: true }, { isActive: { $exists: false } } ] }
-                ]
-            }).populate('subject');
+                $or: [{ isActive: true }, { isActive: { $exists: false } }]
+            };
+
+            const registered = await StudentRegisteredSubject.find(query)
+                .populate('subject')
+                .lean();
+
+            // Filter for current semester or subjects without semester restriction
+            const semFiltered = registered.filter(r => !r.semester || Number(r.semester) === Number(semester));
+
+            // Safe regex escaper helper
+            const escapeRegex = (str) => (str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            // Fetch subject modules directly from the database Subject collection
+            const studentBranch = (req.student.branch || req.student.department || '').toUpperCase().trim();
+            const populated = await Promise.all(semFiltered.map(async (item) => {
+                try {
+                    const sObj = item.subject || {};
+                    const subjCode = (sObj.code || item.customCode || '').toUpperCase().trim();
+                    const subjName = sObj.name || item.customName || '';
+
+                    let dbSubject = null;
+                    if (subjCode) {
+                        const escapedCode = escapeRegex(subjCode);
+                        dbSubject = await Subject.findOne({
+                            $or: [
+                                { code: subjCode },
+                                { code: { $regex: new RegExp(`^${escapedCode}$`, 'i') } }
+                            ]
+                        }).lean();
+                    }
+
+                    if (!dbSubject && subjName) {
+                        const escapedName = escapeRegex(subjName);
+                        dbSubject = await Subject.findOne({
+                            $or: [
+                                { name: { $regex: new RegExp(`^${escapedName}$`, 'i') } },
+                                { name: { $regex: new RegExp(escapedName, 'i') } }
+                            ]
+                        }).lean();
+                    }
+
+                    // If code is generic like MATH, PHYS, CHEM, resolve department subject from DB
+                    if (!dbSubject) {
+                        const isMath = /math/i.test(subjName) || /math/i.test(subjCode);
+                        const isPhys = /phys/i.test(subjName) || /phys/i.test(subjCode);
+                        const isChem = /chem/i.test(subjName) || /chem/i.test(subjCode);
+
+                        if (isMath) {
+                            dbSubject = await Subject.findOne({
+                                $or: [{ branch: studentBranch }, { branch: 'CS' }, { branch: 'ALL' }],
+                                name: { $regex: /math/i }
+                            }).lean();
+                        } else if (isPhys) {
+                            dbSubject = await Subject.findOne({
+                                $or: [{ branch: studentBranch }, { branch: 'CS' }, { branch: 'ALL' }],
+                                name: { $regex: /phys/i }
+                            }).lean();
+                        } else if (isChem) {
+                            dbSubject = await Subject.findOne({
+                                $or: [{ branch: studentBranch }, { branch: 'CS' }, { branch: 'ALL' }],
+                                name: { $regex: /chem/i }
+                            }).lean();
+                        }
+                    }
+
+                    const modules = (dbSubject && dbSubject.modules && dbSubject.modules.length > 0)
+                        ? dbSubject.modules.map(m => ({
+                            id: `module-${m.moduleNumber}`,
+                            slug: `module-${m.moduleNumber}`,
+                            moduleNumber: m.moduleNumber,
+                            title: m.title || `Module ${m.moduleNumber}`,
+                            name: m.title || `Module ${m.moduleNumber}`,
+                            description: m.description || ''
+                        }))
+                        : (sObj.modules || []);
+
+                    return {
+                        ...item,
+                        subject: {
+                            ...(item.subject || {}),
+                            modules
+                        }
+                    };
+                } catch (subErr) {
+                    console.warn('[V2 getRegisteredSubjects] Error resolving subject modules:', subErr);
+                    return item;
+                }
+            }));
 
             return res.status(200).json({
                 success: true,
                 message: 'Registered subjects retrieved successfully',
-                data: registered,
+                data: populated,
                 errors: null
             });
         } catch (error) {
+            console.error('[getRegisteredSubjects Exception]:', error);
             return res.status(400).json({
                 success: false,
                 message: error.message || 'Failed to fetch registered subjects',

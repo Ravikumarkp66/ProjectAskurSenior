@@ -142,6 +142,4 @@ const subjectSchema = new mongoose.Schema({
     }
 });
 
-subjectSchema.index({ code: 1, branch: 1, cycle: 1 }, { unique: true });
-
-module.exports = mongoose.model('Subject', subjectSchema);
+module.exports = mongoose.models.Subject || mongoose.model('Subject', subjectSchema);

@@ -48,12 +48,13 @@ const DashboardLayout = () => {
     const yearMatch = location.pathname.match(/\/plus\/(first|second|third|fourth)-year/);
     const currentYearStr = yearMatch ? yearMatch[1] : null;
     const isSubjectRoute = !!currentYearStr;
+    const isMySubjectsRoute = location.pathname.includes('my-subjects');
     const isSubjectRegistrationRoute = location.pathname.includes('subject-registration') || location.pathname.includes('academic-setup');
     const isStudentAcademicsRoute = location.pathname.startsWith('/student-academics') || location.pathname.includes('academic-register');
     const isMainDashboardRoute = location.pathname === '/home' || location.pathname === '/plus' || location.pathname === '/home/' || location.pathname === '/plus/';
     const isHomeOrPlusRoute = location.pathname.startsWith('/home') || location.pathname.startsWith('/plus');
     const isAttendanceRoute = location.pathname.includes('attendance') || location.pathname.includes('timetable') || location.pathname.includes('cie') || location.pathname.includes('sgpa');
-    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute;
+    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute;
     
     // Active navigation states
     const isHomeActive = location.pathname === '/plus' || location.pathname === '/home';
@@ -422,7 +423,7 @@ const DashboardLayout = () => {
                     style={{
                         height: (isMobile && isMainDashboardRoute) ? 'calc(100vh - 96px)' : (isMobile ? 'calc(100vh - 56px)' : (!isDesktop ? 'calc(100vh - 56px)' : '100vh')),
                         minWidth: 0,
-                        padding: isSubjectRoute ? '0' : (isDesktop ? '16px 0 16px 16px' : '12px 16px 24px'),
+                        padding: (isSubjectRoute || isMySubjectsRoute) ? '0' : (isDesktop ? '16px 0 16px 16px' : '12px 16px 24px'),
                         overflowY: 'auto',
                         overscrollBehavior: 'contain',
                         scrollbarWidth: 'none',

@@ -366,15 +366,28 @@ const DashboardPage = () => {
                         </div>
                     </div>
 
-                    {/* 2. MY ACADEMICS (4 CORE ANALYTICAL TOOLS) */}
+                    {/* 2. MY ACADEMICS (CORE ANALYTICAL & SUBJECT TOOLS) */}
                     <div>
                         <SectionHeader 
                             title="My Academics" 
-                            subtitle="Track, predict, and analyze your attendance, CIE marks, and semester results."
+                            subtitle="Access your registered subjects, track attendance, analyze CIE marks, and calculate semester results."
+                            badge={{ text: '5 tools', color: '#00f5b8', borderColor: 'rgba(0, 245, 184, 0.3)', bgColor: 'rgba(0, 245, 184, 0.08)' }} 
                         />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                            {/* Card 1: Attendance */}
-                            <div className="w-full">
+                        <div className="flex overflow-x-auto snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 gap-3.5 pb-2.5">
+                            {/* Card 1: My Subjects */}
+                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
+                                <IllustrationCard
+                                    presetKey="materials"
+                                    title="My Subjects"
+                                    subtitle="Access editorials, PYQs, and module discussions for registered subjects."
+                                    onClick={() => navigate('/plus/my-subjects')}
+                                    isSubdued={false}
+                                    ctaText="View subjects →"
+                                />
+                            </div>
+
+                            {/* Card 2: Attendance */}
+                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
                                 <IllustrationCard
                                     presetKey="attendance"
                                     title="Attendance"
@@ -387,10 +400,10 @@ const DashboardPage = () => {
                                 />
                             </div>
 
-                            {/* Card 2: CIE Analyzer */}
-                            <div className="w-full">
+                            {/* Card 3: CIE Analyzer */}
+                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
                                 <IllustrationCard
-                                    presetKey="academicSummary"
+                                    presetKey="cieAnalyzer"
                                     title="CIE Analyzer"
                                     subtitle="Analyze your internal marks, eligibility & CIE target forecast."
                                     onClick={() => navigate('/home/cie')}
@@ -401,8 +414,8 @@ const DashboardPage = () => {
                                 />
                             </div>
 
-                            {/* Card 3: SGPA Calculator */}
-                            <div className="w-full">
+                            {/* Card 4: SGPA Calculator */}
+                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
                                 <IllustrationCard
                                     presetKey="sgpaGpa"
                                     title="SGPA Calculator"
@@ -415,8 +428,8 @@ const DashboardPage = () => {
                                 />
                             </div>
 
-                            {/* Card 4: Academic Summary */}
-                            <div className="w-full">
+                            {/* Card 5: Academic Summary */}
+                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
                                 <IllustrationCard
                                     presetKey="academicSummary"
                                     title="Academic Summary"
