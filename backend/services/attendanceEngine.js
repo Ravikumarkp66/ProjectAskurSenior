@@ -51,56 +51,73 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
             holidays = snapshot.holidays || [];
         }
     } else {
-        // Live data configuration
-        configuration = await StudentTimetableConfiguration.findOne({ 
-            student: studentId, 
-            $or: [ { semester }, { semester: { $exists: false } } ] 
-        });
+        // Live data configuration - Parallelize all independent collections
+        const ClassOccurrence = require('../models/ClassOccurrence');
+        const StudentTimetable = require('../models/StudentTimetable');
 
-        if (configuration) {
-            const startDate = new Date(configuration.semesterStartDate);
-            const endDate = new Date(configuration.lastWorkingDate);
-
-            // Fetch live expected classes schedule cache
-            let cachedSchedule = await StudentExpectedSchedule.findOne({ student: studentId, semester });
-            if (!cachedSchedule || !cachedSchedule.classes || cachedSchedule.classes.length === 0) {
-                const { generateAndCacheExpectedSchedule } = require('./expectedClassGenerator');
-                const classes = await generateAndCacheExpectedSchedule(studentId, semester);
-                cachedSchedule = { classes };
-            }
-            expectedClasses = cachedSchedule.classes || [];
-
-            // Fetch registered subjects
-            subjects = await StudentRegisteredSubject.find({ 
+        const [configDoc, cachedScheduleDoc, subjectsDocs, occDocs, timetableSlotsDocs] = await Promise.all([
+            StudentTimetableConfiguration.findOne({ 
+                student: studentId, 
+                $or: [ { semester }, { semester: { $exists: false } } ] 
+            }).lean(),
+            StudentExpectedSchedule.findOne({ student: studentId, semester }).lean(),
+            StudentRegisteredSubject.find({ 
                 student: studentId, 
                 $and: [
                     { $or: [ { semester }, { semester: { $exists: false } } ] },
                     { $or: [ { isActive: true }, { isActive: { $exists: false } } ] }
                 ]
-            }).populate('subject');
+            }).populate('subject').lean(),
+            ClassOccurrence.find({ student: studentId, semester }).lean(),
+            StudentTimetable.find({ student: studentId, semester }).lean()
+        ]);
+
+        configuration = configDoc;
+        let cachedSchedule = cachedScheduleDoc;
+        if (!cachedSchedule) {
+            const { generateAndCacheExpectedSchedule } = require('./expectedClassGenerator');
+            const classes = await generateAndCacheExpectedSchedule(studentId, semester);
+            cachedSchedule = { classes };
+        }
+        expectedClasses = cachedSchedule?.classes || [];
+
+        if (configuration) {
+            const startDate = new Date(configuration.semesterStartDate);
+            const endDate = new Date(configuration.lastWorkingDate);
 
             // Fetch Student Academic Events overlapping semester range
             events = await StudentAcademicEvent.find({
                 student: studentId,
                 startDate: { $lte: endDate },
                 endDate: { $gte: startDate }
-            });
+            }).lean() || [];
 
             // Holidays are mapped as events of type 'Government Holiday'
             holidays = events.filter(e => e.eventType === 'Government Holiday');
         }
+
+        subjects = subjectsDocs || [];
+        entries = occDocs || [];
+        if (!entries || entries.length === 0) {
+            entries = await StudentAttendanceEntry.find({ student: studentId, semester }).lean();
+        }
+        timetableSlots = timetableSlotsDocs || [];
     }
 
-    // Fetch class occurrences as primary authoritative source of truth
-    const ClassOccurrence = require('../models/ClassOccurrence');
-    entries = await ClassOccurrence.find({ student: studentId, semester });
-    if (!entries || entries.length === 0) {
-        entries = await StudentAttendanceEntry.find({ student: studentId, semester });
+    if (!entries) entries = [];
+
+    // Strictly bound occurrences to the semester timeline configuration (source of truth)
+    if (configuration && configuration.semesterStartDate) {
+        const startBound = formatDate(configuration.semesterStartDate);
+        const endBound = configuration.lastWorkingDate ? formatDate(configuration.lastWorkingDate) : '9999-12-31';
+        entries = (entries || []).filter(e => e.date >= startBound && e.date <= endBound);
     }
 
     // Fetch timetable slots to derive weekly frequency (classes/week & lab/week)
-    const StudentTimetable = require('../models/StudentTimetable');
-    const timetableSlots = await StudentTimetable.find({ student: studentId, semester });
+    if (!timetableSlots) {
+        const StudentTimetable = require('../models/StudentTimetable');
+        timetableSlots = await StudentTimetable.find({ student: studentId, semester }).lean();
+    }
     const timetableSlotsBySubj = new Map();
     for (const s of (timetableSlots || [])) {
         const sId = s.subject?.toString();

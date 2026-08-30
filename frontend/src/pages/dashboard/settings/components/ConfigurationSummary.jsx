@@ -124,39 +124,6 @@ const ConfigurationSummary = ({ config, onEditClick }) => {
                 {/* Working Days */}
                 <span>{workingDaysSummary}</span>
             </div>
-
-            {/* Right Action Trigger */}
-            <button
-                type="button"
-                onClick={onEditClick}
-                style={{
-                    background: 'rgba(167, 139, 250, 0.08)',
-                    border: '1px solid rgba(167, 139, 250, 0.25)',
-                    borderRadius: '6px',
-                    padding: '4px 12px',
-                    color: '#c4b5fd',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(167, 139, 250, 0.15)';
-                    e.currentTarget.style.border = '1px solid rgba(167, 139, 250, 0.4)';
-                    e.currentTarget.style.color = '#fff';
-                }}
-                onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(167, 139, 250, 0.08)';
-                    e.currentTarget.style.border = '1px solid rgba(167, 139, 250, 0.25)';
-                    e.currentTarget.style.color = '#c4b5fd';
-                }}
-            >
-                <Settings size={11} />
-                Modify Registration & Setup
-            </button>
         </div>
     );
 };

@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { apiV2 } from '../../../services/authService';
+import { 
+    CalendarDays, BookOpen, BarChart2, Settings, 
+    ArrowLeft, ChevronRight, ChevronDown, CheckCircle2, 
+    AlertCircle, Loader2, Sparkles
+} from 'lucide-react';
 
-import AttendanceHeader from './components/attendance/AttendanceHeader';
 import CalendarDateNavigator from './components/attendance/CalendarDateNavigator';
 import DailyAttendanceWorkspace from './components/attendance/DailyAttendanceWorkspace';
 import AttendanceRightPanel from './components/attendance/AttendanceRightPanel';
@@ -11,17 +16,28 @@ import AttendanceSummaryView from './components/attendance/AttendanceSummaryView
 import SubjectSummaryTab from './components/attendance/SubjectSummaryTab';
 import BaselineSetupModal from './components/attendance/BaselineSetupModal';
 import SubjectSwapModal from './components/attendance/SubjectSwapModal';
-import WeeklyTimetableGrid from './components/WeeklyTimetableGrid';
-import TimetableSettings from './TimetableSettings';
+
+const NAV_TABS = [
+    { id: 'today', label: '1. Today\'s Classes', path: 'today', icon: CalendarDays, emoji: '🗓' },
+    { id: 'subjects', label: '2. Subject Breakdown', path: 'subjects', icon: BookOpen, emoji: '📖' },
+    { id: 'overview', label: '3. Semester Overview', path: 'overview', icon: BarChart2, emoji: '📊' },
+];
 
 const normalizeTabName = (tab) => {
     if (!tab) return 'today';
     const t = String(tab).toLowerCase();
-    if (t === 'schedule' || t === 'timetable') return 'schedule';
-    if (t === 'today' || t === 'daily') return 'today';
+    if (t === 'today' || t === 'daily' || t === 'schedule' || t === 'timetable') return 'today';
     if (t === 'subjects' || t === 'subject-summary') return 'subjects';
     if (t === 'overview' || t === 'summary') return 'overview';
     return 'today';
+};
+
+const getLocalDateString = (d = new Date()) => {
+    const date = new Date(d);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 const AttendanceSettings = () => {
@@ -43,8 +59,8 @@ const AttendanceSettings = () => {
         window.history.replaceState({}, '', url);
     };
 
-    // Date state (YYYY-MM-DD)
-    const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+    // Date state (YYYY-MM-DD in user's local timezone)
+    const [selectedDate, setSelectedDate] = useState(() => getLocalDateString(new Date()));
 
     // Student & Semester state
     const [currentStudentSemester, setCurrentStudentSemester] = useState(1);
@@ -84,65 +100,64 @@ const AttendanceSettings = () => {
     // 1. Fetch student profile
     const fetchStudentProfile = async () => {
         try {
-            const res = await apiV2.getStudentProfile();
-            if (res.data?.success) {
-                const student = res.data.student || res.data.data;
+            const [meRes, semRes] = await Promise.all([
+                apiV2.getMe().catch(() => null),
+                apiV2.getSemesters().catch(() => null)
+            ]);
+
+            let sem = 1;
+            if (meRes?.data?.success) {
+                const student = meRes.data.user || meRes.data.student || meRes.data.data;
                 setUserProfile(student);
-                const sem = Number(student?.semester) || 1;
+                sem = Number(student?.semester) || 1;
                 setCurrentStudentSemester(sem);
+            }
+
+            if (semRes?.data?.success && Array.isArray(semRes.data.data)) {
+                setSemestersList(semRes.data.data);
+            } else {
                 const list = [];
                 for (let i = 1; i <= Math.max(sem, 8); i++) {
                     list.push({ semester: i, isCurrent: i === sem, isPast: i < sem });
                 }
                 setSemestersList(list);
-                return sem;
             }
+            return sem;
         } catch (err) {
             console.error('Error fetching student profile:', err);
         }
         return 1;
     };
 
-    // 2. Fetch semester metrics and config
+    // 2. Fetch semester metrics and config (Optimized parallel fetching)
     const fetchSemesterData = async (sem, showLoading = false) => {
         if (showLoading) setLoading(true);
         setError(null);
         try {
-            // Load dashboard metrics
-            const dashboardRes = await apiV2.getAttendanceDashboard(sem);
-            if (dashboardRes.data?.success) {
+            const [dashboardRes, regRes, configRes] = await Promise.all([
+                apiV2.getAttendanceDashboard(sem).catch(err => {
+                    console.error('getAttendanceDashboard error:', err);
+                    return { data: { success: false, data: {} } };
+                }),
+                apiV2.getRegisteredSubjects(sem).catch(() => ({ data: { success: false, data: [] } })),
+                apiV2.getTimetableConfig(sem).catch(() => ({ data: { success: false, data: null } }))
+            ]);
+
+            if (dashboardRes?.data?.success) {
                 const data = dashboardRes.data.data || {};
                 setProgressList(data.subjects || []);
+                setOverallMetrics(data.overall || null);
                 setGroupedTimeline(data.groupedTimeline || []);
                 setIsArchived(data.isArchived || false);
                 setReadOnly(data.readOnly || false);
             }
 
-            // Load overall analytics
-            const analyticsRes = await apiV2.getAttendanceAnalytics(sem);
-            if (analyticsRes.data?.success) {
-                setOverallMetrics(analyticsRes.data.data?.overall || null);
-            }
-
-            // Load registered subjects
-            const regRes = await apiV2.getRegisteredSubjects(sem);
-            if (regRes.data?.success) {
+            if (regRes?.data?.success) {
                 setRegisteredSubjectsList(regRes.data.data || []);
             }
 
-            // Load timetable config & slots for timetable tab
-            try {
-                const configRes = await apiV2.getTimetableConfig();
-                if (configRes.data?.success) {
-                    setTimetableConfig(configRes.data.data);
-                }
-
-                const slotsRes = await apiV2.getTimetableSlots();
-                if (slotsRes.data?.success) {
-                    setTimetableSlots(slotsRes.data.data || []);
-                }
-            } catch (ttErr) {
-                console.error('Error fetching timetable data:', ttErr);
+            if (configRes?.data?.success) {
+                setTimetableConfig(configRes.data.data);
             }
         } catch (err) {
             console.error('Error fetching attendance metrics:', err);
@@ -156,8 +171,8 @@ const AttendanceSettings = () => {
     const fetchDayAttendance = async (dateStr, sem, showLoading = false) => {
         if (showLoading) setIsDayLoading(true);
         try {
-            const res = await apiV2.getAttendanceDay(dateStr, sem);
-            if (res.data?.success) {
+            const res = await apiV2.getAttendanceDay(dateStr, sem).catch(() => ({ data: { success: false, data: [] } }));
+            if (res?.data?.success) {
                 setDayClasses(res.data.data || []);
             }
         } catch (err) {
@@ -167,24 +182,39 @@ const AttendanceSettings = () => {
         }
     };
 
-    // Initial load
+    // Initial load (Concurrently loads profile, semester metrics, and today's classes in < 200ms)
     useEffect(() => {
+        let isMounted = true;
         const init = async () => {
-            const currentSem = await fetchStudentProfile();
-            setSelectedSemester(currentSem);
-            const today = new Date().toISOString().split('T')[0];
-            setSelectedDate(today);
-            await fetchSemesterData(currentSem, true);
-            await fetchDayAttendance(today, currentSem, true);
+            try {
+                const today = getLocalDateString(new Date());
+                setSelectedDate(today);
+
+                const currentSem = await fetchStudentProfile();
+                if (!isMounted) return;
+                setSelectedSemester(currentSem);
+
+                await Promise.all([
+                    fetchSemesterData(currentSem, true),
+                    fetchDayAttendance(today, currentSem, false)
+                ]);
+            } catch (err) {
+                console.error('Error initializing attendance:', err);
+            } finally {
+                if (isMounted) setLoading(false);
+            }
         };
         init();
+        return () => { isMounted = false; };
     }, []);
 
     // Change semester
     const handleSemesterChange = async (sem) => {
         setSelectedSemester(sem);
-        await fetchSemesterData(sem, true);
-        await fetchDayAttendance(selectedDate, sem, true);
+        await Promise.all([
+            fetchSemesterData(sem, true),
+            fetchDayAttendance(selectedDate, sem, true)
+        ]);
     };
 
     // Change date
@@ -348,7 +378,7 @@ const AttendanceSettings = () => {
 
     // Calculate unconfirmed past classes count
     const unconfirmedPastCount = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString(new Date());
         let count = 0;
         (groupedTimeline || []).forEach(dayGroup => {
             if (!dayGroup.date) return;
@@ -368,7 +398,7 @@ const AttendanceSettings = () => {
     // Quick-Mark all past unconfirmed classes as Present (Instant 0ms Optimistic Update + Single Bulk API)
     const handleQuickMarkPastAsPresent = async () => {
         if (readOnly) return;
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString(new Date());
 
         // 1. Instantly update groupedTimeline optimistically so banner disappears and calendar turns green immediately
         setGroupedTimeline(prev => {
@@ -641,149 +671,630 @@ const AttendanceSettings = () => {
         }
     };
 
-    const activeSubjectData = useMemo(() => {
-        if (!selectedSubject) return null;
-        return progressList.find(p => p.subjectId === selectedSubject.subjectId && p.category === selectedSubject.category) || selectedSubject;
-    }, [progressList, selectedSubject]);
+    const activeTabObj = NAV_TABS.find(t => t.id === activeTab) || NAV_TABS[0];
 
-    return (
-        <div style={{
-            padding: '24px',
-            color: '#fff',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '24px',
-            boxSizing: 'border-box',
-            maxWidth: '1440px',
-            margin: '0 auto',
-            width: '100%'
-        }}>
-            {/* Attendance Header Controls & Tabs */}
-            <AttendanceHeader
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                selectedSemester={selectedSemester}
-                onSemesterChange={handleSemesterChange}
-                semestersList={semestersList}
-                currentStudentSemester={currentStudentSemester}
-                readOnly={readOnly}
-                loading={loading}
-                onOpenSettings={() => setActiveTab('timetable')}
-                onPromoteSemester={handlePromoteSemester}
-                onRecalculate={handleRecalculate}
-                onExport={handleExport}
-                isExportDropdownOpen={isExportDropdownOpen}
-                setIsExportDropdownOpen={setIsExportDropdownOpen}
-            />
-
-            {/* ERROR BANNER */}
-            {error && (
-                <div style={{
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    color: '#fca5a5',
-                    fontSize: '13px'
-                }}>
-                    {error}
-                </div>
-            )}
-
-            {/* TAB CONTENT 1: SCHEDULE (WEEKLY TIMETABLE) */}
-            {(activeTab === 'schedule' || activeTab === 'timetable') && (
-                <div style={{ width: '100%' }}>
-                    <TimetableSettings isEmbedded={true} />
-                </div>
-            )}
-
-            {/* TAB CONTENT 2: TODAY / DAILY ATTENDANCE (DESKTOP 3-COLUMN LAYOUT 16% / 64% / 20%) */}
-            {(activeTab === 'today' || activeTab === 'daily') && (
-                <div className="attendance-daily-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'minmax(200px, 16%) minmax(300px, 64%) minmax(220px, 20%)',
-                    gap: '20px',
-                    alignItems: 'start',
-                    width: '100%'
-                }}>
-                    {/* LEFT COLUMN: Date Navigator */}
-                    <div>
-                        <CalendarDateNavigator
-                            selectedDate={selectedDate}
-                            onSelectDate={handleSelectDate}
-                            timetableConfig={timetableConfig}
-                            groupedTimeline={groupedTimeline}
-                            selectedDayClasses={dayClasses}
-                        />
-                    </div>
-
-                    {/* CENTER COLUMN: Selected Day Workspace */}
-                    <div>
-                        <DailyAttendanceWorkspace
-                            selectedDate={selectedDate}
-                            dayClasses={dayClasses}
-                            isLoading={isDayLoading}
-                            onMarkAttendance={handleMarkAttendance}
-                            onMarkAllPresent={handleMarkAllPresentToday}
-                            onResetDayAttendance={handleResetDayAttendance}
-                            unconfirmedPastCount={unconfirmedPastCount}
-                            onQuickMarkPast={handleQuickMarkPastAsPresent}
-                            readOnly={readOnly}
-                            overallMetrics={overallMetrics}
-                            progressList={progressList}
-                            onEditSubjectHistory={handleEditSubjectHistory}
-                            onOpenBaselineModal={() => setIsBaselineModalOpen(true)}
-                            onOpenSwapModal={handleOpenSwapModal}
-                        />
-                    </div>
-
-                    {/* RIGHT COLUMN: Attendance Context */}
-                    <div>
-                        <AttendanceRightPanel
-                            selectedDate={selectedDate}
-                            dayClasses={dayClasses}
-                            overallMetrics={overallMetrics}
-                            progressList={progressList}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* TAB CONTENT 3: SUBJECTS (ANALYTICAL BREAKDOWN & STREAKS) */}
-            {(activeTab === 'subjects' || activeTab === 'subject-summary') && (
-                <div style={{ width: '100%' }}>
+    const renderActiveSection = () => {
+        switch (activeTab) {
+            case 'subjects':
+            case 'subject-summary':
+                return (
                     <SubjectSummaryTab
                         overallMetrics={overallMetrics}
                         progressList={progressList}
                         onEditSubjectHistory={handleEditSubjectHistory}
                         onUpdateTarget={handleUpdateAttendanceTarget}
                     />
-                </div>
-            )}
-
-            {/* TAB CONTENT 4: OVERVIEW (SEMESTER SUMMARY VIEW) */}
-            {(activeTab === 'overview' || activeTab === 'summary') && (
-                <div style={{ width: '100%' }}>
+                );
+            case 'overview':
+            case 'summary':
+                return (
                     <AttendanceSummaryView
                         progressList={progressList}
                         overallMetrics={overallMetrics}
                         onOpenBaselineModal={() => setIsBaselineModalOpen(true)}
                         readOnly={readOnly}
                     />
-                </div>
-            )}
+                );
+            case 'today':
+            case 'daily':
+            default:
+                return (
+                    <div className="attendance-daily-grid" style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                        gap: '20px',
+                        alignItems: 'start',
+                        width: '100%'
+                    }}>
+                        {/* LEFT COLUMN: Date Navigator (Equal Width 50%) */}
+                        <div style={{ minWidth: 0, width: '100%' }}>
+                            <CalendarDateNavigator
+                                selectedDate={selectedDate}
+                                onSelectDate={handleSelectDate}
+                                timetableConfig={timetableConfig}
+                                groupedTimeline={groupedTimeline}
+                                selectedDayClasses={dayClasses}
+                            />
+                        </div>
 
-            {/* Mid-Semester Baseline Setup Modal */}
-            <BaselineSetupModal
-                isOpen={isBaselineModalOpen}
-                onClose={() => setIsBaselineModalOpen(false)}
-                semester={selectedSemester}
-                registeredSubjects={registeredSubjectsList}
-                onBaselineSaved={() => {
-                    fetchSemesterData(selectedSemester);
-                    fetchDayAttendance(selectedDate, selectedSemester);
-                }}
-            />
+                        {/* RIGHT COLUMN: Selected Day Workspace (Equal Width 50%) */}
+                        <div style={{ minWidth: 0, width: '100%' }}>
+                            <DailyAttendanceWorkspace
+                                selectedDate={selectedDate}
+                                dayClasses={dayClasses}
+                                isLoading={isDayLoading}
+                                onMarkAttendance={handleMarkAttendance}
+                                onMarkAllPresent={handleMarkAllPresentToday}
+                                onResetDayAttendance={handleResetDayAttendance}
+                                unconfirmedPastCount={unconfirmedPastCount}
+                                onQuickMarkPast={handleQuickMarkPastAsPresent}
+                                readOnly={readOnly}
+                                overallMetrics={overallMetrics}
+                                progressList={progressList}
+                                onEditSubjectHistory={handleEditSubjectHistory}
+                                onOpenBaselineModal={() => setIsBaselineModalOpen(true)}
+                                onOpenSwapModal={handleOpenSwapModal}
+                            />
+                        </div>
+                    </div>
+                );
+        }
+    };
+
+    if (loading) {
+        return (
+            <div style={{
+                height: 'calc(100vh - 32px)',
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                color: '#a78bfa',
+                fontSize: '13px'
+            }}>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Loading attendance workspace...</span>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{
+            width: '100%',
+            minHeight: '100%',
+            boxSizing: 'border-box',
+            fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
+        }}>
+            {/* ══════════════════════════════════════════════════════════════
+                1. DESKTOP VIEW (≥ 1200px) — 2-Column Sidebar + Workspace
+            ══════════════════════════════════════════════════════════════ */}
+            <div className="attendance-desktop-container">
+                {/* ── Left Navigation Sidebar (Desktop ≥ 1200px) ─────────────────────────────── */}
+                <motion.div
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    style={{
+                        background: 'rgba(19, 18, 26, 0.45)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                        height: '100%',
+                        boxSizing: 'border-box',
+                        minWidth: 0
+                    }}
+                >
+                    {/* Back to Home link */}
+                    <Link
+                        to="/home"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            color: 'rgba(148, 163, 184, 0.65)',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            textDecoration: 'none',
+                            transition: 'color 0.15s',
+                            cursor: 'pointer',
+                            alignSelf: 'flex-start'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)'}
+                    >
+                        <ArrowLeft size={12} />
+                        <span>Back to Home</span>
+                    </Link>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
+                            Attendance Tracker
+                        </h2>
+                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.55)', fontWeight: 500 }}>
+                            Daily class logging & threshold tracking
+                        </span>
+                    </div>
+
+                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
+
+                    {/* Navigation list */}
+                    <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                        {NAV_TABS.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeTab === item.id;
+                            return (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => setActiveTab(item.path)}
+                                    style={{
+                                        padding: '9px 12px',
+                                        borderRadius: '8px',
+                                        color: isActive ? '#a78bfa' : 'rgba(148, 163, 184, 0.65)',
+                                        background: isActive
+                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
+                                            : 'transparent',
+                                        border: isActive
+                                            ? '1px solid rgba(139, 92, 246, 0.25)'
+                                            : '1px solid transparent',
+                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.08)' : 'none',
+                                        fontSize: '12.5px',
+                                        fontWeight: isActive ? 600 : 500,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        textDecoration: 'none',
+                                        transition: 'all 0.18s',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                        width: '100%'
+                                    }}
+                                    onMouseEnter={e => {
+                                        if (!isActive) {
+                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.85)';
+                                        }
+                                    }}
+                                    onMouseLeave={e => {
+                                        if (!isActive) {
+                                            e.currentTarget.style.background = 'transparent';
+                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)';
+                                        }
+                                    }}
+                                >
+                                    <Icon size={14} />
+                                    <span>{item.label}</span>
+                                </button>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Bottom Status tag */}
+                    <div style={{
+                        marginTop: 'auto',
+                        paddingTop: '12px',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '11px',
+                        color: 'rgba(148, 163, 184, 0.6)'
+                    }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#c4b5fd' }}>
+                            <CheckCircle2 size={11} color="#34d399" />
+                            {overallMetrics ? `${overallMetrics.overallPercentage ?? 0}% Overall` : 'Attendance active'}
+                        </span>
+                        <span style={{ fontSize: '10px', fontFamily: 'monospace' }}>Sem {selectedSemester}</span>
+                    </div>
+                </motion.div>
+
+                {/* ── Right Content Column (Desktop ≥ 1200px) ───────────────────────────────── */}
+                <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    style={{
+                        background: 'rgba(19, 18, 26, 0.45)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        minWidth: 0,
+                        height: '100%',
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                        boxSizing: 'border-box'
+                    }}
+                >
+                    {/* Compact Workspace Header Bar */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '16px',
+                        paddingBottom: '12px',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                            <span style={{ color: 'rgba(255, 255, 255, 0.85)', fontWeight: 600 }}>Attendance Tracker</span>
+                            <ChevronRight size={12} />
+                            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{activeTabObj.label}</span>
+                        </div>
+
+                        {/* Top Right Controls: Semester Switcher */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '5px 12px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(19, 18, 26, 0.7)',
+                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: '#e2e8f0',
+                                    cursor: 'pointer'
+                                }}>
+                                    <span style={{
+                                        width: '6px',
+                                        height: '6px',
+                                        borderRadius: '50%',
+                                        background: readOnly ? '#a78bfa' : '#34d399'
+                                    }} />
+                                    <span>Semester {selectedSemester}</span>
+                                    <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 400 }}>
+                                        {readOnly ? '· Finalized 🔒' : '· Active ●'}
+                                    </span>
+                                    <ChevronDown size={12} color="#a78bfa" />
+                                    <select
+                                        value={selectedSemester}
+                                        onChange={(e) => handleSemesterChange(Number(e.target.value))}
+                                        style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            opacity: 0,
+                                            cursor: 'pointer',
+                                            width: '100%',
+                                            height: '100%'
+                                        }}
+                                    >
+                                        {semestersList.map(s => (
+                                             <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                                Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ERROR BANNER */}
+                    {error && (
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            borderRadius: '10px',
+                            padding: '12px 16px',
+                            color: '#fca5a5',
+                            fontSize: '13px',
+                            marginBottom: '16px'
+                        }}>
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Section Content */}
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.15 }}
+                        >
+                            {renderActiveSection()}
+                        </motion.div>
+                    </AnimatePresence>
+                </motion.div>
+            </div>
+
+            {/* ══════════════════════════════════════════════════════════════
+                2. TABLET VIEW (768px – 1199px) — Compact Top Navigation
+            ══════════════════════════════════════════════════════════════ */}
+            <div className="attendance-tablet-container">
+                <div
+                    style={{
+                        background: 'rgba(19, 18, 26, 0.45)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '12px',
+                        padding: '16px 20px',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        boxSizing: 'border-box',
+                        width: '100%',
+                        minWidth: 0
+                    }}
+                >
+                    {/* Tablet Header: Title + Semester Switcher */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '12px',
+                        marginBottom: '14px',
+                        paddingBottom: '12px',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+                    }}>
+                        <div>
+                            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                                Attendance Tracker
+                            </h2>
+                            <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                                Daily class logging & threshold tracking
+                            </span>
+                        </div>
+
+                        {/* Semester Switcher */}
+                        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                borderRadius: '8px',
+                                background: 'rgba(19, 18, 26, 0.7)',
+                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: '#e2e8f0',
+                                cursor: 'pointer'
+                            }}>
+                                <span style={{
+                                    width: '6px',
+                                    height: '6px',
+                                    borderRadius: '50%',
+                                    background: readOnly ? '#a78bfa' : '#34d399'
+                                }} />
+                                <span>Semester {selectedSemester}</span>
+                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 400 }}>
+                                    {readOnly ? '· Finalized 🔒' : '· Active ●'}
+                                </span>
+                                <ChevronDown size={12} color="#a78bfa" />
+                                <select
+                                    value={selectedSemester}
+                                    onChange={(e) => handleSemesterChange(Number(e.target.value))}
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        opacity: 0,
+                                        cursor: 'pointer',
+                                        width: '100%',
+                                        height: '100%'
+                                    }}
+                                >
+                                    {semestersList.map(s => (
+                                        <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                            Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tablet Horizontal Tab Navigation */}
+                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                        {NAV_TABS.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.id;
+
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    onClick={() => setActiveTab(tab.path)}
+                                    style={{
+                                        padding: '7px 14px',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        cursor: 'pointer',
+                                        whiteSpace: 'nowrap',
+                                        background: isActive
+                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))'
+                                            : 'rgba(255, 255, 255, 0.03)',
+                                        border: isActive
+                                            ? '1px solid rgba(139, 92, 246, 0.4)'
+                                            : '1px solid rgba(255, 255, 255, 0.06)',
+                                        color: isActive ? '#c4b5fd' : 'rgba(148, 163, 184, 0.7)',
+                                        transition: 'all 0.15s'
+                                    }}
+                                >
+                                    <Icon size={13} />
+                                    <span>{tab.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Tablet Main Content */}
+                <div
+                    style={{
+                        background: 'rgba(19, 18, 26, 0.45)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '12px',
+                        padding: '18px',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        flex: 1,
+                        overflowY: 'auto',
+                        boxSizing: 'border-box',
+                        minWidth: 0
+                    }}
+                >
+                    {renderActiveSection()}
+                </div>
+            </div>
+
+            {/* ══════════════════════════════════════════════════════════════
+                3. MOBILE VIEW (< 768px) — Touch Optimized Single Column
+            ══════════════════════════════════════════════════════════════ */}
+            <div className="attendance-mobile-container">
+                {/* Mobile Header: Title + Semester Switcher */}
+                <div style={{
+                    background: 'rgba(19, 18, 26, 0.55)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    minWidth: 0
+                }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            Attendance Tracker
+                        </h2>
+                        <span style={{ fontSize: '10.5px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                            Daily class logging & threshold
+                        </span>
+                    </div>
+
+                    {/* Mobile Semester Switcher */}
+                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            background: 'rgba(19, 18, 26, 0.8)',
+                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#e2e8f0',
+                            cursor: 'pointer',
+                            minHeight: '34px'
+                        }}>
+                            <span style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                background: readOnly ? '#a78bfa' : '#34d399'
+                            }} />
+                            <span>Sem {selectedSemester}</span>
+                            <ChevronDown size={11} color="#a78bfa" />
+                            <select
+                                value={selectedSemester}
+                                onChange={(e) => handleSemesterChange(Number(e.target.value))}
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    opacity: 0,
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    height: '100%'
+                                }}
+                            >
+                                {semestersList.map(s => (
+                                    <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                        Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Mobile Horizontal Scrollable Tab Bar with Touch Targets (min 44px) */}
+                <div 
+                    className="attendance-mobile-tabs"
+                    style={{
+                        display: 'flex',
+                        width: '100%',
+                        overflowX: 'auto',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        WebkitOverflowScrolling: 'touch',
+                        gap: '8px',
+                        padding: '2px 4px 6px 2px',
+                        boxSizing: 'border-box'
+                    }}
+                >
+                    {NAV_TABS.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setActiveTab(tab.path)}
+                                style={{
+                                    flexShrink: 0,
+                                    padding: '8px 16px',
+                                    borderRadius: '10px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                    minHeight: '44px',
+                                    background: isActive
+                                        ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.28), rgba(99, 102, 241, 0.22))'
+                                        : 'rgba(19, 18, 26, 0.65)',
+                                    border: isActive
+                                        ? '1.5px solid rgba(139, 92, 246, 0.5)'
+                                        : '1px solid rgba(255, 255, 255, 0.08)',
+                                    color: isActive ? '#c4b5fd' : 'rgba(148, 163, 184, 0.75)',
+                                    boxShadow: isActive ? '0 2px 12px rgba(124, 58, 237, 0.18)' : 'none',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                <Icon size={14} />
+                                <span>{tab.label}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Mobile Main Content */}
+                <div
+                    style={{
+                        background: 'rgba(19, 18, 26, 0.45)',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        minWidth: 0
+                    }}
+                >
+                    {renderActiveSection()}
+                </div>
+            </div>
 
             {/* Subject Swap / Class Change Modal */}
             <SubjectSwapModal
@@ -797,9 +1308,61 @@ const AttendanceSettings = () => {
                 onSwapConfirmed={handleConfirmSubjectSwap}
             />
 
-            {/* CSS Media Queries for Mobile Responsiveness */}
+            {/* CSS Media Queries for Dynamic Deterministic Responsiveness */}
             <style>{`
-                @media (max-width: 1024px) {
+                .attendance-desktop-container {
+                    display: none !important;
+                }
+                .attendance-tablet-container {
+                    display: none !important;
+                }
+                .attendance-mobile-container {
+                    display: flex !important;
+                    flex-direction: column;
+                    gap: 10px;
+                    width: 100%;
+                    min-width: 0;
+                    box-sizing: border-box;
+                }
+
+                .attendance-mobile-tabs::-webkit-scrollbar {
+                    display: none !important;
+                }
+
+                @media (min-width: 768px) and (max-width: 1199px) {
+                    .attendance-desktop-container {
+                        display: none !important;
+                    }
+                    .attendance-tablet-container {
+                        display: flex !important;
+                        flex-direction: column;
+                        gap: 12px;
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box;
+                    }
+                    .attendance-mobile-container {
+                        display: none !important;
+                    }
+                }
+
+                @media (min-width: 1200px) {
+                    .attendance-desktop-container {
+                        display: grid !important;
+                        grid-template-columns: 260px minmax(0, 1fr);
+                        gap: 16px;
+                        width: 100%;
+                        height: calc(100vh - 32px);
+                    }
+                    .attendance-tablet-container {
+                        display: none !important;
+                    }
+                    .attendance-mobile-container {
+                        display: none !important;
+                    }
+                }
+
+                @media (max-width: 1199px) {
                     .attendance-daily-grid {
                         grid-template-columns: 1fr !important;
                     }

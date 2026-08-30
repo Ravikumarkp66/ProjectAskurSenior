@@ -99,7 +99,7 @@ mongoose
         useUnifiedTopology: true,
         serverSelectionTimeoutMS: 10000,
         socketTimeoutMS: 45000,
-        maxPoolSize: 10
+        maxPoolSize: parseInt(process.env.MONGODB_MAX_POOL_SIZE, 10) || 50
     })
     .then(async () => {
         console.log('MongoDB connected successfully');

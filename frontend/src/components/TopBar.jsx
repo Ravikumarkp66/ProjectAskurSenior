@@ -65,6 +65,7 @@ const ProfileDropdown = ({ user, onLogout, onProfile }) => {
     const [open, setOpen] = useState(false);
     const [imgError, setImgError] = useState(false);
     const ref = useRef(null);
+    const navigate = useNavigate();
 
     const profilePic = user?.profilePicture || user?.avatar || user?.picture || user?.photo || '';
 
@@ -164,8 +165,38 @@ const ProfileDropdown = ({ user, onLogout, onProfile }) => {
                         {/* Actions */}
                         <div style={{ padding: '6px' }}>
                             {[
-                                { label: 'View Profile', icon: '👤', action: () => { onProfile?.(); setOpen(false); } },
-                                { label: 'Sign Out', icon: '→', action: () => { onLogout?.(); setOpen(false); }, danger: true },
+                                {
+                                    label: 'View Profile',
+                                    icon: (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                            <circle cx="12" cy="7" r="4" />
+                                        </svg>
+                                    ),
+                                    action: () => { onProfile?.(); setOpen(false); }
+                                },
+                                {
+                                    label: 'Student Academics',
+                                    icon: (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                                            <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                                        </svg>
+                                    ),
+                                    action: () => { navigate('/student-academics'); setOpen(false); }
+                                },
+                                {
+                                    label: 'Sign Out',
+                                    icon: (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                                            <polyline points="16 17 21 12 16 7" />
+                                            <line x1="21" y1="12" x2="9" y2="12" />
+                                        </svg>
+                                    ),
+                                    action: () => { onLogout?.(); setOpen(false); },
+                                    danger: true
+                                },
                             ].map(item => (
                                 <button
                                     key={item.label}
@@ -197,7 +228,7 @@ const ProfileDropdown = ({ user, onLogout, onProfile }) => {
                                         e.currentTarget.style.color = item.danger ? 'rgba(239,68,68,0.8)' : 'rgba(148,163,184,0.85)';
                                     }}
                                 >
-                                    <span style={{ fontSize: 14 }}>{item.icon}</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', color: item.danger ? undefined : '#a78bfa' }}>{item.icon}</span>
                                     {item.label}
                                 </button>
                             ))}

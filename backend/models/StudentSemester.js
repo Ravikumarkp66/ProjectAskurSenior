@@ -9,17 +9,26 @@ const studentSemesterSchema = new mongoose.Schema({
     semester: {
         type: Number,
         required: true,
-        min: 1
+        min: 1,
+        max: 8
     },
     academicYear: {
         type: String,
         trim: true
     },
+    startDate: {
+        type: Date,
+        default: null
+    },
+    endDate: {
+        type: Date,
+        default: null
+    },
     sgpa: {
         type: Number,
-        required: true,
         min: 0,
-        max: 10
+        max: 10,
+        default: null
     },
     credits: {
         type: Number,
@@ -38,4 +47,4 @@ const studentSemesterSchema = new mongoose.Schema({
 // Compound unique index on student + semester
 studentSemesterSchema.index({ student: 1, semester: 1 }, { unique: true });
 
-module.exports = mongoose.model('StudentSemester', studentSemesterSchema);
+module.exports = mongoose.models.StudentSemester || mongoose.model('StudentSemester', studentSemesterSchema);

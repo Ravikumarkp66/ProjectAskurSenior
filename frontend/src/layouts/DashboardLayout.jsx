@@ -49,10 +49,11 @@ const DashboardLayout = () => {
     const currentYearStr = yearMatch ? yearMatch[1] : null;
     const isSubjectRoute = !!currentYearStr;
     const isSubjectRegistrationRoute = location.pathname.includes('subject-registration') || location.pathname.includes('academic-setup');
+    const isStudentAcademicsRoute = location.pathname.startsWith('/student-academics') || location.pathname.includes('academic-register');
     const isMainDashboardRoute = location.pathname === '/home' || location.pathname === '/plus' || location.pathname === '/home/' || location.pathname === '/plus/';
     const isHomeOrPlusRoute = location.pathname.startsWith('/home') || location.pathname.startsWith('/plus');
     const isAttendanceRoute = location.pathname.includes('attendance') || location.pathname.includes('timetable') || location.pathname.includes('cie') || location.pathname.includes('sgpa');
-    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isSubjectRegistrationRoute && !isAttendanceRoute;
+    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute;
     
     // Active navigation states
     const isHomeActive = location.pathname === '/plus' || location.pathname === '/home';

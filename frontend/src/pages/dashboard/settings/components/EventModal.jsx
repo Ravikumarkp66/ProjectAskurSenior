@@ -84,11 +84,11 @@ const EventModal = ({ isOpen, onClose, onSave, event = null, initialDate = null 
 
     const handleEventTypeChange = (type) => {
         setEventType(type);
-        if (type === 'Government Holiday') {
+        if (type === 'Government Holiday' || type === 'Vacation' || type === 'Semester End') {
             setClassesSuspended(true);
             setSuspensionType('full_day');
-            setScope('college');
-        } else if (type === 'Exam') {
+            setScope(type === 'Government Holiday' ? 'college' : 'personal');
+        } else if (type === 'Exam' || type === 'CIE / Test') {
             setClassesSuspended(true);
             setSuspensionType('full_day');
             setScope('personal');
@@ -138,7 +138,11 @@ const EventModal = ({ isOpen, onClose, onSave, event = null, initialDate = null 
     if (!isOpen) return null;
 
     const eventColors = {
+        'CIE / Test': { text: '#f97316', bg: 'rgba(249, 115, 22, 0.1)', border: 'rgba(249, 115, 22, 0.2)' },
+        'Quiz': { text: '#a855f7', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.2)' },
         'Exam': { text: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)', border: 'rgba(239, 68, 68, 0.2)' },
+        'Vacation': { text: '#14b8a6', bg: 'rgba(20, 184, 166, 0.1)', border: 'rgba(20, 184, 166, 0.2)' },
+        'Semester End': { text: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)', border: 'rgba(244, 63, 94, 0.2)' },
         'Government Holiday': { text: '#eab308', bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.2)' },
         'College Fest': { text: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.2)' },
         'Custom': { text: '#22c55e', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.2)' }
@@ -217,9 +221,13 @@ const EventModal = ({ isOpen, onClose, onSave, event = null, initialDate = null 
                                 outline: 'none'
                             }}
                         >
-                            <option value="Exam">Examination / CIE / SEE</option>
+                            <option value="CIE / Test">CIE / Internal Assessment / Unit Test</option>
+                            <option value="Quiz">Quiz / Lab Internal Test</option>
+                            <option value="Exam">Semester End Exam (SEE / VTU)</option>
+                            <option value="Vacation">Vacation / Semester Break (From–To)</option>
+                            <option value="Semester End">Semester End Date</option>
                             <option value="Government Holiday">Government Holiday</option>
-                            <option value="College Fest">College Fest / Workshop / Farewell</option>
+                            <option value="College Fest">College Fest / Workshop / Event</option>
                             <option value="Custom">Custom Event</option>
                         </select>
                     </div>

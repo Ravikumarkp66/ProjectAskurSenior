@@ -569,6 +569,8 @@ class AuthV2Controller {
                     sgpa: sgpaVal,
                     credits: creditsVal,
                     academicYear: item.academicYear || '',
+                    startDate: item.startDate || null,
+                    endDate: item.endDate || null,
                     status: item.status || (semNum === currentSemester ? 'current' : 'completed')
                 });
             }
@@ -576,13 +578,8 @@ class AuthV2Controller {
             // Sort parsed records to check for skips/continuity
             parsedRecords.sort((a, b) => a.semester - b.semester);
 
-            // Validate no skipping semesters:
-            // e.g., if semester 3 is provided, semesters 1 and 2 must also be provided (or already exist and not cleared)
-            // To make this validation robust:
-            // Let's check the absolute sequence of active semesters after applying updates
+            // Verify continuity among recorded SGPAs without requiring start at Sem 1
             const activeSemestersMap = new Map();
-            
-            // First read what is currently in DB
             const existingInDb = await StudentSemester.find({ student: studentId });
             for (const rec of existingInDb) {
                 if (rec.sgpa !== null && rec.sgpa !== undefined) {
@@ -590,24 +587,23 @@ class AuthV2Controller {
                 }
             }
 
-            // Merge proposed updates
             for (const item of parsedRecords) {
                 if (item.sgpa === null || item.sgpa === undefined) {
-                    activeSemestersMap.delete(item.semester);
+                    // Only track if record has explicit sgpa
                 } else {
                     activeSemestersMap.set(item.semester, item.sgpa);
                 }
             }
 
-            // Verify continuity: if max semester present is M, semesters 1 to M must be present
             const activeSems = Array.from(activeSemestersMap.keys()).sort((a, b) => a - b);
-            if (activeSems.length > 0) {
+            if (activeSems.length > 1) {
+                const minSem = activeSems[0];
                 const maxSem = activeSems[activeSems.length - 1];
-                for (let i = 1; i <= maxSem; i++) {
+                for (let i = minSem; i <= maxSem; i++) {
                     if (!activeSemestersMap.has(i)) {
                         return res.status(400).json({
                             success: false,
-                            message: `Semesters must be continuous starting from Semester 1. Please fill Semester ${i} before adding higher semesters.`,
+                            message: `Semesters must be continuous between Semester ${minSem} and ${maxSem}. Please fill Semester ${i} before adding higher semesters.`,
                             data: null,
                             errors: null
                         });
@@ -617,22 +613,26 @@ class AuthV2Controller {
 
             // 2. Perform updates/deletes in database
             for (const item of parsedRecords) {
-                if (item.sgpa === null || item.sgpa === undefined) {
-                    // delete if cleared
-                    await StudentSemester.deleteOne({ student: studentId, semester: item.semester });
-                } else {
-                    // upsert
-                    await StudentSemester.findOneAndUpdate(
-                        { student: studentId, semester: item.semester },
-                        {
-                            sgpa: item.sgpa,
-                            credits: item.credits,
-                            academicYear: item.academicYear,
-                            status: item.status
-                        },
-                        { upsert: true, new: true }
-                    );
+                const updateData = {
+                    credits: item.credits,
+                    academicYear: item.academicYear,
+                    status: item.status
+                };
+                if (item.sgpa !== undefined) {
+                    updateData.sgpa = item.sgpa;
                 }
+                if (item.startDate !== undefined) {
+                    updateData.startDate = item.startDate;
+                }
+                if (item.endDate !== undefined) {
+                    updateData.endDate = item.endDate;
+                }
+
+                await StudentSemester.findOneAndUpdate(
+                    { student: studentId, semester: item.semester },
+                    updateData,
+                    { upsert: true, new: true }
+                );
             }
 
             // 3. Recalculate CGPA (Credit-weighted average of all recorded SGPAs)
@@ -680,7 +680,7 @@ class AuthV2Controller {
     async getTimetableConfig(req, res) {
         try {
             const studentId = req.student._id;
-            const semester = req.student.semester || 1;
+            const semester = Number(req.query.semester) || req.student.semester || 1;
             let config = await StudentTimetableConfiguration.findOne({ 
                 student: studentId, 
                 $or: [ { semester }, { semester: { $exists: false } } ] 
@@ -698,6 +698,9 @@ class AuthV2Controller {
                     collegeStartMinute: 480, // 08:00 AM
                     collegeEndMinute: 1020, // 05:00 PM
                     classDuration: 50,
+                    labDuration: 100,
+                    attendanceThreshold: 85,
+                    personalAttendanceTarget: 85,
                     workingDays: new Map([
                         ['1', 'Full Day'],
                         ['2', 'Full Day'],
@@ -719,6 +722,9 @@ class AuthV2Controller {
 
             const configObj = config.toObject ? config.toObject({ flattenMaps: true }) : config;
             configObj.hasBackup = !!hasBackup;
+            if (configObj.labDuration === undefined) {
+                configObj.labDuration = 100;
+            }
 
             return res.status(200).json({
                 success: true,
@@ -739,13 +745,14 @@ class AuthV2Controller {
     async saveTimetableConfig(req, res) {
         try {
             const studentId = req.student._id;
-            const semester = req.student.semester || 1;
+            const semester = Number(req.body.semester) || req.student.semester || 1;
             const { 
                 semesterStartDate, 
                 lastWorkingDate, 
                 collegeStartMinute, 
                 collegeEndMinute, 
                 classDuration, 
+                labDuration,
                 workingDays, 
                 breaks,
                 migrateSubjects 
@@ -764,6 +771,9 @@ class AuthV2Controller {
             if (collegeStartMinute !== undefined) config.collegeStartMinute = collegeStartMinute;
             if (collegeEndMinute !== undefined) config.collegeEndMinute = collegeEndMinute;
             if (classDuration !== undefined) config.classDuration = classDuration;
+            if (labDuration !== undefined) config.labDuration = labDuration;
+            if (req.body.personalAttendanceTarget !== undefined) config.personalAttendanceTarget = req.body.personalAttendanceTarget;
+            if (req.body.attendanceThreshold !== undefined) config.attendanceThreshold = req.body.attendanceThreshold;
             if (workingDays !== undefined) {
                 config.workingDays = new Map(Object.entries(workingDays));
             }
@@ -823,11 +833,13 @@ class AuthV2Controller {
             // Re-calculate attendance metrics dynamically
             await controllerInstance.recalculateAllStudentAttendance(studentId);
 
+            const configObj = config.toObject ? config.toObject({ flattenMaps: true }) : config;
+
             return res.status(200).json({
                 success: true,
                 message: 'Timetable configuration saved and slots generated successfully',
                 data: {
-                    config,
+                    config: configObj,
                     slots: savedSlots
                 },
                 errors: null
@@ -845,17 +857,29 @@ class AuthV2Controller {
     async generatePreview(req, res) {
         try {
             const studentId = req.student._id;
-            const { collegeStartMinute, collegeEndMinute, classDuration, workingDays, breaks } = req.body;
-            
-            const dummyConfig = {
+            const { 
+                semesterStartDate, 
+                lastWorkingDate, 
+                collegeStartMinute, 
+                collegeEndMinute, 
+                classDuration, 
+                labDuration,
+                workingDays, 
+                breaks 
+            } = req.body;
+
+            const tempConfig = {
+                semesterStartDate: new Date(semesterStartDate),
+                lastWorkingDate: new Date(lastWorkingDate),
                 collegeStartMinute,
                 collegeEndMinute,
                 classDuration,
+                labDuration: labDuration || 100,
                 workingDays: new Map(Object.entries(workingDays || {})),
                 breaks: breaks || []
             };
 
-            const slots = timetableGeneratorService.generateSlots(studentId, dummyConfig);
+            const slots = timetableGeneratorService.generateSlots(studentId, tempConfig);
             return res.status(200).json({
                 success: true,
                 message: 'Preview generated successfully',
@@ -875,7 +899,7 @@ class AuthV2Controller {
     async getTimetableSlots(req, res) {
         try {
             const studentId = req.student._id;
-            const semester = req.student.semester || 1;
+            const semester = Number(req.query.semester) || req.student.semester || 1;
             const slots = await StudentTimetable.find({ 
                 student: studentId, 
                 $or: [ { semester }, { semester: { $exists: false } } ] 
@@ -1069,6 +1093,14 @@ class AuthV2Controller {
             // 1. Resolve & validate subject IDs against AcademicSubjectCms
             for (const item of rawSubjects) {
                 const targetId = typeof item === 'string' ? item : (item.subjectId || item._id);
+                const category = item.category || 'Theory';
+                const defaultTheory = category === 'Lab Only' ? 0 : 4;
+                const defaultLab = (category === 'Theory + Lab' || category === 'Lab Only') ? 1 : 0;
+                const weeklyPlan = {
+                    theory: { required: item.weeklyPlan?.theory?.required !== undefined ? Number(item.weeklyPlan.theory.required) : defaultTheory },
+                    lab: { required: item.weeklyPlan?.lab?.required !== undefined ? Number(item.weeklyPlan.lab.required) : defaultLab }
+                };
+
                 if (targetId) {
                     const dbSubject = await AcademicSubjectCms.findById(targetId);
                     if (dbSubject) {
@@ -1076,7 +1108,8 @@ class AuthV2Controller {
                         parsedSubjectPayloads.push({
                             subjectId: dbSubject._id,
                             credits: dbSubject.credits || 0, // Server-side authoritative credit resolution!
-                            category: dbSubject.category || (dbSubject.name?.toLowerCase().includes('lab') ? 'Lab Only' : 'Theory'),
+                            category: item.category || dbSubject.category || (dbSubject.name?.toLowerCase().includes('lab') ? 'Lab Only' : 'Theory'),
+                            weeklyPlan,
                             registrationType: 'REGULAR'
                         });
                     }
@@ -1099,6 +1132,7 @@ class AuthV2Controller {
                         subjectId: newCurricSubj._id,
                         credits: newCurricSubj.credits,
                         category: item.category || 'Theory',
+                        weeklyPlan,
                         customName: item.customName,
                         customCode: dummyCode,
                         registrationType: 'REGULAR'
@@ -1138,14 +1172,14 @@ class AuthV2Controller {
                 await StudentRegisteredSubject.deleteMany({ _id: { $in: toRemoveIds } });
             }
 
-            // 3. Upsert registered subjects with server-validated credits
+            // 3. Upsert registered subjects with server-validated credits and weeklyPlan
             for (const item of parsedSubjectPayloads) {
                 await StudentRegisteredSubject.findOneAndUpdate(
                     { student: studentId, subject: item.subjectId },
                     {
                         registeredCredits: item.credits ?? 0,
                         category: item.category || 'Theory',
-                        weeklyPlan: {
+                        weeklyPlan: item.weeklyPlan || {
                             theory: { required: 4 },
                             lab: { required: 0 }
                         },
@@ -1915,7 +1949,13 @@ class AuthV2Controller {
             const studentId = req.student._id;
             const semester = req.query.semester ? Number(req.query.semester) : (req.student.semester || 1);
             
-            let todayStr = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const nowYear = now.getFullYear();
+            const nowMonth = String(now.getMonth() + 1).padStart(2, '0');
+            const nowDay = String(now.getDate()).padStart(2, '0');
+            const nowStr = `${nowYear}-${nowMonth}-${nowDay}`;
+
+            let todayStr = nowStr;
             if (req.query.date) {
                 todayStr = req.query.date;
             }
@@ -1923,38 +1963,69 @@ class AuthV2Controller {
             const dateObj = new Date(todayStr + 'T12:00:00');
             const jsDay = dateObj.getDay();
             const dayOfWeek = jsDay === 0 ? 7 : jsDay;
-
-            const now = new Date();
-            const nowYear = now.getFullYear();
-            const nowMonth = String(now.getMonth() + 1).padStart(2, '0');
-            const nowDay = String(now.getDate()).padStart(2, '0');
-            const nowStr = `${nowYear}-${nowMonth}-${nowDay}`;
             const currentMinute = now.getHours() * 60 + now.getMinutes();
 
-            // Fetch timetable slots for today
-            const StudentTimetable = require('../../../models/StudentTimetable');
-            const slots = await StudentTimetable.find({
-                student: studentId,
-                $or: [ { semester }, { semester: { $exists: false } } ],
-                dayOfWeek
-            }).populate('subject');
-
-            // Fetch existing attendance occurrences for today
+            // Parallelize fetching configuration, today occurrences, and weekday timetable slots
+            const StudentTimetableConfiguration = require('../../../models/StudentTimetableConfiguration');
             const ClassOccurrence = require('../../../models/ClassOccurrence');
+            const StudentTimetable = require('../../../models/StudentTimetable');
             const StudentAttendanceEntry = require('../../../models/StudentAttendanceEntry');
-            let entries = await ClassOccurrence.find({
-                student: studentId,
-                semester,
-                date: todayStr
-            }).populate('actualSubject scheduledSubject');
 
+            const [config, rawOccurrences, rawSlots] = await Promise.all([
+                StudentTimetableConfiguration.findOne({
+                    student: studentId,
+                    $or: [ { semester }, { semester: { $exists: false } } ]
+                }).sort({ updatedAt: -1 }).lean(),
+                ClassOccurrence.find({
+                    student: studentId,
+                    semester,
+                    date: todayStr
+                }).populate('actualSubject scheduledSubject').lean(),
+                StudentTimetable.find({
+                    student: studentId,
+                    $or: [ { semester }, { semester: { $exists: false } } ],
+                    dayOfWeek
+                }).populate('subject').lean()
+            ]);
+
+            let entries = rawOccurrences || [];
             if (!entries || entries.length === 0) {
                 entries = await StudentAttendanceEntry.find({
                     student: studentId,
                     semester,
                     date: todayStr
-                }).populate('subject scheduledSubject');
+                }).populate('subject scheduledSubject').lean();
             }
+
+            let semStartStr = null;
+            let semEndStr = null;
+            if (config?.semesterStartDate) {
+                const s = new Date(config.semesterStartDate);
+                semStartStr = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
+            }
+            if (config?.lastWorkingDate) {
+                const e = new Date(config.lastWorkingDate);
+                semEndStr = `${e.getFullYear()}-${String(e.getMonth() + 1).padStart(2, '0')}-${String(e.getDate()).padStart(2, '0')}`;
+            }
+
+            const isBeforeStart = semStartStr && todayStr < semStartStr;
+            const isAfterEnd = semEndStr && todayStr > semEndStr;
+
+            // If date is outside semester bounds and no manual entries exist, return empty classes list
+            if ((isBeforeStart || isAfterEnd) && (!entries || entries.length === 0)) {
+                return res.status(200).json({
+                    success: true,
+                    message: isBeforeStart 
+                        ? `Semester starts on ${semStartStr}. No classes scheduled before semester start.`
+                        : `Semester ended on ${semEndStr}. No classes scheduled after semester end.`,
+                    data: [],
+                    isOutsideSemester: true,
+                    semesterStartDate: semStartStr,
+                    lastWorkingDate: semEndStr
+                });
+            }
+
+            const slots = (!isBeforeStart && !isAfterEnd) ? (rawSlots || []) : [];
 
             // Map slots to entries strictly by scheduledSubject and timeSlot
             const entryMap = new Map();
@@ -3541,6 +3612,10 @@ class AuthV2Controller {
 
             let color = 'Green';
             if (eventType === 'Exam') color = 'Red';
+            else if (eventType === 'CIE / Test') color = 'Orange';
+            else if (eventType === 'Quiz') color = 'Purple';
+            else if (eventType === 'Vacation') color = 'Teal';
+            else if (eventType === 'Semester End') color = 'Rose';
             else if (eventType === 'Government Holiday') color = 'Yellow';
             else if (eventType === 'College Fest') color = 'Blue';
 
@@ -3594,6 +3669,10 @@ class AuthV2Controller {
 
             let color = 'Green';
             if (eventType === 'Exam') color = 'Red';
+            else if (eventType === 'CIE / Test') color = 'Orange';
+            else if (eventType === 'Quiz') color = 'Purple';
+            else if (eventType === 'Vacation') color = 'Teal';
+            else if (eventType === 'Semester End') color = 'Rose';
             else if (eventType === 'Government Holiday') color = 'Yellow';
             else if (eventType === 'College Fest') color = 'Blue';
 

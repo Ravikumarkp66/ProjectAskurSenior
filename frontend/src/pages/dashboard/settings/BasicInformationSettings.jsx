@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 
 import ProfilePhotoCard from './components/ProfilePhotoCard';
 import PersonalInformationCard from './components/PersonalInformationCard';
+import AcademicInformationCard from './components/AcademicInformationCard';
 import SocialLinksCard from './components/SocialLinksCard';
 import { useEditProfile } from '../../../contexts/EditProfileContext';
 
@@ -46,12 +47,12 @@ const BasicInformationSettings = () => {
                 email: user.email || '',
                 phone: user.phone || '',
                 bio: user.bio || '',
-                branch: user.branch?.id || user.branch?._id || '',
-                scheme: user.scheme?.id || user.scheme?._id || '',
+                branch: user.branch?.id || user.branch?._id || (typeof user.branch === 'string' ? user.branch : ''),
+                scheme: user.scheme?.id || user.scheme?._id || (typeof user.scheme === 'string' ? user.scheme : ''),
                 semester: user.semester || 1,
-                graduationYear: user.graduationYear || '',
-                admissionYear: user.admissionYear || '',
-                college: user.college || '',
+                graduationYear: user.graduationYear || 2027,
+                admissionYear: user.admissionYear || 2023,
+                college: user.college || user.collegeName || 'Siddaganga Institute of Technology',
                 socialLinks: {
                     github: user.socialLinks?.github || '',
                     linkedin: user.socialLinks?.linkedin || '',
@@ -64,13 +65,21 @@ const BasicInformationSettings = () => {
         }
     }, [user]);
 
-    // Check if changes have been made (personal + social only)
+    // Check if changes have been made
     const isChanged = useMemo(() => {
         if (!user) return false;
+        const branchId = user.branch?.id || user.branch?._id || user.branch || '';
+        const schemeId = user.scheme?.id || user.scheme?._id || user.scheme || '';
+
         return (
             formData.name.trim() !== (user.name || '').trim() ||
             formData.username.trim() !== (user.username || '').trim() ||
             formData.phone.trim() !== (user.phone || '').trim() ||
+            formData.usn.trim().toUpperCase() !== (user.usn || '').trim().toUpperCase() ||
+            String(formData.branch) !== String(branchId) ||
+            String(formData.scheme) !== String(schemeId) ||
+            Number(formData.semester) !== Number(user.semester || 1) ||
+            Number(formData.graduationYear) !== Number(user.graduationYear || 0) ||
             formData.socialLinks.github.trim() !== (user.socialLinks?.github || '').trim() ||
             formData.socialLinks.linkedin.trim() !== (user.socialLinks?.linkedin || '').trim() ||
             formData.socialLinks.portfolio.trim() !== (user.socialLinks?.portfolio || '').trim() ||
@@ -155,7 +164,7 @@ const BasicInformationSettings = () => {
                     Basic Information
                 </h2>
                 <span style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.55)' }}>
-                    Manage your personal profile identity
+                    Manage your personal and academic profile identity
                 </span>
             </div>
 
@@ -167,6 +176,12 @@ const BasicInformationSettings = () => {
                 formData={formData}
                 onChange={handleTextChange}
                 isGoogleUser={isGoogleUser}
+            />
+
+            {/* Academic Information Card */}
+            <AcademicInformationCard
+                formData={formData}
+                onChange={handleTextChange}
             />
 
             {/* Social Links Card */}

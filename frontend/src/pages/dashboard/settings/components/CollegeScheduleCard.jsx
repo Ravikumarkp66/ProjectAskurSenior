@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
 
-const CollegeScheduleCard = ({ startMinute, endMinute, classDuration, onChange }) => {
+const CollegeScheduleCard = ({ startMinute, endMinute, classDuration, labDuration = 100, onChange }) => {
     
     // Convert minutes from midnight (480) to HH:MM time string ("08:00")
     const minutesToTimeString = (mins) => {
@@ -31,12 +31,12 @@ const CollegeScheduleCard = ({ startMinute, endMinute, classDuration, onChange }
         }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Clock size={16} style={{ color: '#a78bfa' }} />
-                College Schedule
+                College Schedule & Durations
             </h3>
 
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
                 gap: '16px'
             }} className="schedule-grid">
                 
@@ -86,10 +86,10 @@ const CollegeScheduleCard = ({ startMinute, endMinute, classDuration, onChange }
                     />
                 </div>
 
-                {/* Class Duration */}
+                {/* Normal Class Duration */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.7)', fontWeight: 500 }}>
-                        Class Duration (Minutes)
+                        Normal Class Duration
                     </label>
                     <select
                         value={classDuration}
@@ -107,10 +107,44 @@ const CollegeScheduleCard = ({ startMinute, endMinute, classDuration, onChange }
                             cursor: 'pointer'
                         }}
                     >
+                        <option value="40">40 Minutes</option>
                         <option value="45">45 Minutes</option>
                         <option value="50">50 Minutes</option>
                         <option value="55">55 Minutes</option>
                         <option value="60">60 Minutes</option>
+                        <option value="75">75 Minutes</option>
+                    </select>
+                </div>
+
+                {/* Lab Duration */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.7)', fontWeight: 500 }}>
+                        Lab Duration
+                    </label>
+                    <select
+                        value={labDuration}
+                        onChange={(e) => onChange('labDuration', parseInt(e.target.value, 10))}
+                        style={{
+                            padding: '8px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            background: '#13111A',
+                            color: '#c4b5fd',
+                            fontSize: '13px',
+                            outline: 'none',
+                            width: '100%',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            fontWeight: 600
+                        }}
+                    >
+                        <option value="80">80 Minutes</option>
+                        <option value="90">90 Minutes</option>
+                        <option value="100">100 Minutes (2 Periods)</option>
+                        <option value="110">110 Minutes</option>
+                        <option value="120">120 Minutes (2 Hours)</option>
+                        <option value="150">150 Minutes</option>
+                        <option value="180">180 Minutes (3 Hours)</option>
                     </select>
                 </div>
 

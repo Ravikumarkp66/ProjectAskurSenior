@@ -323,6 +323,48 @@ const MobileMenu = ({ isOpen, onClose, items = [], user, isDark, onLogout }) => 
                                         My Profile
                                     </button>
 
+                                    {/* Student Academics row */}
+                                    <button
+                                        onClick={() => { navigate('/student-academics'); onClose(); }}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 16px',
+                                            borderRadius: 12,
+                                            border: 'none',
+                                            background: 'transparent',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 10,
+                                            fontSize: 14,
+                                            fontWeight: 500,
+                                            fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+                                            color: isDark ? 'rgba(148,163,184,0.8)' : 'rgba(71,85,105,0.85)',
+                                            textAlign: 'left',
+                                            outline: 'none',
+                                            marginBottom: 2,
+                                        }}
+                                    >
+                                        <span style={{
+                                            width: 26,
+                                            height: 26,
+                                            borderRadius: '50%',
+                                            background: isDark ? 'rgba(139,92,246,0.15)' : 'rgba(124,58,237,0.08)',
+                                            border: '1.5px solid rgba(139,92,246,0.3)',
+                                            color: isDark ? '#c4b5fd' : '#7c3aed',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0,
+                                        }}>
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                                                <path d="M6 12v5c3 3 9 3 12 0v-5" />
+                                            </svg>
+                                        </span>
+                                        Student Academics
+                                    </button>
+
                                     {/* Logout */}
                                     <button
                                         onClick={() => { onLogout?.(); onClose(); }}

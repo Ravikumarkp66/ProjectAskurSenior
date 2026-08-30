@@ -58,9 +58,20 @@ const studentTimetableConfigurationSchema = new mongoose.Schema({
         min: 10,
         default: 50
     },
+    labDuration: {
+        type: Number,
+        default: 100,
+        min: 10
+    },
     attendanceThreshold: {
         type: Number,
-        default: 75,
+        default: 85,
+        min: 1,
+        max: 100
+    },
+    personalAttendanceTarget: {
+        type: Number,
+        default: 85,
         min: 1,
         max: 100
     },

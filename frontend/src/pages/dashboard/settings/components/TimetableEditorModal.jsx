@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, BookOpen, MapPin, User, Info, Trash2, FlaskConical } from 'lucide-react';
 
 const TimetableEditorModal = ({ 
@@ -118,13 +119,14 @@ const TimetableEditorModal = ({
         onClose();
     };
 
-    return (
+    const modalContent = (
         <div style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 10000,
-            background: 'rgba(0, 0, 0, 0.65)',
+            zIndex: 99999,
+            background: 'rgba(0, 0, 0, 0.75)',
             backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -400,6 +402,8 @@ const TimetableEditorModal = ({
             `}} />
         </div>
     );
+
+    return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
 
 export default TimetableEditorModal;

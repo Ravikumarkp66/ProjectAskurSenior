@@ -24,13 +24,21 @@ const DailyAttendanceWorkspace = ({
     // Local state for editing previously marked cards
     const [editingSlotId, setEditingSlotId] = useState(null);
 
+    const getLocalDateString = (d = new Date()) => {
+        const date = new Date(d);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const formatDateHeading = (dateStr) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
+        const d = new Date(dateStr + 'T12:00:00');
         return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     };
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString(new Date());
     const isPastDate = selectedDate < todayStr;
     const isTodayDate = selectedDate === todayStr;
     const isFutureDate = selectedDate > todayStr;
@@ -275,34 +283,6 @@ const DailyAttendanceWorkspace = ({
                             Reset Day
                         </button>
                     )}
-
-                    {/* Mid-semester baseline setup shortcut button */}
-                    {onOpenBaselineModal && !readOnly && (
-                        <button
-                            type="button"
-                            onClick={onOpenBaselineModal}
-                            title="Configure aggregate attendance prior to using AskUrSenior"
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                color: '#94a3b8',
-                                borderRadius: '8px',
-                                padding: '6px 12px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-                        >
-                            <Sliders size={12} />
-                            Edit Baseline
-                        </button>
-                    )}
                 </div>
             </div>
 
@@ -355,50 +335,56 @@ const DailyAttendanceWorkspace = ({
                                             ? '1px solid rgba(245, 158, 11, 0.25)'
                                             : '1px solid rgba(255, 255, 255, 0.07)'),
                                     borderRadius: '14px',
-                                    padding: '16px 20px',
+                                    padding: '14px 18px',
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
-                                    gap: '16px',
+                                    gap: '14px',
                                     flexWrap: 'wrap',
                                     boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.2s',
+                                    width: '100%',
+                                    boxSizing: 'border-box'
                                 }}
                             >
                                 {/* Time & Main Content */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: '240px' }}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flex: 1, minWidth: '220px', flexWrap: 'wrap' }}>
                                     {/* Prominent Time Display */}
                                     <div style={{
-                                        minWidth: '100px',
+                                        minWidth: '110px',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        alignItems: 'flex-start'
+                                        alignItems: 'flex-start',
+                                        background: 'rgba(124, 58, 237, 0.08)',
+                                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                                        borderRadius: '8px',
+                                        padding: '4px 8px'
                                     }}>
                                         <div style={{
-                                            fontSize: '15px',
+                                            fontSize: '13.5px',
                                             fontWeight: 700,
-                                            color: '#f8fafc',
+                                            color: '#e2e8f0',
                                             letterSpacing: '-0.01em',
                                             display: 'flex',
                                             alignItems: 'center',
-                                            gap: '6px'
+                                            gap: '5px'
                                         }}>
                                             <Clock size={13} style={{ color: '#a78bfa' }} />
                                             {item.timeSlot}
                                         </div>
                                         {item.room && (
-                                            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                                                {item.room}
+                                            <div style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '1px' }}>
+                                                Room {item.room}
                                             </div>
                                         )}
                                     </div>
 
                                     {/* Subject Title & Details */}
-                                    <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.08)', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <div style={{ fontSize: '16px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '180px' }}>
+                                        <div style={{ fontSize: '15.5px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>
                                             {item.subjectName}
                                         </div>
-                                        <div style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        <div style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                                             {item.subjectCode && (
                                                 <span style={{ fontWeight: 600, color: '#cbd5e1' }}>{item.subjectCode}</span>
                                             )}
@@ -458,7 +444,7 @@ const DailyAttendanceWorkspace = ({
                                 </div>
 
                                 {/* Attendance Actions / Status Display */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
                                     {isNonMarkableFuture ? (
                                         <div style={{
                                             background: 'rgba(56, 189, 248, 0.06)',
@@ -478,7 +464,7 @@ const DailyAttendanceWorkspace = ({
                                             </span>
                                         </div>
                                     ) : isMarked && !isEditingThis ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                             {(() => {
                                                 const sNorm = normStatus(item.status);
                                                 const isPres = isPresentStatus(sNorm);

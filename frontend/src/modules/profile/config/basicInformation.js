@@ -1,4 +1,4 @@
-import { GraduationCap, BookOpen, Building2, Calendar, User } from 'lucide-react';
+import { GraduationCap, BookOpen, Building2, Calendar, User, Layers } from 'lucide-react';
 
 export const basicInformationConfig = [
   {
@@ -12,14 +12,19 @@ export const basicInformationConfig = [
     icon: GraduationCap,
   },
   {
+    key: "branch",
+    label: "Branch",
+    icon: Building2,
+  },
+  {
     key: "scheme",
     label: "Scheme",
     icon: BookOpen,
   },
   {
-    key: "branch",
-    label: "Branch",
-    icon: Building2,
+    key: "yearOfStudy",
+    label: "Year & Semester",
+    icon: Layers,
   },
   {
     key: "graduationYear",

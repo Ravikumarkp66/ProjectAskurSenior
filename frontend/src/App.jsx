@@ -54,6 +54,7 @@ const AcademicCalendarPage = lazy(() => import('./pages/dashboard/AcademicCalend
 const SubjectsPage         = lazy(() => import('./pages/dashboard/SubjectsPage'));
 const AcademicSetupPage    = lazy(() => import('./pages/AcademicSetup'));
 const SubjectRegistrationPage = lazy(() => import('./pages/SubjectRegistrationPage'));
+const StudentAcademicsLayout  = lazy(() => import('./pages/dashboard/student-academics/StudentAcademicsLayout'));
 
 // Interview Experiences Module
 const InterviewExperiencesPage = lazy(() => import('./pages/interviews/InterviewPage'));
@@ -224,6 +225,19 @@ function AppContent() {
                     <Route path="/subscription" element={<Navigate to="/pricing" replace />} />
 
 
+                    {/* Student Academics Dedicated 3-Column Workspace */}
+                    <Route path="/student-academics" element={
+                        <ProtectedRoute>
+                            <DashboardLayout />
+                        </ProtectedRoute>
+                    }>
+                        <Route index element={<StudentAcademicsLayout />} />
+                        <Route path=":tab" element={<StudentAcademicsLayout />} />
+                        <Route path="*" element={<StudentAcademicsLayout />} />
+                    </Route>
+                    <Route path="/academic" element={<Navigate to="/student-academics" replace />} />
+                    <Route path="/academic-setup" element={<Navigate to="/student-academics/subjects" replace />} />
+
                     {/* Academic Dashboard Layout Group */}
                     <Route path="/home" element={
                         <ProtectedRoute>
@@ -248,7 +262,8 @@ function AppContent() {
                         <Route path="attendance" element={<AttendanceSettings />} />
                         <Route path="timetable" element={<TimetableSettings />} />
                         <Route path="cie" element={<CieSettings />} />
-                        <Route path="academic-register" element={<AcademicRegisterPage />} />
+                        <Route path="academic-register" element={<Navigate to="/student-academics" replace />} />
+                        <Route path="academic" element={<Navigate to="/student-academics" replace />} />
                     </Route>
 
                     {/* Plus Route Group */}
@@ -277,7 +292,7 @@ function AppContent() {
                         </Route>
 
                         {/* Nested Plus Feature Routes */}
-                        <Route path="subject-registration" element={<SubjectRegistrationPage />} />
+                        <Route path="subject-registration" element={<Navigate to="/student-academics/subjects" replace />} />
                         <Route path="cie-analyzer" element={<CieSettings />} />
                         <Route path="cie" element={<CieSettings />} />
                         <Route path="eligibility-checker" element={<AcademicSummaryPage />} />
@@ -303,8 +318,7 @@ function AppContent() {
                     <Route path="/plus/lab-programs" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
                     <Route path="/plus/playground" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
                     
-                    {/* Academic Setup & Quizzes */}
-                    <Route path="/academic-setup" element={<Navigate to="/plus/subject-registration" replace />} />
+                    {/* Quizzes & Campus */}
                     <Route path="/quiz/:quizId" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
                     <Route path="/campus-hub" element={<ProtectedRoute><CampusHub /></ProtectedRoute>} />
                     <Route path="/campus-map" element={<ProtectedRoute><CampusMap /></ProtectedRoute>} />

@@ -105,5 +105,6 @@ studentRegisteredSubjectSchema.index(
     { student: 1, semester: 1, subject: 1 }, 
     { unique: true, partialFilterExpression: { subject: { $type: 'objectId' } } }
 );
+studentRegisteredSubjectSchema.index({ student: 1, semester: 1, isActive: 1 });
 
 module.exports = mongoose.models.StudentRegisteredSubject || mongoose.model('StudentRegisteredSubject', studentRegisteredSubjectSchema);

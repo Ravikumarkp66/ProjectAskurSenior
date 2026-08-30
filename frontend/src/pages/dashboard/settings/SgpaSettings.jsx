@@ -193,7 +193,7 @@ const SgpaSettings = () => {
                         </p>
                     </div>
                     <button
-                        onClick={() => navigate('/plus/subject-registration')}
+                        onClick={() => navigate('/student-academics/subjects')}
                         style={{
                             padding: '10px 20px',
                             borderRadius: 12,

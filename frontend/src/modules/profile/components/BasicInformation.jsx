@@ -5,12 +5,12 @@ const BasicInformation = ({ student }) => {
     if (!student) return null;
 
     const getYearOfStudy = (semester) => {
-        if (!semester) return '';
+        if (!semester) return '1st Year';
         const year = Math.ceil(semester / 2);
         const suffixes = ['th', 'st', 'nd', 'rd'];
         const val = year % 10;
         const suffix = (val >= 1 && val <= 3 && (year % 100 < 11 || year % 100 > 13)) ? suffixes[val] : suffixes[0];
-        return ` (${year}${suffix} Year)`;
+        return `${year}${suffix} Year`;
     };
 
     const renderRowContent = (key) => {
@@ -19,43 +19,60 @@ const BasicInformation = ({ student }) => {
                 const usnVal = student.usn || 'N/A';
                 return (
                     <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        USN: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{usnVal}</span>
+                        USN: <span style={{ color: '#f8fafc', fontWeight: 600, letterSpacing: '0.03em' }}>{usnVal}</span>
                     </span>
                 );
             }
             case 'college': {
                 const collegeVal = typeof student.college === 'object' 
-                    ? student.college?.name 
-                    : (student.college || 'Siddaganga Institute of Technology (SIT)\nTumkur');
-                const yearSuffix = getYearOfStudy(student.semester);
+                    ? (student.college?.name || student.collegeName) 
+                    : (student.college || student.collegeName || 'Siddaganga Institute of Technology');
                 return (
                     <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        College: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{collegeVal}{yearSuffix}</span>
-                    </span>
-                );
-            }
-            case 'scheme': {
-                const schemeVal = student.scheme?.name || student.scheme || 'N/A';
-                return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Scheme: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{schemeVal}</span>
+                        College: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{collegeVal}</span>
                     </span>
                 );
             }
             case 'branch': {
-                const branchVal = typeof student.branch === 'object' 
-                    ? (student.branch?.shortName || student.branch?.name) 
-                    : (student.branch || 'N/A');
+                let branchStr = 'Information Science and Engineering (ISE)';
+                if (typeof student.branch === 'object' && student.branch) {
+                    if (student.branch.name && student.branch.shortName) {
+                        branchStr = `${student.branch.name} (${student.branch.shortName})`;
+                    } else {
+                        branchStr = student.branch.name || student.branch.shortName || branchStr;
+                    }
+                } else if (typeof student.branch === 'string' && student.branch.trim()) {
+                    branchStr = student.branch;
+                }
                 return (
                     <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Branch: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{branchVal}</span>
+                        Branch: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{branchStr}</span>
+                    </span>
+                );
+            }
+            case 'scheme': {
+                const schemeName = typeof student.scheme === 'object' && student.scheme
+                    ? student.scheme.name
+                    : (student.scheme || '2022');
+                return (
+                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
+                        Scheme: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{schemeName} Scheme</span>
+                    </span>
+                );
+            }
+            case 'yearOfStudy': {
+                const sem = student.semester || 1;
+                const yearLabel = getYearOfStudy(sem);
+                return (
+                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
+                        Year & Sem: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{yearLabel} · Semester {sem}</span>
                     </span>
                 );
             }
             case 'graduationYear':
                 return (
                     <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Expected Graduation: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{student.graduationYear || 'N/A'}</span>
+                        Expected Graduation: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{student.graduationYear || '2027'}</span>
                     </span>
                 );
             default:
@@ -95,15 +112,15 @@ const BasicInformation = ({ student }) => {
                                 display: 'flex',
                                 alignItems: 'flex-start',
                                 gap: '12px',
-                                minHeight: '34px',
-                                padding: '4px 0',
+                                minHeight: '32px',
+                                padding: '3px 0',
                                 boxSizing: 'border-box',
                                 minWidth: 0
                             }}
                         >
-                            {/* Icon wrapper - small & lightweight */}
+                            {/* Icon wrapper */}
                             <div style={{
-                                color: '#94a3b8',
+                                color: '#a78bfa',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',

@@ -76,5 +76,7 @@ const studentTimetableSchema = new mongoose.Schema({
 // Compound unique index to guarantee no overlapping starts for a student, version, and semester
 studentTimetableSchema.index({ student: 1, semester: 1, version: 1, dayOfWeek: 1, startMinute: 1 }, { unique: true });
 studentTimetableSchema.index({ student: 1, semester: 1, version: 1, dayOfWeek: 1 });
+studentTimetableSchema.index({ student: 1, dayOfWeek: 1, semester: 1 });
+studentTimetableSchema.index({ student: 1, semester: 1 });
 
 module.exports = mongoose.model('StudentTimetable', studentTimetableSchema);

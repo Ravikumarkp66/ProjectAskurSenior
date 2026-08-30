@@ -117,18 +117,20 @@ const CalendarDateNavigator = ({
         <div style={{
             background: 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)',
             border: '1px solid rgba(255, 255, 255, 0.07)',
-            borderRadius: '16px',
-            padding: '16px',
+            borderRadius: '14px',
+            padding: '12px 14px',
             color: '#fff',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            height: 'fit-content'
+            gap: '8px',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+            height: 'fit-content',
+            width: '100%',
+            boxSizing: 'border-box'
         }}>
             {/* Calendar Month Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+                <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.01em' }}>
                     {monthNames[currentMonth]} {currentYear}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -139,9 +141,9 @@ const CalendarDateNavigator = ({
                         style={{
                             background: 'rgba(255, 255, 255, 0.04)',
                             border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '8px',
+                            borderRadius: '6px',
                             color: '#94a3b8',
-                            padding: '6px',
+                            padding: '5px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -151,7 +153,7 @@ const CalendarDateNavigator = ({
                         onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
                         onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     >
-                        <ChevronLeft size={14} />
+                        <ChevronLeft size={13} />
                     </button>
                     <button
                         type="button"
@@ -160,9 +162,9 @@ const CalendarDateNavigator = ({
                         style={{
                             background: 'rgba(255, 255, 255, 0.04)',
                             border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '8px',
+                            borderRadius: '6px',
                             color: '#94a3b8',
-                            padding: '6px',
+                            padding: '5px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -172,7 +174,7 @@ const CalendarDateNavigator = ({
                         onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
                         onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     >
-                        <ChevronRight size={14} />
+                        <ChevronRight size={13} />
                     </button>
                 </div>
             </div>
@@ -182,12 +184,12 @@ const CalendarDateNavigator = ({
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, 1fr)',
                 textAlign: 'center',
-                fontSize: '11px',
+                fontSize: '10.5px',
                 fontWeight: 600,
                 color: '#64748b'
             }}>
                 {weekDayLabels.map(day => (
-                    <div key={day} style={{ padding: '4px 0' }}>{day}</div>
+                    <div key={day} style={{ padding: '2px 0' }}>{day}</div>
                 ))}
             </div>
 
@@ -195,7 +197,7 @@ const CalendarDateNavigator = ({
             <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: '4px'
+                gap: '3px'
             }}>
                 {calendarDays.map((item, idx) => {
                     const isSelected = item.dateStr === selectedDate;
@@ -220,14 +222,14 @@ const CalendarDateNavigator = ({
                             : '#7c3aed';
                         color = '#ffffff';
                         border = allMarked ? '1.5px solid #34d399' : '1px solid #a78bfa';
-                        boxShadow = allMarked ? '0 0 12px rgba(16, 185, 129, 0.55)' : '0 0 12px rgba(124, 58, 237, 0.45)';
+                        boxShadow = allMarked ? '0 0 10px rgba(16, 185, 129, 0.55)' : '0 0 10px rgba(124, 58, 237, 0.45)';
                     } else if (allMarked) {
                         bg = isHovered
                             ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.32) 0%, rgba(5, 150, 105, 0.42) 100%)'
                             : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(5, 150, 105, 0.26) 100%)';
                         border = isHovered ? '1px solid #10b981' : '1px solid rgba(16, 185, 129, 0.45)';
                         color = '#6ee7b7';
-                        boxShadow = '0 0 8px rgba(16, 185, 129, 0.25)';
+                        boxShadow = '0 0 6px rgba(16, 185, 129, 0.25)';
                     } else if (isToday) {
                         bg = 'rgba(124, 58, 237, 0.15)';
                         color = '#c4b5fd';
@@ -249,11 +251,11 @@ const CalendarDateNavigator = ({
                             style={{
                                 background: bg,
                                 border: border,
-                                borderRadius: '8px',
+                                borderRadius: '7px',
                                 color: color,
-                                fontSize: '12px',
+                                fontSize: '11.5px',
                                 fontWeight: isSelected || isToday || allMarked ? 700 : 500,
-                                height: '34px',
+                                height: '33px',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center',
@@ -268,7 +270,7 @@ const CalendarDateNavigator = ({
                             {allMarked ? (
                                 isHovered ? (
                                     <span style={{
-                                        fontSize: '12px',
+                                        fontSize: '11.5px',
                                         fontWeight: 800,
                                         color: isSelected ? '#ffffff' : '#6ee7b7'
                                     }}>
@@ -283,11 +285,11 @@ const CalendarDateNavigator = ({
                                         height: '100%'
                                     }}>
                                         <Check
-                                            size={16}
+                                            size={14}
                                             strokeWidth={3.5}
                                             color={isSelected ? '#ffffff' : '#34d399'}
                                             style={{
-                                                filter: isSelected ? 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 4px rgba(52, 211, 153, 0.6))'
+                                                filter: isSelected ? 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 3px rgba(52, 211, 153, 0.6))'
                                             }}
                                         />
                                     </div>
@@ -295,13 +297,13 @@ const CalendarDateNavigator = ({
                             ) : (
                                 <>
                                     <span style={{ lineHeight: 1 }}>{item.date.getDate()}</span>
-                                    {hasClasses && !isSelected && (
+                                    {hasClasses && !isOutOfTimeline && !isSelected && (
                                         <span style={{
-                                            width: '4px',
-                                            height: '4px',
+                                            width: '3.5px',
+                                            height: '3.5px',
                                             borderRadius: '50%',
                                             background: isToday ? '#a78bfa' : '#38bdf8',
-                                            marginTop: '3px'
+                                            marginTop: '2px'
                                         }} />
                                     )}
                                 </>
@@ -319,22 +321,22 @@ const CalendarDateNavigator = ({
                     background: 'rgba(124, 58, 237, 0.08)',
                     border: '1px solid rgba(124, 58, 237, 0.2)',
                     color: '#c4b5fd',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    fontSize: '12px',
+                    borderRadius: '7px',
+                    padding: '6px 10px',
+                    fontSize: '11.5px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '6px',
-                    marginTop: '4px',
+                    gap: '5px',
+                    marginTop: '2px',
                     transition: 'all 0.15s'
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124, 58, 237, 0.15)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124, 58, 237, 0.08)'; }}
             >
-                <Clock size={13} />
+                <Clock size={12} />
                 Jump to Today
             </button>
         </div>

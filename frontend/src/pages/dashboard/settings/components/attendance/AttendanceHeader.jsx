@@ -147,7 +147,7 @@ const AttendanceHeader = ({
                 </div>
             )}
 
-            {/* Global Attendance Tabs (4 Clean Primary Views) */}
+            {/* Global Attendance Tabs (Clean Primary Views) */}
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -157,36 +157,12 @@ const AttendanceHeader = ({
                 overflowX: 'auto'
             }}>
                 {(() => {
-                    const isSchedule = activeTab === 'schedule' || activeTab === 'timetable';
                     const isToday = activeTab === 'today' || activeTab === 'daily';
                     const isSubjects = activeTab === 'subjects' || activeTab === 'subject-summary';
                     const isOverview = activeTab === 'overview' || activeTab === 'summary';
 
                     return (
                         <>
-                            <button
-                                type="button"
-                                onClick={() => onTabChange('schedule')}
-                                style={{
-                                    background: isSchedule ? 'rgba(124, 58, 237, 0.15)' : 'transparent',
-                                    border: 'none',
-                                    borderBottom: isSchedule ? '2px solid #a78bfa' : '2px solid transparent',
-                                    color: isSchedule ? '#ffffff' : '#94a3b8',
-                                    padding: '10px 18px',
-                                    fontSize: '13.5px',
-                                    fontWeight: isSchedule ? 700 : 500,
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    borderRadius: '8px 8px 0 0',
-                                    transition: 'all 0.15s',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <Calendar size={15} />
-                                Schedule
-                            </button>
 
                             <button
                                 type="button"

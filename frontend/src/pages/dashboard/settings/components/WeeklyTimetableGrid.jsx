@@ -280,7 +280,7 @@ const WeeklyTimetableGrid = ({ slots, config, subjects, onCellClick, user, regis
                     </div>
                     <button
                         type="button"
-                        onClick={() => navigate('/home/academic-register')}
+                        onClick={() => navigate('/student-academics/settings')}
                         style={{
                             background: 'rgba(245, 158, 11, 0.2)',
                             border: '1px solid rgba(245, 158, 11, 0.35)',
@@ -302,32 +302,6 @@ const WeeklyTimetableGrid = ({ slots, config, subjects, onCellClick, user, regis
                     <CalendarRange size={16} style={{ color: '#a78bfa' }} />
                     Weekly Timetable Grid
                 </h3>
-
-                {/* Subject missing alert links */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Subject missing?</span>
-                    <button
-                        type="button"
-                        onClick={() => navigate(requestSubjectUrl)}
-                        style={{
-                            border: 'none',
-                            background: 'transparent',
-                            color: '#a78bfa',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '2px',
-                            padding: 0
-                        }}
-                    >
-                        Request Subject
-                        <ArrowRight size={10} />
-                    </button>
-                    <span style={{ fontSize: '11.5px', color: 'rgba(148, 163, 184, 0.3)' }}>•</span>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Or add Custom Course in settings drawer</span>
-                </div>
             </div>
 
             {/* Weekly Planning Progress Panel */}

@@ -366,114 +366,65 @@ const DashboardPage = () => {
                         </div>
                     </div>
 
-                    {/* 2. MY ACADEMICS (5 UNIFIED MODULES) */}
+                    {/* 2. MY ACADEMICS (4 CORE ANALYTICAL TOOLS) */}
                     <div>
                         <SectionHeader 
                             title="My Academics" 
-                            subtitle="Set up, track and understand your complete academic journey."
+                            subtitle="Track, predict, and analyze your attendance, CIE marks, and semester results."
                         />
-                        <div className="flex flex-col gap-3.5">
-                            {/* Row 1: Top 3 Cards */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                                {/* Card 1: Subject Registration */}
-                                <div className="w-full">
-                                    <IllustrationCard
-                                        presetKey="subjectRegistration"
-                                        title="Subject Registration"
-                                        subtitle="Set up your current semester and subjects."
-                                        onClick={() => navigate('/plus/subject-registration')}
-                                        isSubdued={false}
-                                        isActiveGlow={true}
-                                        ctaText={
-                                            isSubjectRegistrationComplete 
-                                                ? `✓ ${registeredSubjects.length} subjects · ${totalRegisteredCredits} credits` 
-                                                : 'Start →'
-                                        }
-                                    />
-                                </div>
-
-                                {/* Card 2: Attendance */}
-                                <div className="w-full">
-                                    <IllustrationCard
-                                        presetKey="attendance"
-                                        title="Attendance"
-                                        subtitle="Track your classes and daily attendance history."
-                                        onClick={() => navigate('/home/attendance')}
-                                        isSubdued={!isSubjectRegistrationComplete}
-                                        dependencyText="Complete Subject Registration first to start tracking attendance."
-                                        onGoToRegistration={() => navigate('/plus/subject-registration')}
-                                        ctaText="View attendance →"
-                                    />
-                                </div>
-
-                                {/* Card 3: CIE Analyzer */}
-                                <div className="w-full">
-                                    <IllustrationCard
-                                        presetKey="academicSummary"
-                                        title="CIE Analyzer"
-                                        subtitle="Analyze your internal marks, eligibility & CIE summary."
-                                        onClick={() => navigate('/home/cie')}
-                                        isSubdued={!isSubjectRegistrationComplete}
-                                        dependencyText="Complete Subject Registration first to analyze CIE."
-                                        onGoToRegistration={() => navigate('/plus/subject-registration')}
-                                        ctaText="Analyze CIE →"
-                                    />
-                                </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                            {/* Card 1: Attendance */}
+                            <div className="w-full">
+                                <IllustrationCard
+                                    presetKey="attendance"
+                                    title="Attendance"
+                                    subtitle="Track your classes, daily sessions, and attendance history."
+                                    onClick={() => navigate('/home/attendance')}
+                                    isSubdued={!isSubjectRegistrationComplete}
+                                    dependencyText="Configure subjects in Student Academics first to track attendance."
+                                    onGoToRegistration={() => navigate('/student-academics/subjects')}
+                                    ctaText="View attendance →"
+                                />
                             </div>
 
-                            {/* Row 2: Bottom 2 Cards (Centered 3+2 Desktop Grid) */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                                <div className="hidden lg:block lg:col-span-3">
-                                    <div className="flex justify-center gap-3.5">
-                                        <div className="w-[calc(33.333%-9px)]">
-                                            <IllustrationCard
-                                                presetKey="sgpaGpa"
-                                                title="SGPA Calculator"
-                                                subtitle="Calculate your semester result, SEE marks & grade points."
-                                                onClick={() => navigate('/home/sgpa')}
-                                                isSubdued={!isSubjectRegistrationComplete}
-                                                dependencyText="Complete Subject Registration first to calculate your semester result."
-                                                onGoToRegistration={() => navigate('/plus/subject-registration')}
-                                                ctaText="Calculate SGPA →"
-                                            />
-                                        </div>
-                                        <div className="w-[calc(33.333%-9px)]">
-                                            <IllustrationCard
-                                                presetKey="academicSummary"
-                                                title="Academic Summary"
-                                                subtitle="Review your complete academic journey."
-                                                onClick={() => navigate('/home/academic-summary')}
-                                                isSubdued={false}
-                                                ctaText="View summary →"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
+                            {/* Card 2: CIE Analyzer */}
+                            <div className="w-full">
+                                <IllustrationCard
+                                    presetKey="academicSummary"
+                                    title="CIE Analyzer"
+                                    subtitle="Analyze your internal marks, eligibility & CIE target forecast."
+                                    onClick={() => navigate('/home/cie')}
+                                    isSubdued={!isSubjectRegistrationComplete}
+                                    dependencyText="Configure subjects in Student Academics first to analyze CIE."
+                                    onGoToRegistration={() => navigate('/student-academics/subjects')}
+                                    ctaText="Analyze CIE →"
+                                />
+                            </div>
 
-                                {/* Mobile / Tablet fallback for bottom 2 cards */}
-                                <div className="lg:hidden w-full">
-                                    <IllustrationCard
-                                        presetKey="sgpaGpa"
-                                        title="SGPA Calculator"
-                                        subtitle="Calculate your semester result, SEE marks & grade points."
-                                        onClick={() => navigate('/home/sgpa')}
-                                        isSubdued={!isSubjectRegistrationComplete}
-                                        dependencyText="Complete Subject Registration first to calculate your semester result."
-                                        onGoToRegistration={() => navigate('/plus/subject-registration')}
-                                        ctaText="Calculate SGPA →"
-                                    />
-                                </div>
+                            {/* Card 3: SGPA Calculator */}
+                            <div className="w-full">
+                                <IllustrationCard
+                                    presetKey="sgpaGpa"
+                                    title="SGPA Calculator"
+                                    subtitle="Calculate semester results, SEE target marks & grade points."
+                                    onClick={() => navigate('/home/sgpa')}
+                                    isSubdued={!isSubjectRegistrationComplete}
+                                    dependencyText="Configure subjects in Student Academics first to calculate SGPA."
+                                    onGoToRegistration={() => navigate('/student-academics/subjects')}
+                                    ctaText="Calculate SGPA →"
+                                />
+                            </div>
 
-                                <div className="lg:hidden w-full">
-                                    <IllustrationCard
-                                        presetKey="academicSummary"
-                                        title="Academic Summary"
-                                        subtitle="Review your complete academic journey."
-                                        onClick={() => navigate('/plus/eligibility-checker')}
-                                        isSubdued={false}
-                                        ctaText="View summary →"
-                                    />
-                                </div>
+                            {/* Card 4: Academic Summary */}
+                            <div className="w-full">
+                                <IllustrationCard
+                                    presetKey="academicSummary"
+                                    title="Academic Summary"
+                                    subtitle="Review your complete degree journey, CGPA & academic streak."
+                                    onClick={() => navigate('/home/academic-summary')}
+                                    isSubdued={false}
+                                    ctaText="View summary →"
+                                />
                             </div>
                         </div>
                     </div>

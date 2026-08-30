@@ -4,7 +4,11 @@ const Schema = mongoose.Schema;
 const studentAcademicEventSchema = new Schema({
     student: { type: Schema.Types.ObjectId, ref: 'StudentAccount', required: true },
     title: { type: String, required: true },
-    eventType: { type: String, enum: ['Exam', 'Government Holiday', 'College Fest', 'Custom'], required: true },
+    eventType: { 
+        type: String, 
+        enum: ['Exam', 'CIE / Test', 'Quiz', 'Vacation', 'Semester End', 'Government Holiday', 'College Fest', 'Custom'], 
+        required: true 
+    },
     scope: { type: String, enum: ['college', 'personal'], default: 'personal' },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },

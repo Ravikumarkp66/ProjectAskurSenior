@@ -4,8 +4,6 @@ import { apiV2 } from '../../../../services/authService';
 import toast from 'react-hot-toast';
 import { 
     X, 
-    ChevronDown, 
-    ChevronUp, 
     Calendar, 
     Clock, 
     Coffee, 
@@ -14,11 +12,16 @@ import {
     Plus, 
     Trash2, 
     Loader2,
-    CheckSquare,
-    PlusCircle,
-    Info,
-    Lock
+    BookOpen,
+    Bell,
+    CheckCircle2,
+    Lock,
+    Edit3,
+    CalendarDays,
+    Sliders,
+    Sparkles
 } from 'lucide-react';
+import EventModal from './EventModal';
 
 const TimetableSettingsDrawer = ({ 
     isOpen, 
@@ -33,37 +36,18 @@ const TimetableSettingsDrawer = ({
     registeredSubjects = [],
     onReset
 }) => {
-    // Accordion active section state
-    const [activeSection, setActiveSection] = useState('registered-subjects');
+    // Primary Tab state: 'timetable' | 'academic' | 'events'
+    const [activeTab, setActiveTab] = useState('timetable');
     const [resetting, setResetting] = useState(false);
-
-    const handleReset = async () => {
-        if (!window.confirm("Are you sure you want to reset your timetable setup? This will clear all configurations, slots, expected classes, and attendance logs. This action can be undone within 24 hours.")) {
-            return;
-        }
-        setResetting(true);
-        try {
-            const res = await apiV2.resetTimetable();
-            if (res.data?.success) {
-                toast.success('Timetable setup reset to starting state! You can undo this within 24 hours.');
-                if (onReset) onReset();
-                onClose();
-            } else {
-                toast.error(res.data?.message || 'Failed to reset timetable');
-            }
-        } catch (err) {
-            console.error('Reset error:', err);
-            toast.error('An error occurred during reset.');
-        } finally {
-            setResetting(false);
-        }
-    };
 
     // Local draft state for registered subjects
     const [draftRegistered, setDraftRegistered] = useState([]);
-    
-    // Selected curriculum subject ID from the dropdown
-    const [selectedSubjectId, setSelectedSubjectId] = useState('');
+
+    // Events state
+    const [events, setEvents] = useState([]);
+    const [loadingEvents, setLoadingEvents] = useState(false);
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
 
     const daysList = [
         { key: '1', name: 'Monday' },
@@ -75,7 +59,7 @@ const TimetableSettingsDrawer = ({
         { key: '7', name: 'Sunday' }
     ];
 
-    // Format a date value (ISO string or Date) to YYYY-MM-DD for <input type="date">
+    // Format a date value to YYYY-MM-DD for <input type="date">
     const formatDateForInput = (dateVal) => {
         if (!dateVal) return '';
         const dateStr = String(dateVal);
@@ -83,6 +67,19 @@ const TimetableSettingsDrawer = ({
         const d = new Date(dateVal);
         if (isNaN(d.getTime())) return '';
         return d.toISOString().split('T')[0];
+    };
+
+    const minutesToTimeString = (mins) => {
+        if (mins === undefined || mins === null) return '08:00';
+        const hours = Math.floor(mins / 60);
+        const minutes = mins % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
+
+    const timeStringToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        return (hours * 60) + minutes;
     };
 
     // Populate draft registered subjects when opened or changed
@@ -103,69 +100,37 @@ const TimetableSettingsDrawer = ({
         }
     }, [isOpen, registeredSubjects]);
 
+    // Fetch academic events when drawer is opened or tab changes
+    const fetchEvents = async () => {
+        try {
+            setLoadingEvents(true);
+            const res = await apiV2.getAcademicEvents();
+            if (res.data?.success) {
+                setEvents(res.data.data || []);
+            }
+        } catch (err) {
+            console.error('Error fetching academic events:', err);
+        } finally {
+            setLoadingEvents(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            fetchEvents();
+        }
+    }, [isOpen]);
+
     // Escape key listener to close drawer
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (e.key === 'Escape' && isOpen) {
+            if (e.key === 'Escape' && isOpen && !isEventModalOpen) {
                 onClose();
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
-
-    // Check if draft registered subjects differs from saved state
-    const isRegisteredSubjectsChanged = useMemo(() => {
-        if (!registeredSubjects) return false;
-        
-        const initialMapped = registeredSubjects.map(r => ({
-            _id: r._id?.toString(),
-            subjectId: r.subject?._id?.toString() || r.subject?.toString() || null,
-            customName: r.customName || r.subject?.name || '',
-            customCode: r.customCode || r.subject?.code || '',
-            credits: r.registeredCredits ?? r.subject?.credits ?? 3,
-            category: r.category || 'Theory',
-            weeklyPlan: {
-                theory: { required: r.weeklyPlan?.theory?.required ?? 0 },
-                lab: { required: r.weeklyPlan?.lab?.required ?? 0 }
-            }
-        }));
-
-        if (draftRegistered.length !== initialMapped.length) return true;
-
-        return draftRegistered.some(d => {
-            let found = null;
-            if (d.subjectId) {
-                found = initialMapped.find(i => i.subjectId === d.subjectId.toString());
-            } else if (d._id) {
-                found = initialMapped.find(i => i._id === d._id.toString());
-            }
-
-            if (!found) return true;
-            if (found.credits !== d.credits) return true;
-            if (found.category !== d.category) return true;
-            if (found.customName !== d.customName) return true;
-            if (found.customCode !== d.customCode) return true;
-            if (found.weeklyPlan.theory.required !== d.weeklyPlan.theory.required) return true;
-            if (found.weeklyPlan.lab.required !== d.weeklyPlan.lab.required) return true;
-            return false;
-        });
-    }, [draftRegistered, registeredSubjects]);
-
-    if (!isOpen) return null;
-
-    const minutesToTimeString = (mins) => {
-        if (mins === undefined || mins === null) return '08:00';
-        const hours = Math.floor(mins / 60);
-        const minutes = mins % 60;
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    };
-
-    const timeStringToMinutes = (timeStr) => {
-        if (!timeStr) return 0;
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        return (hours * 60) + minutes;
-    };
+    }, [isOpen, onClose, isEventModalOpen]);
 
     const handleDayStatusChange = (dayKey, status) => {
         const updated = { ...config.workingDays, [dayKey]: status };
@@ -204,24 +169,20 @@ const TimetableSettingsDrawer = ({
         onChange('breaks', updated);
     };
 
-    const toggleSection = (sectionName) => {
-        setActiveSection(prev => prev === sectionName ? null : sectionName);
-    };
-
-    // Summary Card Calculations
+    // Summary Card Calculations for Academic Settings Tab
     const summarySubjectsCount = draftRegistered.length;
     const summaryCreditsTotal = draftRegistered.reduce((sum, item) => sum + (item.credits || 0), 0);
     const summaryTheoryClassesTotal = draftRegistered.reduce((sum, item) => sum + (item.weeklyPlan?.theory?.required || 0), 0);
     const summaryLabSessionsTotal = draftRegistered.reduce((sum, item) => sum + (item.weeklyPlan?.lab?.required || 0), 0);
     const summaryEstimatedHoursTotal = summaryTheoryClassesTotal + (summaryLabSessionsTotal * 2);
 
-    // Add new Custom Subject item to local draft list
+    // Add new Custom Subject item
     const handleAddCustomSubject = () => {
         const tempId = `custom-${Date.now()}`;
         setDraftRegistered(prev => [...prev, {
             _id: tempId,
             subjectId: null,
-            customName: 'Custom Course',
+            customName: 'Custom Subject',
             customCode: `CUST-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
             credits: 3,
             category: 'Theory',
@@ -233,33 +194,92 @@ const TimetableSettingsDrawer = ({
     };
 
     const handleSaveTrigger = () => {
-        // Date range validation: start must be strictly before end
         if (config.semesterStartDate && config.lastWorkingDate) {
             if (config.lastWorkingDate <= config.semesterStartDate) {
-                // Scroll / expand the semester section so user sees the error
-                setActiveSection('semester');
+                setActiveTab('timetable');
+                toast.error('Last Working Day must be after Semester Start Date.');
                 return;
             }
         }
         onSave(draftRegistered);
     };
 
-    // Derived academic details
-    const branchName = user?.branch?.name || user?.branchName || 'Not Set';
-    const semester = user?.semester || 'Not Set';
-    const schemeName = user?.scheme?.name || user?.schemeName || 'Not Set';
-    
-    // Derive academic year from semester
-    const getAcademicYearLabel = (sem) => {
-        const semNum = parseInt(sem, 10);
-        if (isNaN(semNum)) return 'Not Set';
-        if (semNum === 1 || semNum === 2) return '1st Year';
-        if (semNum === 3 || semNum === 4) return '2nd Year';
-        if (semNum === 5 || semNum === 6) return '3rd Year';
-        if (semNum === 7 || semNum === 8) return '4th Year';
-        return `${Math.ceil(semNum / 2)}th Year`;
+    // Event Actions
+    const handleSaveEvent = async (payload) => {
+        try {
+            if (selectedEvent) {
+                const res = await apiV2.updateAcademicEvent(selectedEvent._id, payload);
+                if (res.data?.success) {
+                    toast.success('Event updated successfully.');
+                    setIsEventModalOpen(false);
+                    fetchEvents();
+                }
+            } else {
+                const res = await apiV2.createAcademicEvent(payload);
+                if (res.data?.success) {
+                    toast.success('Event created successfully.');
+                    setIsEventModalOpen(false);
+                    fetchEvents();
+                }
+            }
+        } catch (err) {
+            console.error('Error saving academic event:', err);
+            toast.error(err.response?.data?.message || 'Failed to save event.');
+        }
     };
-    const acadYear = getAcademicYearLabel(semester);
+
+    const handleDeleteEvent = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this event? This will restore any suspended timetable slots.')) {
+            return;
+        }
+        try {
+            const res = await apiV2.deleteAcademicEvent(id);
+            if (res.data?.success) {
+                toast.success('Event deleted successfully.');
+                fetchEvents();
+            }
+        } catch (err) {
+            console.error('Error deleting academic event:', err);
+            toast.error('Failed to delete event.');
+        }
+    };
+
+    const handleReset = async () => {
+        if (!window.confirm("Are you sure you want to reset your timetable setup? This will clear all configurations, slots, expected classes, and attendance logs. This action can be undone within 24 hours.")) {
+            return;
+        }
+        setResetting(true);
+        try {
+            const res = await apiV2.resetTimetable();
+            if (res.data?.success) {
+                toast.success('Timetable setup reset to starting state! You can undo this within 24 hours.');
+                if (onReset) onReset();
+                onClose();
+            } else {
+                toast.error(res.data?.message || 'Failed to reset timetable');
+            }
+        } catch (err) {
+            console.error('Reset error:', err);
+            toast.error('An error occurred during reset.');
+        } finally {
+            setResetting(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    const eventBadgeColor = (type) => {
+        switch (type) {
+            case 'CIE / Test': return { text: '#f97316', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.3)' };
+            case 'Quiz': return { text: '#a855f7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.3)' };
+            case 'Exam': return { text: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)' };
+            case 'Vacation': return { text: '#14b8a6', bg: 'rgba(20, 184, 166, 0.12)', border: 'rgba(20, 184, 166, 0.3)' };
+            case 'Semester End': return { text: '#f43f5e', bg: 'rgba(244, 63, 94, 0.12)', border: 'rgba(244, 63, 94, 0.3)' };
+            case 'Government Holiday': return { text: '#eab308', bg: 'rgba(234, 179, 8, 0.12)', border: 'rgba(234, 179, 8, 0.3)' };
+            case 'College Fest': return { text: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)' };
+            default: return { text: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.3)' };
+        }
+    };
 
     return ReactDOM.createPortal(
         <>
@@ -270,7 +290,7 @@ const TimetableSettingsDrawer = ({
                     position: 'fixed',
                     inset: 0,
                     zIndex: 99998,
-                    background: 'rgba(0, 0, 0, 0.65)',
+                    background: 'rgba(0, 0, 0, 0.7)',
                     backdropFilter: 'blur(8px)',
                     animation: 'drawerBackdropFadeIn 0.25s ease-out'
                 }}
@@ -285,457 +305,270 @@ const TimetableSettingsDrawer = ({
                     top: 0,
                     bottom: 0,
                     width: '100%',
-                    background: '#110f17',
-                    borderLeft: 'none',
+                    background: '#0e0b16',
                     zIndex: 99999,
                     display: 'flex',
                     flexDirection: 'column',
-                    boxShadow: '0 0 40px rgba(0, 0, 0, 0.7)',
+                    boxShadow: '0 0 40px rgba(0, 0, 0, 0.8)',
                     animation: 'drawerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                     boxSizing: 'border-box'
                 }}
             >
-                {/* Header */}
+                {/* Header with Title & Main Tabs */}
                 <div style={{
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-                    background: '#13111A'
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: '#120e1d'
                 }}>
                     <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '16px 24px',
-                        maxWidth: '900px',
+                        maxWidth: '920px',
                         width: '100%',
                         margin: '0 auto',
-                        boxSizing: 'border-box'
+                        padding: '16px 20px 0 20px',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14px'
                     }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
-                                Timetable Settings
-                            </h3>
-                            <span style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.5)' }}>
-                                Configure your academic preferences and schedule options
-                            </span>
+                        {/* Title & Close */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '8px',
+                                    background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(99, 102, 241, 0.2))',
+                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#c4b5fd'
+                                }}>
+                                    <Sliders size={18} />
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                                        Timetable & Academic Workspace Settings
+                                    </h3>
+                                    <span style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                                        Configure schedule parameters, subject weekly hours, and semester milestones
+                                    </span>
+                                </div>
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={onClose}
+                                style={{
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    cursor: 'pointer',
+                                    padding: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    borderRadius: '8px',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <X size={18} />
+                            </button>
                         </div>
-                        <button 
-                            type="button"
-                            onClick={onClose}
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                color: 'rgba(255, 255, 255, 0.7)',
-                                cursor: 'pointer',
-                                padding: '6px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                borderRadius: '6px',
-                                transition: 'all 0.15s'
-                            }}
-                        >
-                            <X size={18} />
-                        </button>
+
+                        {/* 3 Main Column Tabs */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '8px',
+                            borderBottom: 'none',
+                            overflowX: 'auto',
+                            paddingBottom: '2px'
+                        }}>
+                            {/* Tab 1: Timetable Settings */}
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('timetable')}
+                                style={{
+                                    padding: '10px 18px',
+                                    borderTopLeftRadius: '8px',
+                                    borderTopRightRadius: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: activeTab === 'timetable' ? 700 : 500,
+                                    color: activeTab === 'timetable' ? '#fff' : 'rgba(148, 163, 184, 0.7)',
+                                    background: activeTab === 'timetable'
+                                        ? 'linear-gradient(180deg, rgba(124, 58, 237, 0.25) 0%, rgba(124, 58, 237, 0.1) 100%)'
+                                        : 'transparent',
+                                    borderBottom: activeTab === 'timetable' ? '2px solid #a78bfa' : '2px solid transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <Clock size={15} style={{ color: activeTab === 'timetable' ? '#a78bfa' : 'inherit' }} />
+                                <span>1. Timetable Settings</span>
+                            </button>
+
+                            {/* Tab 2: Academic Settings */}
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('academic')}
+                                style={{
+                                    padding: '10px 18px',
+                                    borderTopLeftRadius: '8px',
+                                    borderTopRightRadius: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: activeTab === 'academic' ? 700 : 500,
+                                    color: activeTab === 'academic' ? '#fff' : 'rgba(148, 163, 184, 0.7)',
+                                    background: activeTab === 'academic'
+                                        ? 'linear-gradient(180deg, rgba(124, 58, 237, 0.25) 0%, rgba(124, 58, 237, 0.1) 100%)'
+                                        : 'transparent',
+                                    borderBottom: activeTab === 'academic' ? '2px solid #a78bfa' : '2px solid transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <BookOpen size={15} style={{ color: activeTab === 'academic' ? '#a78bfa' : 'inherit' }} />
+                                <span>2. Academic Settings</span>
+                                <span style={{
+                                    fontSize: '10px',
+                                    padding: '1px 6px',
+                                    borderRadius: '10px',
+                                    background: 'rgba(167, 139, 250, 0.2)',
+                                    color: '#c4b5fd',
+                                    fontWeight: 700
+                                }}>
+                                    {draftRegistered.length} Subj
+                                </span>
+                            </button>
+
+                            {/* Tab 3: Events */}
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('events')}
+                                style={{
+                                    padding: '10px 18px',
+                                    borderTopLeftRadius: '8px',
+                                    borderTopRightRadius: '8px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    fontWeight: activeTab === 'events' ? 700 : 500,
+                                    color: activeTab === 'events' ? '#fff' : 'rgba(148, 163, 184, 0.7)',
+                                    background: activeTab === 'events'
+                                        ? 'linear-gradient(180deg, rgba(124, 58, 237, 0.25) 0%, rgba(124, 58, 237, 0.1) 100%)'
+                                        : 'transparent',
+                                    borderBottom: activeTab === 'events' ? '2px solid #a78bfa' : '2px solid transparent',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <Bell size={15} style={{ color: activeTab === 'events' ? '#a78bfa' : 'inherit' }} />
+                                <span>3. Events</span>
+                                <span style={{
+                                    fontSize: '10px',
+                                    padding: '1px 6px',
+                                    borderRadius: '10px',
+                                    background: 'rgba(244, 63, 94, 0.15)',
+                                    color: '#fda4af',
+                                    fontWeight: 700
+                                }}>
+                                    {events.length}
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Body Content */}
+                {/* Body Content according to activeTab */}
                 <div style={{
                     flex: 1,
                     overflowY: 'auto',
                     padding: '24px 20px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '16px',
+                    gap: '20px',
                     boxSizing: 'border-box',
-                    maxWidth: '900px',
+                    maxWidth: '920px',
                     width: '100%',
                     margin: '0 auto'
                 }}>
                     
-                    {/* Accordion List */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        
-                        {/* Accordion Section: Registered Subjects */}
-                        <div style={{
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            overflow: 'hidden'
-                        }}>
-                            <div 
-                                onClick={() => toggleSection('registered-subjects')}
-                                style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
-                                    background: activeSection === 'registered-subjects' ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                                    <CheckSquare size={14} style={{ color: '#a78bfa' }} />
-                                    Registered Subjects
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '11px', color: '#c4b5fd', background: 'rgba(167,139,250,0.1)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                                        {summaryCreditsTotal} Credits
-                                    </span>
-                                    {activeSection === 'registered-subjects' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                </div>
+                    {/* ============================================================ */}
+                    {/* TAB 1: TIMETABLE SETTINGS                                     */}
+                    {/* ============================================================ */}
+                    {activeTab === 'timetable' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                            
+                            {/* Intro Note */}
+                            <div style={{
+                                background: 'rgba(124, 58, 237, 0.05)',
+                                border: '1px solid rgba(124, 58, 237, 0.15)',
+                                borderRadius: '10px',
+                                padding: '12px 16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px'
+                            }}>
+                                <Clock size={16} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                                <span style={{ fontSize: '12px', color: '#e2e8f0' }}>
+                                    Configure your day start/end time, Monday–Saturday schedule, break intervals, and class & lab durations to generate timetable slots.
+                                </span>
                             </div>
 
-                            {activeSection === 'registered-subjects' && (
-                                <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                    
-                                    {/* Semester Summary Card */}
-                                    <div style={{
-                                        background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.06) 0%, rgba(99, 102, 241, 0.02) 100%)',
-                                        border: '1px solid rgba(124, 58, 237, 0.15)',
-                                        borderRadius: '10px',
-                                        padding: '12px 14px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '10px'
-                                    }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#c4b5fd', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                                            Semester Summary
-                                        </span>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.55)' }}>Registered Subjects</span>
-                                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{summarySubjectsCount} Courses</span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.55)' }}>Registered Credits</span>
-                                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{summaryCreditsTotal} Credits</span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.55)' }}>Theory Classes / Week</span>
-                                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{summaryTheoryClassesTotal} Classes</span>
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.55)' }}>Labs / Week</span>
-                                                <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{summaryLabSessionsTotal} Sessions</span>
-                                            </div>
-                                        </div>
-                                        <div style={{ borderTop: '1px solid rgba(124, 58, 237, 0.1)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.5)' }}>Est. Workload Hours:</span>
-                                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#a78bfa' }}>{summaryEstimatedHoursTotal} Hours / Week</span>
-                                        </div>
-                                    </div>
+                            {/* Section 1: Semester Duration */}
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '12px',
+                                padding: '18px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px'
+                            }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Calendar size={15} style={{ color: '#a78bfa' }} />
+                                    1. Semester Dates
+                                </h4>
 
-                                    {/* Read-Only Info Note */}
+                                {config.semesterStartDate && config.lastWorkingDate && config.lastWorkingDate <= config.semesterStartDate && (
                                     <div style={{
-                                        background: 'rgba(124, 58, 237, 0.05)',
-                                        border: '1px solid rgba(124, 58, 237, 0.15)',
-                                        borderRadius: '8px',
-                                        padding: '10px 14px',
+                                        background: 'rgba(239, 68, 68, 0.08)',
+                                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                                        borderRadius: '6px',
+                                        padding: '8px 12px',
                                         fontSize: '12px',
-                                        color: '#c4b5fd',
+                                        color: '#fca5a5',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '8px'
+                                        gap: '6px'
                                     }}>
-                                        <Lock size={15} style={{ flexShrink: 0, color: '#a78bfa' }} />
-                                        <span>
-                                            Registered subjects are read-only (synced from Subject Registration). Set your theory classes and lab sessions per week, then click <strong>Save Changes</strong>.
-                                        </span>
+                                        <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                                        Last Working Day must be strictly after Semester Start Date.
                                     </div>
+                                )}
 
-                                    {/* Subjects Table */}
-                                    {draftRegistered.length === 0 ? (
-                                        <div style={{ padding: '24px', textAlign: 'center', fontSize: '12px', color: 'rgba(148,163,184,0.5)' }}>
-                                            No registered subjects found for this semester. Go to Subject Registration to select subjects.
-                                        </div>
-                                    ) : (
-                                        <div style={{
-                                            overflowX: 'auto',
-                                            width: '100%',
-                                            borderRadius: '8px',
-                                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                                            background: 'rgba(10, 6, 22, 0.6)'
-                                        }}>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '540px' }}>
-                                                <thead>
-                                                    <tr style={{
-                                                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                                                        background: 'rgba(255, 255, 255, 0.03)',
-                                                        fontSize: '11px',
-                                                        fontWeight: 700,
-                                                        color: 'rgba(148, 163, 184, 0.7)',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.04em'
-                                                    }}>
-                                                        <th style={{ padding: '10px 12px', textAlign: 'center', width: '50px' }}>Sl No</th>
-                                                        <th style={{ padding: '10px 12px' }}>Subject Code</th>
-                                                        <th style={{ padding: '10px 12px' }}>Subject Name</th>
-                                                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>Credits</th>
-                                                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>Theory Classes / Week</th>
-                                                        <th style={{ padding: '10px 12px', textAlign: 'center' }}>Lab Sessions / Week</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody style={{ fontSize: '12px', color: '#fff' }}>
-                                                    {draftRegistered.map((regItem, idx) => {
-                                                        const subjId = regItem.subjectId || regItem._id;
-                                                        const code = regItem.customCode || regItem.subject?.code || 'N/A';
-                                                        const name = regItem.customName || regItem.subject?.name || 'Registered Subject';
-                                                        const credits = regItem.credits ?? regItem.subject?.credits ?? 0;
-                                                        const theoryVal = regItem.weeklyPlan?.theory?.required ?? 3;
-                                                        const labVal = regItem.weeklyPlan?.lab?.required ?? 0;
-
-                                                        const updatePlanRequiredHours = (type, val) => {
-                                                            const num = Math.max(0, parseInt(val, 10) || 0);
-                                                            setDraftRegistered(prev => prev.map(d => {
-                                                                const dId = d.subjectId || d._id;
-                                                                if (dId === subjId) {
-                                                                    return {
-                                                                        ...d,
-                                                                        weeklyPlan: {
-                                                                            ...d.weeklyPlan,
-                                                                            [type]: { required: num }
-                                                                        }
-                                                                    };
-                                                                }
-                                                                return d;
-                                                            }));
-                                                        };
-
-                                                        return (
-                                                            <tr 
-                                                                key={subjId || idx}
-                                                                style={{
-                                                                    borderBottom: idx === draftRegistered.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
-                                                                    background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.01)'
-                                                                }}
-                                                            >
-                                                                {/* Sl No */}
-                                                                <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'rgba(148, 163, 184, 0.5)' }}>
-                                                                    {idx + 1}
-                                                                </td>
-
-                                                                {/* Subject Code */}
-                                                                <td style={{ padding: '10px 12px', fontWeight: 700 }}>
-                                                                    <span style={{
-                                                                        fontFamily: 'monospace',
-                                                                        fontSize: '11px',
-                                                                        background: 'rgba(167, 139, 250, 0.12)',
-                                                                        color: '#c4b5fd',
-                                                                        border: '1px solid rgba(167, 139, 250, 0.2)',
-                                                                        padding: '2px 8px',
-                                                                        borderRadius: '4px'
-                                                                    }}>
-                                                                        {code}
-                                                                    </span>
-                                                                </td>
-
-                                                                {/* Subject Name */}
-                                                                <td style={{ padding: '10px 12px', fontWeight: 600 }}>
-                                                                    {name}
-                                                                </td>
-
-                                                                {/* Credits */}
-                                                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                                                    <span style={{
-                                                                        fontSize: '10px',
-                                                                        fontWeight: 700,
-                                                                        background: 'rgba(255, 255, 255, 0.06)',
-                                                                        color: '#e2e8f0',
-                                                                        padding: '2px 8px',
-                                                                        borderRadius: '10px'
-                                                                    }}>
-                                                                        {credits} Credits
-                                                                    </span>
-                                                                </td>
-
-                                                                {/* Theory Classes / Week */}
-                                                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updatePlanRequiredHours('theory', theoryVal - 1)}
-                                                                            style={{
-                                                                                width: '26px',
-                                                                                height: '26px',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                                                background: 'rgba(255,255,255,0.06)',
-                                                                                color: '#fff',
-                                                                                fontWeight: 700,
-                                                                                cursor: 'pointer'
-                                                                            }}
-                                                                        >
-                                                                            -
-                                                                        </button>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            max="15"
-                                                                            value={theoryVal}
-                                                                            onChange={(e) => updatePlanRequiredHours('theory', e.target.value)}
-                                                                            style={{
-                                                                                width: '42px',
-                                                                                height: '26px',
-                                                                                textAlign: 'center',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid rgba(167, 139, 250, 0.3)',
-                                                                                background: '#0d091f',
-                                                                                color: '#c4b5fd',
-                                                                                fontWeight: 700,
-                                                                                fontSize: '12px',
-                                                                                outline: 'none'
-                                                                            }}
-                                                                        />
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updatePlanRequiredHours('theory', theoryVal + 1)}
-                                                                            style={{
-                                                                                width: '26px',
-                                                                                height: '26px',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                                                background: 'rgba(255,255,255,0.06)',
-                                                                                color: '#fff',
-                                                                                fontWeight: 700,
-                                                                                cursor: 'pointer'
-                                                                            }}
-                                                                        >
-                                                                            +
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-
-                                                                {/* Lab Sessions / Week */}
-                                                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                                                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updatePlanRequiredHours('lab', labVal - 1)}
-                                                                            style={{
-                                                                                width: '26px',
-                                                                                height: '26px',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                                                background: 'rgba(255,255,255,0.06)',
-                                                                                color: '#fff',
-                                                                                fontWeight: 700,
-                                                                                cursor: 'pointer'
-                                                                            }}
-                                                                        >
-                                                                            -
-                                                                        </button>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            max="10"
-                                                                            value={labVal}
-                                                                            onChange={(e) => updatePlanRequiredHours('lab', e.target.value)}
-                                                                            style={{
-                                                                                width: '42px',
-                                                                                height: '26px',
-                                                                                textAlign: 'center',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid rgba(167, 139, 250, 0.3)',
-                                                                                background: '#0d091f',
-                                                                                color: '#c4b5fd',
-                                                                                fontWeight: 700,
-                                                                                fontSize: '12px',
-                                                                                outline: 'none'
-                                                                            }}
-                                                                        />
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updatePlanRequiredHours('lab', labVal + 1)}
-                                                                            style={{
-                                                                                width: '26px',
-                                                                                height: '26px',
-                                                                                borderRadius: '6px',
-                                                                                border: '1px solid rgba(255,255,255,0.1)',
-                                                                                background: 'rgba(255,255,255,0.06)',
-                                                                                color: '#fff',
-                                                                                fontWeight: 700,
-                                                                                cursor: 'pointer'
-                                                                            }}
-                                                                        >
-                                                                            +
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Accordion Section: Semester Duration */}
-                        <div style={{
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            overflow: 'hidden'
-                        }}>
-                            <div 
-                                onClick={() => toggleSection('semester')}
-                                style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
-                                    background: activeSection === 'semester' ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                                    <Calendar size={14} style={{ color: '#a78bfa' }} />
-                                    Semester Duration
-                                </div>
-                                {activeSection === 'semester' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </div>
-
-                            {activeSection === 'semester' && (
-                                <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {/* Date validation error */}
-                                    {config.semesterStartDate && config.lastWorkingDate && config.lastWorkingDate <= config.semesterStartDate && (
-                                        <div style={{
-                                            background: 'rgba(239, 68, 68, 0.08)',
-                                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                                            borderRadius: '6px',
-                                            padding: '8px 12px',
-                                            fontSize: '12px',
-                                            color: '#fca5a5',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '6px'
-                                        }}>
-                                            <AlertTriangle size={13} style={{ flexShrink: 0 }} />
-                                            Last Working Day must be after Semester Start Date.
-                                        </div>
-                                    )}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Semester Start Date</label>
+                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 600 }}>
+                                            Semester Start Date
+                                        </label>
                                         <input
                                             type="date"
                                             value={formatDateForInput(config.semesterStartDate)}
-                                            max={formatDateForInput(config.lastWorkingDate) || undefined}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                onChange('semesterStartDate', val);
-                                            }}
+                                            onChange={(e) => onChange('semesterStartDate', e.target.value)}
                                             style={{
-                                                padding: '6px 10px',
-                                                borderRadius: '4px',
-                                                border: config.semesterStartDate && config.lastWorkingDate && config.semesterStartDate >= config.lastWorkingDate
-                                                    ? '1px solid rgba(239, 68, 68, 0.5)'
-                                                    : '1px solid rgba(255,255,255,0.08)',
-                                                background: 'rgba(255,255,255,0.02)',
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: '#161420',
                                                 color: '#fff',
-                                                fontSize: '12.5px',
+                                                fontSize: '13px',
                                                 outline: 'none',
                                                 width: '100%',
                                                 boxSizing: 'border-box'
@@ -743,24 +576,20 @@ const TimetableSettingsDrawer = ({
                                         />
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Last Working Day</label>
+                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 600 }}>
+                                            Last Working Day / Exam Prep
+                                        </label>
                                         <input
                                             type="date"
                                             value={formatDateForInput(config.lastWorkingDate)}
-                                            min={formatDateForInput(config.semesterStartDate) || undefined}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                onChange('lastWorkingDate', val);
-                                            }}
+                                            onChange={(e) => onChange('lastWorkingDate', e.target.value)}
                                             style={{
-                                                padding: '6px 10px',
-                                                borderRadius: '4px',
-                                                border: config.semesterStartDate && config.lastWorkingDate && config.lastWorkingDate <= config.semesterStartDate
-                                                    ? '1px solid rgba(239, 68, 68, 0.5)'
-                                                    : '1px solid rgba(255,255,255,0.08)',
-                                                background: 'rgba(255,255,255,0.02)',
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: '#161420',
                                                 color: '#fff',
-                                                fontSize: '12.5px',
+                                                fontSize: '13px',
                                                 outline: 'none',
                                                 width: '100%',
                                                 boxSizing: 'border-box'
@@ -768,275 +597,150 @@ const TimetableSettingsDrawer = ({
                                         />
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Accordion Section: College Schedule */}
-                        <div style={{
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            overflow: 'hidden'
-                        }}>
-                            <div 
-                                onClick={() => toggleSection('schedule')}
-                                style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
-                                    background: activeSection === 'schedule' ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                                    <Clock size={14} style={{ color: '#a78bfa' }} />
-                                    College Schedule
-                                </div>
-                                {activeSection === 'schedule' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </div>
 
-                            {activeSection === 'schedule' && (
-                                <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <div style={{ display: 'flex', gap: '12px' }}>
-                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Starts At</label>
-                                            <input
-                                                type="time"
-                                                value={minutesToTimeString(config.collegeStartMinute)}
-                                                onChange={(e) => onChange('collegeStartMinute', timeStringToMinutes(e.target.value))}
-                                                style={{
-                                                    padding: '6px 10px',
-                                                    borderRadius: '4px',
-                                                    border: '1px solid rgba(255,255,255,0.08)',
-                                                    background: 'rgba(255,255,255,0.02)',
-                                                    color: '#fff',
-                                                    fontSize: '12.5px',
-                                                    outline: 'none',
-                                                    width: '100%',
-                                                    boxSizing: 'border-box'
-                                                }}
-                                            />
-                                        </div>
-                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Ends At</label>
-                                            <input
-                                                type="time"
-                                                value={minutesToTimeString(config.collegeEndMinute)}
-                                                onChange={(e) => onChange('collegeEndMinute', timeStringToMinutes(e.target.value))}
-                                                style={{
-                                                    padding: '6px 10px',
-                                                    borderRadius: '4px',
-                                                    border: '1px solid rgba(255,255,255,0.08)',
-                                                    background: 'rgba(255,255,255,0.02)',
-                                                    color: '#fff',
-                                                    fontSize: '12.5px',
-                                                    outline: 'none',
-                                                    width: '100%',
-                                                    boxSizing: 'border-box'
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
+                            {/* Section 2: College Schedule & Durations */}
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '12px',
+                                padding: '18px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px'
+                            }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Clock size={15} style={{ color: '#a78bfa' }} />
+                                    2. Day Timings & Class / Lab Durations
+                                </h4>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px' }}>
+                                    {/* College Starts At */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>Class Period Duration</label>
+                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 600 }}>
+                                            Day Starts At
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={minutesToTimeString(config.collegeStartMinute)}
+                                            onChange={(e) => onChange('collegeStartMinute', timeStringToMinutes(e.target.value))}
+                                            style={{
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: '#161420',
+                                                color: '#fff',
+                                                fontSize: '13px',
+                                                outline: 'none',
+                                                width: '100%',
+                                                boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* College Ends At */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 600 }}>
+                                            Day Ends At
+                                        </label>
+                                        <input
+                                            type="time"
+                                            value={minutesToTimeString(config.collegeEndMinute)}
+                                            onChange={(e) => onChange('collegeEndMinute', timeStringToMinutes(e.target.value))}
+                                            style={{
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: '#161420',
+                                                color: '#fff',
+                                                fontSize: '13px',
+                                                outline: 'none',
+                                                width: '100%',
+                                                boxSizing: 'border-box'
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Normal Class Duration */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 600 }}>
+                                            Normal Class Duration
+                                        </label>
                                         <select
-                                            value={config.classDuration}
+                                            value={config.classDuration || 50}
                                             onChange={(e) => onChange('classDuration', parseInt(e.target.value, 10))}
                                             style={{
-                                                padding: '6px 10px',
-                                                borderRadius: '4px',
-                                                border: '1px solid rgba(255,255,255,0.08)',
-                                                background: '#13111A',
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: '#161420',
                                                 color: '#fff',
-                                                fontSize: '12.5px',
+                                                fontSize: '13px',
                                                 outline: 'none',
                                                 width: '100%',
                                                 boxSizing: 'border-box',
                                                 cursor: 'pointer'
                                             }}
                                         >
+                                            <option value="40">40 Minutes</option>
                                             <option value="45">45 Minutes</option>
                                             <option value="50">50 Minutes</option>
                                             <option value="55">55 Minutes</option>
                                             <option value="60">60 Minutes</option>
+                                            <option value="75">75 Minutes</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Lab Duration */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '11px', color: '#c4b5fd', fontWeight: 600 }}>
+                                            Lab Session Duration
+                                        </label>
+                                        <select
+                                            value={config.labDuration || 100}
+                                            onChange={(e) => onChange('labDuration', parseInt(e.target.value, 10))}
+                                            style={{
+                                                padding: '8px 12px',
+                                                borderRadius: '6px',
+                                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                                background: '#161420',
+                                                color: '#c4b5fd',
+                                                fontSize: '13px',
+                                                outline: 'none',
+                                                width: '100%',
+                                                boxSizing: 'border-box',
+                                                cursor: 'pointer',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            <option value="80">80 Minutes</option>
+                                            <option value="90">90 Minutes</option>
+                                            <option value="100">100 Minutes (2 Periods)</option>
+                                            <option value="110">110 Minutes</option>
+                                            <option value="120">120 Minutes (2 Hours)</option>
+                                            <option value="150">150 Minutes</option>
+                                            <option value="180">180 Minutes (3 Hours)</option>
                                         </select>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Accordion Section: Break Configuration */}
-                        <div style={{
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            overflow: 'hidden'
-                        }}>
-                            <div 
-                                onClick={() => toggleSection('breaks')}
-                                style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
-                                    background: activeSection === 'breaks' ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                                    <Coffee size={14} style={{ color: '#a78bfa' }} />
-                                    Break Configuration
-                                </div>
-                                {activeSection === 'breaks' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                             </div>
 
-                            {activeSection === 'breaks' && (
-                                <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                        <button
-                                            type="button"
-                                            onClick={handleAddBreak}
-                                            style={{
-                                                background: 'rgba(139, 92, 246, 0.1)',
-                                                border: '1px solid rgba(139, 92, 246, 0.2)',
-                                                borderRadius: '6px',
-                                                padding: '4px 10px',
-                                                color: '#a78bfa',
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '4px'
-                                            }}
-                                        >
-                                            <Plus size={12} />
-                                            Add Break
-                                        </button>
-                                    </div>
+                            {/* Section 3: Monday to Saturday (and Sunday) Working Days */}
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '12px',
+                                padding: '18px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px'
+                            }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <CalendarRange size={15} style={{ color: '#a78bfa' }} />
+                                    3. Weekly Working Days (Mon–Sat)
+                                </h4>
 
-                                    {(!config.breaks || config.breaks.length === 0) ? (
-                                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.4)', textAlign: 'center', padding: '6px 0' }}>
-                                            No breaks configured.
-                                        </span>
-                                    ) : (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                            {config.breaks.map((item, idx) => (
-                                                <div 
-                                                    key={idx}
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '8px',
-                                                        background: 'rgba(255, 255, 255, 0.01)',
-                                                        border: '1px solid rgba(255, 255, 255, 0.04)',
-                                                        borderRadius: '6px',
-                                                        padding: '6px 10px'
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        value={item.name}
-                                                        onChange={(e) => handleBreakFieldChange(idx, 'name', e.target.value)}
-                                                        style={{
-                                                            flex: 2,
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
-                                                            border: '1px solid rgba(255,255,255,0.08)',
-                                                            background: 'rgba(255,255,255,0.02)',
-                                                            color: '#fff',
-                                                            fontSize: '12px',
-                                                            outline: 'none'
-                                                        }}
-                                                    />
-                                                    <input
-                                                        type="time"
-                                                        value={minutesToTimeString(item.startMinute)}
-                                                        onChange={(e) => handleBreakFieldChange(idx, 'startMinute', timeStringToMinutes(e.target.value))}
-                                                        style={{
-                                                            flex: 1.5,
-                                                            padding: '4px 6px',
-                                                            borderRadius: '4px',
-                                                            border: '1px solid rgba(255,255,255,0.08)',
-                                                            background: 'rgba(255,255,255,0.02)',
-                                                            color: '#fff',
-                                                            fontSize: '12px',
-                                                            outline: 'none'
-                                                        }}
-                                                    />
-                                                    <select
-                                                        value={item.duration}
-                                                        onChange={(e) => handleBreakFieldChange(idx, 'duration', parseInt(e.target.value, 10))}
-                                                        style={{
-                                                            flex: 1.5,
-                                                            padding: '4px 6px',
-                                                            borderRadius: '4px',
-                                                            border: '1px solid rgba(255,255,255,0.08)',
-                                                            background: '#13111A',
-                                                            color: '#fff',
-                                                            fontSize: '12px',
-                                                            outline: 'none',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        <option value="10">10m</option>
-                                                        <option value="15">15m</option>
-                                                        <option value="20">20m</option>
-                                                        <option value="30">30m</option>
-                                                        <option value="45">45m</option>
-                                                        <option value="60">60m</option>
-                                                        <option value="90">90m</option>
-                                                    </select>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemoveBreak(idx)}
-                                                        style={{
-                                                            background: 'transparent',
-                                                            border: 'none',
-                                                            color: '#ef4444',
-                                                            cursor: 'pointer',
-                                                            padding: '4px'
-                                                        }}
-                                                    >
-                                                        <Trash2 size={13} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Accordion Section: Working Days */}
-                        <div style={{
-                            border: '1px solid rgba(255, 255, 255, 0.06)',
-                            borderRadius: '8px',
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            overflow: 'hidden'
-                        }}>
-                            <div 
-                                onClick={() => toggleSection('days')}
-                                style={{
-                                    padding: '12px 16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
-                                    background: activeSection === 'days' ? 'rgba(255, 255, 255, 0.02)' : 'transparent'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                                    <CalendarRange size={14} style={{ color: '#a78bfa' }} />
-                                    Working Days Configuration
-                                </div>
-                                {activeSection === 'days' ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </div>
-
-                            {activeSection === 'days' && (
-                                <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                     {daysList.map((day) => {
                                         const currentStatus = config.workingDays[day.key] || 'Holiday';
                                         return (
@@ -1048,16 +752,16 @@ const TimetableSettingsDrawer = ({
                                                     justifyContent: 'space-between',
                                                     background: 'rgba(255, 255, 255, 0.01)',
                                                     border: '1px solid rgba(255, 255, 255, 0.04)',
-                                                    borderRadius: '6px',
-                                                    padding: '6px 12px',
+                                                    borderRadius: '8px',
+                                                    padding: '8px 12px',
                                                     gap: '12px'
                                                 }}
                                             >
-                                                <span style={{ fontSize: '12px', fontWeight: 600, color: '#f8fafc' }}>
+                                                <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#f8fafc' }}>
                                                     {day.name}
                                                 </span>
 
-                                                <div style={{ display: 'flex', gap: '3px' }}>
+                                                <div style={{ display: 'flex', gap: '4px' }}>
                                                     {['Full Day', 'Half Day', 'Holiday'].map((opt) => {
                                                         const isSelected = currentStatus === opt;
                                                         const colorMap = {
@@ -1074,9 +778,9 @@ const TimetableSettingsDrawer = ({
                                                                 onClick={() => handleDayStatusChange(day.key, opt)}
                                                                 style={{
                                                                     outline: 'none',
-                                                                    borderRadius: '4px',
-                                                                    padding: '4px 8px',
-                                                                    fontSize: '10px',
+                                                                    borderRadius: '6px',
+                                                                    padding: '4px 10px',
+                                                                    fontSize: '11px',
                                                                     fontWeight: 600,
                                                                     cursor: 'pointer',
                                                                     background: isSelected ? `${themeColor}20` : 'rgba(255,255,255,0.02)',
@@ -1085,7 +789,7 @@ const TimetableSettingsDrawer = ({
                                                                     transition: 'all 0.15s'
                                                                 }}
                                                             >
-                                                                {opt.replace(' Day', '')}
+                                                                {opt}
                                                             </button>
                                                         );
                                                     })}
@@ -1094,130 +798,778 @@ const TimetableSettingsDrawer = ({
                                         );
                                     })}
                                 </div>
-                            )}
-                        </div>
+                            </div>
 
-                    </div>
+                            {/* Section 4: Breaks Configuration */}
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '12px',
+                                padding: '18px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <h4 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Coffee size={15} style={{ color: '#a78bfa' }} />
+                                        4. Break Timings & Durations (N Breaks)
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddBreak}
+                                        style={{
+                                            background: 'rgba(139, 92, 246, 0.1)',
+                                            border: '1px solid rgba(139, 92, 246, 0.25)',
+                                            borderRadius: '6px',
+                                            padding: '4px 10px',
+                                            color: '#c4b5fd',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        <Plus size={12} />
+                                        Add Break
+                                    </button>
+                                </div>
 
-                </div>
+                                {(!config.breaks || config.breaks.length === 0) ? (
+                                    <div style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.45)', textAlign: 'center', padding: '12px 0' }}>
+                                        No breaks configured. Click "Add Break" to insert intervals (e.g. Morning Tea Break, Lunch Break, Snack Break).
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {config.breaks.map((item, idx) => (
+                                            <div 
+                                                key={idx}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '10px',
+                                                    background: 'rgba(255, 255, 255, 0.01)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                                                    borderRadius: '8px',
+                                                    padding: '8px 12px'
+                                                }}
+                                            >
+                                                {/* Break Name */}
+                                                <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    <label style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.5)' }}>Break Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={item.name}
+                                                        placeholder="Tea / Lunch Break"
+                                                        onChange={(e) => handleBreakFieldChange(idx, 'name', e.target.value)}
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            borderRadius: '4px',
+                                                            border: '1px solid rgba(255,255,255,0.08)',
+                                                            background: '#161420',
+                                                            color: '#fff',
+                                                            fontSize: '12px',
+                                                            outline: 'none',
+                                                            width: '100%',
+                                                            boxSizing: 'border-box'
+                                                        }}
+                                                    />
+                                                </div>
 
-                {/* Sticky Bottom Save Bar */}
-                <div style={{
-                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                    background: '#14121b'
-                }}>
-                    <div style={{
-                        padding: '16px 20px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                        maxWidth: '900px',
-                        width: '100%',
-                        margin: '0 auto',
-                        boxSizing: 'border-box'
-                    }}>
-                        {/* Regeneration Warning Info */}
-                    {isConfigChanged && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '8px',
-                            background: 'rgba(251, 191, 36, 0.04)',
-                            border: '1px solid rgba(251, 191, 36, 0.12)',
-                            borderRadius: '6px',
-                            padding: '10px 12px'
-                        }}>
-                            <AlertTriangle size={14} style={{ color: '#fbbf24', marginTop: '1px', flexShrink: 0 }} />
-                            <span style={{ fontSize: '11px', color: 'rgba(251, 191, 36, 0.85)', lineHeight: '1.4' }}>
-                                Changing class duration or break timings will regenerate your timetable. 
-                                Existing subject assignments will be preserved whenever possible.
-                            </span>
+                                                {/* Starts At */}
+                                                <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    <label style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.5)' }}>Starts At</label>
+                                                    <input
+                                                        type="time"
+                                                        value={minutesToTimeString(item.startMinute)}
+                                                        onChange={(e) => handleBreakFieldChange(idx, 'startMinute', timeStringToMinutes(e.target.value))}
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            borderRadius: '4px',
+                                                            border: '1px solid rgba(255,255,255,0.08)',
+                                                            background: '#161420',
+                                                            color: '#fff',
+                                                            fontSize: '12px',
+                                                            outline: 'none',
+                                                            width: '100%',
+                                                            boxSizing: 'border-box'
+                                                        }}
+                                                    />
+                                                </div>
+
+                                                {/* Duration (mins) */}
+                                                <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                    <label style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.5)' }}>Duration</label>
+                                                    <select
+                                                        value={item.duration}
+                                                        onChange={(e) => handleBreakFieldChange(idx, 'duration', parseInt(e.target.value, 10))}
+                                                        style={{
+                                                            padding: '6px 10px',
+                                                            borderRadius: '4px',
+                                                            border: '1px solid rgba(255,255,255,0.08)',
+                                                            background: '#161420',
+                                                            color: '#fff',
+                                                            fontSize: '12px',
+                                                            outline: 'none',
+                                                            width: '100%',
+                                                            boxSizing: 'border-box',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <option value="10">10 Mins</option>
+                                                        <option value="15">15 Mins</option>
+                                                        <option value="20">20 Mins</option>
+                                                        <option value="30">30 Mins</option>
+                                                        <option value="40">40 Mins</option>
+                                                        <option value="45">45 Mins</option>
+                                                        <option value="60">60 Mins</option>
+                                                        <option value="90">90 Mins</option>
+                                                    </select>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveBreak(idx)}
+                                                    style={{
+                                                        background: 'transparent',
+                                                        border: 'none',
+                                                        color: '#ef4444',
+                                                        cursor: 'pointer',
+                                                        padding: '6px',
+                                                        marginTop: '12px'
+                                                    }}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
-                        {/* Reset Setup Button (Left aligned) */}
+                    {/* ============================================================ */}
+                    {/* TAB 2: ACADEMIC SETTINGS (SUBJECT-WISE WEEKLY CLASSES & LABS) */}
+                    {/* ============================================================ */}
+                    {activeTab === 'academic' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            
+                            {/* Semester Summary Card */}
+                            <div style={{
+                                background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%)',
+                                border: '1px solid rgba(124, 58, 237, 0.18)',
+                                borderRadius: '12px',
+                                padding: '14px 18px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#c4b5fd', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                                        Semester Academic Workload Summary
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddCustomSubject}
+                                        style={{
+                                            background: 'rgba(124, 58, 237, 0.2)',
+                                            border: '1px solid rgba(124, 58, 237, 0.4)',
+                                            borderRadius: '6px',
+                                            padding: '4px 10px',
+                                            color: '#fff',
+                                            fontSize: '11px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                        }}
+                                    >
+                                        <Plus size={12} />
+                                        Add Custom Subject
+                                    </button>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)' }}>Registered Subjects</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{summarySubjectsCount} Courses</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)' }}>Total Credits</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#c4b5fd' }}>{summaryCreditsTotal} Credits</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)' }}>Theory Classes / Wk</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#60a5fa' }}>{summaryTheoryClassesTotal} Classes</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)' }}>Lab Sessions / Wk</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#34d399' }}>{summaryLabSessionsTotal} Sessions</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                        <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)' }}>Est. Weekly Workload</span>
+                                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#fbbf24' }}>{summaryEstimatedHoursTotal} Hours</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Info Guide */}
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '10px',
+                                padding: '10px 14px',
+                                fontSize: '12px',
+                                color: 'rgba(148, 163, 184, 0.8)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                            }}>
+                                <Sparkles size={14} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                                <span>
+                                    Set the number of <strong>theory classes</strong> and <strong>lab sessions</strong> per week for each subject. If a subject is both <strong>Theory + Lab</strong>, configure both independently.
+                                </span>
+                            </div>
+
+                            {/* Subjects Table */}
+                            {draftRegistered.length === 0 ? (
+                                <div style={{ padding: '32px', textAlign: 'center', fontSize: '12px', color: 'rgba(148,163,184,0.5)', background: 'rgba(255,255,255,0.01)', borderRadius: '8px' }}>
+                                    No registered subjects found for this semester. Click "Add Custom Subject" above or visit Subject Registration.
+                                </div>
+                            ) : (
+                                <div style={{
+                                    overflowX: 'auto',
+                                    width: '100%',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    background: 'rgba(10, 6, 22, 0.7)'
+                                }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
+                                        <thead>
+                                            <tr style={{
+                                                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: 'rgba(255, 255, 255, 0.03)',
+                                                fontSize: '11px',
+                                                fontWeight: 700,
+                                                color: 'rgba(148, 163, 184, 0.7)',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.04em'
+                                            }}>
+                                                <th style={{ padding: '10px 12px', width: '40px', textAlign: 'center' }}>#</th>
+                                                <th style={{ padding: '10px 12px', width: '110px' }}>Code</th>
+                                                <th style={{ padding: '10px 12px' }}>Subject Name</th>
+                                                <th style={{ padding: '10px 12px', width: '130px' }}>Category</th>
+                                                <th style={{ padding: '10px 12px', textAlign: 'center', width: '120px' }}>Theory / Wk</th>
+                                                <th style={{ padding: '10px 12px', textAlign: 'center', width: '120px' }}>Lab / Wk</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody style={{ fontSize: '12px', color: '#fff' }}>
+                                            {draftRegistered.map((regItem, idx) => {
+                                                const subjId = regItem.subjectId || regItem._id;
+                                                const code = regItem.customCode || regItem.subject?.code || 'N/A';
+                                                const name = regItem.customName || regItem.subject?.name || 'Subject';
+                                                const category = regItem.category || 'Theory';
+                                                const theoryVal = regItem.weeklyPlan?.theory?.required ?? 4;
+                                                const labVal = regItem.weeklyPlan?.lab?.required ?? 0;
+
+                                                const updatePlanValue = (type, val) => {
+                                                    const num = Math.max(0, parseInt(val, 10) || 0);
+                                                    setDraftRegistered(prev => prev.map(d => {
+                                                        const dId = d.subjectId || d._id;
+                                                        if (dId === subjId) {
+                                                            return {
+                                                                ...d,
+                                                                weeklyPlan: {
+                                                                    ...d.weeklyPlan,
+                                                                    [type]: { required: num }
+                                                                }
+                                                            };
+                                                        }
+                                                        return d;
+                                                    }));
+                                                };
+
+                                                const updateCategory = (newCat) => {
+                                                    setDraftRegistered(prev => prev.map(d => {
+                                                        const dId = d.subjectId || d._id;
+                                                        if (dId === subjId) {
+                                                            return {
+                                                                ...d,
+                                                                category: newCat,
+                                                                weeklyPlan: {
+                                                                    theory: { required: newCat === 'Lab Only' ? 0 : d.weeklyPlan?.theory?.required || 4 },
+                                                                    lab: { required: (newCat === 'Theory + Lab' || newCat === 'Lab Only') ? (d.weeklyPlan?.lab?.required || 1) : 0 }
+                                                                }
+                                                            };
+                                                        }
+                                                        return d;
+                                                    }));
+                                                };
+
+                                                return (
+                                                    <tr 
+                                                        key={subjId || idx}
+                                                        style={{
+                                                            borderBottom: idx === draftRegistered.length - 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)',
+                                                            background: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.01)'
+                                                        }}
+                                                    >
+                                                        {/* Sl No */}
+                                                        <td style={{ padding: '10px 12px', textAlign: 'center', color: 'rgba(148, 163, 184, 0.4)', fontWeight: 600 }}>
+                                                            {idx + 1}
+                                                        </td>
+
+                                                        {/* Code */}
+                                                        <td style={{ padding: '10px 12px', fontWeight: 700 }}>
+                                                            <span style={{
+                                                                fontFamily: 'monospace',
+                                                                fontSize: '11px',
+                                                                background: 'rgba(167, 139, 250, 0.12)',
+                                                                color: '#c4b5fd',
+                                                                border: '1px solid rgba(167, 139, 250, 0.2)',
+                                                                padding: '2px 6px',
+                                                                borderRadius: '4px'
+                                                            }}>
+                                                                {code}
+                                                            </span>
+                                                        </td>
+
+                                                        {/* Name */}
+                                                        <td style={{ padding: '10px 12px', fontWeight: 600 }}>
+                                                            {name}
+                                                        </td>
+
+                                                        {/* Category */}
+                                                        <td style={{ padding: '10px 12px' }}>
+                                                            <select
+                                                                value={category}
+                                                                onChange={(e) => updateCategory(e.target.value)}
+                                                                style={{
+                                                                    background: '#161420',
+                                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                    borderRadius: '6px',
+                                                                    padding: '4px 8px',
+                                                                    color: category === 'Theory + Lab' ? '#c4b5fd' : category === 'Lab Only' ? '#6ee7b7' : '#93c5fd',
+                                                                    fontSize: '11px',
+                                                                    fontWeight: 600,
+                                                                    outline: 'none',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <option value="Theory">Theory</option>
+                                                                <option value="Theory + Lab">Theory + Lab</option>
+                                                                <option value="Lab Only">Lab Only</option>
+                                                            </select>
+                                                        </td>
+
+                                                        {/* Theory Classes / Week */}
+                                                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={category === 'Lab Only'}
+                                                                    onClick={() => updatePlanValue('theory', theoryVal - 1)}
+                                                                    style={{
+                                                                        width: '24px',
+                                                                        height: '24px',
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: '#fff',
+                                                                        fontWeight: 700,
+                                                                        cursor: category === 'Lab Only' ? 'not-allowed' : 'pointer',
+                                                                        opacity: category === 'Lab Only' ? 0.3 : 1
+                                                                    }}
+                                                                >
+                                                                    -
+                                                                </button>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="15"
+                                                                    disabled={category === 'Lab Only'}
+                                                                    value={category === 'Lab Only' ? 0 : theoryVal}
+                                                                    onChange={(e) => updatePlanValue('theory', e.target.value)}
+                                                                    style={{
+                                                                        width: '36px',
+                                                                        height: '24px',
+                                                                        textAlign: 'center',
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid rgba(96, 165, 250, 0.3)',
+                                                                        background: '#0d091f',
+                                                                        color: '#93c5fd',
+                                                                        fontWeight: 700,
+                                                                        fontSize: '12px',
+                                                                        outline: 'none',
+                                                                        opacity: category === 'Lab Only' ? 0.3 : 1
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={category === 'Lab Only'}
+                                                                    onClick={() => updatePlanValue('theory', theoryVal + 1)}
+                                                                    style={{
+                                                                        width: '24px',
+                                                                        height: '24px',
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: '#fff',
+                                                                        fontWeight: 700,
+                                                                        cursor: category === 'Lab Only' ? 'not-allowed' : 'pointer',
+                                                                        opacity: category === 'Lab Only' ? 0.3 : 1
+                                                                    }}
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Lab Sessions / Week */}
+                                                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={category === 'Theory'}
+                                                                    onClick={() => updatePlanValue('lab', labVal - 1)}
+                                                                    style={{
+                                                                        width: '24px',
+                                                                        height: '24px',
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: '#fff',
+                                                                        fontWeight: 700,
+                                                                        cursor: category === 'Theory' ? 'not-allowed' : 'pointer',
+                                                                        opacity: category === 'Theory' ? 0.3 : 1
+                                                                    }}
+                                                                >
+                                                                    -
+                                                                </button>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    max="10"
+                                                                    disabled={category === 'Theory'}
+                                                                    value={category === 'Theory' ? 0 : labVal}
+                                                                    onChange={(e) => updatePlanValue('lab', e.target.value)}
+                                                                    style={{
+                                                                        width: '36px',
+                                                                        height: '24px',
+                                                                        textAlign: 'center',
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid rgba(52, 211, 153, 0.3)',
+                                                                        background: '#0d091f',
+                                                                        color: '#6ee7b7',
+                                                                        fontWeight: 700,
+                                                                        fontSize: '12px',
+                                                                        outline: 'none',
+                                                                        opacity: category === 'Theory' ? 0.3 : 1
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={category === 'Theory'}
+                                                                    onClick={() => updatePlanValue('lab', labVal + 1)}
+                                                                    style={{
+                                                                        width: '24px',
+                                                                        height: '24px',
+                                                                        borderRadius: '4px',
+                                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        color: '#fff',
+                                                                        fontWeight: 700,
+                                                                        cursor: category === 'Theory' ? 'not-allowed' : 'pointer',
+                                                                        opacity: category === 'Theory' ? 0.3 : 1
+                                                                    }}
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                        </div>
+                    )}
+
+                    {/* ============================================================ */}
+                    {/* TAB 3: EVENTS SETTINGS (CIE, TESTS, QUIZZES, VACATIONS, SEE) */}
+                    {/* ============================================================ */}
+                    {activeTab === 'events' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            
+                            {/* Header row with Add Event */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '12px',
+                                padding: '14px 18px'
+                            }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <CalendarDays size={16} style={{ color: '#c4b5fd' }} />
+                                        Semester Academic Events & Milestones
+                                    </h4>
+                                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                                        Add CIE 1/2/3, unit tests, quizzes, vacations (from–to), SEE exam dates, and fests
+                                    </span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedEvent(null);
+                                        setIsEventModalOpen(true);
+                                    }}
+                                    style={{
+                                        background: 'linear-gradient(135deg, #7C3AED 0%, #4F46E5 100%)',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        padding: '8px 14px',
+                                        color: '#fff',
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)'
+                                    }}
+                                >
+                                    <Plus size={14} />
+                                    Add Semester Event
+                                </button>
+                            </div>
+
+                            {/* Events List */}
+                            {loadingEvents ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: '8px', color: '#c4b5fd' }}>
+                                    <Loader2 size={18} className="animate-spin" />
+                                    <span style={{ fontSize: '12px' }}>Loading semester events...</span>
+                                </div>
+                            ) : events.length === 0 ? (
+                                <div style={{
+                                    padding: '36px 20px',
+                                    textAlign: 'center',
+                                    background: 'rgba(255, 255, 255, 0.01)',
+                                    borderRadius: '12px',
+                                    border: '1px dashed rgba(255, 255, 255, 0.1)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: '10px'
+                                }}>
+                                    <CalendarDays size={28} style={{ color: 'rgba(167, 139, 250, 0.4)' }} />
+                                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>No semester events added yet</span>
+                                    <p style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.55)', margin: 0, maxWidth: '380px' }}>
+                                        Add CIE tests, quizzes, semester end dates, or vacations so timetable slots automatically adjust.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {events.map((ev) => {
+                                        const badge = eventBadgeColor(ev.eventType);
+                                        const startFormatted = ev.startDate ? new Date(ev.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                                        const endFormatted = ev.endDate ? new Date(ev.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                                        const isMultiDay = startFormatted !== endFormatted;
+
+                                        return (
+                                            <div
+                                                key={ev._id}
+                                                style={{
+                                                    background: 'rgba(255, 255, 255, 0.02)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                                                    borderRadius: '10px',
+                                                    padding: '12px 16px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: '14px'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                                                    <div style={{
+                                                        width: '4px',
+                                                        height: '36px',
+                                                        borderRadius: '2px',
+                                                        backgroundColor: badge.text
+                                                    }} />
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+                                                                {ev.title}
+                                                            </span>
+                                                            <span style={{
+                                                                fontSize: '10px',
+                                                                fontWeight: 700,
+                                                                color: badge.text,
+                                                                background: badge.bg,
+                                                                border: `1px solid ${badge.border}`,
+                                                                padding: '2px 8px',
+                                                                borderRadius: '12px'
+                                                            }}>
+                                                                {ev.eventType}
+                                                            </span>
+                                                            {ev.classesSuspended && (
+                                                                <span style={{ fontSize: '10px', color: '#fbbf24', background: 'rgba(251, 191, 36, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>
+                                                                    Classes Suspended
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <Calendar size={12} />
+                                                            <span>
+                                                                {isMultiDay ? `${startFormatted} → ${endFormatted}` : startFormatted}
+                                                            </span>
+                                                            {ev.description && (
+                                                                <span>· {ev.description}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedEvent(ev);
+                                                            setIsEventModalOpen(true);
+                                                        }}
+                                                        style={{
+                                                            background: 'rgba(255, 255, 255, 0.04)',
+                                                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                            borderRadius: '6px',
+                                                            padding: '6px',
+                                                            color: 'rgba(255, 255, 255, 0.7)',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Edit3 size={13} />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteEvent(ev._id)}
+                                                        style={{
+                                                            background: 'rgba(239, 68, 68, 0.08)',
+                                                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                                                            borderRadius: '6px',
+                                                            padding: '6px',
+                                                            color: '#f87171',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                        </div>
+                    )}
+
+                </div>
+
+                {/* Footer Save / Reset Actions */}
+                <div style={{
+                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: '#120e1d',
+                    padding: '14px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                }}>
+                    <button
+                        type="button"
+                        onClick={handleReset}
+                        disabled={resetting}
+                        style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            borderRadius: '8px',
+                            padding: '8px 14px',
+                            color: '#f87171',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: resetting ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                        }}
+                    >
+                        {resetting && <Loader2 size={12} className="animate-spin" />}
+                        Reset Setup
+                    </button>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button
                             type="button"
-                            onClick={handleReset}
-                            disabled={resetting}
+                            onClick={onClose}
                             style={{
-                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                background: 'rgba(239, 68, 68, 0.05)',
-                                color: '#f87171',
-                                cursor: resetting ? 'not-allowed' : 'pointer',
-                                fontSize: '12.5px',
-                                fontWeight: 600,
-                                borderRadius: '6px',
-                                padding: '6px 16px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '8px',
+                                padding: '8px 16px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: 500,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSaveTrigger}
+                            disabled={saving}
+                            style={{
+                                background: 'linear-gradient(135deg, #7C3AED, #6366F1)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '8px 20px',
+                                color: '#fff',
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                cursor: saving ? 'not-allowed' : 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                outline: 'none',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => {
-                                if (!resetting) {
-                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                                    e.currentTarget.style.border = '1px solid rgba(239, 68, 68, 0.5)';
-                                }
-                            }}
-                            onMouseLeave={e => {
-                                if (!resetting) {
-                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)';
-                                    e.currentTarget.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                                }
+                                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)'
                             }}
                         >
-                            {resetting && <Loader2 size={12} className="animate-spin" />}
-                            Reset Setup
+                            {saving && <Loader2 size={14} className="animate-spin" />}
+                            Save All Changes
                         </button>
-
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                style={{
-                                    border: 'none',
-                                    background: 'transparent',
-                                    color: 'rgba(255,255,255,0.5)',
-                                    cursor: 'pointer',
-                                    fontSize: '12.5px',
-                                    fontWeight: 600,
-                                    padding: '6px 14px'
-                                }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSaveTrigger}
-                                disabled={(!isConfigChanged && !isRegisteredSubjectsChanged) || saving}
-                                style={{
-                                    border: 'none',
-                                    outline: 'none',
-                                    background: (!isConfigChanged && !isRegisteredSubjectsChanged)
-                                        ? 'rgba(255,255,255,0.03)' 
-                                        : 'linear-gradient(135deg, #7C3AED, #6366F1)',
-                                    color: (!isConfigChanged && !isRegisteredSubjectsChanged) ? 'rgba(255,255,255,0.25)' : '#fff',
-                                    fontSize: '12.5px',
-                                    fontWeight: 600,
-                                    borderRadius: '6px',
-                                    padding: '6px 18px',
-                                    cursor: (!isConfigChanged && !isRegisteredSubjectsChanged) || saving ? 'not-allowed' : 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                }}
-                            >
-                                {saving && <Loader2 size={12} className="animate-spin" />}
-                                Save Changes
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* Event Form Modal */}
+            <EventModal
+                isOpen={isEventModalOpen}
+                onClose={() => {
+                    setIsEventModalOpen(false);
+                    setSelectedEvent(null);
+                }}
+                onSave={handleSaveEvent}
+                event={selectedEvent}
+            />
 
             {/* Keyframe Animations */}
             <style dangerouslySetInnerHTML={{__html: `
@@ -1226,12 +1578,13 @@ const TimetableSettingsDrawer = ({
                     to { opacity: 1; }
                 }
                 @keyframes drawerSlideIn {
-                    from { transform: translateX(100%); }
-                    to { transform: translateX(0); }
+                    from { transform: translateY(100%); }
+                    to { transform: translateY(0); }
                 }
             `}} />
-        </>
-    , document.body);
+        </>,
+        document.body
+    );
 };
 
 export default TimetableSettingsDrawer;

@@ -11,10 +11,12 @@ import WeeklyTimetableGrid from './components/WeeklyTimetableGrid';
 import TimetableSettingsDrawer from './components/TimetableSettingsDrawer';
 import TimetableEditorModal from './components/TimetableEditorModal';
 
-const TimetableSettings = ({ isEmbedded = false }) => {
+const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
     const navigate = useNavigate();
     const { user } = useAuth();
     
+    const targetSemester = semester || user?.semester || 1;
+
     const [loading, setLoading] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [savingConfig, setSavingConfig] = useState(false);
@@ -79,12 +81,25 @@ const TimetableSettings = ({ isEmbedded = false }) => {
         return {
             semesterStartDate: formatDateString(localStart) || defaults.start,
             lastWorkingDate: formatDateString(localEnd) || defaults.end,
-            collegeStartMinute: 480,
-            collegeEndMinute: 1020,
-            classDuration: 50,
-            workingDays: {},
-            breaks: [],
-            version: 1
+            collegeStartMinute: 480, // 08:00 AM default
+            collegeEndMinute: 1020,  // 05:00 PM default
+            classDuration: 50,       // 50 minutes standard
+            labDuration: 100,        // 100 minutes standard
+            workingDays: {
+                '1': 'Full Day',
+                '2': 'Full Day',
+                '3': 'Full Day',
+                '4': 'Full Day',
+                '5': 'Full Day',
+                '6': 'Half Day',
+                '7': 'Holiday'
+            },
+            breaks: [
+                { name: 'Tea Break', startMinute: 660, duration: 15 },
+                { name: 'Lunch Break', startMinute: 780, duration: 45 }
+            ],
+            version: 1,
+            hasBackup: false
         };
     });
     const [slots, setSlots] = useState([]);
@@ -116,15 +131,15 @@ const TimetableSettings = ({ isEmbedded = false }) => {
             
             // Execute all endpoints concurrently in parallel for 10x faster load!
             const [configRes, subjRes, regRes, slotsRes] = await Promise.allSettled([
-                apiV2.getTimetableConfig(),
-                apiV2.getAcademicSubjects(),
-                apiV2.getRegisteredSubjects(),
-                apiV2.getTimetableSlots()
+                apiV2.getTimetableConfig(targetSemester),
+                apiV2.getAcademicSubjects(targetSemester),
+                apiV2.getRegisteredSubjects(targetSemester),
+                apiV2.getTimetableSlots(targetSemester)
             ]);
 
             // 1. Process Config
             if (configRes.status === 'fulfilled' && configRes.value.data?.success && configRes.value.data?.data) {
-                const dbConfig = configRes.value.data.data;
+                const dbConfig = configRes.value.data.data?.config || configRes.value.data.data;
                 setInitialConfig(dbConfig);
 
                 const defaults = getSmartDefaultDates();
@@ -144,6 +159,7 @@ const TimetableSettings = ({ isEmbedded = false }) => {
                     collegeStartMinute: dbConfig.collegeStartMinute ?? 480,
                     collegeEndMinute: dbConfig.collegeEndMinute ?? 1020,
                     classDuration: dbConfig.classDuration ?? 50,
+                    labDuration: dbConfig.labDuration ?? 100,
                     workingDays: dbConfig.workingDays || {},
                     breaks: dbConfig.breaks || [],
                     version: dbConfig.version ?? 1,
@@ -179,7 +195,7 @@ const TimetableSettings = ({ isEmbedded = false }) => {
         if (user) {
             loadTimetableData();
         }
-    }, [user]);
+    }, [user, semester]);
 
     const handleUndoReset = async () => {
         setUndoingReset(true);
@@ -391,6 +407,7 @@ const TimetableSettings = ({ isEmbedded = false }) => {
         if (config.collegeStartMinute !== initialConfig.collegeStartMinute) return true;
         if (config.collegeEndMinute !== initialConfig.collegeEndMinute) return true;
         if (config.classDuration !== initialConfig.classDuration) return true;
+        if (config.labDuration !== initialConfig.labDuration) return true;
 
         const daysKeys = ['1', '2', '3', '4', '5', '6', '7'];
         const daysChanged = daysKeys.some(k => {

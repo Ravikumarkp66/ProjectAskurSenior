@@ -16,7 +16,11 @@ const AcademicCalendar = ({ events = [], onDateClick }) => {
 
     // Predefined event types to colors
     const typeColors = {
+        'CIE / Test': '#f97316',
+        'Quiz': '#a855f7',
         'Exam': '#ef4444',
+        'Vacation': '#14b8a6',
+        'Semester End': '#f43f5e',
         'Government Holiday': '#eab308',
         'College Fest': '#3b82f6',
         'Custom': '#22c55e'

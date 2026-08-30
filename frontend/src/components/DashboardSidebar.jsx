@@ -231,6 +231,13 @@ const PlusIcon = () => (
     </svg>
 );
 
+const AcademicIcon = ({ filled }) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={filled ? '#8B5CF6' : 'none'} stroke={filled ? '#A78BFA' : '#93C5FD'} strokeWidth={filled ? 1.5 : 1.8} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+    </svg>
+);
+
 const LostFoundIcon = ({ filled }) => (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={filled ? '#60A5FA' : '#93C5FD'} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <circle cx="11" cy="11" r="7" />
@@ -363,13 +370,12 @@ const DashboardSidebar = () => {
                 const isSGPA = location.pathname.includes('/sgpa-calculator') || location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
                 const isCGPA = location.pathname.includes('/cgpa-calculator');
                 const isHomeExact = location.pathname === '/home' || location.pathname === '/home/';
-                const isSubjectReg = location.pathname.includes('subject-registration') || location.pathname.includes('academic-setup');
-                const isAcademicRegister = location.pathname.includes('/academic-register');
+                const isStudentAcademics = location.pathname.includes('/student-academics') || location.pathname.includes('/academic-register');
                 const isAttendance = location.pathname.includes('/attendance');
                 const isCie = location.pathname.includes('/cie');
                 const isSgpa = location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
                 const isTimetable = location.pathname.includes('/timetable') || location.pathname.includes('/todays-classes');
-                const isAcademicNav = isAcademicRegister || isAttendance || isCie || isSgpa || isTimetable;
+                const isAcademicNav = isStudentAcademics || isAttendance || isCie || isSgpa || isTimetable;
                 const searchParams = new URLSearchParams(location.search);
                 const currentSection = searchParams.get('section') || 'registration';
 
@@ -397,55 +403,42 @@ const DashboardSidebar = () => {
                         <NavItem
                             icon={<PlusIcon />}
                             label="Plus"
-                            isActive={location.pathname.startsWith('/plus') && !isSubjectReg}
+                            isActive={location.pathname.startsWith('/plus')}
                             onClick={() => navigate('/plus')}
                         />
+                        <NavItem
+                            icon={<AcademicIcon filled={isStudentAcademics} />}
+                            label="Academics"
+                            isActive={isStudentAcademics}
+                            onClick={() => navigate('/student-academics')}
+                        />
 
-                        {isSubjectReg && (
+                        {(isAttendance || isCie || isSgpa) && (
                             <>
                                 <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
-                                <NavItem
-                                    icon={<BookOpenCheck size={20} strokeWidth={1.8} />}
-                                    label="Register"
-                                    isActive={location.pathname.includes('subject-registration')}
-                                    onClick={() => navigate('/plus/subject-registration')}
-                                />
-                                <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
-                            </>
-                        )}
-
-                        {isAcademicNav && (
-                            <>
-                                <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
-                                {isCie ? (
+                                {isAttendance && (
+                                    <NavItem
+                                        icon={<CheckSquare size={20} strokeWidth={1.8} />}
+                                        label="Attendance"
+                                        isActive={isAttendance}
+                                        onClick={() => navigate('/home/attendance')}
+                                    />
+                                )}
+                                {isCie && (
                                     <NavItem
                                         icon={<CieIcon filled={true} />}
                                         label="CIE"
                                         isActive={true}
                                         onClick={() => navigate('/home/cie')}
                                     />
-                                ) : isSgpa ? (
+                                )}
+                                {isSgpa && (
                                     <NavItem
                                         icon={<SgpaIcon filled={true} />}
                                         label="SGPA"
                                         isActive={true}
                                         onClick={() => navigate('/home/sgpa')}
                                     />
-                                ) : (
-                                    <>
-                                        <NavItem
-                                            icon={<BookOpenCheck size={20} strokeWidth={1.8} />}
-                                            label="Register"
-                                            isActive={isAcademicRegister}
-                                            onClick={() => navigate('/home/academic-register')}
-                                        />
-                                        <NavItem
-                                            icon={<CheckSquare size={20} strokeWidth={1.8} />}
-                                            label="Attendance"
-                                            isActive={isAttendance}
-                                            onClick={() => navigate('/home/attendance')}
-                                        />
-                                    </>
                                 )}
                                 <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
                             </>

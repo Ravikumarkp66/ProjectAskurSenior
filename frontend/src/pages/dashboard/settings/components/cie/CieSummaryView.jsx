@@ -228,7 +228,7 @@ const CieSummaryView = ({
             </div>
 
             {/* Mobile Stacked Summary Cards */}
-            <div className="block md:hidden" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="flex md:hidden flex-col gap-3">
                 {subjects.map((sub, idx) => {
                     const c = sub.contributions || {};
                     const hasLabs = sub.evaluationType === 'IPCC' || sub.evaluationType === 'LAB_ONLY';

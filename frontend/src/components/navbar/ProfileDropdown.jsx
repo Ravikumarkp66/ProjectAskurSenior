@@ -33,6 +33,13 @@ const UserIcon = () => (
     </svg>
 );
 
+const AcademicIcon = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+        <path d="M6 12v5c3 3 9 3 12 0v-5" />
+    </svg>
+);
+
 const SunIcon = () => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="5" />
@@ -110,6 +117,12 @@ const ProfileDropdown = ({ user, onLogout }) => {
             label: 'My Profile',
             icon: <UserIcon />,
             action: () => { navigate('/profile'); setOpen(false); },
+        },
+        {
+            id: 'academics',
+            label: 'Student Academics',
+            icon: <AcademicIcon />,
+            action: () => { navigate('/student-academics'); setOpen(false); },
         },
         {
             id: 'theme',
