@@ -124,7 +124,7 @@ function AppContent() {
     React.useEffect(() => {
         if (isAuthenticated) {
             apiClient.post('/events/track', { path: location.pathname })
-                .catch(err => console.error("Event tracking error:", err));
+                .catch(() => {});
         }
     }, [location.pathname, isAuthenticated]);
     

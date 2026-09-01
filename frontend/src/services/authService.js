@@ -122,6 +122,9 @@ export const authService = {
     getSgpaDashboard: (semester) => apiV2Client.get('/profile/sgpa', { params: { semester } }),
     saveSgpaRecord: (data) => apiV2Client.put('/profile/sgpa', data),
 
+    // Official Result APIs
+    fetchOfficialResult: (data) => apiV2Client.post('/profile/official-result', data),
+
     // Academic Summary API
     getAcademicSummary: (semester) => apiV2Client.get('/profile/academic-summary', { params: { semester } })
 };

@@ -7,6 +7,9 @@ import SgpaTableEntry from './components/sgpa/SgpaTableEntry';
 import SgpaMobileEntry from './components/sgpa/SgpaMobileEntry';
 import SgpaHeroResult from './components/sgpa/SgpaHeroResult';
 import SgpaSummaryView from './components/sgpa/SgpaSummaryView';
+import OfficialResultCard from './components/sgpa/OfficialResultCard';
+import FetchOfficialResultModal from './components/sgpa/FetchOfficialResultModal';
+import { useOfficialResult } from './components/sgpa/useOfficialResult';
 import { BookOpenCheck, Loader2 } from 'lucide-react';
 
 const SgpaSettings = () => {
@@ -23,6 +26,16 @@ const SgpaSettings = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     const debounceTimerRef = useRef(null);
+
+    const {
+        officialResult,
+        isModalOpen,
+        isFetching,
+        fetchError,
+        openModal,
+        closeModal,
+        fetchOfficialResult
+    } = useOfficialResult();
 
     const fetchSgpaData = async (sem) => {
         setIsLoading(true);
@@ -215,6 +228,15 @@ const SgpaSettings = () => {
                     {/* Top Hero Summary Card */}
                     <SgpaHeroResult summaryStats={summaryStats} selectedSemester={selectedSemester} />
 
+                    {/* Official Result Comparison Card */}
+                    <OfficialResultCard
+                        calculatedSgpa={summaryStats?.sgpa}
+                        officialResult={officialResult}
+                        isFetching={isFetching}
+                        fetchError={fetchError}
+                        onFetchClick={openModal}
+                    />
+
                     {/* Desktop Table View */}
                     <SgpaTableEntry
                         subjects={subjects}
@@ -242,6 +264,15 @@ const SgpaSettings = () => {
                     isSaving={isSaving}
                 />
             )}
+
+            {/* Official Result Fetch Modal */}
+            <FetchOfficialResultModal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSubmit={fetchOfficialResult}
+                isFetching={isFetching}
+                fetchError={fetchError}
+            />
         </div>
     );
 };

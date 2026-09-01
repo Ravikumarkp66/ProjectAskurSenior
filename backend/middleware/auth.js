@@ -53,7 +53,8 @@ const authMiddleware = async (req, res, next) => {
         if (user.registrationComplete === false &&
             !req.originalUrl.includes('/complete-google-registration') &&
             !req.originalUrl.includes('/profile') &&
-            !req.originalUrl.includes('/heartbeat')) {
+            !req.originalUrl.includes('/heartbeat') &&
+            !req.originalUrl.includes('/events')) {
             return res.status(403).json({ error: 'Please complete your profile registration first.', needsCompletion: true });
         }
 

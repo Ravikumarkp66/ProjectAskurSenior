@@ -15,6 +15,7 @@ const StudentSemesterResult = require('../../../models/StudentSemesterResult');
 const cieRulesEngine = require('../../../services/cieRulesEngine');
 const sgpaRulesEngine = require('../../../services/sgpaRulesEngine');
 const timetableGeneratorService = require('../../academic/services/timetableGenerator.service');
+const contineoScraper = require('../../../services/contineoScraper');
 
 const cookieOptions = {
     httpOnly: true,
@@ -3838,6 +3839,60 @@ class AuthV2Controller {
             return res.status(400).json({
                 success: false,
                 message: error.message || 'Failed to delete academic event'
+            });
+        }
+    }
+
+    async fetchOfficialResult(req, res) {
+        try {
+            const { usn, dobDay, dobMonth, dobYear } = req.body;
+            
+            if (!usn || !dobDay || !dobMonth || !dobYear) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Missing required fields. USN and Date of Birth are required.',
+                    data: null,
+                    errors: null
+                });
+            }
+
+            const day = Number(dobDay);
+            const month = Number(dobMonth);
+            const year = Number(dobYear);
+
+            if (isNaN(day) || day < 1 || day > 31 ||
+                isNaN(month) || month < 1 || month > 12 ||
+                isNaN(year) || year < 1950 || year > 2015) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid date of birth provided.',
+                    data: null,
+                    errors: null
+                });
+            }
+
+            console.log(`[OfficialResult] Fetching for USN: ${usn}`);
+
+            const result = await contineoScraper.fetchOfficialResult({
+                usn: usn.trim().toUpperCase(),
+                dobDay: String(day).padStart(2, '0'),
+                dobMonth: String(month).padStart(2, '0'),
+                dobYear: String(year)
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: 'Official result fetched successfully.',
+                data: result,
+                errors: null
+            });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+            return res.status(statusCode).json({
+                success: false,
+                message: error.userMessage || 'Failed to fetch official result.',
+                data: null,
+                errors: null
             });
         }
     }
