@@ -1,4 +1,4 @@
-﻿name: Deploy Staging Backend & Runners to EC2
+name: Deploy Staging Backend & Runners to EC2
 
 on:
   push:
@@ -268,18 +268,17 @@ jobs:
               echo "=== Pulling C runner from GHCR by digest: ${EXPECTED_C_DIGEST} ==="
               docker pull "ghcr.io/${OWNER}/askursenior-c-runner@${EXPECTED_C_DIGEST}"
               
-              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-c-runner@${EXPECTED_C_DIGEST}"
-              ACTUAL_C_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              REPO_DIGESTS=$(docker inspect --format='{{range .RepoDigests}}{{.}} {{end}}' "ghcr.io/${OWNER}/askursenior-c-runner@${EXPECTED_C_DIGEST}")
               echo "Expected digest: $EXPECTED_C_DIGEST"
-              echo "Actual digest:   $ACTUAL_C_DIGEST"
+              echo "Available repo digests: $REPO_DIGESTS"
 
-              if [ "$ACTUAL_C_DIGEST" != "$EXPECTED_C_DIGEST" ]; then
-                echo "ERROR: Digest mismatch for C runner! Expected $EXPECTED_C_DIGEST but got $ACTUAL_C_DIGEST"
+              if [[ "$REPO_DIGESTS" != *"$EXPECTED_C_DIGEST"* ]]; then
+                echo "ERROR: Digest mismatch for C runner! Expected $EXPECTED_C_DIGEST"
                 exit 1
               fi
 
               # Retag only after successful verification
-              docker tag "$PULLED_IMAGE" askursenior-c-runner:latest
+              docker tag "ghcr.io/${OWNER}/askursenior-c-runner@${EXPECTED_C_DIGEST}" askursenior-c-runner:latest
               echo "Successfully verified and tagged askursenior-c-runner:latest"
             fi
 
@@ -289,17 +288,16 @@ jobs:
               echo "=== Pulling C++ runner from GHCR by digest: ${EXPECTED_CPP_DIGEST} ==="
               docker pull "ghcr.io/${OWNER}/askursenior-cpp-runner@${EXPECTED_CPP_DIGEST}"
               
-              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-cpp-runner@${EXPECTED_CPP_DIGEST}"
-              ACTUAL_CPP_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              REPO_DIGESTS=$(docker inspect --format='{{range .RepoDigests}}{{.}} {{end}}' "ghcr.io/${OWNER}/askursenior-cpp-runner@${EXPECTED_CPP_DIGEST}")
               echo "Expected digest: $EXPECTED_CPP_DIGEST"
-              echo "Actual digest:   $ACTUAL_CPP_DIGEST"
+              echo "Available repo digests: $REPO_DIGESTS"
 
-              if [ "$ACTUAL_CPP_DIGEST" != "$EXPECTED_CPP_DIGEST" ]; then
-                echo "ERROR: Digest mismatch for C++ runner! Expected $EXPECTED_CPP_DIGEST but got $ACTUAL_CPP_DIGEST"
+              if [[ "$REPO_DIGESTS" != *"$EXPECTED_CPP_DIGEST"* ]]; then
+                echo "ERROR: Digest mismatch for C++ runner! Expected $EXPECTED_CPP_DIGEST"
                 exit 1
               fi
 
-              docker tag "$PULLED_IMAGE" askursenior-cpp-runner:latest
+              docker tag "ghcr.io/${OWNER}/askursenior-cpp-runner@${EXPECTED_CPP_DIGEST}" askursenior-cpp-runner:latest
               echo "Successfully verified and tagged askursenior-cpp-runner:latest"
             fi
 
@@ -309,17 +307,16 @@ jobs:
               echo "=== Pulling Java runner from GHCR by digest: ${EXPECTED_JAVA_DIGEST} ==="
               docker pull "ghcr.io/${OWNER}/askursenior-java-runner@${EXPECTED_JAVA_DIGEST}"
               
-              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-java-runner@${EXPECTED_JAVA_DIGEST}"
-              ACTUAL_JAVA_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              REPO_DIGESTS=$(docker inspect --format='{{range .RepoDigests}}{{.}} {{end}}' "ghcr.io/${OWNER}/askursenior-java-runner@${EXPECTED_JAVA_DIGEST}")
               echo "Expected digest: $EXPECTED_JAVA_DIGEST"
-              echo "Actual digest:   $ACTUAL_JAVA_DIGEST"
+              echo "Available repo digests: $REPO_DIGESTS"
 
-              if [ "$ACTUAL_JAVA_DIGEST" != "$EXPECTED_JAVA_DIGEST" ]; then
-                echo "ERROR: Digest mismatch for Java runner! Expected $EXPECTED_JAVA_DIGEST but got $ACTUAL_JAVA_DIGEST"
+              if [[ "$REPO_DIGESTS" != *"$EXPECTED_JAVA_DIGEST"* ]]; then
+                echo "ERROR: Digest mismatch for Java runner! Expected $EXPECTED_JAVA_DIGEST"
                 exit 1
               fi
 
-              docker tag "$PULLED_IMAGE" askursenior-java-runner:latest
+              docker tag "ghcr.io/${OWNER}/askursenior-java-runner@${EXPECTED_JAVA_DIGEST}" askursenior-java-runner:latest
               echo "Successfully verified and tagged askursenior-java-runner:latest"
             fi
 
@@ -329,17 +326,16 @@ jobs:
               echo "=== Pulling Python runner from GHCR by digest: ${EXPECTED_PYTHON_DIGEST} ==="
               docker pull "ghcr.io/${OWNER}/askursenior-python-runner@${EXPECTED_PYTHON_DIGEST}"
               
-              PULLED_IMAGE="ghcr.io/${OWNER}/askursenior-python-runner@${EXPECTED_PYTHON_DIGEST}"
-              ACTUAL_PYTHON_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$PULLED_IMAGE" | awk -F'@' '{print $2}')
+              REPO_DIGESTS=$(docker inspect --format='{{range .RepoDigests}}{{.}} {{end}}' "ghcr.io/${OWNER}/askursenior-python-runner@${EXPECTED_PYTHON_DIGEST}")
               echo "Expected digest: $EXPECTED_PYTHON_DIGEST"
-              echo "Actual digest:   $ACTUAL_PYTHON_DIGEST"
+              echo "Available repo digests: $REPO_DIGESTS"
 
-              if [ "$ACTUAL_PYTHON_DIGEST" != "$EXPECTED_PYTHON_DIGEST" ]; then
-                echo "ERROR: Digest mismatch for Python runner! Expected $EXPECTED_PYTHON_DIGEST but got $ACTUAL_PYTHON_DIGEST"
+              if [[ "$REPO_DIGESTS" != *"$EXPECTED_PYTHON_DIGEST"* ]]; then
+                echo "ERROR: Digest mismatch for Python runner! Expected $EXPECTED_PYTHON_DIGEST"
                 exit 1
               fi
 
-              docker tag "$PULLED_IMAGE" askursenior-python-runner:latest
+              docker tag "ghcr.io/${OWNER}/askursenior-python-runner@${EXPECTED_PYTHON_DIGEST}" askursenior-python-runner:latest
               echo "Successfully verified and tagged askursenior-python-runner:latest"
             fi
 
