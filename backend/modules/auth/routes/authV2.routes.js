@@ -111,9 +111,6 @@ router.put('/profile/cie', authenticateStudent, requireActiveAccount, (req, res)
 router.get('/profile/sgpa', authenticateStudent, requireActiveAccount, (req, res) => authV2Controller.getSgpaDashboard(req, res));
 router.put('/profile/sgpa', authenticateStudent, requireActiveAccount, (req, res) => authV2Controller.saveSgpaRecord(req, res));
 
-// Official Result Route
-router.post('/profile/official-result', authenticateStudent, requireActiveAccount, (req, res) => authV2Controller.fetchOfficialResult(req, res));
-
 // Academic Summary Route
 router.get('/profile/academic-summary', authenticateStudent, requireActiveAccount, (req, res) => authV2Controller.getAcademicSummary(req, res));
 
