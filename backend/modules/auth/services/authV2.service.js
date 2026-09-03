@@ -453,14 +453,22 @@ class AuthV2Service {
             validBranchId = parsed.branchId;
         }
 
-        let validSchemeId = isValidObjectId(scheme) ? scheme : undefined;
-        if (!validSchemeId && scheme && typeof scheme === 'string') {
-            const Scheme = require('../../../models/Scheme');
-            const sDoc = await Scheme.findOne({ name: new RegExp(scheme.trim(), 'i') });
-            if (sDoc) validSchemeId = sDoc._id;
-        }
-        if (!validSchemeId && isValidObjectId(parsed?.schemeId)) {
-            validSchemeId = parsed.schemeId;
+        let validSchemeId = undefined;
+        const targetSchemeKey = (gradYearNum <= 2028) ? '2022' : '2025';
+        const Scheme = require('../../../models/Scheme');
+        let sDoc = await Scheme.findOne({ name: new RegExp(`^${targetSchemeKey}`, 'i') });
+        if (!sDoc) sDoc = await Scheme.findOne({ name: targetSchemeKey });
+        if (sDoc) validSchemeId = sDoc._id;
+
+        if (!validSchemeId) {
+            if (isValidObjectId(scheme)) {
+                validSchemeId = scheme;
+            } else if (scheme && typeof scheme === 'string') {
+                const manualDoc = await Scheme.findOne({ name: new RegExp(scheme.trim(), 'i') });
+                if (manualDoc) validSchemeId = manualDoc._id;
+            } else if (isValidObjectId(parsed?.schemeId)) {
+                validSchemeId = parsed.schemeId;
+            }
         }
 
         // Check if student already exists in StudentAccount

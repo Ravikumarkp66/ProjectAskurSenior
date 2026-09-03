@@ -252,24 +252,30 @@ const CompleteProfilePage = () => {
         load();
     }, []);
 
+    const resolveSchemeForGradYear = (gradYear, availableSchemes) => {
+        const yearNum = parseInt(gradYear, 10) || 2027;
+        const targetKey = yearNum > 2028 ? '2025' : '2022';
+        const found = (availableSchemes || []).find(s => 
+            s.name?.startsWith(targetKey) || s.name === targetKey || s.label?.startsWith(targetKey)
+        );
+        return found ? found._id : (availableSchemes?.[0]?._id || '');
+    };
+
     useEffect(() => {
         if (dedupedSchemes.length > 0) {
             setForm(prev => {
-                if (prev.scheme) return prev;
-                let targetScheme = '2022 Scheme';
-                if (prev.usn) {
-                    const match = normalizeUsn(prev.usn).match(/^([1-4])([A-Z]{2})([0-9]{2})([A-Z]{2,3})([0-9]{3})$/);
+                let gradYear = prev.graduationYear;
+                if (!gradYear && prev.usn) {
+                    const match = normalizeUsn(prev.usn).match(/^([1-4])([A-Z]{2})([0-9]{2})/);
                     if (match) {
-                        const admissionYear = 2000 + parseInt(match[3], 10);
-                        if (admissionYear === 2021) targetScheme = '2021 Scheme';
-                        else if (admissionYear >= 2018 && admissionYear <= 2020) targetScheme = '2018 Scheme';
+                        gradYear = String(2000 + parseInt(match[3], 10) + 4);
                     }
                 }
-                const matched = dedupedSchemes.find(s => s.name?.includes(targetScheme.split(' ')[0])) || dedupedSchemes[0];
-                return matched ? { ...prev, scheme: matched._id } : prev;
+                const autoSchemeId = resolveSchemeForGradYear(gradYear || 2027, dedupedSchemes);
+                return { ...prev, scheme: autoSchemeId };
             });
         }
-    }, [dedupedSchemes]);
+    }, [dedupedSchemes, form.graduationYear, form.usn]);
 
     useEffect(() => {
         if (branches.length > 0) {
@@ -355,16 +361,10 @@ const CompleteProfilePage = () => {
             }
         }
 
-        // Auto-match scheme if not set
-        if (!currentForm.scheme && dedupedSchemes.length > 0) {
-            let targetScheme = '2022 Scheme';
-            if (admissionYear === 2021) targetScheme = '2021 Scheme';
-            else if (admissionYear >= 2018 && admissionYear <= 2020) targetScheme = '2018 Scheme';
-            
-            const matchedScheme = dedupedSchemes.find(s => s.name?.includes(targetScheme.split(' ')[0]));
-            if (matchedScheme) {
-                updates.scheme = matchedScheme._id;
-            }
+        // Auto-match scheme based on graduation year
+        const autoSchemeId = resolveSchemeForGradYear(graduationYear, dedupedSchemes);
+        if (autoSchemeId) {
+            updates.scheme = autoSchemeId;
         }
 
         return updates;
@@ -395,10 +395,13 @@ const CompleteProfilePage = () => {
         }
         semesterEstimate = Math.max(1, Math.min(8, semesterEstimate));
 
+        const autoSchemeId = resolveSchemeForGradYear(yearStr, dedupedSchemes);
+
         setForm(p => ({
             ...p,
             graduationYear: yearStr,
-            semester: String(semesterEstimate)
+            semester: String(semesterEstimate),
+            scheme: autoSchemeId || p.scheme
         }));
         setError('');
     };
@@ -713,25 +716,32 @@ const CompleteProfilePage = () => {
                             </select>
                         </Field>
 
-                        {/* 6. Scheme */}
+                        {/* 6. Scheme (Auto-filled & Non-editable) */}
                         <Field
                             label="Scheme"
-                            statusText="Editable • Select your VTU scheme year"
-                            statusType="normal"
+                            statusText="Non-editable • Auto-determined based on graduation year (2022 if ≤ 2028, 2025 if > 2028)"
+                            statusType="non-editable"
                         >
-                            <select
-                                value={form.scheme}
-                                onChange={e => onChange('scheme', e.target.value)}
-                                disabled={loading}
-                                className={selectCls}
-                            >
-                                <option value="">Select Scheme</option>
-                                {dedupedSchemes.map(s => (
-                                    <option key={s._id} value={s._id} className="bg-[#1C1A27]">
-                                        {s.label} Scheme
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={
+                                        (() => {
+                                            const matched = dedupedSchemes.find(s => s._id === form.scheme || s.name === form.scheme);
+                                            if (matched) return `${matched.label || matched.name} Scheme`;
+                                            const gradYear = parseInt(form.graduationYear, 10);
+                                            return gradYear > 2028 ? '2025 Scheme' : '2022 Scheme';
+                                        })()
+                                    }
+                                    disabled
+                                    className={`${inputCls} bg-white/[0.02] opacity-80 cursor-not-allowed`}
+                                />
+                                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                            </div>
                         </Field>
 
                         {/* 7. Mobile & Date of Birth (2-Column Grid) */}

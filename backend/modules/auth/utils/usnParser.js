@@ -73,15 +73,9 @@ async function parseUsn(usn) {
     // Map branch code (e.g. 'IS' -> 'ISE')
     const branchShort = branchShortMap[branchCode] || branchCode;
 
-    // Estimate Scheme based on admission year
-    let schemeName = '2022 Scheme';
-    if (admissionYear === 2021) {
-        schemeName = '2021 Scheme';
-    } else if (admissionYear >= 2018 && admissionYear <= 2020) {
-        schemeName = '2018 Scheme';
-    } else if (admissionYear >= 2022) {
-        schemeName = '2022 Scheme';
-    }
+    // Determine Scheme: 2022 if graduationYear <= 2028, 2025 if graduationYear > 2028
+    const targetSchemeKey = (graduationYear <= 2028) ? '2022' : '2025';
+    let schemeName = `${targetSchemeKey} Scheme`;
 
     // Estimate Semester based on current date (Month is 0-indexed: Jan=0, July=6, Aug=7)
     const currentDate = new Date();
@@ -108,9 +102,9 @@ async function parseUsn(usn) {
     }
 
     // Resolve scheme ID from database
-    let schemeDoc = await Scheme.findOne({ name: new RegExp(schemeName, 'i') });
+    let schemeDoc = await Scheme.findOne({ name: new RegExp(`^${targetSchemeKey}`, 'i') });
     if (!schemeDoc) {
-        schemeDoc = await Scheme.findOne({ name: new RegExp(`${admissionYear}`, 'i') });
+        schemeDoc = await Scheme.findOne({ name: targetSchemeKey });
         if (!schemeDoc) {
             schemeDoc = await Scheme.findOne(); // Grab first available
         }

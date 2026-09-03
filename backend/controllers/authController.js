@@ -444,13 +444,22 @@ const completeGoogleRegistration = async (req, res) => {
             resolvedBranchId = parsed.branchId;
         }
 
-        let resolvedSchemeId = isValidObjectId(scheme) ? scheme : undefined;
-        if (!resolvedSchemeId && scheme && typeof scheme === 'string') {
-            const sDoc = await Scheme.findOne({ name: new RegExp(scheme.trim(), 'i') });
-            if (sDoc) resolvedSchemeId = sDoc._id;
-        }
-        if (!resolvedSchemeId && isValidObjectId(parsed?.schemeId)) {
-            resolvedSchemeId = parsed.schemeId;
+        let resolvedSchemeId = undefined;
+        const gradYearInt = graduationYear ? parseInt(graduationYear, 10) : (parsed?.graduationYear || 2027);
+        const targetSchemeKey = gradYearInt <= 2028 ? '2022' : '2025';
+        let sDoc = await Scheme.findOne({ name: new RegExp(`^${targetSchemeKey}`, 'i') });
+        if (!sDoc) sDoc = await Scheme.findOne({ name: targetSchemeKey });
+        if (sDoc) resolvedSchemeId = sDoc._id;
+
+        if (!resolvedSchemeId) {
+            if (isValidObjectId(scheme)) {
+                resolvedSchemeId = scheme;
+            } else if (scheme && typeof scheme === 'string') {
+                const manualDoc = await Scheme.findOne({ name: new RegExp(scheme.trim(), 'i') });
+                if (manualDoc) resolvedSchemeId = manualDoc._id;
+            } else if (isValidObjectId(parsed?.schemeId)) {
+                resolvedSchemeId = parsed.schemeId;
+            }
         }
 
         // 1. Update or Create StudentAccount (if registering as a Student)
