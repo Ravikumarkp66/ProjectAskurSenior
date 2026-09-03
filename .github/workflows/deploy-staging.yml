@@ -367,9 +367,16 @@ jobs:
             npm run build
             echo "Admin frontend built successfully."
 
+             echo "=== Deploying admin frontend to Nginx ==="
+             sudo rm -rf /var/www/askursenior-admin/*
+             sudo cp -r ~/ProjectAskurSenior/admin/dist/. /var/www/askursenior-admin/
+             sudo chown -R root:root /var/www/askursenior-admin
+             sudo chmod -R 755 /var/www/askursenior-admin
+             echo "Admin frontend deployed successfully."
+            
             echo "=== 8. Restarting askursenior-backend systemd service ==="
             cd ~/ProjectAskurSenior/backend
-            sudo systemctl restart askursenior-backend
+            sudo systemctl restart askursenior-backend 
 
             echo "=== 9. Verifying systemd service status ==="
             sudo systemctl is-active --quiet askursenior-backend
