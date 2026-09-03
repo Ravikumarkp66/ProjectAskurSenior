@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const StudentAccount = require("../models/StudentAccount");
 const Subject = require("../models/Subject");
 const UserUpload = require("../models/UserUpload");
 const Feedback = require("../models/Feedback");
@@ -20,14 +21,14 @@ exports.getOverviewAnalytics = async (req, res) => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Execute count queries in parallel for high speed dashboard load
+        // Execute count queries in parallel for high speed dashboard load from student_accounts
         const [totalUsers, userUploadCount, pendingUploads, totalSubjects, uploadsThisMonth, liveUsers] = await Promise.all([
-            User.countDocuments(),
+            StudentAccount.countDocuments(),
             UserUpload.countDocuments(),
             UserUpload.countDocuments({ status: "pending" }),
             Subject.countDocuments(),
             UserUpload.countDocuments({ createdAt: { $gte: startOfMonth } }),
-            User.countDocuments({ lastActiveAt: { $gte: new Date(Date.now() - 300000) } })
+            StudentAccount.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } })
         ]);
 
         // Total files across all subjects (with defensive checks)
@@ -89,7 +90,7 @@ exports.getOverviewAnalytics = async (req, res) => {
  */
 exports.getUserGrowthAnalytics = async (req, res) => {
     try {
-        const growth = await User.aggregate([
+        const growth = await StudentAccount.aggregate([
             {
                 $group: {
                     _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
@@ -267,20 +268,63 @@ exports.getUserListAnalytics = async (req, res) => {
             query.$or = [
                 { name: { $regex: search, $options: "i" } },
                 { usn: { $regex: search, $options: "i" } },
-                { email: { $regex: search, $options: "i" } }
+                { email: { $regex: search, $options: "i" } },
+                { username: { $regex: search, $options: "i" } },
+                { studentId: { $regex: search, $options: "i" } }
             ];
         }
 
         if (role && role !== "all") {
-            query.isAdmin = role === "admin";
+            query.role = role === "admin" ? "admin" : "student";
         }
 
         if (filter === "recentlyActive" || sortBy === "recentlyActive") {
-            query.lastActiveAt = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
+            query.lastActive = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
         }
 
-        if (filter === "suspended") {
-            query.isSuspended = true;
+        const incompleteProfileCondition = {
+            $or: [
+                { name: { $in: [null, ""] } },
+                { name: { $exists: false } },
+                { name: { $regex: /^\s*$/ } },
+                { usn: { $in: [null, ""] } },
+                { usn: { $exists: false } },
+                { usn: { $regex: /^\s*$/ } },
+                { email: { $in: [null, ""] } },
+                { email: { $exists: false } },
+                { email: { $regex: /^\s*$/ } }
+            ]
+        };
+
+        const neverActiveCondition = {
+            $or: [
+                { lastActive: { $in: [null] } },
+                { lastActive: { $exists: false } }
+            ]
+        };
+
+        if (filter === "incomplete" || filter === "incompleteProfiles" || req.query.incomplete === "true") {
+            if (query.$or) {
+                query = {
+                    $and: [
+                        { $or: query.$or },
+                        incompleteProfileCondition
+                    ]
+                };
+            } else {
+                Object.assign(query, incompleteProfileCondition);
+            }
+        } else if (filter === "neverActive" || req.query.neverActive === "true") {
+            if (query.$or) {
+                query = {
+                    $and: [
+                        { $or: query.$or },
+                        neverActiveCondition
+                    ]
+                };
+            } else {
+                Object.assign(query, neverActiveCondition);
+            }
         }
 
         // Base pipeline
@@ -293,7 +337,7 @@ exports.getUserListAnalytics = async (req, res) => {
         if (sortBy === "recent") {
             sort = { createdAt: -1 };
         } else if (sortBy === "active" || sortBy === "recentlyActive" || filter === "recentlyActive") {
-            sort = { lastActiveAt: -1 };
+            sort = { lastActive: -1 };
         } else {
             sort = { createdAt: -1 };
         }
@@ -303,15 +347,50 @@ exports.getUserListAnalytics = async (req, res) => {
         const countPipeline = [...pipeline];
         pipeline.push({ $skip: skip }, { $limit: parseInt(limit) });
 
-        const [users, totalResult, liveUsers, recentlyActiveCount] = await Promise.all([
-            User.aggregate(pipeline),
-            User.aggregate([...countPipeline, { $count: "count" }]),
-            User.countDocuments({ lastActiveAt: { $gte: new Date(Date.now() - 300000) } }),
-            User.countDocuments({ lastActiveAt: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } })
+        // Populate branch and scheme info and alias lastActive to lastActiveAt for UI compatibility
+        pipeline.push(
+            {
+                $lookup: {
+                    from: "branches",
+                    localField: "branch",
+                    foreignField: "_id",
+                    as: "branchData"
+                }
+            },
+            {
+                $lookup: {
+                    from: "schemes",
+                    localField: "scheme",
+                    foreignField: "_id",
+                    as: "schemeData"
+                }
+            },
+            {
+                $addFields: {
+                    lastActiveAt: "$lastActive",
+                    branchName: { $arrayElemAt: ["$branchData.shortName", 0] },
+                    schemeName: { $arrayElemAt: ["$schemeData.name", 0] },
+                    isAdmin: {
+                        $or: [
+                            { $eq: ["$role", "admin"] },
+                            { $eq: ["$accountType", "admin"] }
+                        ]
+                    }
+                }
+            }
+        );
+
+        const [users, totalResult, liveUsers, recentlyActiveCount, incompleteProfileCount, neverActiveCount] = await Promise.all([
+            StudentAccount.aggregate(pipeline),
+            StudentAccount.aggregate([...countPipeline, { $count: "count" }]),
+            StudentAccount.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } }),
+            StudentAccount.countDocuments({ lastActive: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }),
+            StudentAccount.countDocuments(incompleteProfileCondition),
+            StudentAccount.countDocuments(neverActiveCondition)
         ]);
 
         const total = totalResult.length > 0 ? totalResult[0].count : 0;
-        const totalUsersCount = await User.countDocuments();
+        const totalUsersCount = await StudentAccount.countDocuments();
 
         res.json({
             users,
@@ -321,7 +400,10 @@ exports.getUserListAnalytics = async (req, res) => {
             summary: {
                 totalUsers: totalUsersCount,
                 liveUsers,
-                recentlyActiveCount
+                recentlyActiveCount,
+                incompleteProfileCount,
+                neverActiveCount,
+                incompleteCount: incompleteProfileCount
             }
         });
     } catch (err) {
@@ -344,16 +426,20 @@ exports.suspendUser = async (req, res) => {
         }
 
         const updateData = {
+            accountStatus: isSuspended ? "suspended" : "active",
             isSuspended,
             suspendedAt: isSuspended ? new Date() : null,
             suspendedBy: isSuspended ? req.userId : null
         };
 
-        const user = await User.findByIdAndUpdate(
+        const user = await StudentAccount.findByIdAndUpdate(
             userId,
             updateData,
             { new: true }
-        ).select("name usn email isSuspended suspendedAt");
+        ).select("name usn email isSuspended accountStatus suspendedAt");
+
+        // Keep User in sync if present
+        User.findByIdAndUpdate(userId, { isSuspended, suspendedAt: updateData.suspendedAt, suspendedBy: updateData.suspendedBy }).catch(() => {});
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
@@ -415,7 +501,7 @@ exports.getDashboardSummary = async (req, res) => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Run independent queries in parallel
+        // Run independent queries in parallel using StudentAccount
         const [
             totalUsers,
             totalSubjects,
@@ -423,11 +509,11 @@ exports.getDashboardSummary = async (req, res) => {
             uploadsThisMonth,
             recentUsers
         ] = await Promise.all([
-            User.countDocuments().lean(),
+            StudentAccount.countDocuments().lean(),
             Subject.countDocuments().lean(),
             UserUpload.countDocuments({ status: "pending" }).lean(),
             UserUpload.countDocuments({ createdAt: { $gte: startOfMonth } }).lean(),
-            User.find().sort({ createdAt: -1 }).limit(5).select("name usn email createdAt").lean()
+            StudentAccount.find().sort({ createdAt: -1 }).limit(5).select("name usn email createdAt").lean()
         ]);
 
         // Aggregate total files across all subjects efficiently

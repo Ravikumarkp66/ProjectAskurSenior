@@ -3,16 +3,17 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_ask_ur_senior';
 
 const signAccessToken = (student) => {
-    const branchName = student.branch && student.branch.shortName ? student.branch.shortName : 'CS';
+    const branchName = student.branch && student.branch.shortName ? student.branch.shortName : (typeof student.branch === 'string' ? student.branch : 'CS');
+    const uId = student._id ? student._id.toString() : (student.id ? student.id.toString() : '');
     return jwt.sign(
         {
-            userId: student._id,
+            userId: uId,
             branch: branchName,
             currentBranch: branchName,
             isAdmin: student.role === 'admin'
         },
         JWT_SECRET,
-        { expiresIn: '15m' }
+        { expiresIn: '30d' }
     );
 };
 

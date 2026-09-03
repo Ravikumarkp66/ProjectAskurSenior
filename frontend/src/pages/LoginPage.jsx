@@ -141,6 +141,9 @@ const LoginPage = () => {
 
     /* ── redirect if already authed ── */
     useEffect(() => {
+        const hasPendingReg = sessionStorage.getItem('registrationToken') || localStorage.getItem('registrationToken');
+        if (hasPendingReg) return; // Do not auto-redirect if user has pending profile registration
+
         if (!authLoading && isAuthenticated) {
             navigate(user?.registrationComplete === false ? '/complete-profile' : '/');
         }
@@ -205,10 +208,53 @@ const LoginPage = () => {
         setLoading(true); setError('');
         try {
             const res = await authAPI.googleLogin(accessToken);
-            const { token, user: u, message, needsCompletion } = res.data;
-            afterAuth(needsCompletion ? { ...u, registrationComplete: false } : u, token, message || 'Signed in with Google!');
+            const resData = res.data;
+            const needsCompletion = resData.needsCompletion || resData.data?.registrationRequired || resData.registrationRequired;
+            const regToken = resData.data?.registrationToken || resData.registrationToken;
+            const prefilled = resData.data?.prefilled;
+            const token = resData.token || resData.data?.accessToken;
+            const u = resData.user || resData.data?.student;
+            const message = resData.message || 'Signed in with Google!';
+
+            if (needsCompletion && regToken) {
+                const targetEmail = prefilled?.email || resData.data?.email || resData.email || '';
+                // Wipe any old auth tokens to avoid ghost session sync
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+
+                sessionStorage.setItem('registrationToken', regToken);
+                localStorage.setItem('registrationToken', regToken);
+                if (targetEmail) {
+                    sessionStorage.setItem('registrationEmail', targetEmail);
+                    localStorage.setItem('registrationEmail', targetEmail);
+                }
+                const fullPrefilled = { ...(prefilled || {}), email: targetEmail || prefilled?.email || '' };
+                sessionStorage.setItem('registrationPrefilled', JSON.stringify(fullPrefilled));
+                setIsSuccess(true);
+                setSuccessMessage('Google verification successful! Completing your profile...');
+                navigate('/complete-profile', { state: { registrationToken: regToken, prefilled: fullPrefilled, email: targetEmail } });
+            } else if (token) {
+                afterAuth(needsCompletion ? { ...(u || {}), registrationComplete: false } : u, token, message);
+            } else if (needsCompletion) {
+                const targetEmail = prefilled?.email || resData.data?.email || resData.email || '';
+                // Wipe any old auth tokens
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+
+                if (targetEmail) {
+                    sessionStorage.setItem('registrationEmail', targetEmail);
+                    localStorage.setItem('registrationEmail', targetEmail);
+                }
+                const fullPrefilled = { ...(prefilled || {}), email: targetEmail || prefilled?.email || '' };
+                sessionStorage.setItem('registrationPrefilled', JSON.stringify(fullPrefilled));
+                setIsSuccess(true);
+                setSuccessMessage('Signed in! Let\'s complete your profile.');
+                navigate('/complete-profile', { state: { prefilled: fullPrefilled, email: targetEmail } });
+            }
         } catch (err) {
-            setError(err.response?.data?.error || 'Google sign-in failed. Please try again.');
+            setError(err.response?.data?.error || err.response?.data?.message || 'Google sign-in failed. Please try again.');
         } finally { setLoading(false); }
     };
     const triggerGoogle = useGoogleLogin({
@@ -240,11 +286,46 @@ const LoginPage = () => {
         try {
             const res = await authAPI.verifyOtp(email, code);
             const resData = res.data;
+            const needsCompletion = resData.needsCompletion || resData.data?.registrationRequired || resData.registrationRequired;
+            const regToken = resData.data?.registrationToken || resData.registrationToken;
+            const prefilled = resData.data?.prefilled || { email };
             const token = resData.token || resData.data?.accessToken;
             const u = resData.user || resData.data?.student;
             const message = resData.message || 'Verified!';
-            const needsCompletion = resData.needsCompletion || resData.data?.registrationRequired;
-            afterAuth(needsCompletion ? { ...(u || {}), registrationComplete: false } : u, token, message);
+
+            if (needsCompletion && regToken) {
+                const targetEmail = email || prefilled?.email || '';
+                // Wipe any old auth tokens to avoid ghost session sync
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+
+                sessionStorage.setItem('registrationToken', regToken);
+                localStorage.setItem('registrationToken', regToken);
+                sessionStorage.setItem('registrationEmail', targetEmail);
+                localStorage.setItem('registrationEmail', targetEmail);
+                const fullPrefilled = { ...(prefilled || {}), email: targetEmail };
+                sessionStorage.setItem('registrationPrefilled', JSON.stringify(fullPrefilled));
+                setIsSuccess(true);
+                setSuccessMessage('Code verified! Redirecting to complete your profile...');
+                navigate('/complete-profile', { state: { registrationToken: regToken, prefilled: fullPrefilled, email: targetEmail } });
+            } else if (token) {
+                afterAuth(needsCompletion ? { ...(u || {}), registrationComplete: false } : u, token, message);
+            } else if (needsCompletion) {
+                const targetEmail = email || prefilled?.email || '';
+                // Wipe any old auth tokens
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+
+                sessionStorage.setItem('registrationEmail', targetEmail);
+                localStorage.setItem('registrationEmail', targetEmail);
+                const fullPrefilled = { ...(prefilled || {}), email: targetEmail };
+                sessionStorage.setItem('registrationPrefilled', JSON.stringify(fullPrefilled));
+                setIsSuccess(true);
+                setSuccessMessage('Verified! Let\'s finish setting up your profile.');
+                navigate('/complete-profile', { state: { prefilled: fullPrefilled, email: targetEmail } });
+            }
         } catch (err) {
             setError(err.response?.data?.message || err.response?.data?.error || 'Invalid or expired code.');
         } finally { setLoading(false); }

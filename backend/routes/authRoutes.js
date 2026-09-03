@@ -29,6 +29,7 @@ const adminMiddleware = require('../middleware/admin');
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/admin-login', adminLogin);
+router.post('/admin-google', googleLogin);
 router.post('/google', googleLogin);
 router.post('/send-otp', sendOtp);
 router.post('/verify-otp', verifyOtp);

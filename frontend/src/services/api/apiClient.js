@@ -26,7 +26,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -42,12 +42,16 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
+            const currentPath = window.location.pathname;
+            const isAuthRoute = currentPath === '/login' || currentPath === '/signup' || currentPath === '/complete-profile';
+            
+            if (!isAuthRoute) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
 
-            if (window.location.pathname !== '/login' && window.location.pathname !== '/signup') {
                 const isSessionExpired = error.response.data?.sessionExpired;
-                const message = isSessionExpired ? '?message=Session expired. Logged in from another device.' : '';
+                const message = isSessionExpired ? '?message=Session expired. Please sign in again.' : '';
                 window.location.href = `/login${message}`;
             }
         }

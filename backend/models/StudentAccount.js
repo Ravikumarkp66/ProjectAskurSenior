@@ -50,6 +50,16 @@ const studentAccountSchema = new mongoose.Schema({
         uppercase: true,
         trim: true
     },
+    usnHistory: [{
+        usn: { type: String, uppercase: true, trim: true },
+        changedAt: { type: Date, default: Date.now },
+        verifiedEmail: { type: String, lowercase: true, trim: true },
+        method: { type: String, default: 'college_email_otp' }
+    }],
+    usnLastChangedAt: {
+        type: Date,
+        default: null
+    },
 
 
     // Academic Identity
@@ -148,6 +158,9 @@ const studentAccountSchema = new mongoose.Schema({
     phone: {
         type: String,
         default: ''
+    },
+    dob: {
+        type: Date
     },
     bio: {
         type: String,

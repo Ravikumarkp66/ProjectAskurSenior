@@ -47,9 +47,12 @@ const upload = multer({
 
 // Public routes
 router.post('/login/google', v2AuthLimiter, authV2Controller.loginGoogle);
+router.post('/google', v2AuthLimiter, authV2Controller.loginGoogle);
 router.post('/login/email', v2OtpLimiter, validateEmailLogin, authV2Controller.loginEmail);
+router.post('/send-otp', v2OtpLimiter, validateEmailLogin, authV2Controller.loginEmail);
 router.post('/verify-otp', v2AuthLimiter, validateVerifyOtp, authV2Controller.verifyOtp);
 router.post('/register', v2AuthLimiter, validateRegister, authV2Controller.register);
+router.post('/complete-profile', v2AuthLimiter, validateRegister, authV2Controller.register);
 router.post('/check-usn', validateCheckUsn, authV2Controller.checkUsn);
 router.post('/recover-account', authV2Controller.recoverAccount);
 router.post('/verify-recovery-otp', authV2Controller.verifyRecoveryOtp);
@@ -60,6 +63,8 @@ router.get('/session', authV2Controller.getSession);
 // Protected routes
 router.get('/me', authenticateStudent, requireActiveAccount, authV2Controller.getMe);
 router.put('/profile', authenticateStudent, requireActiveAccount, authV2Controller.updateProfile);
+router.post('/profile/usn/request-otp', authenticateStudent, requireActiveAccount, authV2Controller.requestUsnChangeOtp);
+router.post('/profile/usn/verify-otp', authenticateStudent, requireActiveAccount, authV2Controller.verifyUsnChangeOtp);
 router.post('/profile/picture', authenticateStudent, requireActiveAccount, upload.single('profilePicture'), authV2Controller.uploadProfilePicture);
 router.delete('/profile/picture', authenticateStudent, requireActiveAccount, authV2Controller.removeProfilePicture);
 router.get('/profile/semesters', authenticateStudent, requireActiveAccount, authV2Controller.getSemesters);

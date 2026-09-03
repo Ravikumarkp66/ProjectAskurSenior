@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
+import UsersPage from './pages/UsersPage';
 import AdminLayout from './layouts/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -19,12 +19,14 @@ export function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
-        <Route path="dashboard" element={<Navigate to="/" replace />} />
+        <Route index element={<Navigate to="/users" replace />} />
+        <Route path="users" element={<UsersPage />} />
+        <Route path="overview" element={<Navigate to="/users" replace />} />
+        <Route path="dashboard" element={<Navigate to="/users" replace />} />
       </Route>
 
       {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/users" replace />} />
     </Routes>
   );
 }

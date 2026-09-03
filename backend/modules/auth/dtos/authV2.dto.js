@@ -20,12 +20,21 @@ class AuthV2Dto {
             semesterEstimate = Math.max(1, Math.min(8, semesterEstimate));
         }
 
+        const studentIdStr = student._id ? student._id.toString() : (student.id ? student.id.toString() : '');
+        const isRegComplete = student.registrationStatus === 'completed' || student.registrationStatus === 'identity_completed' || student.registrationStatus === 'academic_completed';
+
         return {
+            _id: studentIdStr,
+            id: studentIdStr,
             studentId: student.studentId,
             name: student.name,
             username: student.username || '',
             usn: student.usn || '',
             email: student.email,
+            role: student.role || 'student',
+            isAdmin: student.role === 'admin',
+            registrationComplete: isRegComplete,
+            subscription: 'free',
             profilePicture: student.profilePicture ? getCloudFrontUrl(student.profilePicture) : '',
             phone: student.phone || '',
             bio: student.bio || '',
@@ -61,6 +70,9 @@ class AuthV2Dto {
             college: student.collegeName || (student.college && typeof student.college === 'object' ? student.college.name : null) || student.college || 'Siddaganga Institute of Technology',
             admissionYear: student.admissionYear,
             graduationYear: student.graduationYear,
+            dob: student.dob || null,
+            usnHistory: student.usnHistory || [],
+            usnLastChangedAt: student.usnLastChangedAt || null,
             createdAt: student.createdAt,
             updatedAt: student.updatedAt
         };

@@ -64,20 +64,21 @@ const getCloudFrontUrl = (urlOrKey) => {
     if (urlOrKey.includes('X-Amz-Signature')) return urlOrKey;
     if (urlOrKey.startsWith('https://d2mh2rnmjqdkgx.cloudfront.net/')) return urlOrKey;
 
-    let key = urlOrKey;
     if (urlOrKey.startsWith('http')) {
         const bucketName = process.env.AWS_BUCKET_NAME;
         if (bucketName && urlOrKey.includes(bucketName)) {
             try {
                 const urlObj = new URL(urlOrKey);
                 let path = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
-                key = path;
+                return `https://d2mh2rnmjqdkgx.cloudfront.net/${path}`;
             } catch (e) {
                 return urlOrKey;
             }
         }
+        // External avatar / image URL (e.g. Google userinfo avatar)
+        return urlOrKey;
     }
-    return `https://d2mh2rnmjqdkgx.cloudfront.net/${key}`;
+    return `https://d2mh2rnmjqdkgx.cloudfront.net/${urlOrKey}`;
 };
 
 module.exports = { s3, getPresignedUrl, getCloudFrontUrl };

@@ -94,8 +94,8 @@ const ProtectedRoute = ({ children, allowIncomplete = false }) => {
     
     // V2 Student Check
     if (user && (user.studentId !== undefined || user.registrationStatus !== undefined)) {
-        if (user.registrationStatus === 'pending') {
-            return <Navigate to="/login" />;
+        if (!allowIncomplete && (user.registrationStatus === 'pending' || user.registrationComplete === false)) {
+            return <Navigate to="/complete-profile" />;
         }
     } else {
         // Legacy V1 User Check
@@ -104,6 +104,10 @@ const ProtectedRoute = ({ children, allowIncomplete = false }) => {
         }
     }
 
+    return children;
+};
+
+const CompleteProfileRoute = ({ children }) => {
     return children;
 };
 
@@ -186,17 +190,17 @@ function AppContent() {
                     <Route
                         path="/complete-registration"
                         element={
-                            <ProtectedRoute allowIncomplete={true}>
-                                <CompleteRegistrationPage />
-                            </ProtectedRoute>
+                            <CompleteProfileRoute>
+                                <CompleteProfilePage />
+                            </CompleteProfileRoute>
                         }
                     />
                     <Route
                         path="/complete-profile"
                         element={
-                            <ProtectedRoute allowIncomplete={true}>
+                            <CompleteProfileRoute>
                                 <CompleteProfilePage />
-                            </ProtectedRoute>
+                            </CompleteProfileRoute>
                         }
                     />
 

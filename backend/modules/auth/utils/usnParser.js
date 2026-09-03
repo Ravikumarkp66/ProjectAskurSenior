@@ -130,4 +130,28 @@ async function parseUsn(usn) {
     };
 }
 
-module.exports = { parseUsn };
+const collegeDomainMap = {
+    'SI': 'sit.ac.in',
+    'RV': 'rvce.edu.in',
+    'MS': 'msrit.edu',
+    'BM': 'bmsce.ac.in',
+    'DS': 'dsce.edu.in',
+    'PE': 'pes.edu',
+    'JS': 'jssateb.ac.in',
+    'SJ': 'sjce.ac.in',
+    'NI': 'nie.ac.in',
+    'BI': 'bit-bangalore.edu.in'
+};
+
+function getCollegeEmailForUsn(usn) {
+    if (!usn) return null;
+    const clean = usn.trim().toUpperCase();
+    const vtuRegex = /^([1-4])([A-Z]{2})([0-9]{2})([A-Z]{2,3})([0-9]{3})$/;
+    const match = clean.match(vtuRegex);
+    if (!match) return null;
+    const collegeCode = match[2];
+    const domain = collegeDomainMap[collegeCode] || 'sit.ac.in';
+    return `${clean.toLowerCase()}@${domain}`;
+}
+
+module.exports = { parseUsn, getCollegeEmailForUsn, collegeDomainMap };

@@ -1,11 +1,17 @@
 const { body, validationResult } = require('express-validator');
+const {
+    normalizeEmail,
+    validateName,
+    normalizeName,
+    validateUsn,
+    normalizeUsn
+} = require('../../../utils/userValidation');
 
 const validateEmailLogin = [
     body('email')
         .isEmail()
         .withMessage('Please provide a valid email address')
-        .trim()
-        .toLowerCase(),
+        .customSanitizer(normalizeEmail),
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -24,8 +30,7 @@ const validateVerifyOtp = [
     body('email')
         .isEmail()
         .withMessage('Please provide a valid email address')
-        .trim()
-        .toLowerCase(),
+        .customSanitizer(normalizeEmail),
     body('otp')
         .isLength({ min: 6, max: 6 })
         .withMessage('OTP must be exactly 6 digits')
@@ -54,43 +59,44 @@ const validateRegister = [
     body('name')
         .notEmpty()
         .withMessage('Name is required')
-        .isLength({ min: 2, max: 50 })
-        .withMessage('Name must be between 2 and 50 characters')
-        .trim(),
+        .customSanitizer(normalizeName)
+        .custom((value) => {
+            if (!validateName(value)) {
+                throw new Error('Name must contain only lowercase English letters and single spaces between words (2-50 characters)');
+            }
+            return true;
+        }),
     body('usn')
         .notEmpty()
         .withMessage('USN is required')
-        .isLength({ min: 8, max: 12 })
-        .withMessage('USN must be between 8 and 12 characters')
-        .matches(/^[1-4][a-zA-Z]{2}[0-9]{2}[a-zA-Z]{2,3}[0-9]{3}$/)
-        .withMessage('Invalid USN format')
-        .trim()
-        .toUpperCase(),
+        .customSanitizer(normalizeUsn)
+        .custom((value) => {
+            if (!validateUsn(value)) {
+                throw new Error('Invalid USN format (e.g. 1SI23IS080)');
+            }
+            return true;
+        }),
     body('graduationYear')
-        .notEmpty()
-        .withMessage('Graduation year is required')
+        .optional({ checkFalsy: true })
         .isInt({ min: 2020, max: 2040 })
         .withMessage('Graduation year must be a valid year (2020-2040)'),
     body('collegeName')
-        .notEmpty()
-        .withMessage('College name is required')
+        .optional({ checkFalsy: true })
         .trim(),
     body('branch')
-        .notEmpty()
-        .withMessage('Branch is required')
-        .isMongoId()
-        .withMessage('Invalid branch ID'),
+        .optional({ checkFalsy: true }),
     body('scheme')
-        .notEmpty()
-        .withMessage('Scheme is required')
-        .isMongoId()
-        .withMessage('Invalid scheme ID'),
+        .optional({ checkFalsy: true }),
     body('phone')
-        .notEmpty()
-        .withMessage('Phone number is required')
-        .matches(/^\+[1-9]\d{1,14}$/)
-        .withMessage('Phone number must be in E.164 format (e.g. +919876543210)')
+        .optional({ checkFalsy: true })
         .trim(),
+    body('dob')
+        .optional({ checkFalsy: true })
+        .trim(),
+    body('semester')
+        .optional({ checkFalsy: true })
+        .isInt({ min: 1, max: 8 })
+        .withMessage('Semester must be between 1 and 8'),
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -109,12 +115,13 @@ const validateCheckUsn = [
     body('usn')
         .notEmpty()
         .withMessage('USN is required')
-        .isLength({ min: 8, max: 12 })
-        .withMessage('USN must be between 8 and 12 characters')
-        .matches(/^[1-4][a-zA-Z]{2}[0-9]{2}[a-zA-Z]{2,3}[0-9]{3}$/)
-        .withMessage('Invalid USN format')
-        .trim()
-        .toUpperCase(),
+        .customSanitizer(normalizeUsn)
+        .custom((value) => {
+            if (!validateUsn(value)) {
+                throw new Error('Invalid USN format (e.g. 1SI23IS080)');
+            }
+            return true;
+        }),
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {

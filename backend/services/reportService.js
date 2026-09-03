@@ -1,4 +1,4 @@
-const User = require('../models/User');
+const StudentAccount = require('../models/StudentAccount');
 
 exports.getUsersReportData = async (from, to) => {
     let query = {};
@@ -22,7 +22,7 @@ exports.getUsersReportData = async (from, to) => {
         }
     }
 
-    const users = await User.aggregate([
+    const users = await StudentAccount.aggregate([
         { $match: query },
         {
             $lookup: {

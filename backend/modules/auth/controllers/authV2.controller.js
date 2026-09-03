@@ -63,8 +63,10 @@ class AuthV2Controller {
                     message: 'Registration required for this Google account',
                     data: {
                         registrationRequired: true,
+                        isExistingUser: result.isExistingUser,
                         registrationToken: result.registrationToken,
-                        prefilled: result.prefilled
+                        prefilled: result.prefilled,
+                        missingFields: result.missingFields
                     },
                     errors: null
                 });
@@ -77,6 +79,7 @@ class AuthV2Controller {
                 success: true,
                 message: 'Login successful',
                 data: {
+                    registrationRequired: false,
                     accessToken: result.accessToken,
                     student: studentDto.toStudentResponseDto(result.student)
                 },
@@ -131,8 +134,10 @@ class AuthV2Controller {
                     message: 'OTP verified. Registration required.',
                     data: {
                         registrationRequired: true,
+                        isExistingUser: result.isExistingUser,
                         registrationToken: result.registrationToken,
-                        prefilled: result.prefilled
+                        prefilled: result.prefilled,
+                        missingFields: result.missingFields
                     },
                     errors: null
                 });
@@ -145,6 +150,7 @@ class AuthV2Controller {
                 success: true,
                 message: 'Login successful',
                 data: {
+                    registrationRequired: false,
                     accessToken: result.accessToken,
                     student: studentDto.toStudentResponseDto(result.student)
                 },
@@ -164,14 +170,16 @@ class AuthV2Controller {
     async register(req, res) {
         const traceId = Math.random().toString(36).substring(2, 8);
         try {
-            const { registrationToken, name, usn, collegeName, branch, scheme, graduationYear, phone } = req.body;
+            const { registrationToken, name, usn, collegeName, branch, scheme, graduationYear, phone, dob, semester } = req.body;
             console.log(`[V2 Controller][${traceId}] POST /register for USN: "${usn}"`);
             const reqInfo = { ip: req.ip, userAgent: req.headers['user-agent'] };
-            const result = await authV2Service.registerUser({ registrationToken, name, usn, collegeName, branch, scheme, graduationYear, phone }, traceId, reqInfo);
+            const result = await authV2Service.registerUser({ registrationToken, name, usn, collegeName, branch, scheme, graduationYear, phone, dob, semester }, traceId, reqInfo);
 
-            res.cookie('v2_refresh_token', result.refreshToken, cookieOptions);
+            if (result.refreshToken) {
+                res.cookie('v2_refresh_token', result.refreshToken, cookieOptions);
+            }
 
-            console.log(`[V2 Controller][${traceId}] Response: registration success, Student ID: ${result.student.studentId}`);
+            console.log(`[V2 Controller][${traceId}] Response: registration success, Student ID: ${result.student?.studentId}`);
             return res.status(201).json({
                 success: true,
                 message: 'Student account registered successfully',
@@ -275,8 +283,12 @@ class AuthV2Controller {
             if (token) {
                 try {
                     const decoded = require('../utils/token').verifyToken(token);
-                    const student = await this.studentAccountRepository.findById(decoded.userId);
-                    if (student && !student.isDeleted && student.accountStatus === 'active') {
+                    let student = await studentAccountRepository.findById(decoded.userId);
+                    if (!student) {
+                        const User = require('../../../models/User');
+                        student = await User.findById(decoded.userId);
+                    }
+                    if (student && !student.isDeleted && student.accountStatus !== 'suspended' && !student.isSuspended) {
                         return res.status(200).json({
                             success: true,
                             message: 'Session is valid',
@@ -286,7 +298,7 @@ class AuthV2Controller {
                             },
                             errors: null
                         });
-                    } else {
+                    } else if (student && (student.accountStatus === 'suspended' || student.isSuspended)) {
                         // Student account was deleted, suspended, or deactivated
                         const refreshTokenRepository = require('../repositories/refreshToken.repository');
                         await refreshTokenRepository.revokeAllForUser(decoded.userId);
@@ -424,6 +436,68 @@ class AuthV2Controller {
             return res.status(400).json({
                 success: false,
                 message: error.message || 'Profile update failed',
+                data: null,
+                errors: null
+            });
+        }
+    }
+
+    async requestUsnChangeOtp(req, res) {
+        try {
+            const studentId = req.student._id;
+            const { usn } = req.body;
+            if (!usn) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'USN is required',
+                    data: null,
+                    errors: null
+                });
+            }
+
+            const result = await authV2Service.requestUsnChangeOtp(studentId, usn);
+            return res.status(200).json({
+                success: true,
+                message: result.message,
+                data: result,
+                errors: null
+            });
+        } catch (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message || 'Failed to request USN verification OTP',
+                data: null,
+                errors: null
+            });
+        }
+    }
+
+    async verifyUsnChangeOtp(req, res) {
+        try {
+            const studentId = req.student._id;
+            const { usn, otp } = req.body;
+            if (!usn || !otp) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Both USN and OTP are required',
+                    data: null,
+                    errors: null
+                });
+            }
+
+            const updated = await authV2Service.verifyUsnChangeOtp(studentId, usn, otp);
+            return res.status(200).json({
+                success: true,
+                message: 'USN verified and updated successfully',
+                data: {
+                    student: studentDto.toStudentResponseDto(updated)
+                },
+                errors: null
+            });
+        } catch (error) {
+            return res.status(400).json({
+                success: false,
+                message: error.message || 'USN verification failed',
                 data: null,
                 errors: null
             });

@@ -46,6 +46,7 @@ jobs:
               - 'code-execution/python/**'
             backend:
               - 'backend/**'
+              - 'admin/**'
               - 'package*.json'
               - '.github/workflows/deploy-staging.yml'
 
@@ -360,14 +361,21 @@ jobs:
             cd backend
             NODE_OPTIONS="--max-old-space-size=512" npm ci --omit=dev --no-audit --no-fund
 
-            echo "=== 7. Restarting askursenior-backend systemd service ==="
+            echo "=== 7. Building admin frontend ==="
+            cd ~/ProjectAskurSenior/admin
+            NODE_OPTIONS="--max-old-space-size=512" npm ci --no-audit --no-fund
+            npm run build
+            echo "Admin frontend built successfully."
+
+            echo "=== 8. Restarting askursenior-backend systemd service ==="
+            cd ~/ProjectAskurSenior/backend
             sudo systemctl restart askursenior-backend
 
-            echo "=== 8. Verifying systemd service status ==="
+            echo "=== 9. Verifying systemd service status ==="
             sudo systemctl is-active --quiet askursenior-backend
             echo "Service askursenior-backend is active."
 
-            echo "=== 9. Verifying local health endpoint with retry polling ==="
+            echo "=== 10. Verifying local health endpoint with retry polling ==="
             HEALTH_OK=false
             for i in {1..30}; do
               if curl --fail --silent --show-error http://127.0.0.1:5000/api/health; then

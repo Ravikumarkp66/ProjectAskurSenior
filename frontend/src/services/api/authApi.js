@@ -10,6 +10,7 @@ export const authAPI = {
     verifyOtp: (email, otp) => apiClient.post('/auth/verify-otp', { email, otp }),
     verifySignupOtp: (email, otp) => apiClient.post('/auth/verify-signup-otp', { email, otp }),
     completeGoogleRegistration: (data) => apiClient.post('/auth/complete-google-registration', data),
+    checkUsn: (usn) => apiClient.post('/auth/check-usn', { usn }),
     getProfile: () => apiClient.get('/auth/profile'),
     updateProfile: (data) => apiClient.put('/auth/update-profile', data),
     uploadProfilePicture: (formData) => apiClient.post('/auth/upload-profile-picture', formData, {
