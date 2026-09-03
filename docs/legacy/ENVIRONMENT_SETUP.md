@@ -395,7 +395,7 @@ Should show login page without errors
 
 ### Backend Production .env
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/askursenior
+MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
 JWT_SECRET=generate_long_random_string_at_least_32_characters_long
 PORT=3000
 NODE_ENV=production

@@ -24,7 +24,7 @@
 2. **Set Environment Variables in Render**
    In Render's environment settings, add:
    ```
-   MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/askursenior
+   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
    JWT_SECRET=<strong-random-string-at-least-32-chars>
    PORT=5000
    NODE_ENV=production

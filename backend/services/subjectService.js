@@ -36,7 +36,16 @@ class SubjectService {
     }
 
     async getSubjectById(subjectId) {
-        return subjectRepository.findById(subjectId, null, { lean: true });
+        // Try AcademicSubject first with populated relationships
+        let subject = await subjectRepository.academicSubjectModel.findById(subjectId)
+            .populate('branch', 'name shortName displayOrder status')
+            .populate('scheme', 'name status')
+            .lean();
+
+        if (!subject) {
+            subject = await subjectRepository.findById(subjectId, null, { lean: true });
+        }
+        return subject;
     }
 
     async getSubjectsByCode(code) {
@@ -54,6 +63,15 @@ class SubjectService {
 
     async countAcademicSubjects(filter) {
         return subjectRepository.academicSubjectModel.countDocuments(filter);
+    }
+
+    // Aliases used by admin CMS controllers
+    async getSubjects(filter, skip = 0, limit = 20) {
+        return this.getAcademicSubjects(filter, skip, limit);
+    }
+
+    async countSubjects(filter) {
+        return this.countAcademicSubjects(filter);
     }
 }
 

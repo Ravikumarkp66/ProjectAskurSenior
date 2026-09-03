@@ -88,12 +88,29 @@ export const AdminLayout = () => {
 
           <span className="text-gray-300 dark:text-zinc-700">|</span>
 
-          <span
-            className="text-gray-400 dark:text-zinc-600 cursor-not-allowed select-none"
-            title="Module not yet implemented"
+          <NavLink
+            to="/subjects"
+            className={({ isActive }) =>
+              isActive
+                ? 'text-blue-600 underline underline-offset-4 font-bold dark:text-blue-400'
+                : 'hover:text-blue-600 dark:hover:text-blue-400'
+            }
           >
-            CONTENT
-          </span>
+            SUBJECTS
+          </NavLink>
+
+          <span className="text-gray-300 dark:text-zinc-700">|</span>
+
+          <NavLink
+            to="/materials"
+            className={({ isActive }) =>
+              isActive
+                ? 'text-blue-600 underline underline-offset-4 font-bold dark:text-blue-400'
+                : 'hover:text-blue-600 dark:hover:text-blue-400'
+            }
+          >
+            MATERIALS
+          </NavLink>
 
           <span className="text-gray-300 dark:text-zinc-700">|</span>
 

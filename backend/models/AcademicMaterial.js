@@ -2,9 +2,14 @@ const mongoose = require('mongoose');
 
 const MATERIAL_TYPES = [
     'Notes',
+    'PYQs',
+    'Question Banks',
+    'Syllabus',
+    'Lab Manuals',
+    'Textbooks',
+    'Others',
     'SEE',
-    'Internals',
-    'Others'
+    'Internals'
 ];
 
 const MIGRATION_STATUSES = ['Auto Matched', 'Needs Review', 'Manually Assigned'];

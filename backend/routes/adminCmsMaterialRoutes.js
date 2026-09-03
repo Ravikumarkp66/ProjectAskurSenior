@@ -13,9 +13,12 @@ const {
     updateMaterial,
     deleteMaterial,
     bulkDeleteMaterials,
+    bulkReassignMaterials,
+    bulkUpdateStatus,
     restoreMaterial,
     ignoreDuplicate,
-    getMaterialFileUrl
+    getMaterialFileUrl,
+    previewMatch
 } = require('../controllers/adminCmsMaterialController');
 
 // All routes require authentication + admin access
@@ -27,6 +30,9 @@ router.get('/duplicates', getDuplicatesList);
 router.get('/', getMaterials);
 router.get('/:id/file', getMaterialFileUrl);
 router.get('/:id', getMaterialById);
+router.post('/preview-match', previewMatch);
+router.post('/bulk-reassign', bulkReassignMaterials);
+router.post('/bulk-status', bulkUpdateStatus);
 router.post('/bulk-delete', bulkDeleteMaterials);
 router.post('/:id/restore', restoreMaterial);
 router.post('/:id/ignore-duplicate', ignoreDuplicate);

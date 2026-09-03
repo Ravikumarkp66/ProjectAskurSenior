@@ -6,6 +6,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const { detectDuplicates, normalizeName } = require('../services/duplicateService');
+const { matchSubject, detectMaterialType } = require('../services/subjectMatcher');
 const { GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { s3 } = require('../utils/s3');
@@ -58,21 +59,26 @@ const uploadPool = async (files, concurrencyLimit = 5) => {
 // GET /api/admin/materials/stats
 const getStats = async (req, res) => {
     try {
-        const [total, published, hidden, draft, needsReview, typeStats] = await Promise.all([
-            AcademicMaterial.countDocuments(),
-            AcademicMaterial.countDocuments({ status: 'Published' }),
-            AcademicMaterial.countDocuments({ status: 'Hidden' }),
-            AcademicMaterial.countDocuments({ status: 'Draft' }),
-            AcademicMaterial.countDocuments({ migrationStatus: 'Needs Review' }),
+        const [total, published, hidden, draft, needsReview, trashCount, typeStats, dupGroups] = await Promise.all([
+            AcademicMaterial.countDocuments({ deletedAt: null }),
+            AcademicMaterial.countDocuments({ status: 'Published', deletedAt: null }),
+            AcademicMaterial.countDocuments({ status: 'Hidden', deletedAt: null }),
+            AcademicMaterial.countDocuments({ status: 'Draft', deletedAt: null }),
+            AcademicMaterial.countDocuments({ migrationStatus: 'Needs Review', deletedAt: null }),
+            AcademicMaterial.countDocuments({ deletedAt: { $ne: null } }),
             AcademicMaterial.aggregate([
+                { $match: { deletedAt: null } },
                 { $group: { _id: '$materialType', count: { $sum: 1 } } }
-            ])
+            ]),
+            detectDuplicates()
         ]);
+
+        const possibleDuplicates = dupGroups.reduce((acc, g) => acc + g.materials.length, 0);
 
         const types = typeStats.reduce((acc, { _id, count }) => {
             acc[_id || 'Others'] = count;
             return acc;
-        }, { Notes: 0, SEE: 0, Internals: 0, Others: 0 });
+        }, { Notes: 0, PYQs: 0, 'Question Banks': 0, Syllabus: 0, 'Lab Manuals': 0, Textbooks: 0, Others: 0 });
 
         res.status(200).json({
             total,
@@ -80,6 +86,8 @@ const getStats = async (req, res) => {
             hidden,
             draft,
             needsReview,
+            possibleDuplicates,
+            trashCount,
             types
         });
     } catch (error) {
@@ -275,54 +283,129 @@ const getMaterialById = async (req, res) => {
     }
 };
 
-// POST /api/admin/materials (Supports Bulk Upload via Promise Pool)
-const createMaterial = async (req, res) => {
+// POST /api/admin/materials/preview-match
+const previewMatch = async (req, res) => {
     try {
-        const { subject, materialType, status } = req.body;
-
-        if (!subject || !materialType) {
-            return res.status(400).json({ error: 'subject and materialType are required' });
+        const { filenames } = req.body;
+        if (!Array.isArray(filenames) || filenames.length === 0) {
+            return res.status(400).json({ error: 'filenames array is required' });
         }
 
-        // Verify subject exists
-        const subjectDoc = await AcademicSubject.findById(subject);
-        if (!subjectDoc) return res.status(404).json({ error: 'Subject not found' });
+        const allSubjects = await AcademicSubject.find({ status: 'Published' })
+            .select('name code year branch')
+            .populate('branch', 'shortName name')
+            .lean();
+
+        const matches = filenames.map(filename => {
+            const matched = matchSubject(filename, allSubjects);
+            const detectedType = detectMaterialType(filename);
+            return {
+                filename,
+                subject: matched ? {
+                    _id: matched.subject._id,
+                    name: matched.subject.name,
+                    code: matched.subject.code,
+                    year: matched.subject.year
+                } : null,
+                materialType: detectedType,
+                migrationStatus: matched ? 'Auto Matched' : 'Needs Review'
+            };
+        });
+
+        res.status(200).json({ matches });
+    } catch (error) {
+        console.error('previewMatch error:', error);
+        res.status(500).json({ error: 'Server error', details: error.message });
+    }
+};
+
+// POST /api/admin/materials (Supports Bulk Drag & Drop Upload with Auto Subject Matching)
+const createMaterial = async (req, res) => {
+    try {
+        const { subject: defaultSubject, materialType: defaultType, status, metadata } = req.body;
 
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ error: 'No files uploaded' });
         }
 
-        // 1. Calculate hashes and check for duplicates in the database first
+        let parsedMetadata = [];
+        if (metadata) {
+            try {
+                parsedMetadata = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+            } catch (e) {
+                parsedMetadata = [];
+            }
+        }
+
+        const allSubjects = await AcademicSubject.find({ status: 'Published' })
+            .select('name code year')
+            .lean();
+
         const override = req.query.override === 'true';
         const uniqueFiles = [];
         const duplicates = [];
 
+        // 1. Determine subject, materialType, and check duplicates for each file
         for (const file of req.files) {
             const hash = await getFileHash(file.path);
             file.fileHash = hash;
 
+            const clientMeta = parsedMetadata.find(
+                m => m.filename === file.originalname || m.originalName === file.originalname
+            );
+
+            // Determine Subject
+            let assignedSubjectId = null;
+            let fileMigrationStatus = 'Needs Review';
+
+            if (clientMeta?.subjectId) {
+                assignedSubjectId = clientMeta.subjectId;
+                fileMigrationStatus = clientMeta.migrationStatus || 'Manually Assigned';
+            } else if (defaultSubject && defaultSubject !== 'auto' && defaultSubject !== '') {
+                assignedSubjectId = defaultSubject;
+                fileMigrationStatus = 'Manually Assigned';
+            } else {
+                const matched = matchSubject(file.originalname, allSubjects);
+                if (matched) {
+                    assignedSubjectId = matched.subject._id;
+                    fileMigrationStatus = 'Auto Matched';
+                } else {
+                    assignedSubjectId = null;
+                    fileMigrationStatus = 'Needs Review';
+                }
+            }
+
+            // Determine Material Type
+            let assignedType = 'Notes';
+            if (clientMeta?.materialType) {
+                assignedType = clientMeta.materialType;
+            } else if (defaultType && defaultType !== 'auto' && defaultType !== '') {
+                assignedType = defaultType;
+            } else {
+                assignedType = detectMaterialType(file.originalname);
+            }
+
+            file.resolvedSubjectId = assignedSubjectId;
+            file.resolvedMigrationStatus = fileMigrationStatus;
+            file.resolvedMaterialType = assignedType;
+
+            // Check duplicates if not override
             if (!override) {
-                // Check 1: SHA-256 Hash
                 let existing = await AcademicMaterial.findOne({
                     fileHash: hash,
                     status: { $ne: 'Hidden' },
                     ignoredDuplicate: { $ne: true }
-                })
-                .populate('uploadedBy', 'name email')
-                .lean();
+                }).lean();
 
-                // Check 2: Metadata Match (Subject + Type + Normalized Name + File Size)
-                if (!existing) {
+                if (!existing && assignedSubjectId) {
                     const normName = normalizeName(file.originalname);
                     const metaMatches = await AcademicMaterial.find({
-                        subject: subjectDoc._id,
-                        materialType,
+                        subject: assignedSubjectId,
+                        materialType: assignedType,
                         status: { $ne: 'Hidden' },
                         ignoredDuplicate: { $ne: true },
                         fileSize: file.size
-                    })
-                    .populate('uploadedBy', 'name email')
-                    .lean();
+                    }).lean();
 
                     existing = metaMatches.find(m => normalizeName(m.originalFileName || m.title) === normName);
                 }
@@ -335,59 +418,28 @@ const createMaterial = async (req, res) => {
                         existing: {
                             _id: existing._id,
                             title: existing.title,
-                            uploadedAt: existing.createdAt,
-                            uploaderEmail: existing.uploaderEmail || existing.uploadedBy?.email || 'System / Migrated'
+                            uploadedAt: existing.createdAt
                         }
                     });
                     continue;
                 }
             }
+
             uniqueFiles.push(file);
         }
 
         // If duplicate warnings are detected and no override is passed,
         // upload only the unique files immediately, and return duplicate warnings for the rest
-        if (duplicates.length > 0 && !override) {
-            let uploadedCount = 0;
-            let createdMaterials = [];
-            if (uniqueFiles.length > 0) {
-                const uploadedFiles = await uploadPool(uniqueFiles, 5);
-                const uploader = await User.findById(req.userId).select('email').lean();
-                const materialsData = uploadedFiles.map(file => ({
-                    title:             file.originalFileName,
-                    subject:           subjectDoc._id,
-                    materialType,
-                    fileUrl:           file.fileUrl,
-                    storedFileName:    file.storedFileName,
-                    originalFileName:  file.originalFileName,
-                    fileType:          file.fileType,
-                    mimeType:          file.mimeType,
-                    fileSize:          file.fileSize,
-                    fileHash:          file.fileHash,
-                    uploadedBy:        req.userId,
-                    uploaderEmail:    uploader?.email || null,
-                    status:            status || 'Published',
-                    migrationStatus:   null
-                }));
-                createdMaterials = await AcademicMaterial.insertMany(materialsData);
-                uploadedCount = createdMaterials.length;
-
-                // Bulk increment materialCount
-                await AcademicSubject.findByIdAndUpdate(subjectDoc._id, {
-                    $inc: { materialCount: createdMaterials.length }
-                });
-            }
-
+        if (duplicates.length > 0 && !override && uniqueFiles.length === 0) {
             return res.status(200).json({
                 duplicate: true,
-                uploadedCount,
+                uploadedCount: 0,
                 duplicateCount: duplicates.length,
                 duplicates,
-                materials: createdMaterials
+                materials: []
             });
         }
 
-        // Upload normal or overridden files
         const filesToUpload = override ? req.files : uniqueFiles;
         if (filesToUpload.length === 0) {
             return res.status(400).json({ error: 'No files to upload' });
@@ -395,32 +447,46 @@ const createMaterial = async (req, res) => {
 
         const uploadedFiles = await uploadPool(filesToUpload, 5);
         const uploader = await User.findById(req.userId).select('email').lean();
-        const materialsData = uploadedFiles.map(file => ({
-            title:             file.originalFileName,
-            subject:           subjectDoc._id,
-            materialType,
-            fileUrl:           file.fileUrl,
-            storedFileName:    file.storedFileName,
-            originalFileName:  file.originalFileName,
-            fileType:          file.fileType,
-            mimeType:          file.mimeType,
-            fileSize:          file.fileSize,
-            fileHash:          file.fileHash,
-            uploadedBy:        req.userId,
-            uploaderEmail:    uploader?.email || null,
-            status:            status || 'Published',
-            migrationStatus:   null
-        }));
+
+        const materialsData = uploadedFiles.map((uploaded, idx) => {
+            const orig = filesToUpload[idx];
+            return {
+                title:             orig.originalFileName || orig.originalname,
+                subject:           orig.resolvedSubjectId || null,
+                materialType:      orig.resolvedMaterialType || 'Notes',
+                fileUrl:           uploaded.fileUrl,
+                storedFileName:    uploaded.storedFileName,
+                originalFileName:  uploaded.originalFileName,
+                fileType:          uploaded.fileType,
+                mimeType:          uploaded.mimeType,
+                fileSize:          uploaded.fileSize,
+                fileHash:          uploaded.fileHash,
+                uploadedBy:        req.userId,
+                uploaderEmail:    uploader?.email || null,
+                status:            status || 'Published',
+                migrationStatus:   orig.resolvedMigrationStatus
+            };
+        });
 
         const createdMaterials = await AcademicMaterial.insertMany(materialsData);
 
-        // Bulk increment materialCount on the academic subject
-        await AcademicSubject.findByIdAndUpdate(subjectDoc._id, {
-            $inc: { materialCount: createdMaterials.length }
-        });
+        // Bulk increment subject materialCount for each subject
+        const subjectCountIncrements = {};
+        for (const m of createdMaterials) {
+            if (m.subject) {
+                const subStr = m.subject.toString();
+                subjectCountIncrements[subStr] = (subjectCountIncrements[subStr] || 0) + 1;
+            }
+        }
+        for (const [subId, inc] of Object.entries(subjectCountIncrements)) {
+            await AcademicSubject.findByIdAndUpdate(subId, { $inc: { materialCount: inc } });
+        }
 
         res.status(201).json({
             message: `${createdMaterials.length} materials uploaded successfully`,
+            uploadedCount: createdMaterials.length,
+            duplicateCount: duplicates.length,
+            duplicates: duplicates.length > 0 ? duplicates : undefined,
             materials: createdMaterials
         });
     } catch (error) {
@@ -584,6 +650,77 @@ const ignoreDuplicate = async (req, res) => {
     }
 };
 
+// POST /api/admin/materials/bulk-reassign
+const bulkReassignMaterials = async (req, res) => {
+    try {
+        const { ids, newSubjectId } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'No material IDs provided' });
+        }
+        if (!newSubjectId) {
+            return res.status(400).json({ error: 'newSubjectId is required' });
+        }
+
+        const newSubject = await AcademicSubject.findById(newSubjectId);
+        if (!newSubject) {
+            return res.status(404).json({ error: 'Target subject not found' });
+        }
+
+        const materials = await AcademicMaterial.find({ _id: { $in: ids } }).select('subject');
+
+        const oldSubjectCounts = {};
+        materials.forEach(m => {
+            if (m.subject && m.subject.toString() !== newSubjectId) {
+                const oldId = m.subject.toString();
+                oldSubjectCounts[oldId] = (oldSubjectCounts[oldId] || 0) + 1;
+            }
+        });
+
+        for (const [subId, count] of Object.entries(oldSubjectCounts)) {
+            await AcademicSubject.findByIdAndUpdate(subId, { $inc: { materialCount: -count } });
+        }
+
+        await AcademicSubject.findByIdAndUpdate(newSubjectId, { $inc: { materialCount: ids.length } });
+
+        await AcademicMaterial.updateMany(
+            { _id: { $in: ids } },
+            { $set: { subject: newSubjectId, migrationStatus: 'Manually Assigned' } }
+        );
+
+        res.status(200).json({
+            message: `Successfully reassigned ${ids.length} materials to ${newSubject.code} - ${newSubject.name}`
+        });
+    } catch (error) {
+        console.error('bulkReassignMaterials error:', error);
+        res.status(500).json({ error: 'Server error', details: error.message });
+    }
+};
+
+// POST /api/admin/materials/bulk-status
+const bulkUpdateStatus = async (req, res) => {
+    try {
+        const { ids, status } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: 'No material IDs provided' });
+        }
+        if (!status || !['Published', 'Hidden', 'Draft'].includes(status)) {
+            return res.status(400).json({ error: 'Valid status (Published, Hidden, Draft) is required' });
+        }
+
+        await AcademicMaterial.updateMany(
+            { _id: { $in: ids } },
+            { $set: { status } }
+        );
+
+        res.status(200).json({
+            message: `Successfully updated status to "${status}" for ${ids.length} materials`
+        });
+    } catch (error) {
+        console.error('bulkUpdateStatus error:', error);
+        res.status(500).json({ error: 'Server error', details: error.message });
+    }
+};
+
 // GET /api/admin/materials/:id/file
 // Generates a secure, temporary pre-signed GET URL for a material
 const getMaterialFileUrl = async (req, res) => {
@@ -669,10 +806,13 @@ module.exports = {
     getDuplicatesList,
     getMaterials,
     getMaterialById,
+    previewMatch,
     createMaterial,
     updateMaterial,
     deleteMaterial,
     bulkDeleteMaterials,
+    bulkReassignMaterials,
+    bulkUpdateStatus,
     restoreMaterial,
     ignoreDuplicate,
     getMaterialFileUrl

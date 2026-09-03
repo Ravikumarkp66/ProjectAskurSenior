@@ -1,5 +1,8 @@
+const mongoose = require('mongoose');
 const AcademicSubject = require('../models/AcademicSubject');
 const Branch = require('../models/Branch');
+const Scheme = require('../models/Scheme');
+const AcademicMaterial = require('../models/AcademicMaterial');
 const subjectService = require('../services/subjectService');
 
 const escapeRegExp = (str) => str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
@@ -51,22 +54,44 @@ const getStats = async (req, res) => {
 // GET /api/admin/subjects
 const getSubjects = async (req, res) => {
     try {
-        const { search, year, scheme, status, credits, branch, page = 1, limit = 20 } = req.query;
+        const { search, year, scheme, status, credits, branch, page = 1, limit = 50 } = req.query;
 
         const filter = {};
         if (status) filter.status = status;
-        if (scheme) filter.scheme = scheme;
-        if (branch) filter.branch = branch;
+
+        if (scheme) {
+            if (mongoose.Types.ObjectId.isValid(scheme)) {
+                filter.scheme = scheme;
+            } else {
+                const foundScheme = await Scheme.findOne({ name: scheme });
+                if (foundScheme) {
+                    filter.scheme = foundScheme._id;
+                }
+            }
+        }
+
+        if (branch) {
+            if (mongoose.Types.ObjectId.isValid(branch)) {
+                filter.branch = branch;
+            } else {
+                const foundBranch = await Branch.findOne({ shortName: branch.toUpperCase() });
+                if (foundBranch) {
+                    filter.branch = foundBranch._id;
+                }
+            }
+        }
+
         if (credits !== undefined && credits !== '') {
             filter.credits = parseInt(credits);
         }
+
         if (year) {
             const yearMap = { '1': '1st Year', '2': '2nd Year', '3': '3rd Year', '4': '4th Year' };
             filter.year = yearMap[year] || year;
         }
 
         if (search) {
-            const regex = new RegExp(escapeRegExp(search), 'i');
+            const regex = new RegExp(escapeRegExp(search.trim()), 'i');
             filter.$or = [
                 { name: regex },
                 { code: regex }
@@ -89,6 +114,7 @@ const getSubjects = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error('Error in getSubjects:', error);
         res.status(500).json({ error: 'Server error', details: error.message });
     }
 };
@@ -109,8 +135,20 @@ const createSubject = async (req, res) => {
     try {
         const { name, code, credits, year, scheme, status, branch } = req.body;
 
-        if (!name || !code || !year || !scheme || credits === undefined) {
-            return res.status(400).json({ error: 'name, code, year, scheme, and credits are required' });
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Subject name is required' });
+        }
+        if (!code || !code.trim()) {
+            return res.status(400).json({ error: 'Course code is required' });
+        }
+        if (!year) {
+            return res.status(400).json({ error: 'Academic year is required' });
+        }
+        if (!scheme) {
+            return res.status(400).json({ error: 'Scheme is required' });
+        }
+        if (credits === undefined || credits === null || credits === '') {
+            return res.status(400).json({ error: 'Credits are required' });
         }
 
         const creditsInt = parseInt(credits);
@@ -119,31 +157,51 @@ const createSubject = async (req, res) => {
         }
 
         const targetCode = code.toUpperCase().trim();
-        const targetSlug = slugify(name);
+        const baseSlug = slugify(name.trim()) || targetCode.toLowerCase();
 
         // Ensure uniqueness
         const codeExists = await AcademicSubject.findOne({ code: targetCode });
-        if (codeExists) return res.status(400).json({ error: `Subject code '${targetCode}' already exists` });
+        if (codeExists) {
+            return res.status(400).json({ error: `Course code '${targetCode}' already exists` });
+        }
 
-        const slugExists = await AcademicSubject.findOne({ slug: targetSlug });
-        if (slugExists) return res.status(400).json({ error: `Subject slug '${targetSlug}' already exists` });
+        // Generate unique slug if identical slug exists
+        let targetSlug = baseSlug;
+        let slugCounter = 1;
+        while (await AcademicSubject.findOne({ slug: targetSlug })) {
+            targetSlug = `${baseSlug}-${slugCounter++}`;
+        }
 
         // Resolve branch ObjectId
         let branchId = branch;
-        if (!branchId || branchId === 'Common' || branchId === '-') {
-            const commonBranch = await Branch.findOne({ shortName: 'Common' });
+        if (!branchId || branchId === 'Common' || branchId === 'COMMON' || branchId === '-') {
+            const commonBranch = await Branch.findOne({ shortName: { $in: ['COMMON', 'Common'] } });
             branchId = commonBranch ? commonBranch._id : null;
+        } else if (!mongoose.Types.ObjectId.isValid(branchId)) {
+            const foundBranch = await Branch.findOne({ shortName: branchId.toUpperCase() });
+            branchId = foundBranch ? foundBranch._id : null;
         }
 
         if (!branchId) {
             return res.status(400).json({ error: 'Valid branch selection is required' });
         }
 
+        // Resolve scheme ObjectId
+        let schemeId = scheme;
+        if (!mongoose.Types.ObjectId.isValid(schemeId)) {
+            const foundScheme = await Scheme.findOne({ name: scheme });
+            schemeId = foundScheme ? foundScheme._id : null;
+        }
+
+        if (!schemeId) {
+            return res.status(400).json({ error: 'Valid scheme selection is required' });
+        }
+
         const subject = await AcademicSubject.create({
             name: name.trim(),
             code: targetCode,
             year,
-            scheme,
+            scheme: schemeId,
             credits: creditsInt,
             branch: branchId,
             status: status || 'Published',
@@ -153,6 +211,7 @@ const createSubject = async (req, res) => {
         const populatedSubject = await subjectService.getSubjectById(subject._id);
         res.status(201).json(populatedSubject);
     } catch (error) {
+        console.error('Error creating subject:', error);
         res.status(500).json({ error: 'Server error', details: error.message });
     }
 };
@@ -176,26 +235,46 @@ const updateSubject = async (req, res) => {
         if (code) {
             const targetCode = code.toUpperCase().trim();
             if (targetCode !== subject.code) {
-                const codeExists = await AcademicSubject.findOne({ code: targetCode });
+                const codeExists = await AcademicSubject.findOne({ code: targetCode, _id: { $ne: subject._id } });
                 if (codeExists) return res.status(400).json({ error: `Subject code '${targetCode}' already exists` });
                 subject.code = targetCode;
             }
         }
 
-        if (name) {
+        if (name && name.trim()) {
             subject.name = name.trim();
-            subject.slug = slugify(name);
+            const baseSlug = slugify(name.trim());
+            let targetSlug = baseSlug;
+            let slugCounter = 1;
+            while (await AcademicSubject.findOne({ slug: targetSlug, _id: { $ne: subject._id } })) {
+                targetSlug = `${baseSlug}-${slugCounter++}`;
+            }
+            subject.slug = targetSlug;
         }
 
         if (year) subject.year = year;
-        if (scheme) subject.scheme = scheme;
+
+        if (scheme !== undefined) {
+            let schemeId = scheme;
+            if (!mongoose.Types.ObjectId.isValid(schemeId)) {
+                const foundScheme = await Scheme.findOne({ name: scheme });
+                schemeId = foundScheme ? foundScheme._id : null;
+            }
+            if (schemeId) {
+                subject.scheme = schemeId;
+            }
+        }
+
         if (status) subject.status = status;
 
         if (branch !== undefined) {
             let branchId = branch;
-            if (!branchId || branchId === 'Common' || branchId === '-') {
-                const commonBranch = await Branch.findOne({ shortName: 'Common' });
+            if (!branchId || branchId === 'Common' || branchId === 'COMMON' || branchId === '-') {
+                const commonBranch = await Branch.findOne({ shortName: { $in: ['COMMON', 'Common'] } });
                 branchId = commonBranch ? commonBranch._id : null;
+            } else if (!mongoose.Types.ObjectId.isValid(branchId)) {
+                const foundBranch = await Branch.findOne({ shortName: branchId.toUpperCase() });
+                branchId = foundBranch ? foundBranch._id : null;
             }
             if (branchId) {
                 subject.branch = branchId;
@@ -206,21 +285,37 @@ const updateSubject = async (req, res) => {
         const populatedSubject = await subjectService.getSubjectById(subject._id);
         res.status(200).json(populatedSubject);
     } catch (error) {
+        console.error('Error updating subject:', error);
         res.status(500).json({ error: 'Server error', details: error.message });
     }
 };
 
-// DELETE /api/admin/subjects/:id  (soft hide)
+// DELETE /api/admin/subjects/:id  (soft hide by default, hard delete only if no materials)
 const deleteSubject = async (req, res) => {
     try {
         const subject = await AcademicSubject.findById(req.params.id);
         if (!subject) return res.status(404).json({ error: 'Subject not found' });
 
+        const { hard } = req.query;
+
+        if (hard === 'true') {
+            const materialsCount = await AcademicMaterial.countDocuments({ subject: subject._id });
+            if (materialsCount > 0) {
+                return res.status(400).json({
+                    error: `Cannot permanently delete '${subject.name}'. It is referenced by ${materialsCount} material(s). Use Archive/Hide instead.`
+                });
+            }
+            await AcademicSubject.findByIdAndDelete(subject._id);
+            return res.status(200).json({ message: 'Subject permanently deleted successfully' });
+        }
+
+        // Soft delete / archive by setting status to Hidden
         subject.status = 'Hidden';
         await subject.save();
 
-        res.status(200).json({ message: 'Subject hidden successfully' });
+        res.status(200).json({ message: 'Subject archived successfully', subject });
     } catch (error) {
+        console.error('Error deleting subject:', error);
         res.status(500).json({ error: 'Server error', details: error.message });
     }
 };
@@ -262,6 +357,7 @@ const duplicateSubject = async (req, res) => {
         const populatedDuplicate = await subjectService.getSubjectById(duplicate._id);
         res.status(201).json(populatedDuplicate);
     } catch (error) {
+        console.error('Error duplicating subject:', error);
         res.status(500).json({ error: 'Server error', details: error.message });
     }
 };
