@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
+const { requireAdmin, requirePermission, enforceDepartmentScope } = require('../middleware/adminAuth');
 const {
     getStats,
     getSubjects,
@@ -12,15 +12,15 @@ const {
     duplicateSubject
 } = require('../controllers/adminCmsSubjectController');
 
-// All routes require authentication + admin access
-router.use(authMiddleware, adminMiddleware);
+// All subject routes require authentication + active admin verification
+router.use(authMiddleware, requireAdmin);
 
-router.get('/stats', getStats);
-router.get('/', getSubjects);
-router.get('/:id', getSubjectById);
-router.post('/', createSubject);
-router.put('/:id', updateSubject);
-router.delete('/:id', deleteSubject);
-router.post('/:id/duplicate', duplicateSubject);
+router.get('/stats', requirePermission('subjects.view'), enforceDepartmentScope, getStats);
+router.get('/', requirePermission('subjects.view'), enforceDepartmentScope, getSubjects);
+router.get('/:id', requirePermission('subjects.view'), enforceDepartmentScope, getSubjectById);
+router.post('/', requirePermission('subjects.create'), enforceDepartmentScope, createSubject);
+router.put('/:id', requirePermission('subjects.update'), enforceDepartmentScope, updateSubject);
+router.delete('/:id', requirePermission('subjects.delete'), enforceDepartmentScope, deleteSubject);
+router.post('/:id/duplicate', requirePermission('subjects.create'), enforceDepartmentScope, duplicateSubject);
 
 module.exports = router;

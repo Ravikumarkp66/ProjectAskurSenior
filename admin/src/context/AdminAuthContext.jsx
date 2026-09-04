@@ -21,7 +21,7 @@ export const AdminAuthProvider = ({ children }) => {
 
           // Validate token with profile endpoint
           const profile = await authService.getProfile();
-          if (profile && (profile.isAdmin || profile.role === 'admin')) {
+          if (profile && (profile.isAdmin || profile.role === 'admin' || profile.role === 'SUPER_ADMIN' || profile.role === 'ADMIN')) {
             setAdmin(profile);
             localStorage.setItem('adminUser', JSON.stringify(profile));
           } else {
@@ -47,6 +47,9 @@ export const AdminAuthProvider = ({ children }) => {
     const isAdminUser = user && (
       user.isAdmin === true ||
       user.role === 'admin' ||
+      user.role === 'SUPER_ADMIN' ||
+      user.role === 'ADMIN' ||
+      user.isSuperAdmin === true ||
       (user.email && user.email.toLowerCase() === 'mreducator4566@gmail.com')
     );
 
@@ -56,11 +59,27 @@ export const AdminAuthProvider = ({ children }) => {
       throw authError;
     }
 
-    const adminUser = { ...user, isAdmin: true, role: 'admin' };
+    const adminUser = {
+      ...user,
+      isAdmin: true,
+      role: user.role || 'ADMIN',
+      isSuperAdmin: user.isSuperAdmin || user.role === 'SUPER_ADMIN'
+    };
     localStorage.setItem('adminToken', authToken);
-    localStorage.setItem('adminUser', JSON.stringify(adminUser));
-
     setToken(authToken);
+
+    try {
+      const profile = await authService.getProfile();
+      if (profile && (profile.isAdmin || profile.role === 'admin' || profile.role === 'SUPER_ADMIN' || profile.role === 'ADMIN')) {
+        localStorage.setItem('adminUser', JSON.stringify(profile));
+        setAdmin(profile);
+        return data;
+      }
+    } catch (err) {
+      console.warn('Failed to load profile on Google login, using initial adminUser:', err);
+    }
+
+    localStorage.setItem('adminUser', JSON.stringify(adminUser));
     setAdmin(adminUser);
     return data;
   };
@@ -69,7 +88,14 @@ export const AdminAuthProvider = ({ children }) => {
     const data = await authService.login(email, password);
     const user = data.user;
 
-    if (!user || (!user.isAdmin && user.role !== 'admin')) {
+    const isAdminUser = user && (
+      user.isAdmin === true ||
+      user.role === 'admin' ||
+      user.role === 'SUPER_ADMIN' ||
+      user.role === 'ADMIN'
+    );
+
+    if (!isAdminUser) {
       const authError = new Error('Access denied. Your account is not authorized to access the AskUrSenior Admin Portal.');
       authError.code = 'UNAUTHORIZED_ADMIN';
       throw authError;
@@ -77,9 +103,20 @@ export const AdminAuthProvider = ({ children }) => {
 
     const authToken = data.token;
     localStorage.setItem('adminToken', authToken);
-    localStorage.setItem('adminUser', JSON.stringify(user));
-
     setToken(authToken);
+
+    try {
+      const profile = await authService.getProfile();
+      if (profile && (profile.isAdmin || profile.role === 'admin' || profile.role === 'SUPER_ADMIN' || profile.role === 'ADMIN')) {
+        localStorage.setItem('adminUser', JSON.stringify(profile));
+        setAdmin(profile);
+        return data;
+      }
+    } catch (err) {
+      console.warn('Failed to load profile on password login, using user:', err);
+    }
+
+    localStorage.setItem('adminUser', JSON.stringify(user));
     setAdmin(user);
     return data;
   };

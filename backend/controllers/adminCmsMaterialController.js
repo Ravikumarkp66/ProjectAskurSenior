@@ -10,6 +10,7 @@ const { matchSubject, detectMaterialType } = require('../services/subjectMatcher
 const { GetObjectCommand, HeadObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { s3 } = require('../utils/s3');
+const { logActivity } = require('../services/adminActivityService');
 
 const CLOUDFRONT_BASE = 'https://d2mh2rnmjqdkgx.cloudfront.net';
 
@@ -59,15 +60,21 @@ const uploadPool = async (files, concurrencyLimit = 5) => {
 // GET /api/admin/materials/stats
 const getStats = async (req, res) => {
     try {
+        const baseScope = {};
+        if (req.departmentScope) {
+            const branchSubjects = await AcademicSubject.find({ branch: req.departmentScope.id }).select('_id');
+            baseScope.subject = { $in: branchSubjects.map(s => s._id) };
+        }
+
         const [total, published, hidden, draft, needsReview, trashCount, typeStats, dupGroups] = await Promise.all([
-            AcademicMaterial.countDocuments({ deletedAt: null }),
-            AcademicMaterial.countDocuments({ status: 'Published', deletedAt: null }),
-            AcademicMaterial.countDocuments({ status: 'Hidden', deletedAt: null }),
-            AcademicMaterial.countDocuments({ status: 'Draft', deletedAt: null }),
-            AcademicMaterial.countDocuments({ migrationStatus: 'Needs Review', deletedAt: null }),
-            AcademicMaterial.countDocuments({ deletedAt: { $ne: null } }),
+            AcademicMaterial.countDocuments({ ...baseScope, deletedAt: null }),
+            AcademicMaterial.countDocuments({ ...baseScope, status: 'Published', deletedAt: null }),
+            AcademicMaterial.countDocuments({ ...baseScope, status: 'Hidden', deletedAt: null }),
+            AcademicMaterial.countDocuments({ ...baseScope, status: 'Draft', deletedAt: null }),
+            AcademicMaterial.countDocuments({ ...baseScope, migrationStatus: 'Needs Review', deletedAt: null }),
+            AcademicMaterial.countDocuments({ ...baseScope, deletedAt: { $ne: null } }),
             AcademicMaterial.aggregate([
-                { $match: { deletedAt: null } },
+                { $match: { ...baseScope, deletedAt: null } },
                 { $group: { _id: '$materialType', count: { $sum: 1 } } }
             ]),
             detectDuplicates()
@@ -194,12 +201,16 @@ const getMaterials = async (req, res) => {
 
         // Perform lookups on AcademicSubject to filter by branch, scheme, year or subjectId
         const subjectFilters = {};
+        if (req.departmentScope) {
+            subjectFilters.branch = req.departmentScope.id;
+        } else if (branchId) {
+            subjectFilters.branch = branchId;
+        }
         if (subjectId) subjectFilters._id = subjectId;
-        if (branchId) subjectFilters.branch = branchId;
         if (schemeId) subjectFilters.scheme = schemeId;
         if (year) subjectFilters.year = year;
 
-        // If any subject-related filter is provided, resolve matching subject IDs first
+        // If any subject-related filter or department scope is provided, resolve matching subject IDs first
         if (Object.keys(subjectFilters).length > 0) {
             const matchingSubjects = await AcademicSubject.find(subjectFilters).select('_id');
             const subjectIds = matchingSubjects.map(s => s._id);
@@ -277,6 +288,13 @@ const getMaterialById = async (req, res) => {
             .populate('uploadedBy', 'name email');
 
         if (!material) return res.status(404).json({ error: 'Material not found' });
+
+        if (req.departmentScope && material.subject?.branch?._id) {
+            if (String(material.subject.branch._id) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: 'Forbidden: Material belongs to another department' });
+            }
+        }
+
         res.status(200).json(material);
     } catch (error) {
         res.status(500).json({ error: 'Server error', details: error.message });
@@ -482,6 +500,22 @@ const createMaterial = async (req, res) => {
             await AcademicSubject.findByIdAndUpdate(subId, { $inc: { materialCount: inc } });
         }
 
+        // Log contribution activities for each created material
+        for (const m of createdMaterials) {
+            logActivity({
+                req,
+                action: 'CREATE',
+                resourceType: 'MATERIAL',
+                resourceId: m._id,
+                department: req.departmentScope?.id || null,
+                metadata: {
+                    title: m.title,
+                    materialType: m.materialType,
+                    subjectId: m.subject
+                }
+            });
+        }
+
         res.status(201).json({
             message: `${createdMaterials.length} materials uploaded successfully`,
             uploadedCount: createdMaterials.length,
@@ -503,27 +537,49 @@ const updateMaterial = async (req, res) => {
         const material = await AcademicMaterial.findById(req.params.id);
         if (!material) return res.status(404).json({ error: 'Material not found' });
 
+        // Enforce department scope: Normal admins cannot modify materials outside their department
+        if (req.departmentScope && material.subject) {
+            const subjectDoc = await AcademicSubject.findById(material.subject).select('branch');
+            if (subjectDoc && String(subjectDoc.branch) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: 'Forbidden: You cannot modify materials outside your department.' });
+            }
+        }
+
         const updateData = {};
-        if (title) updateData.title = title;
-        if (status) updateData.status = status;
-        if (materialType) updateData.materialType = materialType;
+        const changes = {};
+
+        if (title && title !== material.title) {
+            updateData.title = title;
+            changes.title = { old: material.title, new: title };
+        }
+        if (status && status !== material.status) {
+            updateData.status = status;
+            changes.status = { old: material.status, new: status };
+        }
+        if (materialType && materialType !== material.materialType) {
+            updateData.materialType = materialType;
+            changes.materialType = { old: material.materialType, new: materialType };
+        }
 
         // Manage subject change and academic subject materialCount updates
         if (subject !== undefined) {
             const oldSubjectId = material.subject ? material.subject.toString() : null;
             const newSubjectId = subject || null;
 
-            updateData.subject = newSubjectId;
+            if (oldSubjectId !== newSubjectId) {
+                updateData.subject = newSubjectId;
+                changes.subject = { old: oldSubjectId, new: newSubjectId };
 
-            if (newSubjectId) {
-                updateData.migrationStatus = 'Manually Assigned';
-            }
+                if (newSubjectId) {
+                    updateData.migrationStatus = 'Manually Assigned';
+                }
 
-            if (newSubjectId && oldSubjectId !== newSubjectId) {
                 if (oldSubjectId) {
                     await AcademicSubject.findByIdAndUpdate(oldSubjectId, { $inc: { materialCount: -1 } });
                 }
-                await AcademicSubject.findByIdAndUpdate(newSubjectId, { $inc: { materialCount: 1 } });
+                if (newSubjectId) {
+                    await AcademicSubject.findByIdAndUpdate(newSubjectId, { $inc: { materialCount: 1 } });
+                }
             }
         }
 
@@ -538,6 +594,21 @@ const updateMaterial = async (req, res) => {
             })
             .populate('uploadedBy', 'name email');
 
+        if (Object.keys(changes).length > 0) {
+            logActivity({
+                req,
+                action: 'UPDATE',
+                resourceType: 'MATERIAL',
+                resourceId: material._id,
+                department: req.departmentScope?.id || null,
+                metadata: {
+                    title: updated.title,
+                    materialType: updated.materialType,
+                    changes
+                }
+            });
+        }
+
         res.status(200).json(updated);
     } catch (error) {
         res.status(500).json({ error: 'Server error', details: error.message });
@@ -549,6 +620,14 @@ const deleteMaterial = async (req, res) => {
     try {
         const material = await AcademicMaterial.findById(req.params.id);
         if (!material) return res.status(404).json({ error: 'Material not found' });
+
+        // Enforce department scope: Normal admins cannot delete materials outside their department
+        if (req.departmentScope && material.subject) {
+            const subjectDoc = await AcademicSubject.findById(material.subject).select('branch');
+            if (subjectDoc && String(subjectDoc.branch) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: 'Forbidden: You cannot delete materials outside your department.' });
+            }
+        }
 
         const isPermanent = req.query.permanent === 'true';
 
@@ -563,12 +642,38 @@ const deleteMaterial = async (req, res) => {
                 });
             }
 
+            logActivity({
+                req,
+                action: 'DELETE',
+                resourceType: 'MATERIAL',
+                resourceId: material._id,
+                department: req.departmentScope?.id || null,
+                metadata: {
+                    title: material.title,
+                    materialType: material.materialType,
+                    extra: { actionType: 'Permanent Delete' }
+                }
+            });
+
             res.status(200).json({ message: 'Material permanently deleted successfully' });
         } else {
             // Soft delete (Move to Trash)
             material.status = 'Hidden';
             material.deletedAt = new Date();
             await material.save();
+
+            logActivity({
+                req,
+                action: 'UPDATE',
+                resourceType: 'MATERIAL',
+                resourceId: material._id,
+                department: req.departmentScope?.id || null,
+                metadata: {
+                    title: material.title,
+                    materialType: material.materialType,
+                    extra: { actionType: 'Move to Trash' }
+                }
+            });
 
             res.status(200).json({ message: 'Material moved to Trash successfully' });
         }
@@ -605,6 +710,21 @@ const bulkDeleteMaterials = async (req, res) => {
             }
 
             await AcademicMaterial.deleteMany({ _id: { $in: ids } });
+
+            logActivity({
+                req,
+                action: 'DELETE',
+                resourceType: 'MATERIAL',
+                resourceId: null,
+                department: req.departmentScope?.id || null,
+                metadata: {
+                    count: ids.length,
+                    affectedIds: ids.map(id => id.toString()),
+                    title: `${ids.length} materials permanently deleted`,
+                    extra: { actionType: 'Permanent Delete' }
+                }
+            });
+
             res.status(200).json({ message: 'Selected materials permanently deleted successfully' });
         } else {
             // Soft delete
@@ -612,6 +732,21 @@ const bulkDeleteMaterials = async (req, res) => {
                 { _id: { $in: ids } },
                 { $set: { status: 'Hidden', deletedAt: new Date() } }
             );
+
+            logActivity({
+                req,
+                action: 'UPDATE',
+                resourceType: 'MATERIAL',
+                resourceId: null,
+                department: req.departmentScope?.id || null,
+                metadata: {
+                    count: ids.length,
+                    affectedIds: ids.map(id => id.toString()),
+                    title: `${ids.length} materials moved to trash`,
+                    extra: { actionType: 'Move to Trash' }
+                }
+            });
+
             res.status(200).json({ message: 'Selected materials moved to Trash successfully' });
         }
     } catch (error) {
@@ -628,6 +763,18 @@ const restoreMaterial = async (req, res) => {
         material.status = 'Published';
         material.deletedAt = null;
         await material.save();
+
+        logActivity({
+            req,
+            action: 'RESTORE',
+            resourceType: 'MATERIAL',
+            resourceId: material._id,
+            department: req.departmentScope?.id || null,
+            metadata: {
+                title: material.title,
+                materialType: material.materialType
+            }
+        });
 
         res.status(200).json({ message: 'Material restored successfully' });
     } catch (error) {
@@ -687,6 +834,20 @@ const bulkReassignMaterials = async (req, res) => {
             { $set: { subject: newSubjectId, migrationStatus: 'Manually Assigned' } }
         );
 
+        logActivity({
+            req,
+            action: 'REASSIGN',
+            resourceType: 'MATERIAL',
+            resourceId: null,
+            department: req.departmentScope?.id || null,
+            metadata: {
+                count: ids.length,
+                affectedIds: ids.map(id => id.toString()),
+                subject: `${newSubject.code} - ${newSubject.name}`,
+                title: `Reassigned ${ids.length} materials to ${newSubject.code} - ${newSubject.name}`
+            }
+        });
+
         res.status(200).json({
             message: `Successfully reassigned ${ids.length} materials to ${newSubject.code} - ${newSubject.name}`
         });
@@ -711,6 +872,20 @@ const bulkUpdateStatus = async (req, res) => {
             { _id: { $in: ids } },
             { $set: { status } }
         );
+
+        logActivity({
+            req,
+            action: status === 'Published' ? 'PUBLISH' : 'UNPUBLISH',
+            resourceType: 'MATERIAL',
+            resourceId: null,
+            department: req.departmentScope?.id || null,
+            metadata: {
+                count: ids.length,
+                affectedIds: ids.map(id => id.toString()),
+                title: `Updated status to "${status}" for ${ids.length} materials`,
+                extra: { newStatus: status }
+            }
+        });
 
         res.status(200).json({
             message: `Successfully updated status to "${status}" for ${ids.length} materials`

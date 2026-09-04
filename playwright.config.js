@@ -56,5 +56,25 @@ export default defineConfig({
       testMatch: /performance\/.*\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'admin-setup',
+      testMatch: /admin-e2e\/seed\.setup\.js/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'admin-e2e',
+      testMatch: /admin-e2e\/(?!seed\.setup|cleanup\.teardown).*\.spec\.js/,
+      dependencies: ['admin-setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: process.env.E2E_ADMIN_URL || 'http://localhost:5174',
+      },
+    },
+    {
+      name: 'admin-teardown',
+      testMatch: /admin-e2e\/cleanup\.teardown\.js/,
+      dependencies: ['admin-e2e'],
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
 });

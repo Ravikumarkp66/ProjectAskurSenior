@@ -53,27 +53,12 @@ export const useLostFound = (initialTab = TAB_TYPES.LOST) => {
     const [isResolveModalOpen, setIsResolveModalOpen] = useState(false);
     const [itemToConfirm, setItemToConfirm] = useState(null);
 
-    // Role mode toggle (Student vs Admin)
-    const [userRoleMode, setUserRoleMode] = useState(authUser?.isAdmin ? MOCK_USER_ROLES.ADMIN : MOCK_USER_ROLES.STUDENT);
-
     const currentUser = useMemo(() => {
         const userId = authUser?._id || authUser?.id || 'user-1';
         const userName = authUser?.name || authUser?.fullName || 'Student User';
         const userEmail = authUser?.email || '';
         const userBranch = authUser?.branch || authUser?.department || 'Engineering';
         const userYear = authUser?.year || authUser?.academicYear || 'Student';
-
-        if (userRoleMode === MOCK_USER_ROLES.ADMIN) {
-            return {
-                id: userId,
-                name: userName,
-                email: userEmail,
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`,
-                branch: userBranch,
-                year: userYear,
-                isAdmin: true
-            };
-        }
 
         return {
             id: userId,
@@ -82,9 +67,9 @@ export const useLostFound = (initialTab = TAB_TYPES.LOST) => {
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`,
             branch: userBranch,
             year: userYear,
-            isAdmin: authUser?.isAdmin || false
+            isAdmin: false
         };
-    }, [authUser, userRoleMode]);
+    }, [authUser]);
 
     // ── Filtered Items calculation ───────────────────────────────
     const filteredItems = useMemo(() => {
@@ -276,8 +261,6 @@ export const useLostFound = (initialTab = TAB_TYPES.LOST) => {
 
         // User role & permission checks
         currentUser,
-        userRoleMode,
-        setUserRoleMode,
 
         // Modals state
         isRaiseModalOpen,

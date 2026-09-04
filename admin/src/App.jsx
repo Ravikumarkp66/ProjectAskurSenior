@@ -7,31 +7,55 @@ import MaterialsPage from './pages/MaterialsPage';
 import AdminLayout from './layouts/AdminLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import AdminsPage from './pages/AdminsPage';
+import SecurityPage from './pages/SecurityPage';
+import SuperAdminRoute from './components/SuperAdminRoute';
+import SessionReplacedModal from './components/SessionReplacedModal';
+
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
+    <>
+      <SessionReplacedModal />
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      {/* Protected Admin Routes */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/users" replace />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="subjects" element={<SubjectsPage />} />
-        <Route path="materials" element={<MaterialsPage />} />
-        <Route path="overview" element={<Navigate to="/users" replace />} />
-        <Route path="dashboard" element={<Navigate to="/users" replace />} />
-      </Route>
+        {/* Protected Admin Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/users" replace />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="subjects" element={<SubjectsPage />} />
+          <Route path="materials" element={<MaterialsPage />} />
+          <Route
+            path="admins"
+            element={
+              <SuperAdminRoute>
+                <AdminsPage />
+              </SuperAdminRoute>
+            }
+          />
+          <Route
+            path="security"
+            element={
+              <SuperAdminRoute>
+                <SecurityPage />
+              </SuperAdminRoute>
+            }
+          />
+          <Route path="overview" element={<Navigate to="/users" replace />} />
+          <Route path="dashboard" element={<Navigate to="/users" replace />} />
+        </Route>
 
-      {/* Catch-all */}
-      <Route path="*" element={<Navigate to="/users" replace />} />
-    </Routes>
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/users" replace />} />
+      </Routes>
+    </>
   );
 }
 

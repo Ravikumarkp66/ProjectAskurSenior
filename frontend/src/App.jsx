@@ -6,6 +6,7 @@ import { useAuth } from './utils/hooks';
 import { authAPI, apiClient } from './services/api';
 import socket from './services/socket';
 import { Toaster } from 'react-hot-toast';
+import SessionReplacedModal from './components/SessionReplacedModal';
 
 // Layouts
 import DashboardLayout from './layouts/DashboardLayout';
@@ -27,13 +28,7 @@ const AcademicRegisterPage = lazy(() => import('./pages/dashboard/settings/Acade
 const EventsSettings = lazy(() => import('./pages/dashboard/settings/EventsSettings'));
 const AcademicSettings = lazy(() => import('./pages/dashboard/settings/AcademicSettings'));
 const ProgressSettings = lazy(() => import('./pages/dashboard/settings/ProgressSettings'));
-const AdminLoginPage = lazy(() => import('./pages/AdminLoginPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
-const AdminPanel = lazy(() => import('./pages/AdminPanel'));
-const AdminSupport = lazy(() => import('./pages/admin/AdminSupport'));
-const AdminCreateArticle = lazy(() => import('./pages/AdminCreateArticle'));
-const KnowledgeBase = lazy(() => import('./pages/admin/KnowledgeBase'));
-const AdminMentorship = lazy(() => import('./pages/admin/AdminMentorship'));
 const CGPACalculatorPage = lazy(() => import('./pages/CGPACalculatorPage'));
 const SubjectContentPage = lazy(() => import('./pages/SubjectContentPage'));
 const QuizPage = lazy(() => import('./pages/QuizPage'));
@@ -111,15 +106,6 @@ const CompleteProfileRoute = ({ children }) => {
     return children;
 };
 
-const AdminRoute = ({ children }) => {
-    const { isAuthenticated, loading, user } = useAuth();
-
-    if (loading) return <LoadingFallback />;
-    if (!isAuthenticated) return <Navigate to="/admin/login" />;
-    if (!user?.isAdmin) return <Navigate to="/plus" />;
-    return children;
-};
-
 function AppContent() {
     const { isAuthenticated, user } = useAuth();
     const location = useLocation();
@@ -147,12 +133,8 @@ function AppContent() {
                 userId: user.id || user._id,
                 name: user.name || user.email,
                 email: user.email,
-                role: user.isAdmin ? 'admin' : 'user'
+                role: 'user'
             });
-            
-            if (user.isAdmin) {
-                socket.emit('join_admin');
-            }
         }
     }, [user]);
 
@@ -168,13 +150,14 @@ function AppContent() {
 
     return (
         <div className="relative">
+            <SessionReplacedModal />
             <Suspense fallback={<LoadingFallback />}>
                 <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/signup" element={<LoginPage initialMode="register" />} />
-                    <Route path="/admin/login" element={<AdminLoginPage />} />
+                    <Route path="/admin/login" element={<Navigate to="/login" replace />} />
                     <Route path="/calculator" element={<CGPACalculatorPage />} />
                     <Route path="/blog" element={<GuidesPage />} />
                     <Route path="/blog/:slug" element={<ArticlePage />} />
@@ -346,21 +329,9 @@ function AppContent() {
                     <Route path="/campus-hub" element={<ProtectedRoute><CampusHub /></ProtectedRoute>} />
                     <Route path="/campus-map" element={<ProtectedRoute><CampusMap /></ProtectedRoute>} />
 
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/support" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/reviews" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/study-materials" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/articles" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/payments" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/articles/create" element={<AdminRoute><AdminCreateArticle /></AdminRoute>} />
-                    <Route path="/admin/knowledge-base" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/requests" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/subjects" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/materials" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="/admin/health" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    {/* <Route path="/admin/roadmap" element={<AdminRoute><AdminPanel /></AdminRoute>} /> */}
-                    <Route path="/admin/mentorship" element={<AdminRoute><AdminMentorship /></AdminRoute>} />
+                    {/* Legacy Admin URLs smoothly redirect to home */}
+                    <Route path="/admin/*" element={<Navigate to="/" replace />} />
+                    <Route path="/admin" element={<Navigate to="/" replace />} />
 
                     {/* Interview Experiences - Fully Public (no login required) */}
                     <Route path="/interview" element={<InterviewLayout />}>

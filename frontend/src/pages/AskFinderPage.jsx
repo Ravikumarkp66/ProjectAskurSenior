@@ -173,31 +173,6 @@ const AskFinderPage = () => {
         }
     }, [location.search, isAuthenticated]);
 
-    // Fetch pending uploads count for admin badge (from both systems)
-    useEffect(() => {
-        const fetchPendingCount = async () => {
-            if (user?.isAdmin) {
-                try {
-                    const [docsRes, uploadsRes] = await Promise.all([
-                        apiClient.get('/documents/search?status=pending&adminView=true'),
-                        userUploadAPI.getUploads('pending')
-                    ]);
-
-                    const docsCount = docsRes?.data?.documents?.length || (Array.isArray(docsRes?.data) ? docsRes.data.length : 0);
-                    const uploadsCount = uploadsRes?.data?.items?.length || (Array.isArray(uploadsRes?.data) ? uploadsRes.data.length : 0);
-
-                    setPendingUploadsCount(docsCount + uploadsCount);
-                } catch (error) {
-                    console.error('Failed to fetch pending count:', error);
-                }
-            }
-        };
-
-        fetchPendingCount();
-        const interval = setInterval(fetchPendingCount, 120000);
-        return () => clearInterval(interval);
-    }, [user?.isAdmin, statusFilter]);
-
     useEffect(() => {
         // Fetch metadata & leaderboard concurrently on mount
         fetchMetadata();
@@ -461,15 +436,6 @@ const AskFinderPage = () => {
             if (selectedDocType) params.append('documentType', selectedDocType.toLowerCase());
             if (sortBy) params.append('sortBy', sortBy);
 
-            if (user?.isAdmin) {
-                if (statusFilter === 'pending') {
-                    params.append('adminView', 'true');
-                    params.append('status', 'pending');
-                } else if (statusFilter === 'deleted') {
-                    params.append('adminView', 'true');
-                    params.append('status', 'deleted');
-                }
-            }
             if (bookmarksOnly) {
                 params.append('bookmarksOnly', 'true');
             }
@@ -541,7 +507,7 @@ const AskFinderPage = () => {
                 updateUser(response.data.updatedUser);
             }
 
-            alert(user?.isAdmin ? 'Materials added successfully!' : 'Thank you! Your contributions have been submitted for admin approval.');
+            alert('Thank you! Your contributions have been submitted for admin approval.');
             setShowUploadModal(false);
             resetUploadForm();
             handleSearch();
@@ -1128,159 +1094,30 @@ const AskFinderPage = () => {
                                             </span>
                                         )}
                                         {searchSummary.others > 0 && (
-                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'}`}>
                                                 Others: {searchSummary.others}
                                             </span>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                                    {filteredDocuments.slice(0, visibleCount).map((doc, idx) => {
-                                        const isAdminReviewCard = user?.isAdmin && statusFilter === 'pending';
-
-                                        return (
-                                            <motion.div
-                                                key={doc._id}
-                                                initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                transition={{ duration: 0.35, delay: Math.min(idx, 8) * 0.05, ease: "easeOut" }}
-                                                className="h-full flex flex-col"
-                                            >
-                                                {isAdminReviewCard ? (
-                                                    <div className={`rounded-3xl border p-6 transition-all hover:shadow-2xl flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500
-                                                                ${isLightMode
-                                                            ? 'bg-white border-amber-200/60 shadow-lg shadow-amber-500/5'
-                                                            : 'bg-[#141416] border-amber-500/10 shadow-lg shadow-black/50'}`}
-                                                    >
-                                                    {/* Header section - Focus on Title and Status */}
-                                                    <div className="flex justify-between items-start gap-4">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500">
-                                                                    <FileText size={18} />
-                                                                </div>
-                                                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border
-                                                                            ${isLightMode ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-400'}`}>
-                                                                    {doc.documentType || 'Doc'}
-                                                                </span>
-                                                            </div>
-                                                            <h3 className={`text-xl font-bold leading-tight line-clamp-2 ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
-                                                                {doc.subjectName}
-                                                                {doc.subjectCode && <span className="ml-2 text-sm opacity-40 font-mono">({doc.subjectCode})</span>}
-                                                            </h3>
-                                                        </div>
-                                                        <div className="px-3 py-1 rounded-full bg-amber-500 text-[#0a0a0b] text-[10px] font-black uppercase tracking-tighter animate-pulse shadow-lg shadow-amber-500/20">
-                                                            Pending Review
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Information body - Fast processing info */}
-                                                    <div className={`space-y-3 p-4 rounded-2xl ${isLightMode ? 'bg-slate-50' : 'bg-white/[0.02]'}`}>
-                                                        <div>
-                                                            <p className="text-[11px] uppercase font-black tracking-widest opacity-40 mb-1">Uploaded By</p>
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="h-6 w-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-[10px] text-white font-bold">
-                                                                    {(doc.contributor?.name || 'U').charAt(0).toUpperCase()}
-                                                                </div>
-                                                                <span className="text-sm font-bold opacity-80">
-                                                                    {doc.contributor?.name || 'Anonymous User'}
-                                                                    {doc.usn && <span className="ml-1.5 opacity-50 font-mono text-xs">({doc.usn})</span>}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-2 gap-4">
-                                                            <div>
-                                                                <p className="text-[11px] uppercase font-black tracking-widest opacity-40 mb-1">Context</p>
-                                                                <p className="text-xs font-bold">{doc.branch} • {doc.yearLevel} • {doc.semester || 'N/A'}</p>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[11px] uppercase font-black tracking-widest opacity-40 mb-1">File Source</p>
-                                                                <p className="text-xs font-mono opacity-60 truncate max-w-[120px]" title={doc.originalName}>{doc.originalName}</p>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="pt-2 flex items-center gap-3 text-[10px] font-bold opacity-40 border-t border-white/5">
-                                                            <span className="flex items-center gap-1"><Download size={10} /> {formatSize(doc.fileSize)}</span>
-                                                            <span>•</span>
-                                                            <span className="flex items-center gap-1"><Clock size={10} /> {getTimeAgo(doc.createdAt)}</span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Action buttons hierarchy */}
-                                                    <div className="mt-auto pt-4 border-t border-white/5">
-                                                        {confirmingDeleteId === doc._id ? (
-                                                            <div className="grid grid-cols-2 gap-3 animate-in fade-in zoom-in duration-200">
-                                                                <button
-                                                                    onClick={() => { setConfirmingDeleteId(null); handleDocDelete(doc._id); }}
-                                                                    className="py-3 rounded-xl bg-red-600 text-white font-bold text-xs uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-500/20"
-                                                                >
-                                                                    Confirm Reject
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setConfirmingDeleteId(null)}
-                                                                    className={`py-3 rounded-xl font-bold text-xs uppercase tracking-widest border transition-all ${isLightMode ? 'bg-white border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-400'}`}
-                                                                >
-                                                                    Cancel
-                                                                </button>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="grid grid-cols-3 gap-2">
-                                                                <button
-                                                                    onClick={() => handlePreview(doc._id)}
-                                                                    className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl border transition-all hover:bg-white/5 ${isLightMode ? 'border-slate-200 text-slate-600' : 'border-white/10 text-slate-400'}`}
-                                                                >
-                                                                    <Eye size={16} />
-                                                                    <span className="text-[10px] font-bold uppercase tracking-tighter">Preview</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleApprove(doc._id)}
-                                                                    className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-emerald-600 text-white font-bold transition-all hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
-                                                                >
-                                                                    <Check size={16} />
-                                                                    <span className="text-[10px] font-bold uppercase tracking-tighter">Approve</span>
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => setConfirmingDeleteId(doc._id)}
-                                                                    className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl bg-rose-600/10 border border-rose-600/20 text-rose-500 font-bold transition-all hover:bg-rose-600 hover:text-white"
-                                                                >
-                                                                    <X size={16} />
-                                                                    <span className="text-[10px] font-bold uppercase tracking-tighter">Reject</span>
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div key={doc._id} className={`rounded-3xl border transition-all hover:-translate-y-2 hover:shadow-2xl overflow-hidden flex flex-col group
-                                                        ${isLightMode
-                                                    ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
-                                                    : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                    {filteredDocuments.slice(0, visibleCount).map((doc, idx) => (
+                                        <motion.div
+                                            key={doc._id}
+                                            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            transition={{ duration: 0.35, delay: Math.min(idx, 8) * 0.05, ease: "easeOut" }}
+                                            className="h-full flex flex-col"
+                                        >
+                                            <div className={`rounded-3xl border transition-all hover:-translate-y-2 hover:shadow-2xl overflow-hidden flex flex-col group
+                                                    ${isLightMode
+                                                ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
+                                                : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
                                             >
                                                 <div className="p-7 flex-1 flex flex-col relative">
                                                     {/* Top Right: Combined Tag & Status Layer */}
                                                     <div className="absolute top-7 right-7 flex items-center gap-2.5">
-                                                        {user?.isAdmin && (
-                                                            <div className="flex items-center gap-1 opacity-30 group-hover:opacity-100 transition-all">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setEditingDoc(doc);
-                                                                        setShowEditModal(true);
-                                                                    }}
-                                                                    className={`p-1.5 rounded-lg transition-all hover:bg-purple-500 hover:text-white ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                >
-                                                                    <Edit size={12} />
-                                                                </button>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); setConfirmingDeleteId(doc._id); }}
-                                                                    className={`p-1.5 rounded-lg transition-all hover:bg-red-500 hover:text-white ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                                                >
-                                                                    <Trash2 size={12} />
-                                                                </button>
-                                                            </div>
-                                                        )}
                                                         {doc.documentType === 'notes' && (
                                                             <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm transition-transform group-hover:scale-105">
                                                                 Notes
@@ -1323,117 +1160,30 @@ const AskFinderPage = () => {
                                                             </p>
                                                         </div>
                                                     </div>
-
-                                                    {/* Content Body - Clean & Bold Filename */}
-                                                    <div className="space-y-4 mb-8">
-                                                        <p className={`text-sm font-bold line-clamp-1 py-1 transition-colors ${isLightMode ? 'text-slate-800 hover:text-purple-600' : 'text-white/90 hover:text-purple-400'}`} title={doc.originalName}>
-                                                            {doc.originalName}
-                                                        </p>
-
-                                                        {doc.contributor?.showName && (
-                                                            <div className="flex items-center gap-2 transition-all group-hover:translate-x-1">
-                                                                <UserCheck size={12} className="opacity-20" />
-                                                                <span className={`text-[11px] font-bold ${isLightMode ? 'text-slate-500' : 'text-slate-500'}`}>
-                                                                    By <span className={`transition-colors ${isLightMode ? 'text-slate-900' : 'text-slate-300'}`}>{doc.contributor.name}</span>
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Subtle Smart Footer */}
-                                                    {confirmingDeleteId === doc._id && user?.isAdmin ? (
-                                                        <div className="mt-auto pt-4 flex items-center justify-between animate-in slide-in-from-bottom-2 duration-300">
-                                                            <button
-                                                                onClick={() => { setConfirmingDeleteId(null); handleDocDelete(doc._id); }}
-                                                                className="flex-1 py-2 bg-red-500 text-white text-[10px] font-black uppercase rounded-lg hover:bg-red-600 shadow-lg shadow-red-500/20"
-                                                            >
-                                                                Confirm Delete
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setConfirmingDeleteId(null)}
-                                                                className={`ml-2 px-4 py-2 border rounded-lg text-[10px] font-bold ${isLightMode ? 'border-slate-200' : 'border-white/10'}`}
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/5 opacity-40">
-                                                            <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.1em]">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className={isLightMode ? 'text-slate-900' : 'text-white'}>
-                                                                        {doc.fileSize > 0 ? formatSize(doc.fileSize) : '—'}
-                                                                    </span>
-                                                                </div>
-                                                                <span className="w-1 h-1 rounded-full bg-current opacity-20"></span>
-                                                                <span>
-                                                                    Updated {getTimeAgo(doc.createdAt)}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                 </div>
 
-                                                {/* Modern Actions Block - High Logic Handling */}
+                                                {/* Modern Actions Block */}
                                                 <div className={`p-5 mt-auto border-t flex items-center gap-2.5 ${isLightMode ? 'bg-slate-50/50 border-slate-100' : 'bg-black/10 border-white/5'}`}>
-                                                    {statusFilter === 'deleted' ? (
-                                                        <>
-                                                            <button
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        await userUploadAPI.restoreUpload(doc._id);
-                                                                        handleSearch();
-                                                                    } catch (e) {
-                                                                        alert("Restore failed");
-                                                                    }
-                                                                }}
-                                                                className={`flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-emerald-600 text-white transition-all hover:bg-emerald-700 hover:shadow-xl shadow-emerald-500/20 active:scale-95`}
-                                                            >
-                                                                <ArrowLeft size={14} strokeWidth={3} />
-                                                                Restore Material
-                                                            </button>
-                                                            <button
-                                                                onClick={async () => {
-                                                                    if (window.confirm("Permanently delete this material? This cannot be undone.")) {
-                                                                        try {
-                                                                            await userUploadAPI.permanentDeleteUpload(doc._id);
-                                                                            handleSearch();
-                                                                        } catch (e) {
-                                                                            alert("Permanent delete failed");
-                                                                        }
-                                                                    }
-                                                                }}
-                                                                className={`px-4 py-2.5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all`}
-                                                            >
-                                                                <Trash2 size={14} />
-                                                            </button>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handlePreview(doc._id)}
-                                                                className={`px-4 py-2.5 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all 
-                                                                            ${isLightMode
-                                                                        ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:shadow-md'
-                                                                        : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:shadow-lg shadow-black/20'}`}
-                                                            >
-                                                                Preview
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDownload(doc._id)}
-                                                                className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-purple-600 text-white transition-all hover:bg-purple-700 hover:shadow-xl hover:shadow-purple-600/30 active:scale-95"
-                                                            >
-                                                                <Download size={14} strokeWidth={3} />
-                                                                Download
-                                                            </button>
-                                                        </>
-                                                    )}
+                                                    <button
+                                                        onClick={() => handlePreview(doc._id)}
+                                                        className={`px-4 py-2.5 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all 
+                                                                    ${isLightMode
+                                                                ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:shadow-md'
+                                                                : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:shadow-lg shadow-black/20'}`}
+                                                    >
+                                                        Preview
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDownload(doc._id)}
+                                                        className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-purple-600 text-white transition-all hover:bg-purple-700 hover:shadow-xl hover:shadow-purple-600/30 active:scale-95"
+                                                    >
+                                                        <Download size={14} strokeWidth={3} />
+                                                        Download
+                                                    </button>
                                                 </div>
                                             </div>
-                                        )}
-                                    </motion.div>
-                                );
-                                    })}
-
+                                        </motion.div>
+                                    ))}
                                 </div>
 
                                 {/* Show More button (below grid) + progress indicator */}
@@ -1547,7 +1297,7 @@ const AskFinderPage = () => {
                     >
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold tracking-tight">
-                                {user?.isAdmin ? 'Add New Material' : 'Contribute Material'}
+                                Contribute Material
                                 <span className="ml-3 text-xs opacity-50 font-normal">Step {uploadStep}/2</span>
                             </h2>
                             <button onClick={() => { setShowUploadModal(false); resetUploadForm(); }} className={`p-2 rounded-full transition-colors ${isLightMode ? 'hover:bg-slate-100/80 text-slate-500' : 'hover:bg-white/10 text-slate-400'}`}>

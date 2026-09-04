@@ -274,18 +274,6 @@ const SubjectContentPage = () => {
         }
     };
 
-    const handleDeleteMaterial = async (resource) => {
-        if (!window.confirm(`Are you sure you want to delete "${resource.originalName || resource.fileName || 'this document'}"?`)) return;
-        try {
-            await documentsAPI.deleteDocument(resource._id);
-            alert('Document deleted successfully');
-            loadContent();
-        } catch (error) {
-            console.error('Failed to delete document:', error);
-            alert('Failed to delete document');
-        }
-    };
-
     const tab = TABS.find(t => t.id === activeTab);
     const activeItems = content
         ? (activeTab === 'notes' ? content.notes : activeTab === 'pyqs' ? content.pyqs : activeTab === 'others' ? content.others : [])
@@ -387,7 +375,7 @@ const SubjectContentPage = () => {
                             <CIECalculatorModal subject={subject} inline={true} />
                         </motion.div>
                     ) : activeItems.length > 0
-                        ? <ContentGrid key={activeTab + '-list'} items={activeItems} contentType={activeTab} onView={handleView} onDownload={handleDownload} onDelete={handleDeleteMaterial} showDelete={user?.isAdmin} color={tab?.color || '#8B5CF6'} />
+                        ? <ContentGrid key={activeTab + '-list'} items={activeItems} contentType={activeTab} onView={handleView} onDownload={handleDownload} color={tab?.color || '#8B5CF6'} />
                         : <Placeholder key={activeTab} tab={tab} />
                     }
                 </AnimatePresence>

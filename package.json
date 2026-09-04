@@ -7,12 +7,18 @@
     "test:perf:db": "node performance/db-profiler.js",
     "test:perf:load": "node performance/load-tester.js",
     "test:perf:journey": "playwright test performance/user-journey.bench.spec.js",
-    "test:perf:all": "node performance/run-benchmarks.js"
+    "test:perf:all": "node performance/run-benchmarks.js",
+    "test:admin-e2e": "playwright test --project=admin-setup --project=admin-e2e --project=admin-teardown --workers=1",
+    "test:admin-e2e:headed": "playwright test --project=admin-setup --project=admin-e2e --project=admin-teardown --workers=1 --headed",
+    "test:admin-e2e:ui": "playwright test --project=admin-e2e --workers=1 --ui"
   },
   "dependencies": {
     "twilio": "^5.13.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.62.1",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "mongodb": "^7.6.0"
   }
 }

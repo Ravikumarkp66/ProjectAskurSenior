@@ -139,6 +139,11 @@ const studentAccountSchema = new mongoose.Schema({
         enum: ['active', 'inactive', 'suspended'],
         default: 'active'
     },
+    securityStatus: {
+        type: String,
+        enum: ['NORMAL', 'SUSPICIOUS', 'CLEARED'],
+        default: 'NORMAL'
+    },
     isDeleted: {
         type: Boolean,
         default: false

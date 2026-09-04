@@ -3,6 +3,8 @@ import materialService from '../services/materialService';
 import subjectService from '../services/subjectService';
 import MaterialUploadModal from '../components/MaterialUploadModal';
 import DuplicateReviewModal from '../components/DuplicateReviewModal';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import { canManageMaterials } from '../utils/permissions';
 
 const MATERIAL_TYPES = [
   'Notes',
@@ -21,6 +23,13 @@ const STATUS_OPTIONS = ['Published', 'Hidden', 'Draft'];
 const MIGRATION_OPTIONS = ['Auto Matched', 'Needs Review', 'Manually Assigned'];
 
 export default function MaterialsPage() {
+  const { admin } = useAdminAuth();
+  const { canView, canCreate, canUpdate, canDelete, canPublish, canArchive } = useMemo(
+    () => canManageMaterials(admin),
+    [admin]
+  );
+  const canAnyBatchAction = canUpdate || canDelete || canArchive || canPublish;
+
   const [materials, setMaterials] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -94,6 +103,10 @@ export default function MaterialsPage() {
 
   // Load materials
   const fetchMaterials = useCallback(async () => {
+    if (!canView) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -117,7 +130,7 @@ export default function MaterialsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, selectedYear, selectedType, selectedStatus, selectedMigration, selectedSubject, isTrashView]);
+  }, [page, search, selectedYear, selectedType, selectedStatus, selectedMigration, selectedSubject, isTrashView, canView]);
 
   useEffect(() => {
     fetchStats();
@@ -186,6 +199,7 @@ export default function MaterialsPage() {
 
   // Open Edit Modal
   const openEditDialog = (m) => {
+    if (!canUpdate) return;
     setEditingMaterial(m);
     setEditForm({
       title: m.title || '',
@@ -197,7 +211,7 @@ export default function MaterialsPage() {
   // Save Edit Changes
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editingMaterial) return;
+    if (!editingMaterial || !canUpdate) return;
     setIsSavingEdit(true);
     try {
       await materialService.updateMaterial(editingMaterial._id, {
@@ -218,6 +232,7 @@ export default function MaterialsPage() {
 
   // Open Reassign Modal
   const openReassignDialog = (m) => {
+    if (!canUpdate) return;
     setReassigningMaterial(m);
     setSelectedNewSubjectId(m.subject?._id || '');
     setReassignSearch('');
@@ -428,6 +443,10 @@ export default function MaterialsPage() {
 
   const isFiltered = Boolean(search || selectedYear || selectedType || selectedStatus || selectedMigration || selectedSubject || isTrashView);
 
+  if (!canView) {
+    return null;
+  }
+
   return (
     <div className="space-y-4 font-mono text-sm">
       {/* 1. Top Section - CSES Plain Academic Summary */}
@@ -610,18 +629,20 @@ export default function MaterialsPage() {
         </div>
 
         {/* Upload Button */}
-        <div>
-          <button
-            onClick={() => setIsUploadOpen(true)}
-            className="border border-blue-600 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
-          >
-            + Upload Materials
-          </button>
-        </div>
+        {canCreate && (
+          <div>
+            <button
+              onClick={() => setIsUploadOpen(true)}
+              className="border border-blue-600 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-500 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
+            >
+              + Upload Materials
+            </button>
+          </div>
+        )}
       </div>
 
       {/* --- 2.5 BATCH ACTIONS BAR (PHASE 6) --- */}
-      {selectedIds.length > 0 && (
+      {canAnyBatchAction && selectedIds.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 border border-blue-300 bg-blue-50/80 px-3 py-2 text-xs dark:border-blue-900 dark:bg-blue-950/40">
           <div className="flex items-center gap-2">
             <span className="font-bold text-blue-900 dark:text-blue-200">
@@ -639,59 +660,69 @@ export default function MaterialsPage() {
           <div className="flex flex-wrap items-center gap-2">
             {!isTrashView ? (
               <>
-                <button
-                  type="button"
-                  disabled={isExecutingBatch}
-                  onClick={() => setIsBatchReassignOpen(true)}
-                  className="border border-purple-600 bg-purple-600 px-2.5 py-1 text-white hover:bg-purple-700 font-semibold disabled:opacity-50"
-                >
-                  Reassign Subject
-                </button>
+                {canUpdate && (
+                  <button
+                    type="button"
+                    disabled={isExecutingBatch}
+                    onClick={() => setIsBatchReassignOpen(true)}
+                    className="border border-purple-600 bg-purple-600 px-2.5 py-1 text-white hover:bg-purple-700 font-semibold disabled:opacity-50"
+                  >
+                    Reassign Subject
+                  </button>
+                )}
 
-                <select
-                  disabled={isExecutingBatch}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleBulkStatus(e.target.value);
-                      e.target.value = '';
-                    }
-                  }}
-                  className="border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 dark:border-zinc-700 dark:bg-[#18181b] dark:text-gray-200"
-                >
-                  <option value="">Set Status ▾</option>
-                  <option value="Published">Published</option>
-                  <option value="Hidden">Hidden</option>
-                  <option value="Draft">Draft</option>
-                </select>
+                {(canPublish || canUpdate) && (
+                  <select
+                    disabled={isExecutingBatch}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleBulkStatus(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800 dark:border-zinc-700 dark:bg-[#18181b] dark:text-gray-200"
+                  >
+                    <option value="">Set Status ▾</option>
+                    <option value="Published">Published</option>
+                    <option value="Hidden">Hidden</option>
+                    <option value="Draft">Draft</option>
+                  </select>
+                )}
 
-                <button
-                  type="button"
-                  disabled={isExecutingBatch}
-                  onClick={handleBulkTrash}
-                  className="border border-red-600 bg-red-600 px-2.5 py-1 text-white hover:bg-red-700 font-semibold disabled:opacity-50"
-                >
-                  Move to Trash
-                </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    disabled={isExecutingBatch}
+                    onClick={handleBulkTrash}
+                    className="border border-red-600 bg-red-600 px-2.5 py-1 text-white hover:bg-red-700 font-semibold disabled:opacity-50"
+                  >
+                    Move to Trash
+                  </button>
+                )}
               </>
             ) : (
               <>
-                <button
-                  type="button"
-                  disabled={isExecutingBatch}
-                  onClick={handleBulkRestore}
-                  className="border border-green-600 bg-green-600 px-2.5 py-1 text-white hover:bg-green-700 font-semibold disabled:opacity-50"
-                >
-                  Restore Selected
-                </button>
+                {(canArchive || canUpdate) && (
+                  <button
+                    type="button"
+                    disabled={isExecutingBatch}
+                    onClick={handleBulkRestore}
+                    className="border border-green-600 bg-green-600 px-2.5 py-1 text-white hover:bg-green-700 font-semibold disabled:opacity-50"
+                  >
+                    Restore Selected
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  disabled={isExecutingBatch}
-                  onClick={handleBulkPermanentDelete}
-                  className="border border-red-700 bg-red-700 px-2.5 py-1 text-white hover:bg-red-800 font-semibold disabled:opacity-50"
-                >
-                  Permanently Delete
-                </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    disabled={isExecutingBatch}
+                    onClick={handleBulkPermanentDelete}
+                    className="border border-red-700 bg-red-700 px-2.5 py-1 text-white hover:bg-red-800 font-semibold disabled:opacity-50"
+                  >
+                    Permanently Delete
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -703,15 +734,17 @@ export default function MaterialsPage() {
         <table className="w-full text-left text-xs text-gray-800 dark:text-gray-200">
           <thead className="border-b border-gray-200 bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500 dark:border-zinc-800 dark:bg-[#18181b] dark:text-gray-400">
             <tr>
-              <th className="px-3 py-2 w-8 text-center">
-                <input
-                  type="checkbox"
-                  checked={materials.length > 0 && selectedIds.length === materials.length}
-                  onChange={handleToggleSelectAll}
-                  className="cursor-pointer"
-                  title="Select all on this page"
-                />
-              </th>
+              {canAnyBatchAction && (
+                <th className="px-3 py-2 w-8 text-center">
+                  <input
+                    type="checkbox"
+                    checked={materials.length > 0 && selectedIds.length === materials.length}
+                    onChange={handleToggleSelectAll}
+                    className="cursor-pointer"
+                    title="Select all on this page"
+                  />
+                </th>
+              )}
               <th className="px-2 py-2 w-8 text-center font-semibold">#</th>
               <th className="px-3 py-2 font-semibold">Title</th>
               <th className="px-3 py-2 font-semibold">Subject</th>
@@ -728,13 +761,13 @@ export default function MaterialsPage() {
           <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60 font-mono">
             {isLoading ? (
               <tr>
-                <td colSpan="12" className="py-8 text-center text-xs text-gray-500">
+                <td colSpan={canAnyBatchAction ? 12 : 11} className="py-8 text-center text-xs text-gray-500">
                   Loading materials...
                 </td>
               </tr>
             ) : materials.length === 0 ? (
               <tr>
-                <td colSpan="12" className="py-8 text-center text-xs text-gray-500">
+                <td colSpan={canAnyBatchAction ? 12 : 11} className="py-8 text-center text-xs text-gray-500">
                   {isTrashView ? 'Trash is empty.' : 'No materials found matching the selected criteria.'}
                 </td>
               </tr>
@@ -756,14 +789,16 @@ export default function MaterialsPage() {
                     }`}
                   >
                     {/* Checkbox */}
-                    <td className="px-3 py-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => handleToggleSelectOne(m._id)}
-                        className="cursor-pointer"
-                      />
-                    </td>
+                    {canAnyBatchAction && (
+                      <td className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectOne(m._id)}
+                          className="cursor-pointer"
+                        />
+                      </td>
+                    )}
 
                     {/* Row number */}
                     <td className="px-2 py-2 text-center text-gray-400 dark:text-zinc-600">
@@ -842,65 +877,116 @@ export default function MaterialsPage() {
                     </td>
 
                     {/* Text Actions */}
-                    <td className="px-3 py-2 text-right whitespace-nowrap space-x-1.5">
-                      <button
-                        onClick={() => handleView(m)}
-                        className="text-cyan-600 hover:underline dark:text-cyan-400 font-medium"
-                        title="View file in browser"
-                      >
-                        View
-                      </button>
+                    <td className="px-3 py-2 text-right whitespace-nowrap space-x-1.5 font-mono text-xs">
+                      {(() => {
+                        const actions = [];
+                        if (canView) {
+                          actions.push(
+                            <button
+                              key="view"
+                              onClick={() => handleView(m)}
+                              className="text-cyan-600 hover:underline dark:text-cyan-400 font-medium"
+                              title="View file in browser"
+                            >
+                              View
+                            </button>
+                          );
+                        }
 
-                      {!isTrashView ? (
-                        <>
-                          <span className="text-gray-300 dark:text-zinc-700">|</span>
-                          <button
-                            onClick={() => openEditDialog(m)}
-                            className="text-blue-600 hover:underline dark:text-blue-400"
-                          >
-                            Edit
-                          </button>
-                          <span className="text-gray-300 dark:text-zinc-700">|</span>
-                          <button
-                            onClick={() => openReassignDialog(m)}
-                            className="text-purple-600 hover:underline dark:text-purple-400"
-                          >
-                            Reassign
-                          </button>
-                          <span className="text-gray-300 dark:text-zinc-700">|</span>
-                          <button
-                            onClick={() => handleDownload(m)}
-                            className="text-green-600 hover:underline dark:text-green-400"
-                            title="Download file"
-                          >
-                            Download
-                          </button>
-                          <span className="text-gray-300 dark:text-zinc-700">|</span>
-                          <button
-                            onClick={() => setConfirmTrashItem(m)}
-                            className="text-red-600 hover:underline dark:text-red-400"
-                          >
-                            Trash
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-gray-300 dark:text-zinc-700">|</span>
-                          <button
-                            onClick={() => handleRestore(m)}
-                            className="text-green-600 hover:underline dark:text-green-400 font-medium"
-                          >
-                            Restore
-                          </button>
-                          <span className="text-gray-300 dark:text-zinc-700">|</span>
-                          <button
-                            onClick={() => setConfirmPermanentDeleteItem(m)}
-                            className="text-red-600 hover:underline dark:text-red-400 font-medium"
-                          >
-                            Delete Permanently
-                          </button>
-                        </>
-                      )}
+                        if (!isTrashView) {
+                          if (canUpdate) {
+                            actions.push(
+                              <button
+                                key="edit"
+                                onClick={() => openEditDialog(m)}
+                                className="text-blue-600 hover:underline dark:text-blue-400"
+                              >
+                                Edit
+                              </button>
+                            );
+                            actions.push(
+                              <button
+                                key="reassign"
+                                onClick={() => openReassignDialog(m)}
+                                className="text-purple-600 hover:underline dark:text-purple-400"
+                              >
+                                Reassign
+                              </button>
+                            );
+                          }
+
+                          if (canView) {
+                            actions.push(
+                              <button
+                                key="download"
+                                onClick={() => handleDownload(m)}
+                                className="text-green-600 hover:underline dark:text-green-400"
+                                title="Download file"
+                              >
+                                Download
+                              </button>
+                            );
+                          }
+
+                          if (canDelete) {
+                            actions.push(
+                              <button
+                                key="trash"
+                                onClick={() => setConfirmTrashItem(m)}
+                                className="text-red-600 hover:underline dark:text-red-400"
+                              >
+                                Trash
+                              </button>
+                            );
+                          }
+                        } else {
+                          if (canView) {
+                            actions.push(
+                              <button
+                                key="download"
+                                onClick={() => handleDownload(m)}
+                                className="text-green-600 hover:underline dark:text-green-400"
+                                title="Download file"
+                              >
+                                Download
+                              </button>
+                            );
+                          }
+                          if (canArchive || canUpdate) {
+                            actions.push(
+                              <button
+                                key="restore"
+                                onClick={() => handleRestore(m)}
+                                className="text-green-600 hover:underline dark:text-green-400 font-medium"
+                              >
+                                Restore
+                              </button>
+                            );
+                          }
+                          if (canDelete) {
+                            actions.push(
+                              <button
+                                key="perm-delete"
+                                onClick={() => setConfirmPermanentDeleteItem(m)}
+                                className="text-red-600 hover:underline dark:text-red-400 font-medium"
+                              >
+                                Delete Permanently
+                              </button>
+                            );
+                          }
+                        }
+
+                        if (actions.length === 0) {
+                          return <span className="text-gray-400 dark:text-zinc-600">—</span>;
+                        }
+
+                        return actions.map((act, i) => (
+                          <React.Fragment key={act.key || i}>
+                            {i > 0 && <span className="text-gray-300 dark:text-zinc-700">|</span>}
+                            {act}
+                          </React.Fragment>
+                        ));
+                      })()}
                     </td>
                   </tr>
                 );

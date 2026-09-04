@@ -75,7 +75,7 @@ const userSchema = new mongoose.Schema(
         },
         role: {
             type: String,
-            enum: ['admin', 'student'],
+            enum: ['admin', 'student', 'SUPER_ADMIN', 'ADMIN'],
             default: 'student'
         },
         isAdmin: {
@@ -89,6 +89,11 @@ const userSchema = new mongoose.Schema(
         isSuspended: {
             type: Boolean,
             default: false
+        },
+        securityStatus: {
+            type: String,
+            enum: ['NORMAL', 'SUSPICIOUS', 'CLEARED'],
+            default: 'NORMAL'
         },
         suspendedAt: Date,
         suspendedBy: {

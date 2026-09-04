@@ -5,9 +5,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_ask_ur_senior';
 const signAccessToken = (student) => {
     const branchName = student.branch && student.branch.shortName ? student.branch.shortName : (typeof student.branch === 'string' ? student.branch : 'CS');
     const uId = student._id ? student._id.toString() : (student.id ? student.id.toString() : '');
+    const email = student.email ? student.email.toLowerCase().trim() : '';
     return jwt.sign(
         {
             userId: uId,
+            email: email,
             branch: branchName,
             currentBranch: branchName,
             isAdmin: student.role === 'admin'

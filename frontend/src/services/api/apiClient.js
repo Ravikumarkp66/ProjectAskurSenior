@@ -26,6 +26,7 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+    config.headers['x-client-portal'] = 'frontend_3000';
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -43,17 +44,47 @@ apiClient.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             const currentPath = window.location.pathname;
-            const isAuthRoute = currentPath === '/login' || currentPath === '/signup' || currentPath === '/complete-profile';
-            
-            if (!isAuthRoute) {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
+            const isAuthRoute = currentPath === '/login' || currentPath === '/signup' || currentPath === '/complete-profile' || currentPath === '/admin/login';
 
-                const isSessionExpired = error.response.data?.sessionExpired;
-                const message = isSessionExpired ? '?message=Session expired. Please sign in again.' : '';
-                window.location.href = `/login${message}`;
+            // Always clear invalid tokens from storage to prevent repeated failed calls
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+
+            // If already on an auth page, do NOT popup the modal or redirect
+            if (isAuthRoute) {
+                return Promise.reject(error);
             }
+
+            const code = error.response?.data?.code;
+
+            if (code === 'SESSION_REPLACED') {
+                window.dispatchEvent(
+                    new CustomEvent('session-replaced', {
+                        detail: {
+                            title: 'Logged Out',
+                            message: 'You have logged in on another device.\nFor security, this device has been logged out.'
+                        }
+                    })
+                );
+                return Promise.reject(error);
+            }
+
+            if (code === 'SESSION_REVOKED') {
+                window.dispatchEvent(
+                    new CustomEvent('session-replaced', {
+                        detail: {
+                            title: 'Session Revoked',
+                            message: error.response?.data?.error || 'Your session has been revoked by an administrator.'
+                        }
+                    })
+                );
+                return Promise.reject(error);
+            }
+
+            const isSessionExpired = error.response.data?.sessionExpired;
+            const message = isSessionExpired ? '?message=Session expired. Please sign in again.' : '';
+            window.location.href = `/login${message}`;
         }
 
         if (process.env.NODE_ENV === 'development') {

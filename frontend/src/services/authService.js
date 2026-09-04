@@ -16,6 +16,7 @@ export const apiV2Client = axios.create({
 
 // Request Interceptor: Attach access token
 apiV2Client.interceptors.request.use((config) => {
+    config.headers['x-client-portal'] = 'frontend_3000';
     const token = localStorage.getItem('authToken');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;

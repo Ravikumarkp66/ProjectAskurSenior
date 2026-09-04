@@ -51,7 +51,7 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     try {
         const { usn, password, branch } = req.body;
-        const { user, student, token } = await authService.loginStudent({ usn, password, branch });
+        const { user, student, token } = await authService.loginStudent({ usn, password, branch, req });
 
         res.json({
             message: 'Login successful',
@@ -81,28 +81,95 @@ const adminLogin = async (req, res) => {
         }
 
         const normalizedEmail = email.toLowerCase().trim();
-        const user = await User.findOne({ email: normalizedEmail, isAdmin: true });
+        const Admin = require('../models/Admin');
+        const adminDoc = await Admin.findOne({ email: normalizedEmail });
 
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid admin credentials' });
+        if (!adminDoc) {
+            return res.status(401).json({ error: 'Invalid admin credentials or unauthorized account' });
         }
 
-        const isMatch = await user.comparePassword(password);
+        if (adminDoc.status !== 'ACTIVE') {
+            return res.status(403).json({
+                error: 'Your administrator account has been disabled. Please contact a Super Administrator.'
+            });
+        }
+
+        // Verify password against legacy User account or environment fallback
+        let isMatch = false;
+        const user = await User.findOne({ email: normalizedEmail });
+        if (user && user.password) {
+            isMatch = await user.comparePassword(password);
+        } else if (process.env.ADMIN_PASSWORD && password === process.env.ADMIN_PASSWORD) {
+            isMatch = true;
+        }
+
+        const { logLoginAttempt, createLoginSession } = require('../services/sessionService');
+        const { getClientIp } = require('../utils/geoIpLookup');
+
         if (!isMatch) {
+            await logLoginAttempt({
+                email: normalizedEmail,
+                ipAddress: getClientIp(req),
+                success: false,
+                reason: 'Invalid admin credentials',
+                userAgent: req.headers['user-agent']
+            });
             return res.status(401).json({ error: 'Invalid admin credentials' });
         }
 
-        const token = authService.generateToken(user._id, user.branch, user.currentBranch, true);
+        adminDoc.lastLogin = new Date();
+        await adminDoc.save();
+        await adminDoc.populate('department', 'name shortName');
+
+        const { logActivity } = require('../services/adminActivityService');
+        logActivity({
+            req,
+            admin: adminDoc,
+            action: 'LOGIN',
+            resourceType: 'ADMIN',
+            resourceId: adminDoc._id,
+            department: adminDoc.department?._id || adminDoc.department || null,
+            departmentCode: adminDoc.department?.shortName || (adminDoc.role === 'SUPER_ADMIN' ? 'ALL' : null),
+            metadata: {
+                title: `${adminDoc.name} logged in`,
+                extra: { authMethod: 'CREDENTIALS' }
+            }
+        });
+
+        // Create secure device login session
+        const sessionResult = await createLoginSession({
+            user: adminDoc,
+            userType: adminDoc.role === 'SUPER_ADMIN' ? 'super_admin' : 'admin',
+            department: adminDoc.department?._id || adminDoc.department || null,
+            departmentCode: adminDoc.department?.shortName || (adminDoc.role === 'SUPER_ADMIN' ? 'ALL' : null),
+            req
+        });
+
+        // Keep JWT minimal: DB is the real-time source of truth for role, department, permissions, status
+        const token = jwt.sign(
+            {
+                userId: user?._id || adminDoc._id,
+                email: adminDoc.email,
+                isAdmin: true,
+                sessionId: sessionResult.sessionId
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
 
         res.json({
             message: 'Admin login successful',
             token,
             user: {
-                id: user._id,
-                email: user.email,
-                usn: user.usn,
-                branch: user.branch,
-                isAdmin: true
+                id: adminDoc._id,
+                name: adminDoc.name,
+                email: adminDoc.email,
+                role: adminDoc.role,
+                department: adminDoc.department,
+                permissions: adminDoc.permissions,
+                isAdmin: true,
+                isSuperAdmin: adminDoc.role === 'SUPER_ADMIN',
+                status: adminDoc.status
             }
         });
     } catch (error) {
@@ -112,6 +179,31 @@ const adminLogin = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
     try {
+        const clientPortal = (req.headers['x-client-portal'] || '').toLowerCase();
+        const isFrontendPlatform = clientPortal === 'frontend_3000';
+
+        let adminRecord = !isFrontendPlatform ? req.admin : null;
+        if (!isFrontendPlatform && !adminRecord && req.userEmail) {
+            const Admin = require('../models/Admin');
+            adminRecord = await Admin.findOne({ email: req.userEmail, status: 'ACTIVE' }).populate('department');
+        }
+
+        if (!isFrontendPlatform && adminRecord) {
+            return res.json({
+                _id: adminRecord._id,
+                id: adminRecord._id,
+                name: adminRecord.name,
+                email: adminRecord.email,
+                role: adminRecord.role,
+                department: adminRecord.department,
+                permissions: adminRecord.permissions,
+                status: adminRecord.status,
+                isAdmin: true,
+                isSuperAdmin: adminRecord.role === 'SUPER_ADMIN',
+                registrationComplete: true
+            });
+        }
+
         let user = await User.findById(req.userId).select('-password');
         if (!user) {
             const StudentAccount = require('../models/StudentAccount');
@@ -140,6 +232,29 @@ const getUserProfile = async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
+
+        if (!isFrontendPlatform && !user.isAdmin && user.email) {
+            const Admin = require('../models/Admin');
+            const adminCheck = await Admin.findOne({ email: user.email.toLowerCase().trim(), status: 'ACTIVE' }).populate('department');
+            if (adminCheck) {
+                if (typeof user.toObject === 'function') {
+                    user = user.toObject();
+                }
+                user.isAdmin = true;
+                user.role = adminCheck.role;
+                user.isSuperAdmin = adminCheck.role === 'SUPER_ADMIN';
+                user.permissions = adminCheck.permissions;
+                user.department = adminCheck.department;
+            }
+        }
+
+        if (isFrontendPlatform) {
+            user.isAdmin = false;
+            if (user.role === 'admin' || user.role === 'SUPER_ADMIN') {
+                user.role = 'student';
+            }
+        }
+
         res.json(user);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -216,7 +331,23 @@ const getAllUsers = async (req, res) => {
             }
         });
 
-        const userList = Array.from(emailMap.values());
+        let userList = Array.from(emailMap.values());
+
+        // Strictly enforce department scoping for normal administrators
+        if (!req.isSuperAdmin && req.departmentScope) {
+            const targetBranch = (req.departmentScope.code || req.adminDepartmentCode || '').toUpperCase();
+            userList = userList.filter(u => {
+                const b = (u.branch || '').toUpperCase();
+                return b === targetBranch ||
+                       (targetBranch === 'CSE' && (b === 'CS' || b === 'CSE')) ||
+                       (targetBranch === 'ISE' && (b === 'IS' || b === 'ISE')) ||
+                       (targetBranch === 'ECE' && (b === 'EC' || b === 'ECE')) ||
+                       (targetBranch === 'EEE' && (b === 'EE' || b === 'EEE')) ||
+                       (targetBranch === 'MECH' && (b === 'ME' || b === 'MECH')) ||
+                       (targetBranch === 'CIVIL' && (b === 'CV' || b === 'CIVIL'));
+            });
+        }
+
         res.json({
             success: true,
             users: userList,
@@ -299,11 +430,43 @@ const googleLogin = async (req, res) => {
             return res.status(400).json({ error: 'Unable to retrieve valid Google user profile.' });
         }
 
-        const email = payload.email.toLowerCase();
+        const email = payload.email.toLowerCase().trim();
+        const Admin = require('../models/Admin');
+        const adminRecord = await Admin.findOne({ email });
+
+        const isAdminRequest = req.originalUrl.includes('/admin-google');
+        if (isAdminRequest) {
+            if (!adminRecord) {
+                return res.status(403).json({ error: 'Access denied. Your account is not registered as an administrator.' });
+            }
+            if (adminRecord.status === 'INACTIVE') {
+                return res.status(403).json({ error: 'Your administrator account has been disabled. Contact a Super Administrator.' });
+            }
+        }
+
+        if (adminRecord && adminRecord.status === 'ACTIVE') {
+            adminRecord.lastLogin = new Date();
+            await adminRecord.save();
+
+            const { logActivity } = require('../services/adminActivityService');
+            logActivity({
+                req,
+                admin: adminRecord,
+                action: 'LOGIN',
+                resourceType: 'ADMIN',
+                resourceId: adminRecord._id,
+                department: adminRecord.department?._id || adminRecord.department || null,
+                departmentCode: adminRecord.department?.shortName || (adminRecord.role === 'SUPER_ADMIN' ? 'ALL' : null),
+                metadata: {
+                    title: `${adminRecord.name} logged in`,
+                    extra: { authMethod: 'GOOGLE' }
+                }
+            });
+        }
 
         let user = await User.findOne({ email });
         const adminEmail = (process.env.ADMIN_EMAIL || 'mreducator4566@gmail.com').toLowerCase().trim();
-        const isDesignatedAdmin = email === adminEmail;
+        const isDesignatedAdmin = email === adminEmail || (adminRecord && adminRecord.status === 'ACTIVE');
 
         if (!user) {
             user = new User({
@@ -311,9 +474,9 @@ const googleLogin = async (req, res) => {
                 name: payload.name || email.split('@')[0],
                 authProvider: 'google',
                 googleId: payload.sub,
-                isAdmin: isDesignatedAdmin,
+                isAdmin: !!isDesignatedAdmin,
                 role: isDesignatedAdmin ? 'admin' : 'student',
-                registrationComplete: false
+                registrationComplete: !!adminRecord
             });
             await user.save();
         } else {
@@ -371,16 +534,49 @@ const googleLogin = async (req, res) => {
             };
         }
 
-        const authToken = authService.generateToken(user._id, user.branch || 'CS', user.currentBranch || 'CS', !!user.isAdmin);
+        if (adminRecord && adminRecord.status === 'ACTIVE') {
+            await adminRecord.populate('department', 'name shortName');
+        }
+
+        const isUserAdmin = !!(adminRecord && adminRecord.status === 'ACTIVE') || !!user.isAdmin;
+        const isSuperAdmin = adminRecord?.role === 'SUPER_ADMIN';
+
+        // Create secure device login session
+        const { createLoginSession } = require('../services/sessionService');
+        const targetDoc = adminRecord || student || user;
+        const sessionResult = await createLoginSession({
+            user: targetDoc,
+            userType: isSuperAdmin ? 'super_admin' : (isUserAdmin ? 'admin' : 'student'),
+            department: adminRecord?.department?._id || adminRecord?.department || student?.branch || user?.branch || null,
+            departmentCode: adminRecord?.department?.shortName || null,
+            req
+        });
+
+        // Keep JWT minimal: DB is the real-time source of truth for role, department, permissions, status
+        const authToken = jwt.sign(
+            {
+                userId: user?._id || adminRecord?._id,
+                email: email,
+                isAdmin: isUserAdmin,
+                sessionId: sessionResult.sessionId
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
         return res.json({
             token: authToken,
             user: {
-                id: (student && student._id) ? student._id : user._id,
-                email: user.email,
-                name: user.name || user.email.split('@')[0],
-                isAdmin: !!user.isAdmin,
-                role: user.role || (user.isAdmin ? 'admin' : 'student'),
-                registrationComplete: profileComplete
+                id: adminRecord ? adminRecord._id : ((student && student._id) ? student._id : user._id),
+                email: email,
+                name: (adminRecord && adminRecord.name) || user.name || email.split('@')[0],
+                isAdmin: isUserAdmin,
+                isSuperAdmin: isSuperAdmin,
+                role: adminRecord ? adminRecord.role : (user.role || (user.isAdmin ? 'admin' : 'student')),
+                department: adminRecord?.department || null,
+                permissions: adminRecord?.permissions || {},
+                status: adminRecord?.status || 'ACTIVE',
+                registrationComplete: adminRecord ? true : profileComplete
             },
             prefilled: prefilledData,
             missingFields
@@ -592,12 +788,57 @@ const verifyOtp = async (req, res) => {
         }
 
         let user = await User.findOne({ email: normalizedEmail });
-        if (!user) {
+        const StudentAccount = require('../models/StudentAccount');
+        let student = await StudentAccount.findOne({ email: normalizedEmail }).populate('branch');
+
+        if (!user && !student) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const token = authService.generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
-        res.json({ success: true, token, user });
+        const Admin = require('../models/Admin');
+        const adminDoc = await Admin.findOne({ email: normalizedEmail, status: 'ACTIVE' }).populate('department');
+        const isUserAdmin = !!adminDoc || !!user?.isAdmin || student?.role === 'admin';
+
+        let sessionId = null;
+        if (req) {
+            const { createLoginSession } = require('../services/sessionService');
+            const targetDoc = adminDoc || student || user;
+            const sessionResult = await createLoginSession({
+                user: targetDoc,
+                userType: adminDoc?.role === 'SUPER_ADMIN' ? 'super_admin' : (isUserAdmin ? 'admin' : 'student'),
+                department: adminDoc?.department?._id || adminDoc?.department || student?.branch?._id || user?.branch || null,
+                departmentCode: adminDoc?.department?.shortName || null,
+                req
+            });
+            sessionId = sessionResult.sessionId;
+        }
+
+        const effectiveUserId = user?._id || student?._id || adminDoc?._id;
+        const branchCode = student?.branch?.shortName || user?.branch || 'CS';
+        const token = authService.generateToken(
+            effectiveUserId,
+            branchCode,
+            branchCode,
+            isUserAdmin,
+            sessionId,
+            '7d',
+            normalizedEmail
+        );
+
+        const responseUser = {
+            id: effectiveUserId,
+            _id: effectiveUserId,
+            name: (adminDoc && adminDoc.name) || (student && student.name) || (user && user.name) || normalizedEmail.split('@')[0],
+            email: normalizedEmail,
+            branch: branchCode,
+            currentBranch: branchCode,
+            isAdmin: isUserAdmin,
+            isSuperAdmin: adminDoc?.role === 'SUPER_ADMIN',
+            role: adminDoc ? adminDoc.role : (isUserAdmin ? 'admin' : (student?.role || user?.role || 'student')),
+            registrationComplete: true
+        };
+
+        res.json({ success: true, token, user: responseUser });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -611,9 +852,29 @@ const updateSemesterTimeline = async (req, res) => {
     }
 };
 
+const logoutUser = async (req, res) => {
+    try {
+        if (req.sessionId) {
+            const LoginSession = require('../models/LoginSession');
+            await LoginSession.findOneAndUpdate(
+                { sessionId: req.sessionId },
+                {
+                    status: 'LOGGED_OUT',
+                    logoutReason: 'User logged out',
+                    logoutTime: new Date()
+                }
+            );
+        }
+        res.json({ success: true, message: 'Logged out successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
+    logoutUser,
     adminLogin,
     getUserProfile,
     getAllUsers,

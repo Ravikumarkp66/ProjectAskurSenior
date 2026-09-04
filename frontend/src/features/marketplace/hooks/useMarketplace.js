@@ -66,7 +66,7 @@ export const useMarketplace = (initialCategory = 'all') => {
             avatar: authUser?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authUser?.name || 'Ravi'}`,
             branch: authUser?.branch || authUser?.department || 'Information Science',
             year: authUser?.year || authUser?.academicYear || '3rd Year',
-            isAdmin: authUser?.isAdmin || false,
+            isAdmin: false,
         };
     }, [authUser]);
 

@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import userService from '../services/userService';
 import { isEmptyField, getMissingProfileFields, isNeverActive } from '../utils/userValidation';
 import { X } from 'lucide-react';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import { canManageUsers } from '../utils/permissions';
 
 const formatDate = (dateString) => {
   if (isEmptyField(dateString)) return <span className="text-gray-400 dark:text-zinc-500 italic">—</span>;
@@ -37,6 +39,8 @@ const formatRelativeTime = (dateString) => {
 };
 
 export const UsersPage = () => {
+  const { admin } = useAdminAuth();
+  const { canView } = useMemo(() => canManageUsers(admin), [admin]);
   const [activeTab, setActiveTab] = useState('all'); // 'all' | 'incomplete' | 'neverActive'
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
@@ -121,10 +125,14 @@ export const UsersPage = () => {
     return range;
   };
 
+  if (!canView) {
+    return null;
+  }
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* Title & View Description */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+      <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-2.5">
         <div>
           <h1 className="text-base sm:text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">
             {activeTab === 'incomplete'
@@ -133,25 +141,25 @@ export const UsersPage = () => {
               ? 'Never Active Users'
               : 'Users'}
           </h1>
-          <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+          <div className="text-xs text-gray-600 dark:text-gray-400 font-mono flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
             {activeTab === 'incomplete' ? (
               <>
                 <span>Users with missing Name, USN, or Email.</span>
-                <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+                <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
                 <span>Incomplete Profiles: <span className="font-semibold text-gray-900 dark:text-gray-100">{totalCount.toLocaleString()}</span></span>
               </>
             ) : activeTab === 'neverActive' ? (
               <>
                 <span>Registered accounts with no recorded platform activity.</span>
-                <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+                <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
                 <span>Never Active: <span className="font-semibold text-gray-900 dark:text-gray-100">{totalCount.toLocaleString()}</span></span>
               </>
             ) : (
               <>
                 <span>Total Users: <span className="font-semibold text-gray-900 dark:text-gray-100">{summary.totalUsers.toLocaleString()}</span></span>
-                <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+                <span className="text-gray-300 dark:text-zinc-700">|</span>
                 <span>Recently Active: <span className="font-semibold text-gray-900 dark:text-gray-100">{summary.recentlyActiveCount.toLocaleString()}</span></span>
-                <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+                <span className="text-gray-300 dark:text-zinc-700">|</span>
                 <span>Live Users: <span className="font-semibold text-gray-900 dark:text-gray-100">{summary.liveUsers.toLocaleString()}</span></span>
               </>
             )}
@@ -159,9 +167,9 @@ export const UsersPage = () => {
         </div>
 
         {/* Filter Tabs & Search Controls */}
-        <div className="flex flex-wrap items-center gap-3 pt-1 sm:pt-0">
-          {/* Simple CSES Text Tabs */}
-          <div className="text-xs font-semibold select-none flex items-center gap-1.5 font-mono">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2.5 pt-1 md:pt-0">
+          {/* Simple CSES Text Tabs (Scrollable on small screens) */}
+          <div className="text-xs font-semibold select-none flex items-center gap-1.5 font-mono overflow-x-auto max-w-full pb-1 sm:pb-0 scrollbar-none whitespace-nowrap">
             <button
               type="button"
               onClick={() => handleTabSwitch('all')}
@@ -203,10 +211,10 @@ export const UsersPage = () => {
             </button>
           </div>
 
-          <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
+          <span className="hidden md:inline text-gray-300 dark:text-zinc-700">|</span>
 
           {/* Compact Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-1.5 text-xs">
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-1.5 text-xs w-full sm:w-auto">
             <label htmlFor="user-search" className="text-gray-600 dark:text-gray-400 whitespace-nowrap font-mono text-[11px]">
               Search:
             </label>
@@ -216,7 +224,7 @@ export const UsersPage = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Name, USN, Email"
-              className="w-36 sm:w-48 rounded-none border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
+              className="flex-1 sm:w-48 rounded-none border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
             />
             <button
               type="submit"

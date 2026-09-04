@@ -13,10 +13,12 @@ const {
     getAdminLogs
 } = require("../controllers/analyticsController");
 
+const { requireAdmin, requirePermission, enforceDepartmentScope } = require("../middleware/adminAuth");
+
 const router = express.Router();
 
-// All analytics endpoints require admin auth
-router.use(authMiddleware, adminMiddleware);
+// All analytics endpoints require valid, active admin authentication
+router.use(authMiddleware, requireAdmin);
 
 // Overview analytics
 router.get("/overview", getOverviewAnalytics);
@@ -37,9 +39,9 @@ router.get("/upload-by-month", getUploadByMonthAnalytics);
 router.get("/notification-stats", getNotificationStats);
 
 // User management
-router.get("/users", getUserListAnalytics);
-router.patch("/users/:userId/suspend", suspendUser);
-router.get("/users/:userId/logs", getAdminLogs);
+router.get("/users", requirePermission("users.view"), enforceDepartmentScope, getUserListAnalytics);
+router.patch("/users/:userId/suspend", requirePermission("users.update"), enforceDepartmentScope, suspendUser);
+router.get("/users/:userId/logs", requirePermission("users.view"), enforceDepartmentScope, getAdminLogs);
 
 // Report Export
 const { exportUsersPDF, exportUsersCSV } = require("../controllers/analyticsController");

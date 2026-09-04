@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import materialService from '../services/materialService';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import { canManageMaterials } from '../utils/permissions';
 
 export default function DuplicateReviewModal({ isOpen, onClose, onResolved }) {
+  const { admin } = useAdminAuth();
+  const { canView, canUpdate, canDelete } = useMemo(() => canManageMaterials(admin), [admin]);
   const [duplicateGroups, setDuplicateGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState(null);
@@ -218,35 +222,60 @@ export default function DuplicateReviewModal({ isOpen, onClose, onResolved }) {
                             <td className="px-3 py-2.5 text-gray-500 whitespace-nowrap">
                               {formatDate(m.createdAt)}
                             </td>
-                            <td className="px-3 py-2.5 text-right whitespace-nowrap space-x-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleView(m)}
-                                className="text-cyan-600 hover:underline dark:text-cyan-400"
-                                title="View file in browser"
-                              >
-                                View
-                              </button>
-                              <span className="text-gray-300 dark:text-zinc-700">|</span>
-                              <button
-                                type="button"
-                                disabled={isWorking}
-                                onClick={() => handleKeepOne(m, group.materials)}
-                                className="text-green-600 font-semibold hover:underline dark:text-green-400 disabled:opacity-50"
-                                title="Keep this version and move other duplicate copies to Trash"
-                              >
-                                Keep This
-                              </button>
-                              <span className="text-gray-300 dark:text-zinc-700">|</span>
-                              <button
-                                type="button"
-                                disabled={isWorking}
-                                onClick={() => handleIgnore(m, group.groupId)}
-                                className="text-gray-500 hover:underline hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
-                                title="Mark this file as not a duplicate"
-                              >
-                                Keep Both
-                              </button>
+                            <td className="px-3 py-2.5 text-right whitespace-nowrap space-x-1.5 font-mono text-xs">
+                              {(() => {
+                                const actions = [];
+                                if (canView) {
+                                  actions.push(
+                                    <button
+                                      key="view"
+                                      type="button"
+                                      onClick={() => handleView(m)}
+                                      className="text-cyan-600 hover:underline dark:text-cyan-400 font-medium"
+                                      title="View file in browser"
+                                    >
+                                      View
+                                    </button>
+                                  );
+                                }
+                                if (canDelete) {
+                                  actions.push(
+                                    <button
+                                      key="keep-this"
+                                      type="button"
+                                      disabled={isWorking}
+                                      onClick={() => handleKeepOne(m, group.materials)}
+                                      className="text-green-600 font-semibold hover:underline dark:text-green-400 disabled:opacity-50"
+                                      title="Keep this version and move other duplicate copies to Trash"
+                                    >
+                                      Keep This
+                                    </button>
+                                  );
+                                }
+                                if (canUpdate) {
+                                  actions.push(
+                                    <button
+                                      key="keep-both"
+                                      type="button"
+                                      disabled={isWorking}
+                                      onClick={() => handleIgnore(m, group.groupId)}
+                                      className="text-gray-500 hover:underline hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+                                      title="Mark this file as not a duplicate"
+                                    >
+                                      Keep Both
+                                    </button>
+                                  );
+                                }
+                                if (actions.length === 0) {
+                                  return <span className="text-gray-400 dark:text-zinc-600">—</span>;
+                                }
+                                return actions.map((act, i) => (
+                                  <React.Fragment key={act.key || i}>
+                                    {i > 0 && <span className="text-gray-300 dark:text-zinc-700">|</span>}
+                                    {act}
+                                  </React.Fragment>
+                                ));
+                              })()}
                             </td>
                           </tr>
                         );

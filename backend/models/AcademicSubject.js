@@ -62,6 +62,17 @@ const academicSubjectSchema = new mongoose.Schema({
     defaultLabSessions: {
         type: Number,
         default: 0
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    creatorEmail: {
+        type: String,
+        lowercase: true,
+        trim: true,
+        default: null
     }
 }, {
     timestamps: true,

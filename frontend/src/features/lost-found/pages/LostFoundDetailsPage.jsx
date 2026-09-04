@@ -33,11 +33,10 @@ const LostFoundDetailsPage = ({
 
     // Permission checks
     const isOwner = item.postedBy?.id === currentUser?.id || currentUser?.id === 'user-ravi' && item.postedBy?.name === 'Ravi Kumar';
-    const isAdmin = currentUser?.isAdmin || false;
 
     // Has user claimed this item?
     const hasClaimed = (item.claims || []).some(c => c.userId === currentUser?.id);
-    const canAccessChat = isOwner || hasClaimed || isAdmin;
+    const canAccessChat = isOwner || hasClaimed;
 
     const isResolved = item.isResolved || item.status === 'resolved';
 
@@ -161,7 +160,7 @@ const LostFoundDetailsPage = ({
                         ) : (
                             <>
                                 {/* Non-Owner Action: Claim / Contact */}
-                                {!isOwner && !isAdmin && (
+                                {!isOwner && (
                                     <button
                                         type="button"
                                         onClick={onClaim}
@@ -205,43 +204,6 @@ const LostFoundDetailsPage = ({
                                                 <Trash2 size={13} />
                                                 Delete
                                             </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Admin Controls Bar */}
-                                {isAdmin && (
-                                    <div className="p-3 bg-purple-500/10 border border-purple-500/25 rounded-xl space-y-2">
-                                        <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
-                                            <ShieldAlert size={14} />
-                                            <span>Admin Override Controls</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 gap-2 pt-1">
-                                            <button
-                                                type="button"
-                                                onClick={onResolve}
-                                                className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors flex items-center justify-center gap-1.5"
-                                            >
-                                                <CheckCircle2 size={13} />
-                                                Admin Resolve
-                                            </button>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={onEdit}
-                                                    className="py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#21262D] text-[#E6EDF3] hover:bg-[#30363D]"
-                                                >
-                                                    Admin Edit
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={onDelete}
-                                                    className="py-1.5 px-2 rounded-lg text-xs font-semibold bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30"
-                                                >
-                                                    Admin Delete
-                                                </button>
-                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -290,7 +252,7 @@ const LostFoundDetailsPage = ({
             )}
 
             {/* Mobile Sticky Bottom Bar (< md) for Quick Primary Action */}
-            {!isResolved && !isOwner && !isAdmin && (
+            {!isResolved && !isOwner && (
                 <div className="fixed bottom-0 left-0 right-0 p-3 bg-[#161B22]/95 backdrop-blur-xl border-t border-[#21262D] z-40 md:hidden flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <div className="text-[10px] text-[#8B949E] uppercase font-bold">Location</div>

@@ -8,6 +8,11 @@ const helmet = require('helmet');
 const compression = require('compression');
 require('dotenv').config();
 
+const dns = require('dns');
+try {
+    dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch (e) {}
+
 // Custom Configs, Middleware & EventBus
 const { corsOptions } = require('./config/cors');
 const mobileGuard = require('./middleware/mobileGuard');
@@ -194,6 +199,8 @@ app.post('/api/cms/materials/:id/download', require('./controllers/studentCmsCon
 app.use('/api/admin/subjects', require('./routes/adminCmsSubjectRoutes'));
 app.use('/api/academic-subjects', require('./routes/academicSubjectRoutes'));
 app.use('/api/admin/materials', require('./routes/adminCmsMaterialRoutes'));
+app.use('/api/admin/admins', require('./routes/adminManagementRoutes'));
+app.use('/api/admin/security', require('./routes/securityRoutes'));
 app.use('/api/branches', require('./routes/branchRoutes'));
 app.use('/api/admin/schemes', require('./routes/schemeRoutes'));
 app.use('/api/admin/academic-materials', require('./routes/academicMaterialRoutes'));

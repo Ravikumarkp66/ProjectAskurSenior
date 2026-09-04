@@ -13,6 +13,8 @@ const normalizeUser = (u) => {
     ...u,
     semester: sem,
     profilePicture: pic,
+    isAdmin: false,
+    role: 'user'
   };
 };
 
@@ -25,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     if (storedUser && storedToken) {
       try {
         let userObj = JSON.parse(storedUser);
-        if (!userObj.isAdmin && !userObj.subscription) {
+        if (!userObj.subscription) {
           userObj.subscription = "free";
         }
         userObj = normalizeUser(userObj);

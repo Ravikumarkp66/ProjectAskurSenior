@@ -103,15 +103,14 @@ const academicMaterialSchema = new mongoose.Schema({
     // Migration audit trail
     migrationStatus: {
         type: String,
-        enum: MIGRATION_STATUSES,
+        enum: [...MIGRATION_STATUSES, null],
         default: null  // null for freshly uploaded materials (not migrated)
     },
 
     // Reference to the source legacy document — also acts as the idempotency key
     legacyDocumentId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Document',
-        default: null
+        ref: 'Document'
     },
 
     // Engagement tracking (preserved from legacy)

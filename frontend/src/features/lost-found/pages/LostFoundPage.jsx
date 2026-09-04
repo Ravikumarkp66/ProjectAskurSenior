@@ -32,8 +32,6 @@ const LostFoundPage = ({ initialTab }) => {
         setSelectedItemId,
 
         currentUser,
-        userRoleMode,
-        setUserRoleMode,
 
         isRaiseModalOpen,
         setIsRaiseModalOpen,

@@ -18,9 +18,9 @@ const Field = ({ label, value }) => (
  * HubDetail — slide-in panel from the right showing full item detail.
  * Keeps the feed visible (not a full-screen modal).
  */
-const HubDetail = ({ item, onClose, onDelete, onPin }) => {
+const HubDetail = ({ item, onClose, onDelete }) => {
     const { user } = useAuth();
-    const isAdmin = user?.isAdmin;
+    const isAuthor = Boolean(user?._id && (item.createdBy?._id === user._id || item.createdBy === user._id));
     const [showContact, setShowContact] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const panelRef = useRef(null);
@@ -62,16 +62,6 @@ const HubDetail = ({ item, onClose, onDelete, onPin }) => {
         }
     };
 
-    const handlePin = async () => {
-        try {
-            await campusHubAPI.pinAnnouncement(item._id);
-            toast.success(item.isPinned ? 'Unpinned' : 'Pinned');
-            onPin(item._id);
-        } catch {
-            toast.error('Failed to update pin');
-        }
-    };
-
     const pillarColor = {
         ann:  'text-[#A78BFA]',
         mkt:  'text-[#34D399]',
@@ -80,7 +70,17 @@ const HubDetail = ({ item, onClose, onDelete, onPin }) => {
 
     return (
         <AnimatePresence>
+            {/* Backdrop */}
             <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={onClose}
+                className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+            />
+
+            {/* Panel */}
+            <motion.aside
                 ref={panelRef}
                 initial={{ x: '100%', opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -94,19 +94,7 @@ const HubDetail = ({ item, onClose, onDelete, onPin }) => {
                         {PILLAR_LABEL[item.pillar] || 'Item'}
                     </span>
                     <div className="flex items-center gap-2">
-                        {isAdmin && item.pillar === 'ann' && (
-                            <button
-                                onClick={handlePin}
-                                title={item.isPinned ? 'Unpin' : 'Pin'}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center text-[#8B949E] hover:text-[#A78BFA] hover:bg-[#7C3AED]/10 transition-colors"
-                            >
-                                <svg className="w-4 h-4" fill={item.isPinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                        d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                                </svg>
-                            </button>
-                        )}
-                        {isAdmin && (
+                        {isAuthor && item.pillar !== 'ann' && (
                             <button
                                 onClick={handleDelete}
                                 disabled={deleting}
@@ -249,7 +237,7 @@ const HubDetail = ({ item, onClose, onDelete, onPin }) => {
                         </div>
                     )}
                 </div>
-            </motion.div>
+            </motion.aside>
         </AnimatePresence>
     );
 };

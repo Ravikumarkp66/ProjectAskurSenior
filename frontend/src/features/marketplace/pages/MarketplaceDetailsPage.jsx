@@ -32,7 +32,6 @@ const MarketplaceDetailsPage = ({
 
     // Permission checks
     const isSeller = item.seller?.id === currentUser?.id || currentUser?.id === 'user-ravi' && item.seller?.name === 'Ravi Kumar';
-    const isAdmin = currentUser?.isAdmin || false;
 
     return (
         <div className="space-y-6 max-w-5xl mx-auto pb-12 animate-fadeIn">
@@ -127,7 +126,7 @@ const MarketplaceDetailsPage = ({
                         ) : (
                             <>
                                 {/* Buyer Action: Message Seller */}
-                                {!isSeller && !isAdmin && (
+                                {!isSeller && (
                                     <button
                                         type="button"
                                         onClick={() => setShowChat(prev => !prev)}
@@ -138,22 +137,21 @@ const MarketplaceDetailsPage = ({
                                         }}
                                     >
                                         <MessageSquare size={16} />
-                                        <span>{showChat ? 'Hide Chat' : 'Message Seller'}</span>
+                                        <span>Chat with Seller</span>
                                     </button>
                                 )}
 
-                                {/* Seller Controls */}
+                                {/* Seller Actions */}
                                 {isSeller && (
                                     <div className="space-y-2">
                                         <button
                                             type="button"
                                             onClick={onMarkSold}
-                                            className="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20"
+                                            className="w-full py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2"
                                         >
-                                            <CheckCircle2 size={15} />
+                                            <CheckCircle2 size={16} />
                                             <span>Mark as Sold</span>
                                         </button>
-
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 type="button"
@@ -174,43 +172,6 @@ const MarketplaceDetailsPage = ({
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Admin Controls */}
-                                {isAdmin && (
-                                    <div className="p-3 bg-purple-500/10 border border-purple-500/25 rounded-xl space-y-2">
-                                        <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
-                                            <ShieldAlert size={14} />
-                                            <span>Admin Override Controls</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 gap-2 pt-1">
-                                            <button
-                                                type="button"
-                                                onClick={onMarkSold}
-                                                className="w-full py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 flex items-center justify-center gap-1.5"
-                                            >
-                                                <CheckCircle2 size={13} />
-                                                Admin Mark Sold
-                                            </button>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={onEdit}
-                                                    className="py-1.5 px-2 rounded-lg text-xs font-semibold bg-[#21262D] text-[#E6EDF3] hover:bg-[#30363D]"
-                                                >
-                                                    Admin Edit
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={onDelete}
-                                                    className="py-1.5 px-2 rounded-lg text-xs font-semibold bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30"
-                                                >
-                                                    Admin Delete
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                             </>
                         )}
                     </div>
@@ -218,7 +179,7 @@ const MarketplaceDetailsPage = ({
             </div>
 
             {/* Private 1-on-1 Chat Section */}
-            {(showChat || isSeller || isAdmin) && (
+            {(showChat || isSeller) && (
                 <div className="pt-4 space-y-3">
                     <h3 className="text-base font-bold text-[#E6EDF3] flex items-center gap-2">
                         <MessageSquare size={18} className="text-emerald-400" />
@@ -234,7 +195,7 @@ const MarketplaceDetailsPage = ({
             )}
 
             {/* Mobile Sticky Bottom Bar (< md) for Quick Primary Action */}
-            {!isSold && !isSeller && !isAdmin && (
+            {!isSold && !isSeller && (
                 <div className="fixed bottom-0 left-0 right-0 p-3 bg-[#161B22]/95 backdrop-blur-xl border-t border-[#21262D] z-40 md:hidden flex items-center justify-between gap-3">
                     <div>
                         <div className="text-[10px] text-[#8B949E] uppercase font-bold">Price</div>

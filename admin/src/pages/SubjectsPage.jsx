@@ -1,11 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import subjectService from '../services/subjectService';
 import { X } from 'lucide-react';
+import { useAdminAuth } from '../context/AdminAuthContext';
+import { canManageSubjects } from '../utils/permissions';
 
 const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
 const CREDITS = [0, 1, 2, 3, 4];
 
 export const SubjectsPage = () => {
+  const { admin } = useAdminAuth();
+  const { canView, canCreate, canUpdate, canDelete } = useMemo(
+    () => canManageSubjects(admin),
+    [admin]
+  );
+
   const [subjects, setSubjects] = useState([]);
   const [stats, setStats] = useState({ total: 0, byYear: { year1: 0, year2: 0, year3: 0, year4: 0 } });
   const [branches, setBranches] = useState([]);
@@ -57,6 +65,10 @@ export const SubjectsPage = () => {
 
   // Fetch subjects list & stats
   const fetchSubjects = useCallback(async (targetPage = 1) => {
+    if (!canView) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -87,7 +99,7 @@ export const SubjectsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [limit, activeSearch, selectedYear, selectedBranch, selectedScheme]);
+  }, [limit, activeSearch, selectedYear, selectedBranch, selectedScheme, canView]);
 
   useEffect(() => {
     fetchSubjects(page);
@@ -129,6 +141,7 @@ export const SubjectsPage = () => {
 
   // Open Create Form
   const openCreateModal = () => {
+    if (!canCreate) return;
     setFormError(null);
     setFormModal({
       mode: 'create',
@@ -146,6 +159,7 @@ export const SubjectsPage = () => {
 
   // Open Edit Form
   const openEditModal = (subject) => {
+    if (!canUpdate) return;
     setFormError(null);
     setFormModal({
       mode: 'edit',
@@ -236,44 +250,50 @@ export const SubjectsPage = () => {
 
   const hasActiveFilters = activeSearch || selectedYear || selectedBranch || selectedScheme;
 
+  if (!canView) {
+    return null;
+  }
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* Top Section: Title, Stats & Filter Controls */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+      <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-2">
           <div>
             <h1 className="text-base sm:text-lg font-bold tracking-tight text-gray-900 dark:text-gray-100">
               Subjects
             </h1>
-            <div className="text-xs text-gray-600 dark:text-gray-400 font-mono">
+            <div className="text-xs text-gray-600 dark:text-gray-400 font-mono flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span>Total: <span className="font-semibold text-gray-900 dark:text-gray-100">{stats.total.toLocaleString()}</span></span>
-              <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+              <span className="text-gray-300 dark:text-zinc-700">|</span>
               <span>1st Year: <span className="font-semibold text-gray-900 dark:text-gray-100">{stats.byYear?.year1 || 0}</span></span>
-              <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+              <span className="text-gray-300 dark:text-zinc-700">|</span>
               <span>2nd Year: <span className="font-semibold text-gray-900 dark:text-gray-100">{stats.byYear?.year2 || 0}</span></span>
-              <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+              <span className="text-gray-300 dark:text-zinc-700">|</span>
               <span>3rd Year: <span className="font-semibold text-gray-900 dark:text-gray-100">{stats.byYear?.year3 || 0}</span></span>
-              <span className="mx-2 text-gray-300 dark:text-zinc-700">|</span>
+              <span className="text-gray-300 dark:text-zinc-700">|</span>
               <span>4th Year: <span className="font-semibold text-gray-900 dark:text-gray-100">{stats.byYear?.year4 || 0}</span></span>
             </div>
           </div>
 
           {/* Action Button: + Add Subject */}
-          <div className="pt-1 sm:pt-0">
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="rounded-none border border-gray-300 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-blue-700 hover:bg-gray-100 active:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-blue-400 dark:hover:bg-zinc-700 font-sans"
-            >
-              + Add Subject
-            </button>
-          </div>
+          {canCreate && (
+            <div className="pt-1 sm:pt-0">
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="w-full sm:w-auto rounded-none border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-gray-100 active:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-blue-400 dark:hover:bg-zinc-700 font-sans"
+              >
+                + Add Subject
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filters Bar: Search + Year + Branch + Scheme Dropdowns */}
         <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
           {/* Search Input */}
-          <form onSubmit={handleSearchSubmit} className="flex items-center gap-1.5">
+          <form onSubmit={handleSearchSubmit} className="flex items-center gap-1.5 w-full sm:w-auto">
             <label htmlFor="subject-search" className="text-gray-600 dark:text-gray-400 whitespace-nowrap text-[11px]">
               Search:
             </label>
@@ -283,7 +303,7 @@ export const SubjectsPage = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Name or Course Code"
-              className="w-36 sm:w-52 rounded-none border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
+              className="flex-1 sm:w-52 rounded-none border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
             />
             <button
               type="submit"
@@ -293,7 +313,7 @@ export const SubjectsPage = () => {
             </button>
           </form>
 
-          <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
+          <span className="hidden md:inline text-gray-300 dark:text-zinc-700">|</span>
 
           {/* Year Dropdown */}
           <div className="flex items-center gap-1">
@@ -316,10 +336,10 @@ export const SubjectsPage = () => {
             </select>
           </div>
 
-          <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
+          <span className="hidden md:inline text-gray-300 dark:text-zinc-700">|</span>
 
           {/* Branch Dropdown */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 max-w-full">
             <label htmlFor="branch-select" className="text-gray-600 dark:text-gray-400 text-[11px]">
               Branch:
             </label>
@@ -330,7 +350,7 @@ export const SubjectsPage = () => {
                 setSelectedBranch(e.target.value);
                 setPage(1);
               }}
-              className="rounded-none border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
+              className="max-w-[140px] sm:max-w-xs truncate rounded-none border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
             >
               <option value="">All Branches</option>
               {branches.map((b) => (
@@ -341,7 +361,7 @@ export const SubjectsPage = () => {
             </select>
           </div>
 
-          <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
+          <span className="hidden md:inline text-gray-300 dark:text-zinc-700">|</span>
 
           {/* Scheme Dropdown */}
           <div className="flex items-center gap-1">
@@ -450,24 +470,45 @@ export const SubjectsPage = () => {
                         {schemeDisplay}
                       </td>
                       <td className="px-2.5 py-1 text-right font-mono text-xs whitespace-nowrap select-none">
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(sub)}
-                          className="text-blue-600 hover:underline dark:text-blue-400 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <span className="mx-1 text-gray-300 dark:text-zinc-700">|</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDeleteError(null);
-                            setDeleteModal(sub);
-                          }}
-                          className="text-red-600 hover:underline dark:text-red-400 font-medium"
-                        >
-                          Delete
-                        </button>
+                        {(() => {
+                          const actions = [];
+                          if (canUpdate) {
+                            actions.push(
+                              <button
+                                key="edit"
+                                type="button"
+                                onClick={() => openEditModal(sub)}
+                                className="text-blue-600 hover:underline dark:text-blue-400 font-medium"
+                              >
+                                Edit
+                              </button>
+                            );
+                          }
+                          if (canDelete) {
+                            actions.push(
+                              <button
+                                key="delete"
+                                type="button"
+                                onClick={() => {
+                                  setDeleteError(null);
+                                  setDeleteModal(sub);
+                                }}
+                                className="text-red-600 hover:underline dark:text-red-400 font-medium"
+                              >
+                                Delete
+                              </button>
+                            );
+                          }
+                          if (actions.length === 0) {
+                            return <span className="text-gray-400 dark:text-zinc-600">—</span>;
+                          }
+                          return actions.map((act, i) => (
+                            <React.Fragment key={act.key || i}>
+                              {i > 0 && <span className="mx-1 text-gray-300 dark:text-zinc-700">|</span>}
+                              {act}
+                            </React.Fragment>
+                          ));
+                        })()}
                       </td>
                     </tr>
                   );

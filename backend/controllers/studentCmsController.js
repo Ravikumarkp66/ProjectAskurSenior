@@ -102,7 +102,7 @@ const getPublicSubjects = async (req, res) => {
 // Student-facing: fetches published materials for a subject by slug
 const getSubjectMaterials = async (req, res) => {
     try {
-        const subject = await subjectService.findOneSubject({ slug: req.params.slug, status: 'Published' });
+        const subject = await AcademicSubject.findOne({ slug: req.params.slug, status: 'Published' }).lean();
 
         if (!subject) return res.status(404).json({ error: 'Subject not found' });
 

@@ -264,6 +264,11 @@ exports.getUserListAnalytics = async (req, res) => {
 
         let query = {};
 
+        // Strictly enforce department scope for normal administrators
+        if (req.departmentScope && req.departmentScope.id) {
+            query.branch = req.departmentScope.id;
+        }
+
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: "i" } },
@@ -380,17 +385,21 @@ exports.getUserListAnalytics = async (req, res) => {
             }
         );
 
+        const baseScope = (req.departmentScope && req.departmentScope.id)
+            ? { branch: req.departmentScope.id }
+            : {};
+
         const [users, totalResult, liveUsers, recentlyActiveCount, incompleteProfileCount, neverActiveCount] = await Promise.all([
             StudentAccount.aggregate(pipeline),
             StudentAccount.aggregate([...countPipeline, { $count: "count" }]),
-            StudentAccount.countDocuments({ lastActive: { $gte: new Date(Date.now() - 300000) } }),
-            StudentAccount.countDocuments({ lastActive: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }),
-            StudentAccount.countDocuments(incompleteProfileCondition),
-            StudentAccount.countDocuments(neverActiveCondition)
+            StudentAccount.countDocuments({ ...baseScope, lastActive: { $gte: new Date(Date.now() - 300000) } }),
+            StudentAccount.countDocuments({ ...baseScope, lastActive: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }),
+            StudentAccount.countDocuments({ ...baseScope, ...incompleteProfileCondition }),
+            StudentAccount.countDocuments({ ...baseScope, ...neverActiveCondition })
         ]);
 
         const total = totalResult.length > 0 ? totalResult[0].count : 0;
-        const totalUsersCount = await StudentAccount.countDocuments();
+        const totalUsersCount = await StudentAccount.countDocuments(baseScope);
 
         res.json({
             users,
@@ -423,6 +432,15 @@ exports.suspendUser = async (req, res) => {
 
         if (typeof isSuspended !== "boolean") {
             return res.status(400).json({ error: "isSuspended must be boolean" });
+        }
+
+        // Department security check
+        if (req.departmentScope && req.departmentScope.id) {
+            const targetStudent = await StudentAccount.findById(userId);
+            if (!targetStudent) return res.status(404).json({ error: "User not found" });
+            if (String(targetStudent.branch) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: "You cannot manage users outside your assigned department." });
+            }
         }
 
         const updateData = {

@@ -4,6 +4,7 @@ const Branch = require('../models/Branch');
 const Scheme = require('../models/Scheme');
 const AcademicMaterial = require('../models/AcademicMaterial');
 const subjectService = require('../services/subjectService');
+const { logActivity } = require('../services/adminActivityService');
 
 const escapeRegExp = (str) => str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
 
@@ -19,10 +20,16 @@ const slugify = (text) =>
 // GET /api/admin/subjects/stats
 const getStats = async (req, res) => {
     try {
-        const total = await AcademicSubject.countDocuments({});
+        const baseFilter = {};
+        if (req.departmentScope) {
+            baseFilter.branch = req.departmentScope.id;
+        }
+
+        const total = await AcademicSubject.countDocuments(baseFilter);
 
         // Group by year directly
         const yearStats = await AcademicSubject.aggregate([
+            { $match: baseFilter },
             {
                 $group: {
                     _id: '$year',
@@ -70,7 +77,10 @@ const getSubjects = async (req, res) => {
             }
         }
 
-        if (branch) {
+        // Strictly enforce department scope for normal admins
+        if (req.departmentScope) {
+            filter.branch = req.departmentScope.id;
+        } else if (branch) {
             if (mongoose.Types.ObjectId.isValid(branch)) {
                 filter.branch = branch;
             } else {
@@ -197,6 +207,7 @@ const createSubject = async (req, res) => {
             return res.status(400).json({ error: 'Valid scheme selection is required' });
         }
 
+        const creatorEmail = (req.admin?.email || req.user?.email || '').toLowerCase().trim();
         const subject = await AcademicSubject.create({
             name: name.trim(),
             code: targetCode,
@@ -205,7 +216,21 @@ const createSubject = async (req, res) => {
             credits: creditsInt,
             branch: branchId,
             status: status || 'Published',
-            slug: targetSlug
+            slug: targetSlug,
+            createdBy: req.userId || req.admin?._id || null,
+            creatorEmail: creatorEmail || null
+        });
+
+        logActivity({
+            req,
+            action: 'CREATE',
+            resourceType: 'SUBJECT',
+            resourceId: subject._id,
+            department: branchId,
+            metadata: {
+                title: `${subject.code} - ${subject.name}`,
+                subject: subject.name
+            }
         });
 
         const populatedSubject = await subjectService.getSubjectById(subject._id);
@@ -224,12 +249,17 @@ const updateSubject = async (req, res) => {
         const subject = await AcademicSubject.findById(req.params.id);
         if (!subject) return res.status(404).json({ error: 'Subject not found' });
 
+        const changes = {};
+
         if (credits !== undefined) {
             const creditsInt = parseInt(credits);
             if (isNaN(creditsInt) || creditsInt < 0 || creditsInt > 4) {
                 return res.status(400).json({ error: 'Credits must be an integer from 0 to 4' });
             }
-            subject.credits = creditsInt;
+            if (creditsInt !== subject.credits) {
+                changes.credits = { old: subject.credits, new: creditsInt };
+                subject.credits = creditsInt;
+            }
         }
 
         if (code) {
@@ -237,22 +267,30 @@ const updateSubject = async (req, res) => {
             if (targetCode !== subject.code) {
                 const codeExists = await AcademicSubject.findOne({ code: targetCode, _id: { $ne: subject._id } });
                 if (codeExists) return res.status(400).json({ error: `Subject code '${targetCode}' already exists` });
+                changes.code = { old: subject.code, new: targetCode };
                 subject.code = targetCode;
             }
         }
 
         if (name && name.trim()) {
-            subject.name = name.trim();
-            const baseSlug = slugify(name.trim());
-            let targetSlug = baseSlug;
-            let slugCounter = 1;
-            while (await AcademicSubject.findOne({ slug: targetSlug, _id: { $ne: subject._id } })) {
-                targetSlug = `${baseSlug}-${slugCounter++}`;
+            const trimmedName = name.trim();
+            if (trimmedName !== subject.name) {
+                changes.name = { old: subject.name, new: trimmedName };
+                subject.name = trimmedName;
+                const baseSlug = slugify(trimmedName);
+                let targetSlug = baseSlug;
+                let slugCounter = 1;
+                while (await AcademicSubject.findOne({ slug: targetSlug, _id: { $ne: subject._id } })) {
+                    targetSlug = `${baseSlug}-${slugCounter++}`;
+                }
+                subject.slug = targetSlug;
             }
-            subject.slug = targetSlug;
         }
 
-        if (year) subject.year = year;
+        if (year && year !== subject.year) {
+            changes.year = { old: subject.year, new: year };
+            subject.year = year;
+        }
 
         if (scheme !== undefined) {
             let schemeId = scheme;
@@ -260,12 +298,16 @@ const updateSubject = async (req, res) => {
                 const foundScheme = await Scheme.findOne({ name: scheme });
                 schemeId = foundScheme ? foundScheme._id : null;
             }
-            if (schemeId) {
+            if (schemeId && String(schemeId) !== String(subject.scheme)) {
+                changes.scheme = { old: subject.scheme, new: schemeId };
                 subject.scheme = schemeId;
             }
         }
 
-        if (status) subject.status = status;
+        if (status && status !== subject.status) {
+            changes.status = { old: subject.status, new: status };
+            subject.status = status;
+        }
 
         if (branch !== undefined) {
             let branchId = branch;
@@ -276,12 +318,29 @@ const updateSubject = async (req, res) => {
                 const foundBranch = await Branch.findOne({ shortName: branchId.toUpperCase() });
                 branchId = foundBranch ? foundBranch._id : null;
             }
-            if (branchId) {
+            if (branchId && String(branchId) !== String(subject.branch)) {
+                changes.branch = { old: subject.branch, new: branchId };
                 subject.branch = branchId;
             }
         }
 
         await subject.save();
+
+        if (Object.keys(changes).length > 0) {
+            logActivity({
+                req,
+                action: 'UPDATE',
+                resourceType: 'SUBJECT',
+                resourceId: subject._id,
+                department: subject.branch,
+                metadata: {
+                    title: `${subject.code} - ${subject.name}`,
+                    subject: subject.name,
+                    changes
+                }
+            });
+        }
+
         const populatedSubject = await subjectService.getSubjectById(subject._id);
         res.status(200).json(populatedSubject);
     } catch (error) {
@@ -306,12 +365,39 @@ const deleteSubject = async (req, res) => {
                 });
             }
             await AcademicSubject.findByIdAndDelete(subject._id);
+
+            logActivity({
+                req,
+                action: 'DELETE',
+                resourceType: 'SUBJECT',
+                resourceId: subject._id,
+                department: subject.branch,
+                metadata: {
+                    title: `${subject.code} - ${subject.name}`,
+                    subject: subject.name,
+                    extra: { isPermanent: true }
+                }
+            });
+
             return res.status(200).json({ message: 'Subject permanently deleted successfully' });
         }
 
         // Soft delete / archive by setting status to Hidden
         subject.status = 'Hidden';
         await subject.save();
+
+        logActivity({
+            req,
+            action: 'ARCHIVE',
+            resourceType: 'SUBJECT',
+            resourceId: subject._id,
+            department: subject.branch,
+            metadata: {
+                title: `${subject.code} - ${subject.name}`,
+                subject: subject.name,
+                extra: { isPermanent: false }
+            }
+        });
 
         res.status(200).json({ message: 'Subject archived successfully', subject });
     } catch (error) {

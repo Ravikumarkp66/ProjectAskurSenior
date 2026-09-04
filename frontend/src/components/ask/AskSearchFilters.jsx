@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Search, Filter, X, Bookmark, UserCheck, ShieldCheck } from 'lucide-react';
+import { Search, Filter, X, Bookmark, UserCheck } from 'lucide-react';
 import { BRANCHES } from '../../utils/constants';
 
 const AskSearchFilters = memo(({
@@ -23,8 +23,6 @@ const AskSearchFilters = memo(({
     setBookmarksOnly,
     subjects,
     paperTypes,
-    isAdmin,
-    pendingUploadsCount,
     isLightMode
 }) => {
     return (
@@ -51,26 +49,6 @@ const AskSearchFilters = memo(({
                         <Bookmark className="w-3.5 h-3.5" />
                         Saved
                     </button>
-
-                    {/* Admin Pending Toggle */}
-                    {isAdmin && (
-                        <button
-                            onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
-                            className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                statusFilter === 'pending'
-                                    ? 'bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-                                    : isLightMode ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-slate-800/60 text-slate-400 hover:bg-slate-800'
-                            }`}
-                        >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            Pending Review
-                            {pendingUploadsCount > 0 && (
-                                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-950 font-bold">
-                                    {pendingUploadsCount}
-                                </span>
-                            )}
-                        </button>
-                    )}
                 </div>
             </div>
 

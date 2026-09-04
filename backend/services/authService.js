@@ -10,9 +10,16 @@ const ADMIN_EMAILS = process.env.ADMIN_EMAIL
     : [];
 
 class AuthService {
-    generateToken(userId, branch, currentBranch, isAdmin, expiresIn = '7d') {
+    generateToken(userId, branch, currentBranch, isAdmin, sessionId = null, expiresIn = '7d', email = null) {
+        const payload = { userId, branch, currentBranch, isAdmin: !!isAdmin };
+        if (email) {
+            payload.email = email;
+        }
+        if (sessionId) {
+            payload.sessionId = sessionId;
+        }
         return jwt.sign(
-            { userId, branch, currentBranch, isAdmin: !!isAdmin },
+            payload,
             process.env.JWT_SECRET,
             { expiresIn }
         );
@@ -110,8 +117,10 @@ class AuthService {
         return { user, token };
     }
 
-    async loginStudent({ usn, password, branch }) {
+    async loginStudent({ usn, password, branch, req = null }) {
         const trimmedUSN = usn.trim().toUpperCase();
+        const { logLoginAttempt, createLoginSession } = require('./sessionService');
+        const { getClientIp } = require('../utils/geoIpLookup');
 
         // 1. Search in StudentAccount
         let student = await StudentAccount.findOne({ usn: trimmedUSN, isDeleted: false })
@@ -129,6 +138,15 @@ class AuthService {
 
             const isValidPassword = await student.comparePassword(password);
             if (!isValidPassword) {
+                if (req) {
+                    await logLoginAttempt({
+                        email: student.email,
+                        ipAddress: getClientIp(req),
+                        success: false,
+                        reason: 'Invalid password',
+                        userAgent: req.headers['user-agent']
+                    });
+                }
                 const err = new Error('Invalid credentials');
                 err.statusCode = 401;
                 throw err;
@@ -164,6 +182,15 @@ class AuthService {
             // 2. Search in legacy User collection
             user = await User.findOne({ usn: trimmedUSN });
             if (!user) {
+                if (req) {
+                    await logLoginAttempt({
+                        email: trimmedUSN,
+                        ipAddress: getClientIp(req),
+                        success: false,
+                        reason: 'User not found',
+                        userAgent: req.headers['user-agent']
+                    });
+                }
                 const err = new Error('Invalid credentials');
                 err.statusCode = 401;
                 throw err;
@@ -177,6 +204,15 @@ class AuthService {
 
             const isValidPassword = await user.comparePassword(password);
             if (!isValidPassword) {
+                if (req) {
+                    await logLoginAttempt({
+                        email: user.email,
+                        ipAddress: getClientIp(req),
+                        success: false,
+                        reason: 'Invalid password',
+                        userAgent: req.headers['user-agent']
+                    });
+                }
                 const err = new Error('Invalid credentials');
                 err.statusCode = 401;
                 throw err;
@@ -195,9 +231,29 @@ class AuthService {
             await user.save();
         }
 
-        const token = this.generateToken(user._id, user.branch, user.currentBranch, user.isAdmin);
+        let sessionId = null;
+        const targetDoc = student || user;
+        const targetEmail = (targetDoc?.email || '').toLowerCase().trim();
 
-        return { user, student, token };
+        const Admin = require('../models/Admin');
+        const adminDoc = await Admin.findOne({ email: targetEmail, status: 'ACTIVE' });
+        const isUserAdmin = !!adminDoc || !!user.isAdmin || (student && student.role === 'admin');
+
+        if (req) {
+            const sessionResult = await createLoginSession({
+                user: targetDoc,
+                userType: adminDoc?.role === 'SUPER_ADMIN' ? 'super_admin' : (isUserAdmin ? 'admin' : 'student'),
+                department: adminDoc?.department?._id || adminDoc?.department || targetDoc.branch?._id || targetDoc.branch || null,
+                departmentCode: adminDoc?.department?.shortName || null,
+                req
+            });
+            sessionId = sessionResult.sessionId;
+        }
+
+        user.isAdmin = isUserAdmin;
+        const token = this.generateToken(user._id, user.branch, user.currentBranch, isUserAdmin, sessionId, '7d', targetEmail);
+
+        return { user, student, token, sessionId };
     }
 }
 
