@@ -2,30 +2,31 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../utils/hooks';
+import { useTheme } from '../context/ThemeContext';
 import ProfileModal from '../components/ProfileModal';
 import { apiClient, userUploadAPI } from '../services/api';
 import { deriveBranchFromUSN, toUiBranch, toBackendBranch, BRANCHES } from '../utils/constants';
-import DocComments from '../components/DocComments';
+import { formatSize, getTimeAgo, formatFullDate, isBranchMatch, isYearMatch, deriveStudentScope } from '../utils/askUtils';
 import LoginRequiredModal from '../components/LoginRequiredModal';
-import { Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink, Trash2, Edit, Check, Heart, TrendingUp, MessageSquare, Send, ThumbsUp, ThumbsDown, CornerDownRight, UserCheck, ShieldCheck, Clock, Bookmark, Trophy, Info, ChevronDown } from 'lucide-react';
+import {
+    Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink,
+    Trash2, Edit, Check, Bookmark, Trophy, Info, ChevronDown, ChevronLeft, ChevronRight,
+    SlidersHorizontal, RotateCcw, CheckCircle2, AlertCircle, ArrowUpDown
+} from 'lucide-react';
 import { logAcademicActivity } from '../utils/academicStreak';
 
 const AskFinderPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, isAuthenticated, loading: authLoading, updateUser } = useAuth();
+    const { isDark } = useTheme();
+    const isLightMode = !isDark;
+    const theme = isDark ? 'dark' : 'light';
 
     // Filters Collapsed / Enclosed state
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
-    // Theme & Layout state
-    const [theme, setTheme] = useState(() => {
-        try {
-            return localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark';
-        } catch {
-            return 'dark';
-        }
-    });
+    // Layout & branch state
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [branchOverride, setBranchOverride] = useState(() => {
@@ -36,10 +37,8 @@ const AskFinderPage = () => {
         }
     });
     const [currentBranch, setCurrentBranch] = useState(
-        branchOverride || deriveBranchFromUSN(user?.usn) || toUiBranch(user?.currentBranch) || 'CS'
+        branchOverride || 'ALL'
     );
-
-    const isLightMode = theme === 'light';
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +52,15 @@ const AskFinderPage = () => {
     const [statusFilter, setStatusFilter] = useState('all'); // 'all' (approved only) or 'pending' (admin review)
     const [bookmarksOnly, setBookmarksOnly] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
+    const [adminViewAll, setAdminViewAll] = useState(false);
+
+    // Derive student academic scope (Branch & Year Level) from user profile / USN
+    const studentScope = useMemo(() => deriveStudentScope(user), [user]);
+
+    // Active scope (locked to student branch & year unless admin specifically overrides)
+    const isEnforcingScope = studentScope.isScoped && (!user?.isAdmin || !adminViewAll);
+    const activeBranch = isEnforcingScope ? studentScope.branch : currentBranch;
+    const activeYearLevel = isEnforcingScope ? studentScope.yearLevel : selectedYearLevel;
 
     // Data state
     const [documents, setDocuments] = useState([]);
@@ -61,8 +69,9 @@ const AskFinderPage = () => {
     const [paperTypes, setPaperTypes] = useState([]);
     const [searchSummary, setSearchSummary] = useState({ total: 0, notes: 0, see: 0, internals: 0, others: 0 });
 
-    // Pagination — Show More
-    const ITEMS_PER_PAGE = 9;
+    // CSES-style Pagination
+    const ITEMS_PER_PAGE = 20;
+    const [currentPage, setCurrentPage] = useState(1);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     // Upload state
@@ -90,26 +99,6 @@ const AskFinderPage = () => {
         usn: user?.usn || ''
     });
 
-    const formatSize = (bytes) => {
-        if (!bytes) return '0.00 MB';
-        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-    };
-
-    const getTimeAgo = (date) => {
-        if (!date) return 'Recently';
-        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-        let interval = seconds / 31536000;
-        if (interval > 1) return Math.floor(interval) + " years ago";
-        interval = seconds / 2592000;
-        if (interval > 1) return Math.floor(interval) + " months ago";
-        interval = seconds / 86400;
-        if (interval > 1) return Math.floor(interval) + " days ago";
-        interval = seconds / 3600;
-        if (interval > 1) return Math.floor(interval) + " hours ago";
-        interval = seconds / 60;
-        if (interval > 1) return Math.floor(interval) + " minutes ago";
-        return Math.floor(seconds) + " seconds ago";
-    };
 
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [previewUrl, setPreviewUrl] = useState('');
@@ -144,21 +133,7 @@ const AskFinderPage = () => {
         }
     }, [showLeaderboardModal]);
 
-    useEffect(() => {
-        const sync = () => {
-            try {
-                setTheme(localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark');
-            } catch {
-                setTheme('dark');
-            }
-        };
-        window.addEventListener('uiThemeChange', sync);
-        window.addEventListener('storage', sync);
-        return () => {
-            window.removeEventListener('uiThemeChange', sync);
-            window.removeEventListener('storage', sync);
-        };
-    }, []);
+
 
     // Read ?bookmarks=true from URL on page load
     useEffect(() => {
@@ -174,42 +149,42 @@ const AskFinderPage = () => {
     }, [location.search, isAuthenticated]);
 
     useEffect(() => {
-        // Fetch metadata & leaderboard concurrently on mount
+        // Fetch metadata, leaderboard & initial documents concurrently on mount
         fetchMetadata();
         fetchLeaderboard();
-        logAcademicActivity({ type: 'ask_plus', label: 'Used Ask+' });
-    }, []);
-
-    // Automatic Search when filter dropdowns change (with loading indicator)
-    useEffect(() => {
         handleSearch(true);
-    }, [selectedSubject, selectedPaperType, selectedYearLevel, selectedSubSemester, selectedYear, selectedDocType, sortBy, statusFilter, bookmarksOnly, currentBranch]);
+        logAcademicActivity({ type: 'ask_plus', label: 'Used Ask+' });
 
-    // Pro Search state
-    const [searchFocused, setSearchFocused] = useState(false);
-    const [placeholderIndex, setPlaceholderIndex] = useState(0);
-    const [suggestions, setSuggestions] = useState({ subjects: [], papers: [], notes: [] });
-    const [selectedIndex, setSelectedIndex] = useState(-1);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const searchRef = useRef(null);
-    const inputRef = useRef(null);
+        // Cross-tab and window-focus live sync with Admin Panel
+        let bc;
+        try {
+            bc = new BroadcastChannel('askursenior_materials_sync');
+            bc.onmessage = (event) => {
+                if (event.data?.type === 'MATERIAL_UPDATED') {
+                    handleSearch(false);
+                }
+            };
+        } catch (e) {}
 
-    const placeholders = [
-        "Search subject, code, topic...",
-        "Search Data Structures",
-        "Search 22CS41",
-        "Search PYQs",
-        "Search Mathematics notes",
-        "Search DBMS Papers"
-    ];
+        const handleStorage = (e) => {
+            if (e.key === 'materials_last_updated') {
+                handleSearch(false);
+            }
+        };
+        const handleFocus = () => {
+            handleSearch(false);
+        };
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener('focus', handleFocus);
 
-    // Auto changing placeholder
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setPlaceholderIndex((prev) => (prev + 1) % placeholders.length);
-        }, 3000);
-        return () => clearInterval(interval);
+        return () => {
+            try { bc?.close(); } catch (e) {}
+            window.removeEventListener('storage', handleStorage);
+            window.removeEventListener('focus', handleFocus);
+        };
     }, []);
+
+    const inputRef = useRef(null);
 
     // Keyboard shortcut '/'
     useEffect(() => {
@@ -250,156 +225,207 @@ const AskFinderPage = () => {
         return false;
     };
 
-    // Auto-complete Suggestions Logic — Instant 0ms local + background server sync
-    useEffect(() => {
-        const q = searchQuery.trim();
-        if (!q) {
-            setSuggestions({ subjects: [], papers: [], notes: [] });
-            setShowSuggestions(false);
-            return;
-        }
 
-        // 1. Immediate local matching from subjects & loaded documents
-        const localSubjectMatches = (subjects || [])
-            .filter(s => smartSearchMatch(s.name, q) || smartSearchMatch(s.code, q))
-            .slice(0, 4);
+    // Semester match helper
+    const isSemesterMatch = (doc, targetSem) => {
+        if (!targetSem) return true;
+        const targetNum = targetSem.replace(/[^0-9]/g, '');
+        const docSemNum = String(doc.semester || '').replace(/[^0-9]/g, '');
+        if (docSemNum && targetNum && docSemNum === targetNum) return true;
+        return String(doc.semester || '').toLowerCase().includes(targetSem.toLowerCase());
+    };
 
-        const localPaperMatches = (documents || [])
-            .filter(d => (d.documentType === 'see' || d.documentType === 'internals') && (smartSearchMatch(d.subjectName, q) || smartSearchMatch(d.originalName, q) || smartSearchMatch(d.subjectCode, q)))
-            .slice(0, 4)
-            .map(d => ({ name: d.subjectName || d.originalName, code: d.subjectCode || '' }));
-
-        const localNoteMatches = (documents || [])
-            .filter(d => d.documentType === 'notes' && (smartSearchMatch(d.subjectName, q) || smartSearchMatch(d.originalName, q) || smartSearchMatch(d.subjectCode, q)))
-            .slice(0, 4)
-            .map(d => ({ name: d.subjectName || d.originalName, code: d.subjectCode || '' }));
-
-        setSuggestions({
-            subjects: localSubjectMatches,
-            papers: localPaperMatches,
-            notes: localNoteMatches
-        });
-        setShowSuggestions(true);
-        setSelectedIndex(-1);
-
-        // 2. Fetch server suggestions to enrich
-        const fetchSuggestions = async () => {
-            try {
-                const response = await apiClient.get(`/documents/suggestions?q=${encodeURIComponent(q)}`);
-                if (response.data) {
-                    setSuggestions(prev => ({
-                        subjects: Array.from(new Set([...localSubjectMatches.map(s => JSON.stringify(s)), ...(response.data.subjects || []).map(s => JSON.stringify(s))])).map(s => JSON.parse(s)).slice(0, 5),
-                        papers: Array.from(new Set([...localPaperMatches.map(s => JSON.stringify(s)), ...(response.data.papers || []).map(s => JSON.stringify(s))])).map(s => JSON.parse(s)).slice(0, 5),
-                        notes: Array.from(new Set([...localNoteMatches.map(s => JSON.stringify(s)), ...(response.data.notes || []).map(s => JSON.stringify(s))])).map(s => JSON.parse(s)).slice(0, 5)
-                    }));
-                }
-            } catch (error) {
-                // Fallback to local suggestions seamlessly
+    // Context-Filtered Documents (matches all filters EXCEPT document type tab, used for stable tab counts)
+    const contextFilteredDocuments = useMemo(() => {
+        return documents.filter(doc => {
+            // Bookmarks filter
+            if (bookmarksOnly) {
+                const isBookmarked = Array.isArray(user?.bookmarks) && user.bookmarks.includes(doc._id);
+                if (!isBookmarked) return false;
             }
-        };
 
-        const timer = setTimeout(fetchSuggestions, 150);
-        return () => clearTimeout(timer);
-    }, [searchQuery, subjects]);
+            // Year Level filter (strictly enforced to student's year level when scoped)
+            if (activeYearLevel && !isYearMatch(doc, activeYearLevel)) {
+                return false;
+            }
 
-    // Multi-term Substring Filtered Documents
-    const filteredDocuments = useMemo(() => {
-        if (!searchQuery.trim()) return documents;
-        const q = searchQuery.trim();
-        return documents.filter(doc => (
-            smartSearchMatch(doc.subjectName, q) ||
-            smartSearchMatch(doc.subjectCode, q) ||
-            smartSearchMatch(doc.originalName, q) ||
-            smartSearchMatch(doc.documentType, q) ||
-            smartSearchMatch(doc.branch, q) ||
-            smartSearchMatch(doc.yearLevel, q) ||
-            smartSearchMatch(doc.tags, q) ||
-            smartSearchMatch(doc.moduleInfo, q) ||
-            smartSearchMatch(doc.contributor?.name, q)
-        ));
-    }, [documents, searchQuery]);
-
-    // Dynamic Filtered MongoDB Academic Subjects by selected Year Level & Branch
-    const availableSubjects = useMemo(() => {
-        if (!subjects || subjects.length === 0) return [];
-        return subjects.filter(s => {
-            if (selectedYearLevel) {
-                const sYear = String(s.year || '').toLowerCase().trim();
-                const selYear = String(selectedYearLevel).toLowerCase().trim();
-                
-                const yearNormMap = {
-                    '1st year': '1st year', '1': '1st year',
-                    '2nd year': '2nd year', '2': '2nd year',
-                    '3rd year': '3rd year', '3': '3rd year',
-                    '4th year': '4th year', '4': '4th year'
-                };
-                const normSYear = yearNormMap[sYear] || sYear;
-                const normSelYear = yearNormMap[selYear] || selYear;
-
-                if (normSYear && normSYear !== normSelYear) {
+            // Branch filter (strictly enforced to student's branch + Common when scoped)
+            if (activeBranch && activeBranch !== 'ALL') {
+                if (!isBranchMatch(doc.branch, activeBranch, activeYearLevel)) {
                     return false;
                 }
             }
 
-            if (selectedYearLevel && selectedYearLevel !== '1st Year' && currentBranch) {
-                const sBranch = String(s.branch || '').toUpperCase().trim();
-                const curBranch = String(currentBranch).toUpperCase().trim();
+            // Semester filter
+            if (selectedSubSemester && !isSemesterMatch(doc, selectedSubSemester)) {
+                return false;
+            }
 
-                if (sBranch && sBranch !== 'COMMON' && sBranch !== 'ALL') {
-                    const branchAliases = {
-                        CS: 'CSE', CSE: 'CSE', IS: 'ISE', ISE: 'ISE',
-                        EC: 'ECE', ECE: 'ECE', EE: 'EEE', EEE: 'EEE',
-                        ME: 'MECH', MECH: 'MECH', CV: 'CIVIL', CIVIL: 'CIVIL',
-                        CI: 'AIML', AIML: 'AIML', DS: 'DS'
-                    };
-                    const normSBranch = branchAliases[sBranch] || sBranch;
-                    const normCurBranch = branchAliases[curBranch] || curBranch;
+            // Subject filter
+            if (selectedSubject && doc.subjectName !== selectedSubject) {
+                return false;
+            }
 
-                    if (normSBranch !== normCurBranch) {
-                        return false;
-                    }
+            // Text search query
+            if (searchQuery.trim()) {
+                const q = searchQuery.trim();
+                const typeAliases = doc.documentType === 'see' ? 'pyq pyqs previous year question paper see exam'
+                    : doc.documentType === 'notes' ? 'notes note study material'
+                    : doc.documentType === 'internals' ? 'internals internal cie test'
+                    : 'others other syllabus assignment';
+
+                const combined = [
+                    doc.subjectName || '',
+                    doc.subjectCode || '',
+                    doc.originalName || '',
+                    doc.fileName || '',
+                    doc.documentType || '',
+                    typeAliases,
+                    doc.tags || '',
+                    doc.moduleInfo || '',
+                    doc.semester || '',
+                    doc.yearLevel || '',
+                    doc.branch || '',
+                    doc.contributor?.name || ''
+                ].join(' ');
+
+                if (!smartSearchMatch(combined, q)) {
+                    return false;
                 }
             }
 
             return true;
         });
-    }, [subjects, selectedYearLevel, currentBranch]);
+    }, [documents, bookmarksOnly, user?.bookmarks, activeYearLevel, activeBranch, selectedSubSemester, selectedSubject, searchQuery]);
 
-    const handleKeyDown = (e) => {
-        const totalItems = suggestions.subjects.length + suggestions.papers.length + suggestions.notes.length;
+    // Live Contextual Tab Counts (stays stable when switching tabs)
+    const tabCounts = useMemo(() => {
+        const base = contextFilteredDocuments;
+        return {
+            all: base.length,
+            notes: base.filter(d => d.documentType === 'notes').length,
+            see: base.filter(d => d.documentType === 'see').length,
+            internals: base.filter(d => d.documentType === 'internals').length,
+            others: base.filter(d => d.documentType === 'others').length
+        };
+    }, [contextFilteredDocuments]);
 
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setSelectedIndex(prev => (prev + 1) % totalItems);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSelectedIndex(prev => (prev - 1 + totalItems) % totalItems);
-        } else if (e.key === 'Enter' && selectedIndex >= 0) {
-            e.preventDefault();
-            // Get the item at selectedIndex
-            const allItems = [...suggestions.subjects, ...suggestions.papers, ...suggestions.notes];
-            const item = allItems[selectedIndex];
-            setSearchQuery(item.name);
-            setShowSuggestions(false);
-        } else if (e.key === 'Escape') {
-            setShowSuggestions(false);
-            inputRef.current?.blur();
+    // Final Filtered Documents (tab filter + status + sort)
+    const filteredDocuments = useMemo(() => {
+        return contextFilteredDocuments.filter(doc => {
+            // Document Type Tab
+            if (selectedDocType) {
+                if (selectedDocType === 'others') {
+                    if (doc.documentType === 'notes' || doc.documentType === 'see' || doc.documentType === 'internals') {
+                        return false;
+                    }
+                } else if (doc.documentType !== selectedDocType) {
+                    return false;
+                }
+            }
+
+            // Admin Status filter
+            if (statusFilter === 'pending' && doc.isApproved) return false;
+            if (statusFilter === 'approved' && !doc.isApproved) return false;
+
+            return true;
+        }).sort((a, b) => {
+            if (sortBy === 'most-downloaded') return (b.downloadCount || 0) - (a.downloadCount || 0);
+            if (sortBy === 'recently-updated') return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
+            // Default newest
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+    }, [contextFilteredDocuments, selectedDocType, statusFilter, sortBy]);
+
+    const totalCount = filteredDocuments.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+
+    const paginatedDocuments = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredDocuments.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredDocuments, currentPage]);
+
+    // Semesters list derived from active year level
+    const availableSemesters = useMemo(() => {
+        const yl = activeYearLevel || selectedYearLevel;
+        if (yl === '1st Year') return ['1st Sem', '2nd Sem'];
+        if (yl === '2nd Year') return ['3rd Sem', '4th Sem'];
+        if (yl === '3rd Year') return ['5th Sem', '6th Sem'];
+        if (yl === '4th Year') return ['7th Sem', '8th Sem'];
+        return ['1st Sem', '2nd Sem', '3rd Sem', '4th Sem', '5th Sem', '6th Sem', '7th Sem', '8th Sem'];
+    }, [activeYearLevel, selectedYearLevel]);
+
+    // Dynamic Filtered Academic Subjects derived from both MongoDB canonical subjects & loaded materials
+    const availableSubjects = useMemo(() => {
+        const subjectMap = new Map();
+
+        const isNonSubject = (name) => {
+            if (!name || typeof name !== 'string') return true;
+            const n = name.trim().toLowerCase();
+            return !n || n === 'general' || n === '—' || n === '-' || /course\s*material/i.test(n) || /link/i.test(n);
+        };
+
+        // 1. Add canonical subjects from API
+        (subjects || []).forEach(s => {
+            if (s.name && !isNonSubject(s.name)) {
+                const normName = s.name.trim();
+                const code = (s.code && s.code !== '—' && s.code !== '-') ? s.code.trim() : '';
+                const key = code ? `${normName.toLowerCase()}::${code.toLowerCase()}` : normName.toLowerCase();
+                subjectMap.set(key, {
+                    name: normName,
+                    code,
+                    branch: s.branch || '',
+                    year: s.year || ''
+                });
+            }
+        });
+
+        // 2. Add subjects from loaded documents
+        (documents || []).forEach(doc => {
+            const name = (doc.subjectName || '').trim();
+            const code = (doc.subjectCode && doc.subjectCode !== '—' && doc.subjectCode !== '-') ? doc.subjectCode.trim() : '';
+            const key = code ? `${name.toLowerCase()}::${code.toLowerCase()}` : name.toLowerCase();
+            if (name && !isNonSubject(name) && !subjectMap.has(key)) {
+                subjectMap.set(key, {
+                    name: doc.subjectName.trim(),
+                    code,
+                    branch: doc.branch || '',
+                    year: doc.yearLevel || doc.semester || ''
+                });
+            }
+        });
+
+        let list = Array.from(subjectMap.values());
+
+        // Filter by active year level if active
+        if (activeYearLevel) {
+            const selNum = activeYearLevel.replace(/[^0-9]/g, '');
+            list = list.filter(s => {
+                if (!s.year || s.year === 'N/A') return false;
+                const sYearStr = String(s.year).toLowerCase();
+                const sNum = sYearStr.replace(/[^0-9]/g, '');
+                return sNum === selNum || sYearStr.includes(activeYearLevel.toLowerCase());
+            });
         }
-    };
 
-    // Debounced background search when text query changes (0ms client filtering + background sync)
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            handleSearch(false);
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [searchQuery]);
+        // Filter by active branch if active and not 1st Year
+        if (activeBranch && activeBranch !== 'ALL' && activeYearLevel !== '1st Year') {
+            const curB = toBackendBranch(activeBranch);
+            list = list.filter(s => {
+                if (!s.branch || s.branch === 'Common' || s.branch === 'COMMON' || s.branch === 'ALL') return true;
+                const sB = toBackendBranch(s.branch);
+                return sB === curB || s.branch === 'Common' || s.branch === 'COMMON';
+            });
+        }
+
+        return list.sort((a, b) => a.name.localeCompare(b.name));
+    }, [subjects, documents, activeYearLevel, activeBranch]);
 
     const handleBranchOverrideChange = (nextBranch) => {
         const value = (nextBranch || '').toString();
         setBranchOverride(value);
         try {
-            if (value) localStorage.setItem('branchOverride', value);
+            if (value && value !== 'ALL') localStorage.setItem('branchOverride', value);
             else localStorage.removeItem('branchOverride');
         } catch { }
         if (value) setCurrentBranch(value);
@@ -407,14 +433,12 @@ const AskFinderPage = () => {
 
     const fetchMetadata = async () => {
         try {
-            const [subjectsRes, paperTypesRes] = await Promise.all([
-                apiClient.get('/documents/subjects'),
-                apiClient.get('/documents/paper-types')
-            ]);
-            setSubjects(subjectsRes.data || []);
-            setPaperTypes(paperTypesRes.data || []);
+            const subjectsRes = await apiClient.get('/documents/subjects');
+            if (Array.isArray(subjectsRes.data)) {
+                setSubjects(subjectsRes.data);
+            }
         } catch (error) {
-            console.error('Failed to fetch metadata:', error);
+            console.warn('Failed to fetch subjects metadata:', error);
             setSubjects([]);
         }
     };
@@ -424,48 +448,17 @@ const AskFinderPage = () => {
             setLoading(true);
         }
         try {
-            const params = new URLSearchParams();
-            if (searchQuery.trim()) params.append('q', searchQuery.toLowerCase());
-            if (selectedSubject) params.append('subject', selectedSubject.toLowerCase());
-            if (selectedPaperType) params.append('paperType', selectedPaperType.toLowerCase());
-            if (selectedYearLevel) params.append('yearLevel', selectedYearLevel.toLowerCase());
-            if (selectedSubSemester) params.append('semester', selectedSubSemester.toLowerCase());
-
-            if (selectedYearLevel && selectedYearLevel !== '1st Year' && currentBranch) params.append('branch', currentBranch.toLowerCase());
-            if (selectedYear) params.append('year', selectedYear.toLowerCase());
-            if (selectedDocType) params.append('documentType', selectedDocType.toLowerCase());
-            if (sortBy) params.append('sortBy', sortBy);
-
-            if (bookmarksOnly) {
-                params.append('bookmarksOnly', 'true');
-            }
-
-            // Stage 1: Fast initial fetch (limit=9) for INSTANT UI display (<30ms)
-            const fastParams = new URLSearchParams(params.toString());
-            fastParams.append('limit', '9');
-            const initialRes = await apiClient.get(`/documents/search?${fastParams.toString()}`);
-            const initialDocs = initialRes.data.documents || initialRes.data || [];
-            
-            setDocuments(initialDocs);
-            if (initialRes.data.summary) {
-                setSearchSummary(initialRes.data.summary);
-            }
-            setVisibleCount(ITEMS_PER_PAGE);
-            setLoading(false); // Instantly show first 9 materials to user!
-
-            // Stage 2: Background fetch for complete document list (runs silently in background)
-            if (initialDocs.length >= 9) {
-                apiClient.get(`/documents/search?${params.toString()}`).then(fullRes => {
-                    const fullDocs = fullRes.data.documents || fullRes.data || [];
-                    setDocuments(fullDocs);
-                    if (fullRes.data.summary) {
-                        setSearchSummary(fullRes.data.summary);
-                    }
-                }).catch(() => {});
+            // Load full set of materials for instant zero-latency client filtering
+            const res = await apiClient.get('/documents/search');
+            const docs = res.data.documents || res.data || [];
+            setDocuments(docs);
+            if (res.data.summary) {
+                setSearchSummary(res.data.summary);
             }
         } catch (error) {
             console.error('Search failed:', error);
             if (documents.length === 0) setDocuments([]);
+        } finally {
             setLoading(false);
         }
     };
@@ -653,6 +646,11 @@ const AskFinderPage = () => {
         setSelectedYear('');
         setSelectedDocType('');
         setSortBy('newest');
+        setBookmarksOnly(false);
+        setCurrentBranch('ALL');
+        setBranchOverride('');
+        try { localStorage.removeItem('branchOverride'); } catch {}
+        setCurrentPage(1);
     };
 
     const handleUpdateFileName = async (documentId) => {
@@ -739,545 +737,452 @@ const AskFinderPage = () => {
         }
     };
 
-    if (authLoading) return <div className="min-h-screen bg-[#0a0a0b]" />;
+    if (authLoading) return <div className="min-h-screen bg-[#fbfbfb] dark:bg-[#0a0a0b]" />;
 
     return (
-        <div className={`min-h-screen ${isLightMode ? 'bg-slate-50 text-slate-900' : 'bg-[#0a0a0b] text-white font-outfit'} flex flex-col pt-12`}>
+        <div className="min-h-screen bg-[#fbfbfb] dark:bg-[#0a0a0b] text-gray-900 dark:text-zinc-100 font-sans flex flex-col pt-6 pb-16 transition-colors duration-150">
             <main className="flex-1 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-                {/* Unified Search & Filters Section */}
-                <div className={`mb-6 rounded-3xl border transition-all overflow-hidden ${isLightMode ? 'bg-white border-slate-200 shadow-lg shadow-purple-500/5' : 'bg-[#141416]/80 border-white/10 backdrop-blur-xl'}`}>
-                    {/* 1. Full Width Prominent Search Input at the Very Top */}
-                    <div className="p-3 sm:p-4 border-b border-white/5">
-                        <div className="relative w-full" ref={searchRef}>
-                            <form onSubmit={(e) => e.preventDefault()} className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <Search size={20} className={`transition-colors duration-300 ${isLightMode ? (searchFocused ? 'text-purple-600' : 'text-slate-400') : (searchFocused ? 'text-purple-400' : 'text-slate-500')}`} />
-                                </div>
-                                <input
-                                    ref={inputRef}
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    onFocus={() => setSearchFocused(true)}
-                                    onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={placeholders[placeholderIndex]}
-                                    className={`w-full border rounded-2xl py-3.5 pl-12 pr-12 outline-none transition-all duration-300 text-sm font-semibold
-                                                ${isLightMode
-                                            ? `bg-slate-50 border-slate-200 text-slate-900 ${searchFocused ? 'ring-4 ring-purple-500/10 border-purple-500 bg-white' : ''}`
-                                            : `bg-white/5 border-white/10 text-white ${searchFocused ? 'ring-4 ring-purple-500/20 border-purple-500 bg-black/40' : ''}`
-                                        }`}
-                                />
-                                <div className="absolute inset-y-0 right-3.5 flex items-center gap-2">
-                                    {searchQuery !== '' ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => setSearchQuery('')}
-                                            className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-                                        >
-                                            <X size={16} />
-                                        </button>
-                                    ) : (
-                                        <kbd className="hidden md:inline-flex items-center px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-bold text-slate-500">
-                                            /
-                                        </kbd>
-                                    )}
-                                </div>
-                            </form>
-
-                            {/* Auto-complete Suggestions Dropdown */}
-                            <AnimatePresence>
-                                {searchFocused && showSuggestions && (suggestions.subjects.length > 0 || suggestions.papers.length > 0 || suggestions.notes.length > 0) && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className={`absolute top-full left-0 right-0 mt-2 border rounded-2xl shadow-2xl overflow-hidden z-[100] ${isLightMode ? 'bg-white border-slate-200 shadow-slate-200/50' : 'bg-[#141416]/95 border-white/10 shadow-black/50 backdrop-blur-2xl'}`}
-                                    >
-                                        <div className="max-h-[350px] overflow-y-auto p-2.5 custom-scrollbar">
-                                            {/* Subjects */}
-                                            {suggestions.subjects.length > 0 && (
-                                                <div className="mb-3 text-left">
-                                                    <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                                        Subjects
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {suggestions.subjects.map((s, idx) => {
-                                                            const itemIdx = idx;
-                                                            return (
-                                                                <button
-                                                                    key={`as-s-${idx}`}
-                                                                    onClick={() => { setSearchQuery(s.name); setShowSuggestions(false); }}
-                                                                    className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-purple-600 text-white shadow-lg' : isLightMode ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:bg-white/5'}`}
-                                                                >
-                                                                    <div className="flex items-center gap-2.5">
-                                                                        <Search size={14} className={selectedIndex === itemIdx ? 'text-white' : 'text-purple-400'} />
-                                                                        <span className="text-xs font-bold truncate">{s.name}</span>
-                                                                    </div>
-                                                                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${selectedIndex === itemIdx ? 'bg-white/20 border-white/30 text-white' : isLightMode ? 'bg-slate-50 border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-500'}`}>{s.code}</span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* PYQs */}
-                                            {suggestions.papers.length > 0 && (
-                                                <div className="mb-3 text-left">
-                                                    <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                        Past Year Papers
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {suggestions.papers.map((p, idx) => {
-                                                            const itemIdx = suggestions.subjects.length + idx;
-                                                            return (
-                                                                <button
-                                                                    key={`as-p-${idx}`}
-                                                                    onClick={() => { setSearchQuery(p.name); setShowSuggestions(false); }}
-                                                                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-emerald-600 text-white shadow-lg' : isLightMode ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:bg-white/5'}`}
-                                                                >
-                                                                    <FileText size={14} className={selectedIndex === itemIdx ? 'text-white' : 'text-emerald-400'} />
-                                                                    <div className="flex flex-col items-start overflow-hidden">
-                                                                        <span className="text-xs font-bold truncate">{p.name}</span>
-                                                                        <span className={`text-[9px] ${selectedIndex === itemIdx ? 'text-emerald-100' : 'text-slate-500'}`}>Official Paper</span>
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Notes */}
-                                            {suggestions.notes.length > 0 && (
-                                                <div className="text-left">
-                                                    <div className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                                        Curated Notes
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        {suggestions.notes.map((n, idx) => {
-                                                            const itemIdx = suggestions.subjects.length + suggestions.papers.length + idx;
-                                                            return (
-                                                                <button
-                                                                    key={`as-n-${idx}`}
-                                                                    onClick={() => { setSearchQuery(n.name); setShowSuggestions(false); }}
-                                                                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all ${selectedIndex === itemIdx ? 'bg-amber-600 text-white shadow-lg' : isLightMode ? 'text-slate-700 hover:bg-slate-100' : 'text-slate-300 hover:bg-white/5'}`}
-                                                                >
-                                                                    <div className="w-3.5 h-3.5 border-2 border-amber-400 rounded-sm" />
-                                                                    <div className="flex flex-col items-start overflow-hidden">
-                                                                        <span className="text-xs font-bold truncate">{n.name}</span>
-                                                                        <span className={`text-[9px] ${selectedIndex === itemIdx ? 'text-amber-100' : 'text-slate-500'}`}>Handwritten Notes</span>
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className={`p-2.5 border-t flex items-center justify-between text-[10px] font-bold ${isLightMode ? 'bg-slate-50 border-slate-100 text-slate-400' : 'bg-white/5 border-white/5 text-slate-500'}`}>
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">↑↓</kbd> Navigate</span>
-                                                <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Enter</kbd> Select</span>
-                                            </div>
-                                            <span className="flex items-center gap-1"><kbd className="px-1 py-0.5 rounded bg-white/10 border border-white/10">Esc</kbd> Close</span>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
+                {/* 1. Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 mb-5 border-b border-gray-200 dark:border-zinc-800">
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 dark:text-zinc-100">
+                            Materials
+                        </h1>
+                        <p className="text-xs sm:text-sm text-gray-500 dark:text-zinc-400 mt-0.5">
+                            Browse notes, question papers, internals and other academic resources.
+                        </p>
                     </div>
-
-                    {/* 2. Controls Row Below Search Bar */}
-                    <div className="px-3 sm:px-4 py-3 flex items-center justify-between gap-3">
-                        {/* Filter Toggle Button */}
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
                         <button
-                            onClick={() => setIsFiltersOpen(prev => !prev)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                                isFiltersOpen 
-                                    ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/20' 
-                                    : isLightMode 
-                                        ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200' 
-                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                            onClick={() => {
+                                if (!isAuthenticated) setShowLoginModal(true);
+                                else {
+                                    setBookmarksOnly(!bookmarksOnly);
+                                    setCurrentPage(1);
+                                }
+                            }}
+                            className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors flex items-center gap-1.5 ${
+                                bookmarksOnly
+                                    ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-400'
+                                    : 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
                             }`}
+                            title="View Bookmarked Materials"
                         >
-                            <Filter size={15} />
-                            <span>Filters</span>
-                            {(selectedYearLevel || currentBranch || selectedSubject || selectedDocType) && (
-                                <span className="px-1.5 py-0.5 rounded-full bg-purple-400 text-purple-950 text-[9px] font-black">
-                                    {[selectedYearLevel, currentBranch, selectedSubject, selectedDocType].filter(Boolean).length}
-                                </span>
-                            )}
-                            <ChevronDown size={15} className={`transition-transform duration-300 ${isFiltersOpen ? 'rotate-180' : ''}`} />
+                            <Bookmark size={13} className={bookmarksOnly ? 'fill-current' : ''} />
+                            <span>Saved</span>
                         </button>
+                        <button
+                            onClick={() => setShowLeaderboardModal(true)}
+                            className="px-3 py-1.5 rounded-md text-xs font-medium border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors flex items-center gap-1.5"
+                            title="View Leaderboard"
+                        >
+                            <Trophy size={13} className="text-amber-500" />
+                            <span>Leaderboard</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (!isAuthenticated) setShowLoginModal(true);
+                                else setShowUploadModal(true);
+                            }}
+                            className="px-3.5 py-1.5 rounded-md text-xs font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white transition-colors flex items-center gap-1.5 shadow-sm"
+                        >
+                            <Upload size={13} />
+                            <span>Contribute</span>
+                        </button>
+                    </div>
+                </div>
 
-                        <div className="flex items-center gap-2">
-                            {(searchQuery || selectedSubject || selectedPaperType || selectedYearLevel || selectedSubSemester || selectedYear || selectedDocType || sortBy !== 'newest') && (
+                {/* 2. Integrated Search Bar */}
+                <div className="relative mb-4">
+                    <form onSubmit={(e) => { e.preventDefault(); setCurrentPage(1); }} className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400 dark:text-zinc-500">
+                            <Search size={16} />
+                        </div>
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search materials by title, subject or keyword..."
+                            className="w-full text-xs sm:text-sm rounded-lg pl-9 pr-16 py-2.5 outline-none transition-colors border bg-white dark:bg-[#121316] border-gray-200 dark:border-zinc-800 text-gray-900 dark:text-zinc-100 placeholder:text-gray-400 dark:placeholder:text-zinc-500 focus:border-blue-600 dark:focus:border-blue-500 focus:ring-1 focus:ring-blue-600 dark:focus:ring-blue-500"
+                        />
+                        <div className="absolute inset-y-0 right-3 flex items-center gap-1.5">
+                            {searchQuery ? (
                                 <button
-                                    onClick={resetFilters}
-                                    className="text-[10px] font-black text-purple-400 hover:text-white uppercase tracking-widest bg-purple-500/20 hover:bg-purple-600 px-3 py-2.5 rounded-xl border border-purple-500/30 transition-all active:scale-95 shrink-0"
-                                    title="Clear All Filters"
+                                    type="button"
+                                    aria-label="Clear search"
+                                    onClick={() => { setSearchQuery(''); setCurrentPage(1); }}
+                                    className="p-1 text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                                 >
-                                    Clear All
+                                    <X size={14} />
+                                </button>
+                            ) : (
+                                <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-mono rounded border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 text-gray-400 dark:text-zinc-500">
+                                    /
+                                </kbd>
+                            )}
+                        </div>
+                    </form>
+                </div>
+
+                {/* 3. Segmented Navigation & Filters Toolbar */}
+                <div className="space-y-3 mb-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        {/* Segmented Type Tabs */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                            {[
+                                { id: '', label: 'All', count: tabCounts.all },
+                                { id: 'notes', label: 'Notes', count: tabCounts.notes },
+                                { id: 'see', label: 'PYQs', count: tabCounts.see },
+                                { id: 'internals', label: 'Internals', count: tabCounts.internals },
+                                { id: 'others', label: 'Others', count: tabCounts.others }
+                            ].map((tab) => {
+                                const isActive = selectedDocType === tab.id;
+                                return (
+                                    <button
+                                        key={tab.label}
+                                        type="button"
+                                        onClick={() => { setSelectedDocType(tab.id); setCurrentPage(1); }}
+                                        className={`group px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 whitespace-nowrap flex items-center gap-1.5 border cursor-pointer select-none ${
+                                            isActive
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-xs font-semibold'
+                                                : 'bg-white dark:bg-[#121316] border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-800/80 hover:text-gray-900 dark:hover:text-zinc-100 hover:border-gray-300 dark:hover:border-zinc-700 active:scale-[0.98]'
+                                        }`}
+                                    >
+                                        <span>{tab.label}</span>
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono transition-colors ${
+                                            isActive
+                                                ? 'bg-blue-700 text-white'
+                                                : 'bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 group-hover:bg-gray-200 dark:group-hover:bg-zinc-700 group-hover:text-gray-900 dark:group-hover:text-zinc-200'
+                                        }`}>
+                                            {tab.count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Filter Controls */}
+                        <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+                            {/* Academic Scope Badge when student scope is active */}
+                            {isEnforcingScope && (
+                                <div
+                                    className="px-2.5 py-1.5 rounded-md text-xs font-medium border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 flex items-center gap-1.5 select-none"
+                                    title={`Enforcing academic scope: ${activeBranch} (${activeYearLevel})`}
+                                >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
+                                    <span>{activeBranch} · {activeYearLevel}</span>
+                                </div>
+                            )}
+
+                            {/* Subject Filter Dropdown */}
+                            <select
+                                value={selectedSubject}
+                                onChange={(e) => { setSelectedSubject(e.target.value); setCurrentPage(1); }}
+                                aria-label="Filter by subject"
+                                className="text-xs px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#121316] text-gray-700 dark:text-zinc-300 focus:outline-none focus:border-blue-500 cursor-pointer max-w-[170px] sm:max-w-[220px] truncate"
+                            >
+                                <option value="">All Subjects ({availableSubjects.length})</option>
+                                {availableSubjects.map((s, i) => {
+                                    const hasCode = s.code && s.code !== '—' && s.code !== '-' && s.code.trim() !== '';
+                                    const label = hasCode ? `${s.name} (${s.code})` : s.name;
+                                    return (
+                                        <option key={`sub-bar-${i}`} value={s.name}>{label}</option>
+                                    );
+                                })}
+                            </select>
+
+                            {/* Admin view toggle */}
+                            {user?.isAdmin && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setAdminViewAll(!adminViewAll);
+                                        setCurrentPage(1);
+                                    }}
+                                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors cursor-pointer ${
+                                        adminViewAll
+                                            ? 'border-amber-400 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30'
+                                            : 'border-gray-200 dark:border-zinc-800 text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                    }`}
+                                    title="Toggle between student branch scope and all branches"
+                                >
+                                    {adminViewAll ? 'Admin: All Branches' : 'Scope: My Branch'}
                                 </button>
                             )}
 
-                            {/* Leaderboard Button */}
+                            {(searchQuery || selectedSubject || selectedDocType || bookmarksOnly) && (
+                                <button
+                                    type="button"
+                                    onClick={resetFilters}
+                                    className="p-1.5 rounded-md border border-gray-200 dark:border-zinc-800 text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                    title="Reset All Filters"
+                                    aria-label="Reset all filters"
+                                >
+                                    <RotateCcw size={13} />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 4. Materials Structured CSES Table */}
+                <div className="border border-gray-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#121316] overflow-hidden shadow-xs">
+                    {loading ? (
+                        <div className="p-4 space-y-3">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <div key={`sk-${i}`} className="flex items-center justify-between py-2.5 border-b border-gray-100 dark:border-zinc-800/60 last:border-0 animate-pulse">
+                                    <div className="flex items-center gap-3 flex-1">
+                                        <div className="w-8 h-4 bg-gray-200 dark:bg-zinc-800 rounded" />
+                                        <div className="space-y-1.5 flex-1 max-w-md">
+                                            <div className="w-3/4 h-4 bg-gray-200 dark:bg-zinc-800 rounded" />
+                                            <div className="w-1/2 h-3 bg-gray-100 dark:bg-zinc-800/60 rounded" />
+                                        </div>
+                                    </div>
+                                    <div className="w-24 h-4 bg-gray-100 dark:bg-zinc-800/60 rounded hidden sm:block" />
+                                    <div className="w-16 h-4 bg-gray-100 dark:bg-zinc-800/60 rounded" />
+                                    <div className="w-28 h-6 bg-gray-200 dark:bg-zinc-800 rounded" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : filteredDocuments.length === 0 ? (
+                        <div className="text-center py-16 px-4">
+                            <p className="text-sm font-medium text-gray-900 dark:text-zinc-200">No materials found</p>
+                            <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto">
+                                Try adjusting your search query, branch or clearing filters.
+                            </p>
                             <button
-                                onClick={() => setShowLeaderboardModal(true)}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${isLightMode
-                                        ? 'bg-white border-slate-200 text-slate-700 hover:bg-yellow-50 hover:border-yellow-200'
-                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-yellow-500/10 hover:border-yellow-500/30'
-                                    }`}
-                                title="View Leaderboard"
+                                onClick={resetFilters}
+                                className="mt-4 px-4 py-1.5 rounded-md text-xs font-medium border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800 text-gray-700 dark:text-zinc-300 transition-colors"
                             >
-                                <Trophy size={15} className="text-yellow-500" />
-                                <span>Leaderboard</span>
+                                Clear Filters
                             </button>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50/75 dark:bg-[#151619] text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-zinc-400">
+                                            <th className="py-2.5 px-3 w-10 text-center">#</th>
+                                            <th className="py-2.5 px-4">Material</th>
+                                            <th className="py-2.5 px-4 w-44">Subject</th>
+                                            <th className="py-2.5 px-3 w-24 text-center">Sem</th>
+                                            <th className="py-2.5 px-3 w-24 text-center">Type</th>
+                                            <th className="py-2.5 px-4 w-48 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/60">
+                                        {paginatedDocuments.map((doc, idx) => {
+                                            const rowNum = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                                            const isBookmarked = Array.isArray(user?.bookmarks) && user.bookmarks.includes(doc._id);
+                                            const typeLabel = doc.documentType === 'notes' ? 'Notes' : doc.documentType === 'see' ? 'PYQ' : doc.documentType === 'internals' ? 'Internal' : (doc.materialType || 'Other');
 
-                    {/* Collapsible Filter Dropdowns */}
-                    <AnimatePresence>
-                        {isFiltersOpen && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                                className="overflow-hidden border-t border-white/5 p-4 sm:p-5 bg-black/10"
-                            >
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                                    {/* 1. Year Level */}
-                                    <select
-                                        value={selectedYearLevel}
-                                        onChange={(e) => { setSelectedYearLevel(e.target.value); setSelectedSubSemester(''); }}
-                                        className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
-                                        style={isLightMode
-                                            ? { background: '#ffffff', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.85rem' }
-                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.85rem' }
-                                        }
-                                    >
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">Year Level</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="1st Year" title="Physics/Chemistry Cycle">1st Year (Common)</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="2nd Year">2nd Year</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="3rd Year">3rd Year</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="4th Year">4th Year</option>
-                                    </select>
-
-                                    {/* 2. Branch */}
-                                    <select
-                                        disabled={!selectedYearLevel || selectedYearLevel === '1st Year'}
-                                        value={currentBranch}
-                                        onChange={(e) => { setCurrentBranch(e.target.value); handleBranchOverrideChange(e.target.value); }}
-                                        className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 appearance-none transition-colors"
-                                        style={isLightMode
-                                            ? { background: '#ffffff', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.85rem', opacity: (!selectedYearLevel || selectedYearLevel === '1st Year') ? 0.6 : 1, cursor: (!selectedYearLevel || selectedYearLevel === '1st Year') ? 'not-allowed' : 'pointer' }
-                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.85rem', opacity: (!selectedYearLevel || selectedYearLevel === '1st Year') ? 0.6 : 1, cursor: (!selectedYearLevel || selectedYearLevel === '1st Year') ? 'not-allowed' : 'pointer' }
-                                        }
-                                    >
-                                        <option value="">Select Branch</option>
-                                        {BRANCHES.map(b => (
-                                            <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={b.code} value={b.code}>{b.code} - {b.name}</option>
-                                        ))}
-                                    </select>
-
-                                    {/* 3. Subjects */}
-                                    <select
-                                        value={selectedSubject}
-                                        onChange={(e) => { setSelectedSubject(e.target.value); }}
-                                        className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
-                                        style={isLightMode
-                                            ? { background: '#ffffff', borderColor: '#e2e8f0', color: '#374151', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236366f1' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.85rem' }
-                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff', backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a78bfa' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.5rem center', backgroundSize: '0.85rem' }
-                                        }
-                                    >
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">
-                                            {availableSubjects.length > 0 ? `All Subjects (${availableSubjects.length})` : 'All Subjects'}
-                                        </option>
-                                        {availableSubjects.map((s, i) => (
-                                            <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} key={`sub-${i}`} value={s.name}>
-                                                {s.name} ({s.code || '—'})
-                                            </option>
-                                        ))}
-                                    </select>
-
-                                    {/* 4. Type */}
-                                    <select
-                                        value={selectedDocType}
-                                        onChange={(e) => { setSelectedDocType(e.target.value); }}
-                                        className="w-full px-3.5 py-2.5 rounded-xl border text-xs font-semibold focus:outline-none focus:ring-2 appearance-none cursor-pointer transition-colors"
-                                        style={isLightMode
-                                            ? { background: '#ffffff', borderColor: '#e2e8f0', color: '#374151' }
-                                            : { background: '#0a0a0b', borderColor: 'rgba(255,255,255,0.1)', color: '#ffffff' }
-                                        }
-                                    >
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="">All Types</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="notes">Notes</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="internals">Internals</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="see">SEE</option>
-                                        <option style={{ background: isLightMode ? '#fff' : '#0a0a0b' }} value="others">Others</option>
-                                    </select>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-                {/* Layout Wrapper: Results + Sidebar */}
-                <div className="flex flex-col lg:flex-row gap-8 items-start">
-                    {/* Main Content Area */}
-                    <div className="flex-1 w-full order-2 lg:order-1">
-                        {loading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                                {Array.from({ length: 9 }).map((_, idx) => (
-                                    <motion.div
-                                        key={`skel-${idx}`}
-                                        initial={{ opacity: 0, y: 15 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.25, delay: idx * 0.05 }}
-                                        className={`rounded-3xl border p-6 flex flex-col justify-between h-[280px] animate-pulse ${
-                                            isLightMode ? 'bg-white border-slate-200 shadow-sm' : 'bg-[#141416]/70 border-white/5'
-                                        }`}
-                                    >
-                                        <div>
-                                            <div className="flex justify-between items-center mb-4">
-                                                <div className={`h-6 w-24 rounded-xl ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                                <div className={`h-6 w-16 rounded-full ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                            </div>
-                                            <div className={`h-6 w-3/4 rounded-lg mb-3 ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                            <div className={`h-4 w-1/2 rounded-lg mb-4 ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`} />
-                                            <div className="flex gap-2 mb-4">
-                                                <div className={`h-5 w-16 rounded-md ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`} />
-                                                <div className={`h-5 w-16 rounded-md ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`} />
-                                            </div>
-                                        </div>
-                                        <div className="pt-4 border-t border-white/5 flex justify-between items-center">
-                                            <div className={`h-9 w-28 rounded-xl ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                            <div className={`h-9 w-9 rounded-full ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`} />
-                                        </div>
-                                    </motion.div>
-                                ))}
+                                            return (
+                                                <tr key={doc._id} className="hover:bg-gray-50/70 dark:hover:bg-zinc-800/35 transition-colors group">
+                                                    <td className="py-3 px-3 text-center text-gray-400 dark:text-zinc-500 font-mono text-[11px]">
+                                                        {rowNum}
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col">
+                                                            <span
+                                                                onClick={() => handlePreview(doc._id)}
+                                                                className="font-medium text-gray-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer transition-colors text-sm truncate max-w-md"
+                                                                title={doc.title || doc.originalName || doc.fileName}
+                                                            >
+                                                                {doc.title || doc.originalName || doc.fileName}
+                                                            </span>
+                                                            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-gray-500 dark:text-zinc-400">
+                                                                <span className="font-medium text-gray-700 dark:text-zinc-300">{formatSize(doc.fileSize)}</span>
+                                                                <span>·</span>
+                                                                <span title={formatFullDate(doc.createdAt)}>Uploaded {getTimeAgo(doc.createdAt)}</span>
+                                                                {doc.uploadedBy?.name && (
+                                                                    <>
+                                                                        <span>·</span>
+                                                                        <span className="truncate max-w-[120px]" title={`Uploaded by ${doc.uploadedBy.name}`}>by {doc.uploadedBy.name}</span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-mono text-[11px] font-medium text-gray-700 dark:text-zinc-300">
+                                                                {doc.subjectCode || '—'}
+                                                            </span>
+                                                            <span className="text-[11px] text-gray-500 dark:text-zinc-400 truncate max-w-[160px]" title={doc.subjectName}>
+                                                                {doc.subjectName || 'General'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center text-gray-600 dark:text-zinc-400 font-medium">
+                                                        {doc.semester || doc.yearLevel || '—'}
+                                                    </td>
+                                                    <td className="py-3 px-3 text-center">
+                                                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium border border-gray-200 dark:border-zinc-800 bg-gray-100/70 dark:bg-zinc-800/60 text-gray-700 dark:text-zinc-300">
+                                                            {typeLabel}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 px-4 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <button
+                                                                onClick={() => handleBookmark(doc._id)}
+                                                                className={`p-1.5 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors ${
+                                                                    isBookmarked ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-zinc-500 hover:text-gray-600'
+                                                                }`}
+                                                                title={isBookmarked ? 'Remove Bookmark' : 'Bookmark'}
+                                                            >
+                                                                <Bookmark size={14} className={isBookmarked ? 'fill-current' : ''} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handlePreview(doc._id)}
+                                                                className="px-2.5 py-1 rounded text-xs font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 transition-colors"
+                                                            >
+                                                                Preview
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDownload(doc._id)}
+                                                                className="px-2.5 py-1 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 text-white transition-colors flex items-center gap-1 shadow-xs"
+                                                            >
+                                                                <Download size={12} />
+                                                                <span>Download</span>
+                                                            </button>
+                                                            {user?.isAdmin && (
+                                                                <button
+                                                                    onClick={() => { setEditingDoc(doc); setShowEditModal(true); }}
+                                                                    className="p-1 rounded text-gray-400 hover:text-gray-700 dark:text-zinc-500 dark:hover:text-zinc-300"
+                                                                    title="Edit Material"
+                                                                >
+                                                                    <Edit size={13} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
-                        ) : filteredDocuments.length > 0 ? (
-                            <>
-                                {/* Results Count & Breakdown */}
-                                <div className="mb-6 flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`h-8 w-1 bg-purple-500 rounded-full`}></div>
-                                        <h2 className={`text-xl font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
-                                            Found <span className="text-purple-500">{filteredDocuments.length}</span> Materials
-                                            {visibleCount < filteredDocuments.length && (
-                                                <span className={`ml-2 text-sm font-normal ${isLightMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                                                    · showing {Math.min(visibleCount, filteredDocuments.length)} of {filteredDocuments.length}
-                                                </span>
-                                            )}
-                                        </h2>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        {searchSummary.notes > 0 && (
-                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                                                Notes: {searchSummary.notes}
-                                            </span>
-                                        )}
-                                        {searchSummary.see > 0 && (
-                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                                SEE: {searchSummary.see}
-                                            </span>
-                                        )}
-                                        {searchSummary.internals > 0 && (
-                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                                                Internals: {searchSummary.internals}
-                                            </span>
-                                        )}
-                                        {searchSummary.others > 0 && (
-                                            <span className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${isLightMode ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'}`}>
-                                                Others: {searchSummary.others}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                                    {filteredDocuments.slice(0, visibleCount).map((doc, idx) => (
-                                        <motion.div
-                                            key={doc._id}
-                                            initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                            transition={{ duration: 0.35, delay: Math.min(idx, 8) * 0.05, ease: "easeOut" }}
-                                            className="h-full flex flex-col"
-                                        >
-                                            <div className={`rounded-3xl border transition-all hover:-translate-y-2 hover:shadow-2xl overflow-hidden flex flex-col group
-                                                    ${isLightMode
-                                                ? 'bg-white border-slate-200 hover:shadow-purple-500/10 hover:border-purple-300'
-                                                : 'bg-[#141416]/50 border-white/5 hover:border-purple-500/30 hover:shadow-purple-500/10'}`}
-                                            >
-                                                <div className="p-7 flex-1 flex flex-col relative">
-                                                    {/* Top Right: Combined Tag & Status Layer */}
-                                                    <div className="absolute top-7 right-7 flex items-center gap-2.5">
-                                                        {doc.documentType === 'notes' && (
-                                                            <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-sm transition-transform group-hover:scale-105">
-                                                                Notes
-                                                            </span>
-                                                        )}
-                                                        {doc.documentType === 'see' && (
-                                                            <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-red-500/10 text-red-500 border border-red-500/20 shadow-sm transition-transform group-hover:scale-105">
-                                                                SEE
-                                                            </span>
-                                                        )}
-                                                        {doc.documentType === 'internals' && (
-                                                            <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-sm transition-transform group-hover:scale-105">
-                                                                Internal
-                                                            </span>
-                                                        )}
-                                                        {doc.documentType === 'others' && (
-                                                            <span className="text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shadow-sm transition-transform group-hover:scale-105">
-                                                                Others
-                                                            </span>
-                                                        )}
-                                                    </div>
+                            {/* Mobile List View */}
+                            <div className="md:hidden divide-y divide-gray-100 dark:divide-zinc-800/60">
+                                {paginatedDocuments.map((doc, idx) => {
+                                    const rowNum = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                                    const isBookmarked = Array.isArray(user?.bookmarks) && user.bookmarks.includes(doc._id);
+                                    const typeLabel = doc.documentType === 'notes' ? 'Notes' : doc.documentType === 'see' ? 'PYQ' : doc.documentType === 'internals' ? 'Internal' : (doc.materialType || 'Other');
 
-                                                    {/* Header Layout - Balanced Alignment */}
-                                                    <div className="flex gap-4 mb-6">
-                                                        <div className={`p-2 h-fit rounded-xl border shrink-0 transition-all group-hover:rotate-6 ${doc.documentType === 'see'
-                                                                ? (isLightMode ? 'bg-red-50 text-red-600 border-red-100' : 'bg-red-500/10 text-red-400 border-red-500/20')
-                                                                : doc.documentType === 'others'
-                                                                    ? (isLightMode ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20')
-                                                                    : (isLightMode ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-blue-500/10 text-blue-400 border-blue-500/20')
-                                                            }`}>
-                                                            <FileText size={18} />
-                                                        </div>
-
-                                                        <div className="flex-1 pr-20 min-h-[48px]">
-                                                            <h3 className={`text-lg font-bold leading-tight mb-1 capitalize line-clamp-2 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
-                                                                {doc.subjectName}
-                                                            </h3>
-                                                            <p className={`text-[11px] font-bold opacity-30 ${isLightMode ? 'text-slate-600' : 'text-slate-400'}`}>
-                                                                {doc.branch} • {doc.yearLevel} {doc.subjectCode && ` • ${doc.subjectCode.toUpperCase()}`}
-                                                            </p>
-                                                        </div>
+                                    return (
+                                        <div key={doc._id} className="p-3.5 space-y-2">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex items-start gap-2 flex-1 min-w-0">
+                                                    <span className="text-[11px] font-mono text-gray-400 dark:text-zinc-500 mt-0.5">#{rowNum}</span>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h3
+                                                            onClick={() => handlePreview(doc._id)}
+                                                            className="text-xs font-semibold text-gray-900 dark:text-zinc-100 hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer line-clamp-2"
+                                                        >
+                                                            {doc.title || doc.originalName || doc.fileName}
+                                                        </h3>
+                                                        <p className="text-[11px] text-gray-500 dark:text-zinc-400 mt-0.5 truncate">
+                                                            {doc.subjectCode ? `${doc.subjectCode} · ` : ''}{doc.subjectName || 'General'}
+                                                        </p>
                                                     </div>
                                                 </div>
-
-                                                {/* Modern Actions Block */}
-                                                <div className={`p-5 mt-auto border-t flex items-center gap-2.5 ${isLightMode ? 'bg-slate-50/50 border-slate-100' : 'bg-black/10 border-white/5'}`}>
-                                                    <button
-                                                        onClick={() => handlePreview(doc._id)}
-                                                        className={`px-4 py-2.5 rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all 
-                                                                    ${isLightMode
-                                                                ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:shadow-md'
-                                                                : 'bg-white/5 border border-white/10 text-white hover:bg-white/10 hover:shadow-lg shadow-black/20'}`}
-                                                    >
-                                                        Preview
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDownload(doc._id)}
-                                                        className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-[10px] uppercase tracking-widest bg-purple-600 text-white transition-all hover:bg-purple-700 hover:shadow-xl hover:shadow-purple-600/30 active:scale-95"
-                                                    >
-                                                        <Download size={14} strokeWidth={3} />
-                                                        Download
-                                                    </button>
-                                                </div>
+                                                <button
+                                                    onClick={() => handleBookmark(doc._id)}
+                                                    className={`p-1.5 rounded ${isBookmarked ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-zinc-500'}`}
+                                                >
+                                                    <Bookmark size={15} className={isBookmarked ? 'fill-current' : ''} />
+                                                </button>
                                             </div>
-                                        </motion.div>
-                                    ))}
-                                </div>
 
-                                {/* Show More button (below grid) + progress indicator */}
-                                {visibleCount < documents.length ? (
-                                    <div className="mt-8 mb-20 flex flex-col items-center gap-4">
-                                        {/* Progress bar */}
-                                        <div className="w-full max-w-sm">
-                                            <div className="flex justify-between text-xs font-medium mb-2">
-                                                <span className={isLightMode ? 'text-slate-500' : 'text-slate-500'}>
-                                                    Showing {visibleCount} of {documents.length}
+                                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 dark:text-zinc-400">
+                                                <span className="px-1.5 py-0.2 rounded border border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800/80 text-gray-700 dark:text-zinc-300 font-medium text-[10px]">
+                                                    {typeLabel}
                                                 </span>
-                                                <span className="text-purple-500 font-bold">
-                                                    {Math.round((visibleCount / documents.length) * 100)}%
-                                                </span>
+                                                <span>·</span>
+                                                <span className="font-medium text-gray-700 dark:text-zinc-300">{formatSize(doc.fileSize)}</span>
+                                                <span>·</span>
+                                                <span title={formatFullDate(doc.createdAt)}>Uploaded {getTimeAgo(doc.createdAt)}</span>
                                             </div>
-                                            <div className={`h-1.5 rounded-full overflow-hidden ${isLightMode ? 'bg-slate-200' : 'bg-white/10'}`}>
-                                                <div
-                                                    className="h-full rounded-full bg-gradient-to-r from-purple-600 to-indigo-500 transition-all duration-500"
-                                                    style={{ width: `${Math.round((visibleCount / documents.length) * 100)}%` }}
-                                                />
+
+                                            <div className="flex items-center gap-2 pt-1.5">
+                                                <button
+                                                    onClick={() => handlePreview(doc._id)}
+                                                    className="flex-1 py-1.5 rounded text-xs font-medium text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-100 dark:hover:bg-zinc-800 text-center transition-colors"
+                                                >
+                                                    Preview
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDownload(doc._id)}
+                                                    className="flex-1 py-1.5 rounded text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white text-center flex items-center justify-center gap-1 transition-colors"
+                                                >
+                                                    <Download size={12} />
+                                                    <span>Download</span>
+                                                </button>
                                             </div>
                                         </div>
+                                    );
+                                })}
+                            </div>
 
-                                        <button
-                                            id="show-more-materials-bottom"
-                                            onClick={() => setVisibleCount(v => Math.min(v + ITEMS_PER_PAGE, documents.length))}
-                                            className="group flex items-center gap-3 px-8 py-3.5 rounded-full border-2 border-purple-500/40 hover:border-purple-500 hover:bg-purple-500/10 text-purple-400 hover:text-purple-300 font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
-                                        >
-                                            <svg className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                                            </svg>
-                                            Load {Math.min(ITEMS_PER_PAGE, documents.length - visibleCount)} more
-                                            <span className={`text-xs font-normal opacity-60 ${isLightMode ? 'text-slate-500' : ''}`}>
-                                                ({documents.length - visibleCount} remaining)
-                                            </span>
-                                        </button>
-                                    </div>
-                                ) : (
-                                    /* End of results */
-                                    <div className="mt-10 mb-20 flex flex-col items-center gap-3 text-center">
-                                        <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full border text-xs font-bold uppercase tracking-widest ${isLightMode ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-slate-500'}`}>
-                                            <svg className="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                            You've seen all {documents.length} material{documents.length !== 1 ? 's' : ''}
-                                        </div>
-                                        <button
-                                            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                                            className="text-xs text-purple-500 hover:text-purple-400 font-semibold hover:underline transition-colors"
-                                        >
-                                            ↑ Back to top
-                                        </button>
-                                    </div>
-                                )}
+                            {/* 5. Pagination Bar */}
+                            <div className="border-t border-gray-200 dark:border-zinc-800 px-4 py-3 bg-gray-50/60 dark:bg-[#151619] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                                <span className="text-gray-500 dark:text-zinc-400">
+                                    Showing <span className="font-medium text-gray-900 dark:text-zinc-200">{totalCount > 0 ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0}–{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}</span> of <span className="font-medium text-gray-900 dark:text-zinc-200">{totalCount}</span>
+                                </span>
 
-                            </>
-                        ) : (
-                            <div className={`text-center py-20 px-6 rounded-3xl border border-dashed ${isLightMode ? 'bg-slate-50/50 border-slate-300' : 'bg-[#141416]/20 border-white/10'}`}>
-                                <div className="text-slate-500 mb-5 flex justify-center">
-                                    <div className={`p-6 rounded-full ${isLightMode ? 'bg-slate-100' : 'bg-white/5'}`}>
-                                        <Search size={40} className="opacity-50" />
-                                    </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                        disabled={currentPage === 1}
+                                        className="px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        ← Prev
+                                    </button>
+
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                                        .reduce((acc, p, idx, arr) => {
+                                            if (idx > 0 && p - arr[idx - 1] > 1) {
+                                                acc.push('...');
+                                            }
+                                            acc.push(p);
+                                            return acc;
+                                        }, [])
+                                        .map((item, idx) => {
+                                            if (item === '...') {
+                                                return <span key={`dots-${idx}`} className="px-1 text-gray-400">…</span>;
+                                            }
+                                            const isCurrent = item === currentPage;
+                                            return (
+                                                <button
+                                                    key={`p-${item}`}
+                                                    onClick={() => { setCurrentPage(item); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    className={`min-w-7 h-7 px-2 rounded text-xs font-medium transition-colors ${
+                                                        isCurrent
+                                                            ? 'bg-blue-600 text-white font-semibold'
+                                                            : 'border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800'
+                                                    }`}
+                                                >
+                                                    {item}
+                                                </button>
+                                            );
+                                        })}
+
+                                    <button
+                                        onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                        disabled={currentPage === totalPages}
+                                        className="px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Next →
+                                    </button>
                                 </div>
-                                <h3 className={`text-2xl font-bold mb-3 ${isLightMode ? 'text-slate-800' : 'text-slate-200'}`}>No materials found</h3>
-                                <p className={`mb-8 max-w-md mx-auto ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>Try adjusting your filters or search terms.</p>
-                                <button
-                                    onClick={resetFilters}
-                                    className={`px-8 py-3 rounded-full font-semibold transition-all shadow-md ${isLightMode ? 'bg-white border border-slate-200 text-slate-700' : 'bg-white/5 border border-white/10 text-white'}`}
-                                >
-                                    Clear Filters
-                                </button>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Content Section Sidebar Removed */}
-                </div>
-
-                {/* Global Discussion Section */}
-                <div className="mt-20 max-w-4xl mx-auto">
-                    <div className={`p-8 rounded-3xl border ${isLightMode ? 'bg-white border-slate-200 shadow-xl shadow-purple-500/5' : 'bg-[#141416]/50 border-white/5 shadow-2xl shadow-black/50'}`}>
-                        <div className="flex flex-col items-center text-center mb-10">
-                            <div className={`p-4 rounded-2xl mb-4 ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
-                                <MessageSquare size={32} />
-                            </div>
-                            <h2 className={`text-3xl font-black tracking-tight mb-3 ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>
-                                Community Discussion
-                            </h2>
-                            <p className={`text-slate-500 max-w-md ${isLightMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                                Found something helpful? Have a question about these materials? Join the conversation below.
-                            </p>
-                        </div>
-                        <DocComments documentId="ask-finder-global" user={user} isLightMode={isLightMode} />
-                    </div>
+                        </>
+                    )}
                 </div>
             </main>
 
@@ -1324,7 +1229,7 @@ const AskFinderPage = () => {
                                                         subjectCode: ''
                                                     });
                                                 }}
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             >
                                                 <option value="">Select Year</option>
                                                 <option value="1st Year">1st Year (Common)</option>
@@ -1341,7 +1246,7 @@ const AskFinderPage = () => {
                                                     required
                                                     value={uploadMetadata.branch}
                                                     onChange={(e) => setUploadMetadata({ ...uploadMetadata, branch: e.target.value, subjectName: '', subjectCode: '' })}
-                                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                                 >
                                                     <option value="">Select Branch</option>
                                                     {BRANCHES.map(b => (
@@ -1357,7 +1262,7 @@ const AskFinderPage = () => {
                                                 <select
                                                     value={uploadMetadata.semester}
                                                     onChange={(e) => setUploadMetadata({ ...uploadMetadata, semester: e.target.value, subjectName: '', subjectCode: '' })}
-                                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                    className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                                 >
                                                     <option value="">Select Semester</option>
                                                     {uploadMetadata.yearLevel === '2nd Year' ? (
@@ -1393,7 +1298,7 @@ const AskFinderPage = () => {
                                                         subjectCode: sub?.code || ''
                                                     });
                                                 }}
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             >
                                                 <option value="">Select Subject</option>
                                                 <option value="General">General (Multiple Subjects/Papers)</option>
@@ -1428,14 +1333,14 @@ const AskFinderPage = () => {
                                                 type="text" value={uploadMetadata.subjectCode}
                                                 onChange={(e) => setUploadMetadata({ ...uploadMetadata, subjectCode: e.target.value })}
                                                 placeholder="e.g. 21CS41"
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             />
                                         </div>
                                     </div>
                                     <div className="flex justify-end pt-5">
                                         <button
                                             type="submit"
-                                            className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                                            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2"
                                         >
                                             Continue <ArrowLeft size={16} className="rotate-180" />
                                         </button>
@@ -1449,7 +1354,7 @@ const AskFinderPage = () => {
                                             <select
                                                 value={uploadMetadata.documentType}
                                                 onChange={(e) => setUploadMetadata({ ...uploadMetadata, documentType: e.target.value })}
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 appearance-none transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             >
                                                 <option value="notes">Notes</option>
                                                 <option value="internals">Internals</option>
@@ -1462,7 +1367,7 @@ const AskFinderPage = () => {
                                             <input
                                                 type="text" value={uploadMetadata.year} placeholder="e.g., 2023"
                                                 onChange={(e) => setUploadMetadata({ ...uploadMetadata, year: e.target.value })}
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             />
                                         </div>
                                         <div>
@@ -1471,7 +1376,7 @@ const AskFinderPage = () => {
                                                 type="text" value={uploadMetadata.moduleInfo}
                                                 onChange={(e) => setUploadMetadata({ ...uploadMetadata, moduleInfo: e.target.value })}
                                                 placeholder="e.g., Module 2, M1-M3"
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             />
                                         </div>
                                         <div>
@@ -1480,7 +1385,7 @@ const AskFinderPage = () => {
                                                 type="number" value={uploadMetadata.pageCount}
                                                 onChange={(e) => setUploadMetadata({ ...uploadMetadata, pageCount: e.target.value })}
                                                 placeholder="Optional"
-                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                                className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                             />
                                         </div>
                                     </div>
@@ -1491,13 +1396,13 @@ const AskFinderPage = () => {
                                             type="text" value={uploadMetadata.tags}
                                             onChange={(e) => setUploadMetadata({ ...uploadMetadata, tags: e.target.value })}
                                             placeholder="e.g., tcp, routing, important"
-                                            className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-purple-500/30' : 'bg-[#0a0a0b] border-white/10 focus:ring-purple-500/50'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 transition-colors ${isLightMode ? 'bg-slate-50 border-slate-200 focus:ring-blue-500/30 focus:border-blue-500' : 'bg-[#0a0a0b] border-white/10 focus:ring-blue-500/50 focus:border-blue-500'}`}
                                         />
                                     </div>
 
                                     <div className="mb-6">
                                         <label className="block text-sm font-semibold mb-2">Select Files (PDF, ZIP, 7z) *</label>
-                                        <div className={`relative border-2 border-dashed rounded-2xl p-6 transition-colors ${isLightMode ? 'border-purple-200 bg-purple-50/50 hover:bg-purple-50' : 'border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10'}`}>
+                                        <div className={`relative border-2 border-dashed rounded-2xl p-6 transition-colors ${isLightMode ? 'border-blue-200 bg-blue-50/30 hover:bg-blue-50/60' : 'border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800/50'}`}>
                                             <input
                                                 type="file" required multiple
                                                 onChange={(e) => setUploadFiles(Array.from(e.target.files))}
@@ -1505,7 +1410,7 @@ const AskFinderPage = () => {
                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             />
                                             <div className="text-center pointer-events-none flex flex-col items-center justify-center gap-2">
-                                                <Upload className="text-purple-500 mb-1" size={24} />
+                                                <Upload className="text-blue-600 dark:text-blue-400 mb-1" size={24} />
                                                 <div className="flex flex-col">
                                                     <span className={`font-bold ${isLightMode ? 'text-slate-800' : 'text-slate-100'}`}>
                                                         {uploadFiles.length > 0
@@ -1519,7 +1424,7 @@ const AskFinderPage = () => {
                                         {uploadFiles.length > 0 && (
                                             <div className="mt-3 flex flex-wrap gap-2">
                                                 {uploadFiles.map((f, i) => (
-                                                    <span key={i} className={`text-[10px] px-2 py-1 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 truncate max-w-[150px]`}>
+                                                    <span key={i} className={`text-[10px] px-2 py-1 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40 truncate max-w-[150px]`}>
                                                         {f.name}
                                                     </span>
                                                 ))}
@@ -1528,9 +1433,9 @@ const AskFinderPage = () => {
                                     </div>
 
                                     {/* Contributor Section */}
-                                    <div className={`mt-6 mb-8 p-5 rounded-2xl border ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-500/5 border-purple-500/10'}`}>
+                                    <div className={`mt-6 mb-8 p-5 rounded-2xl border ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900/40 border-zinc-800'}`}>
                                         <div className="flex items-center gap-3 mb-4">
-                                            <div className="p-2 rounded-lg bg-purple-500 text-white">
+                                            <div className="p-2 rounded-lg bg-blue-600 text-white">
                                                 <UserCheck size={18} />
                                             </div>
                                             <div>
@@ -1545,7 +1450,7 @@ const AskFinderPage = () => {
                                                     type="button"
                                                     onClick={() => setUploadMetadata(prev => ({ ...prev, showContributorName: val }))}
                                                     className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all border ${uploadMetadata.showContributorName === val
-                                                            ? 'bg-purple-600 border-purple-600 text-white shadow-lg'
+                                                            ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                                                             : `border-slate-200 ${isLightMode ? 'bg-white hover:bg-slate-50' : 'bg-black/20 hover:bg-white/5'}`
                                                         }`}
                                                 >
@@ -1563,7 +1468,7 @@ const AskFinderPage = () => {
                                                         placeholder="e.g. John Doe"
                                                         value={uploadMetadata.contributorName}
                                                         onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorName: e.target.value }))}
-                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0a0a0b] border-zinc-800'}`}
                                                     />
                                                 </div>
                                                 <div>
@@ -1573,7 +1478,7 @@ const AskFinderPage = () => {
                                                         placeholder="e.g. 3rd Year"
                                                         value={uploadMetadata.contributorYear}
                                                         onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorYear: e.target.value }))}
-                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0a0a0b] border-zinc-800'}`}
                                                     />
                                                 </div>
                                                 <div>
@@ -1583,14 +1488,14 @@ const AskFinderPage = () => {
                                                         placeholder="e.g. CS / AI&DS"
                                                         value={uploadMetadata.contributorBranch}
                                                         onChange={(e) => setUploadMetadata(prev => ({ ...prev, contributorBranch: e.target.value }))}
-                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                        className={`w-full px-4 py-2 text-xs rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0a0a0b] border-zinc-800'}`}
                                                     />
                                                 </div>
                                             </div>
                                         )}
 
                                         {!user?.usn && (
-                                            <div className="mt-6 pt-4 border-t border-purple-500/10 animate-in fade-in slide-in-from-top-2">
+                                            <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800 animate-in fade-in slide-in-from-top-2">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <Trophy size={14} className="text-yellow-500" />
                                                     <label className="text-[10px] font-bold uppercase opacity-60">Your USN (Required for Leaderboard) *</label>
@@ -1602,9 +1507,9 @@ const AskFinderPage = () => {
                                                     value={uploadMetadata.usn}
                                                     maxLength={10}
                                                     onChange={(e) => setUploadMetadata(prev => ({ ...prev, usn: e.target.value.toUpperCase() }))}
-                                                    className={`w-full px-4 py-3 text-sm font-black rounded-xl border focus:outline-none focus:ring-2 focus:ring-purple-500/30 ${isLightMode ? 'bg-white' : 'bg-[#0a0a0b]'}`}
+                                                    className={`w-full px-4 py-3 text-sm font-bold rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0a0a0b] border-zinc-800'}`}
                                                 />
-                                                <p className="text-[10px] text-purple-500 mt-2 font-medium">This will be linked to your account for all future contributions.</p>
+                                                <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-2 font-medium">This will be linked to your account for all future contributions.</p>
                                             </div>
                                         )}
                                     </div>
@@ -1620,7 +1525,7 @@ const AskFinderPage = () => {
                                         <button
                                             onClick={handleUpload}
                                             disabled={uploadLoading}
-                                            className="flex-[2] px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl font-black uppercase tracking-widest disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-xl shadow-purple-500/20 active:scale-95"
+                                            className="flex-[2] px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95"
                                         >
                                             {uploadLoading ? (
                                                 <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Submitting...</>
@@ -1638,13 +1543,13 @@ const AskFinderPage = () => {
             {/* Preview Modal */}
             {showPreviewModal && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[200] p-4 animate-fade-in">
-                    <div className={`relative w-full max-w-5xl h-[90vh] flex flex-col rounded-3xl overflow-hidden border shadow-[0_0_50px_-12px_rgba(168,85,247,0.4)]
+                    <div className={`relative w-full max-w-5xl h-[90vh] flex flex-col rounded-3xl overflow-hidden border shadow-2xl
                         ${isLightMode ? 'bg-white border-slate-200' : 'bg-[#0f0f12] border-white/10'}`}
                     >
                         {/* Header */}
                         <div className={`p-4 flex justify-between items-center border-b ${isLightMode ? 'bg-slate-50/80 border-slate-200' : 'bg-white/5 border-white/5'}`}>
                             <div className="items-center gap-3 hidden sm:flex">
-                                <div className={`p-2 rounded-lg ${isLightMode ? 'bg-purple-100 text-purple-600' : 'bg-purple-500/20 text-purple-400'}`}>
+                                <div className={`p-2 rounded-lg ${isLightMode ? 'bg-blue-50 text-blue-600' : 'bg-blue-950/40 text-blue-400'}`}>
                                     <Eye size={20} />
                                 </div>
                                 <h3 className={`font-bold ${isLightMode ? 'text-slate-900' : 'text-slate-100'}`}>Document Preview</h3>
@@ -1737,14 +1642,14 @@ const AskFinderPage = () => {
                                         initial={{ height: 0, opacity: 0 }}
                                         animate={{ height: 'auto', opacity: 1 }}
                                         exit={{ height: 0, opacity: 0 }}
-                                        className={`${isLightMode ? 'bg-purple-50 border-b border-purple-100 text-slate-600' : 'bg-purple-500/10 border-b border-purple-500/20 text-slate-300'} overflow-hidden`}
+                                        className={`${isLightMode ? 'bg-blue-50/60 border-b border-blue-100 text-slate-700' : 'bg-blue-950/20 border-b border-blue-900/30 text-slate-300'} overflow-hidden`}
                                     >
                                         <div className="p-5 text-sm">
-                                            <h3 className="font-bold text-purple-600 dark:text-purple-400 mb-2 flex items-center gap-2">
+                                            <h3 className="font-bold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-2">
                                                 <Info size={14} /> Scoring Rules
                                             </h3>
                                             <ul className="space-y-1.5 text-xs opacity-80">
-                                                <li>• Every uploaded material earns <span className="font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500">10 points</span></li>
+                                                <li>• Every uploaded material earns <span className="font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">10 points</span></li>
                                                 <li>• <span className="font-bold">Score = uploads × 10</span></li>
                                                 <li>• Only verified (approved) uploads count toward your rank</li>
                                                 <li>• Updates automatically when new materials are approved</li>
@@ -1759,7 +1664,7 @@ const AskFinderPage = () => {
                             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                                 {fetchingLeaderboard ? (
                                     <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                        <div className="w-10 h-10 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
+                                        <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
                                         <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Calculating Ranks...</p>
                                     </div>
                                 ) : (leaderboardData || []).length === 0 ? (
@@ -1841,7 +1746,7 @@ const AskFinderPage = () => {
                                                         return (
                                                             <tr
                                                                 key={row._id || idx}
-                                                                className={`transition-colors ${isCurrentUser ? (isLightMode ? 'bg-purple-100' : 'bg-purple-500/10') : (isLightMode ? 'hover:bg-white' : 'hover:bg-white/5')}`}
+                                                                className={`transition-colors ${isCurrentUser ? (isLightMode ? 'bg-blue-50' : 'bg-blue-950/20') : (isLightMode ? 'hover:bg-white' : 'hover:bg-white/5')}`}
                                                             >
                                                                 <td className="px-4 py-3.5">
                                                                     <div className="flex items-center gap-2">
@@ -1852,9 +1757,9 @@ const AskFinderPage = () => {
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-4 py-3.5">
-                                                                    <span className={`text-xs font-bold ${isCurrentUser ? 'text-purple-500' : (isLightMode ? 'text-slate-700' : 'text-slate-300')}`}>
+                                                                    <span className={`text-xs font-bold ${isCurrentUser ? 'text-blue-600 dark:text-blue-400' : (isLightMode ? 'text-slate-700' : 'text-slate-300')}`}>
                                                                         {row.usn}
-                                                                        {isCurrentUser && <span className="ml-2 text-[8px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-500 uppercase font-bold">You</span>}
+                                                                        {isCurrentUser && <span className="ml-2 text-[8px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 uppercase font-bold">You</span>}
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-4 py-3.5">
@@ -1875,21 +1780,21 @@ const AskFinderPage = () => {
 
                             {/* Footer / User Rank */}
                             {user && !fetchingLeaderboard && (leaderboardData || []).length > 0 && (
-                                <div className={`p-4 sm:p-5 flex justify-between items-center px-6 sm:px-8 border-t ${isLightMode ? 'bg-purple-50 border-purple-100' : 'bg-purple-600 border-purple-500'}`}>
+                                <div className={`p-4 sm:p-5 flex justify-between items-center px-6 sm:px-8 border-t ${isLightMode ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900 border-zinc-800'}`}>
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${isLightMode ? 'bg-purple-600 text-white' : 'bg-white/20 text-white'}`}>
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs bg-blue-600 text-white">
                                             {(() => {
                                                 const rank = leaderboardData.findIndex(r => r.usn === user.usn);
                                                 return rank !== -1 ? `#${rank + 1}` : '-';
                                             })()}
                                         </div>
                                         <div>
-                                            <p className={`text-[10px] font-bold uppercase leading-none mb-1 ${isLightMode ? 'text-purple-600' : 'text-purple-200'}`}>Your Ranking</p>
+                                            <p className={`text-[10px] font-bold uppercase leading-none mb-1 ${isLightMode ? 'text-slate-500' : 'text-zinc-400'}`}>Your Ranking</p>
                                             <p className={`text-xs font-black leading-none ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{user.usn}</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className={`text-[10px] font-bold uppercase leading-none mb-1 ${isLightMode ? 'text-purple-600' : 'text-purple-200'}`}>Current Score</p>
+                                        <p className={`text-[10px] font-bold uppercase leading-none mb-1 ${isLightMode ? 'text-slate-500' : 'text-zinc-400'}`}>Current Score</p>
                                         <p className={`text-sm font-black leading-none ${isLightMode ? 'text-slate-900' : 'text-white'}`}>{user.score || 0} pts</p>
                                     </div>
                                 </div>
@@ -1918,11 +1823,11 @@ const AskFinderPage = () => {
                             {/* Modal Header */}
                             <div className="p-6 border-b border-white/5 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-500">
+                                    <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
                                         <Edit size={20} />
                                     </div>
                                     <div>
-                                        <h3 className={`text-lg font-black tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Edit Material</h3>
+                                        <h3 className={`text-lg font-bold tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>Edit Material</h3>
                                         <p className="text-xs opacity-50 font-medium">Update document metadata and properties</p>
                                     </div>
                                 </div>
@@ -1938,33 +1843,33 @@ const AskFinderPage = () => {
                             <div className="p-6 space-y-5 max-h-[60vh] overflow-y-auto custom-scrollbar">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Subject Name</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-1">Subject Name</label>
                                         <input
                                             type="text"
                                             value={editingDoc.subjectName}
                                             onChange={(e) => setEditingDoc({ ...editingDoc, subjectName: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
                                             placeholder="e.g. Mathematics"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Subject Code</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-1">Subject Code</label>
                                         <input
                                             type="text"
                                             value={editingDoc.subjectCode}
                                             onChange={(e) => setEditingDoc({ ...editingDoc, subjectCode: e.target.value.toUpperCase() })}
-                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
                                             placeholder="e.g. 21MAT31"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Document Type</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-1">Document Type</label>
                                         <select
                                             value={editingDoc.documentType}
                                             onChange={(e) => setEditingDoc({ ...editingDoc, documentType: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
                                         >
                                             <option value="notes">Notes</option>
                                             <option value="see">SEE (Semester End)</option>
@@ -1974,34 +1879,34 @@ const AskFinderPage = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Semester</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-1">Semester</label>
                                         <input
                                             type="text"
                                             value={editingDoc.semester}
                                             onChange={(e) => setEditingDoc({ ...editingDoc, semester: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
                                             placeholder="e.g. 3rd Sem"
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">Year Level</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-1">Year Level</label>
                                         <input
                                             type="text"
                                             value={editingDoc.yearLevel}
                                             onChange={(e) => setEditingDoc({ ...editingDoc, yearLevel: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
                                             placeholder="e.g. 2nd Year"
                                         />
                                     </div>
 
                                     <div className="col-span-2 space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40 ml-1">File Display Name</label>
+                                        <label className="text-[10px] font-bold uppercase tracking-wider opacity-60 ml-1">File Display Name</label>
                                         <input
                                             type="text"
-                                            value={editingDoc.originalName}
-                                            onChange={(e) => setEditingDoc({ ...editingDoc, originalName: e.target.value })}
-                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-purple-500/20 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
+                                            value={editingDoc.title || editingDoc.originalName || ''}
+                                            onChange={(e) => setEditingDoc({ ...editingDoc, title: e.target.value, originalName: e.target.value })}
+                                            className={`w-full px-4 py-3 rounded-xl border transition-all outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'}`}
                                             placeholder="FileName.pdf"
                                         />
                                     </div>
@@ -2012,7 +1917,7 @@ const AskFinderPage = () => {
                             <div className={`p-6 border-t flex items-center gap-3 ${isLightMode ? 'bg-slate-50' : 'bg-white/[0.02] border-white/5'}`}>
                                 <button
                                     onClick={() => setShowEditModal(false)}
-                                    className={`flex-1 py-3.5 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100' : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'}`}
+                                    className={`flex-1 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${isLightMode ? 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100' : 'bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10'}`}
                                 >
                                     Cancel
                                 </button>
@@ -2020,25 +1925,50 @@ const AskFinderPage = () => {
                                     onClick={async () => {
                                         setIsSaving(true);
                                         try {
-                                            await userUploadAPI.updateUpload(editingDoc._id, {
-                                                subjectName: editingDoc.subjectName,
-                                                subjectCode: editingDoc.subjectCode,
+                                            const newTitle = (editingDoc.title || editingDoc.originalName || '').trim();
+                                            await apiClient.patch(`/documents/${editingDoc._id}`, {
+                                                title: newTitle,
+                                                originalFileName: newTitle,
                                                 documentType: editingDoc.documentType,
                                                 semester: editingDoc.semester,
-                                                yearLevel: editingDoc.yearLevel,
-                                                originalName: editingDoc.originalName
+                                                yearLevel: editingDoc.yearLevel
                                             });
+
+                                            setDocuments(prev => prev.map(d => d._id === editingDoc._id ? {
+                                                ...d,
+                                                title: newTitle,
+                                                originalName: newTitle,
+                                                originalFileName: newTitle,
+                                                fileName: newTitle,
+                                                documentType: editingDoc.documentType,
+                                                semester: editingDoc.semester,
+                                                yearLevel: editingDoc.yearLevel
+                                            } : d));
+
                                             setShowEditModal(false);
-                                            handleSearch(); // Refresh list
                                         } catch (err) {
-                                            console.error("Save failed", err);
-                                            alert("Failed to update document");
+                                            console.error("Save failed, attempting userUpload fallback", err);
+                                            try {
+                                                await userUploadAPI.updateUpload(editingDoc._id, {
+                                                    subjectName: editingDoc.subjectName,
+                                                    subjectCode: editingDoc.subjectCode,
+                                                    documentType: editingDoc.documentType,
+                                                    semester: editingDoc.semester,
+                                                    yearLevel: editingDoc.yearLevel,
+                                                    originalName: editingDoc.title || editingDoc.originalName
+                                                });
+                                                handleSearch();
+                                                setShowEditModal(false);
+                                            } catch (fallbackErr) {
+                                                console.error("Fallback failed", fallbackErr);
+                                                alert("Failed to update document");
+                                            }
                                         } finally {
                                             setIsSaving(false);
                                         }
                                     }}
                                     disabled={isSaving}
-                                    className="flex-[2] py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-purple-600/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="flex-[2] py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSaving ? (
                                         <>

@@ -28,7 +28,20 @@ export const ThemeProvider = ({ children }) => {
         const val = isDark ? 'dark' : 'light';
         localStorage.setItem('aus-theme', val);
         localStorage.setItem('uiTheme', val);
+        window.dispatchEvent(new CustomEvent('uiThemeChange', { detail: val }));
     }, [isDark]);
+
+    // Keep in sync with other tabs
+    useEffect(() => {
+        const handleStorage = (e) => {
+            if (e.key === 'uiTheme' || e.key === 'aus-theme') {
+                const isNowDark = e.newValue === 'dark';
+                setIsDark(prev => (prev !== isNowDark ? isNowDark : prev));
+            }
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
 
     const toggleTheme = useCallback(() => setIsDark(prev => !prev), []);
 
@@ -41,6 +54,8 @@ export const ThemeProvider = ({ children }) => {
 
 export const useTheme = () => {
     const ctx = useContext(ThemeContext);
-    if (!ctx) throw new Error('useTheme must be used inside ThemeProvider');
+    if (!ctx) {
+        return { isDark: true, toggleTheme: () => {} };
+    }
     return ctx;
 };
