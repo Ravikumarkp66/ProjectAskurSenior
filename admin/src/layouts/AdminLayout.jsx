@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, Link, useLocation, Navigate } from 'react
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Logo } from '../components/Logo';
-import { Moon, Sun, Shield, Menu, X, Users, BookOpen, FileText, Lock, ShieldAlert, LogOut } from 'lucide-react';
+import { Moon, Sun, Shield, Menu, X, Users, BookOpen, FileText, Lock, ShieldAlert, LogOut, Building2, Briefcase } from 'lucide-react';
 import MySecurityDrawer from '../components/admin/MySecurityDrawer';
 import { hasPermission, isSuperAdmin } from '../utils/permissions';
 
@@ -26,17 +26,23 @@ export const AdminLayout = () => {
 
   // Determine permission for each module
   const canViewUsers = hasPermission(admin, 'users', 'view');
+  const canViewStructure = isSuperAdmin(admin) || hasPermission(admin, 'academic_structure', 'view');
   const canViewSubjects = hasPermission(admin, 'subjects', 'view');
   const canViewMaterials = hasPermission(admin, 'materials', 'view');
+  const canViewInterviews = isSuperAdmin(admin) || hasPermission(admin, 'interviews', 'view');
   const isSuper = isSuperAdmin(admin);
 
   // Compute first allowed route
   const firstAllowedRoute = canViewUsers
     ? '/users'
+    : canViewStructure
+    ? '/structure'
     : canViewSubjects
     ? '/subjects'
     : canViewMaterials
     ? '/materials'
+    : canViewInterviews
+    ? '/interviews'
     : isSuper
     ? '/admins'
     : '/login';
@@ -46,33 +52,39 @@ export const AdminLayout = () => {
   if (canViewUsers) {
     navTabs.push({ key: 'users', to: '/users', label: 'USERS', icon: Users });
   }
+  if (canViewStructure) {
+    navTabs.push({ key: 'structure', to: '/structure', label: 'STRUCTURE', icon: Building2 });
+  }
   if (canViewSubjects) {
     navTabs.push({ key: 'subjects', to: '/subjects', label: 'SUBJECTS', icon: BookOpen });
   }
   if (canViewMaterials) {
     navTabs.push({ key: 'materials', to: '/materials', label: 'MATERIALS', icon: FileText });
   }
-
-  // Un-implemented modules
-  navTabs.push({ key: 'community', label: 'COMMUNITY', disabled: true });
-  navTabs.push({ key: 'ai', label: 'AI', disabled: true });
+  if (canViewInterviews) {
+    navTabs.push({ key: 'interviews', to: '/interviews', label: 'INTERVIEWS', icon: Briefcase });
+  }
 
   if (isSuper) {
     navTabs.push({ key: 'admins', to: '/admins', label: 'ADMINS', icon: Lock });
     navTabs.push({ key: 'security', to: '/security', label: 'SECURITY', icon: ShieldAlert });
   }
 
-  navTabs.push({ key: 'system', label: 'SYSTEM', disabled: true });
-
   // If current path is unpermitted, redirect to first allowed route
   const currentPath = location.pathname;
   if (currentPath === '/users' && !canViewUsers) {
+    return <Navigate to={firstAllowedRoute} replace />;
+  }
+  if (currentPath === '/structure' && !canViewStructure) {
     return <Navigate to={firstAllowedRoute} replace />;
   }
   if (currentPath === '/subjects' && !canViewSubjects) {
     return <Navigate to={firstAllowedRoute} replace />;
   }
   if (currentPath === '/materials' && !canViewMaterials) {
+    return <Navigate to={firstAllowedRoute} replace />;
+  }
+  if (currentPath === '/interviews' && !canViewInterviews) {
     return <Navigate to={firstAllowedRoute} replace />;
   }
   if ((currentPath === '/admins' || currentPath === '/security') && !isSuper) {

@@ -548,9 +548,15 @@ const updateMaterial = async (req, res) => {
         const updateData = {};
         const changes = {};
 
-        if (title && title !== material.title) {
-            updateData.title = title;
-            changes.title = { old: material.title, new: title };
+        if (title !== undefined) {
+            const trimmedTitle = title.trim();
+            if (trimmedTitle) {
+                if (trimmedTitle !== material.title) {
+                    changes.title = { old: material.title, new: trimmedTitle };
+                }
+                updateData.title = trimmedTitle;
+                updateData.originalFileName = trimmedTitle;
+            }
         }
         if (status && status !== material.status) {
             updateData.status = status;

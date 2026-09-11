@@ -28,6 +28,7 @@ export const SubjectsPage = () => {
   const [searchInput, setSearchInput] = useState('');
   const [activeSearch, setActiveSearch] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
+  const [selectedSemester, setSelectedSemester] = useState('');
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedScheme, setSelectedScheme] = useState('');
 
@@ -80,6 +81,7 @@ export const SubjectsPage = () => {
           limit,
           search: activeSearch,
           year: selectedYear,
+          semester: selectedSemester,
           branch: selectedBranch,
           scheme: selectedScheme
         })
@@ -99,7 +101,7 @@ export const SubjectsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [limit, activeSearch, selectedYear, selectedBranch, selectedScheme, canView]);
+  }, [limit, activeSearch, selectedYear, selectedSemester, selectedBranch, selectedScheme, canView]);
 
   useEffect(() => {
     fetchSubjects(page);
@@ -115,6 +117,7 @@ export const SubjectsPage = () => {
     setSearchInput('');
     setActiveSearch('');
     setSelectedYear('');
+    setSelectedSemester('');
     setSelectedBranch('');
     setSelectedScheme('');
     setPage(1);
@@ -150,6 +153,7 @@ export const SubjectsPage = () => {
         code: '',
         credits: 4,
         year: '2nd Year',
+        semester: '',
         branch: branches[0]?._id || '',
         scheme: schemes[0]?._id || '',
         status: 'Published'
@@ -169,6 +173,7 @@ export const SubjectsPage = () => {
         code: subject.code || '',
         credits: subject.credits ?? 4,
         year: subject.year || '2nd Year',
+        semester: subject.semester !== null && subject.semester !== undefined ? String(subject.semester) : '',
         branch: subject.branch?._id || subject.branch || '',
         scheme: subject.scheme?._id || subject.scheme || '',
         status: subject.status || 'Published'
@@ -207,6 +212,7 @@ export const SubjectsPage = () => {
         code: data.code.trim().toUpperCase(),
         credits: parseInt(data.credits, 10),
         year: data.year,
+        semester: data.semester ? parseInt(data.semester, 10) : null,
         branch: data.branch,
         scheme: data.scheme,
         status: data.status || 'Published'
@@ -248,7 +254,7 @@ export const SubjectsPage = () => {
     }
   };
 
-  const hasActiveFilters = activeSearch || selectedYear || selectedBranch || selectedScheme;
+  const hasActiveFilters = activeSearch || selectedYear || selectedSemester || selectedBranch || selectedScheme;
 
   if (!canView) {
     return null;
@@ -332,6 +338,29 @@ export const SubjectsPage = () => {
               <option value="">All Years</option>
               {YEARS.map((y) => (
                 <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+
+          <span className="hidden md:inline text-gray-300 dark:text-zinc-700">|</span>
+
+          {/* Semester Dropdown */}
+          <div className="flex items-center gap-1">
+            <label htmlFor="semester-select" className="text-gray-600 dark:text-gray-400 text-[11px]">
+              Sem:
+            </label>
+            <select
+              id="semester-select"
+              value={selectedSemester}
+              onChange={(e) => {
+                setSelectedSemester(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-none border border-gray-300 bg-white px-1.5 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
+            >
+              <option value="">All Sems</option>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                <option key={s} value={s}>Sem {s}</option>
               ))}
             </select>
           </div>
@@ -461,7 +490,14 @@ export const SubjectsPage = () => {
                         {sub.credits ?? 0}
                       </td>
                       <td className="border-r border-gray-200 px-2.5 py-1 font-mono text-[11px] dark:border-zinc-800 whitespace-nowrap">
-                        {sub.year || '—'}
+                        <div className="flex items-center gap-1.5">
+                          <span>{sub.year || '—'}</span>
+                          {sub.semester && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-semibold font-mono">
+                              Sem {sub.semester}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="border-r border-gray-200 px-2.5 py-1 font-mono text-[11px] dark:border-zinc-800 whitespace-nowrap">
                         {branchDisplay}
@@ -630,8 +666,8 @@ export const SubjectsPage = () => {
                 />
               </div>
 
-              {/* Grid: Credits & Academic Year */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Grid: Credits, Semester, & Academic Year */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5">
                     Credits <span className="text-red-500">*</span>
@@ -646,6 +682,33 @@ export const SubjectsPage = () => {
                   >
                     {CREDITS.map((c) => (
                       <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5">
+                    Semester
+                  </label>
+                  <select
+                    value={formModal.data.semester || ''}
+                    onChange={(e) => {
+                      const semVal = e.target.value ? parseInt(e.target.value, 10) : '';
+                      const yearMap = { 1: '1st Year', 2: '1st Year', 3: '2nd Year', 4: '2nd Year', 5: '3rd Year', 6: '3rd Year', 7: '4th Year', 8: '4th Year' };
+                      setFormModal({
+                        ...formModal,
+                        data: {
+                          ...formModal.data,
+                          semester: semVal,
+                          year: semVal ? yearMap[semVal] : formModal.data.year
+                        }
+                      });
+                    }}
+                    className="w-full rounded-none border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100"
+                  >
+                    <option value="">Unassigned</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                      <option key={s} value={s}>Semester {s}</option>
                     ))}
                   </select>
                 </div>

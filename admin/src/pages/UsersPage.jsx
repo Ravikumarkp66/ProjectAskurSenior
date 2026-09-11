@@ -50,8 +50,10 @@ export const UsersPage = () => {
     incompleteProfileCount: 0,
     neverActiveCount: 0
   });
+  const INITIAL_CHUNK_SIZE = 6;
   const [page, setPage] = useState(1);
-  const [limit] = useState(50);
+  const [limit, setLimit] = useState(15);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_CHUNK_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [searchInput, setSearchInput] = useState('');
@@ -73,9 +75,11 @@ export const UsersPage = () => {
         filter: tab === 'incomplete' ? 'incomplete' : (tab === 'neverActive' ? 'neverActive' : '')
       });
 
-      setUsers(data.users || []);
+      const loadedUsers = data.users || [];
+      setUsers(loadedUsers);
+      setVisibleCount(Math.min(INITIAL_CHUNK_SIZE, loadedUsers.length));
       setTotalPages(data.pages || 1);
-      setTotalCount(data.total || (data.users || []).length);
+      setTotalCount(data.total || loadedUsers.length);
       setPage(data.page || targetPage);
 
       if (data.summary) {
@@ -97,20 +101,27 @@ export const UsersPage = () => {
     if (activeTab !== tab) {
       setActiveTab(tab);
       setPage(1);
+      setVisibleCount(INITIAL_CHUNK_SIZE);
     }
   };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1);
+    setVisibleCount(INITIAL_CHUNK_SIZE);
     setActiveSearch(searchInput);
   };
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages && newPage !== page) {
       setPage(newPage);
+      setVisibleCount(INITIAL_CHUNK_SIZE);
     }
   };
+
+  const visibleUsers = useMemo(() => {
+    return users.slice(0, visibleCount);
+  }, [users, visibleCount]);
 
   const getPaginationRange = () => {
     const delta = 3;
@@ -249,18 +260,24 @@ export const UsersPage = () => {
         </div>
       </div>
 
+      {/* Error alert */}
+      {error && (
+        <div className="py-2 px-3 text-xs text-red-600 dark:text-red-400 font-mono bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 flex items-center justify-between">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => fetchUsers(page, activeSearch, activeTab)}
+            className="underline hover:text-red-800 dark:hover:text-red-200"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Main CSES Sheet Table */}
       <div className="pt-1">
-        {loading ? (
-          <div className="py-6 text-xs text-gray-600 dark:text-gray-400 font-mono">
-            Loading users...
-          </div>
-        ) : error ? (
-          <div className="py-4 text-xs text-red-600 dark:text-red-400 font-mono">
-            {error}
-          </div>
-        ) : users.length === 0 ? (
-          <div className="py-6 text-xs text-gray-600 dark:text-gray-400 font-mono">
+        {!loading && !error && users.length === 0 ? (
+          <div className="py-6 text-xs text-gray-600 dark:text-gray-400 font-mono border border-gray-300 dark:border-zinc-700 p-4 text-center">
             No users found.
           </div>
         ) : (
@@ -280,106 +297,195 @@ export const UsersPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u, idx) => {
-                  const isEven = idx % 2 === 0;
-                  const rowNumber = (page - 1) * limit + idx + 1;
-                  const missingProfileFields = getMissingProfileFields(u);
-
-                  return (
-                    <tr
-                      key={u._id || u.id || idx}
-                      onClick={() => setSelectedUser(u)}
-                      className={`border-b border-gray-200 cursor-pointer transition-colors dark:border-zinc-800 ${
-                        isEven ? 'bg-white dark:bg-[#18181b]' : 'bg-gray-50/70 dark:bg-zinc-900/50'
-                      } hover:bg-blue-50/70 dark:hover:bg-zinc-800/80`}
-                    >
-                      <td className="border-r border-gray-200 px-2 py-1 font-mono text-center text-[11px] text-gray-500 dark:text-zinc-500 dark:border-zinc-800">
-                        {rowNumber}
+                {loading && users.length === 0 ? (
+                  [...Array(6)].map((_, i) => (
+                    <tr key={`skel-${i}`} className="border-b border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#18181b]">
+                      <td className="border-r border-gray-200 dark:border-zinc-800 px-2 py-2 text-center">
+                        <div className="h-3 w-4 bg-gray-200 dark:bg-zinc-700/60 animate-pulse mx-auto" />
                       </td>
-                      <td className="border-r border-gray-200 px-2.5 py-1 font-medium dark:border-zinc-800">
-                        {!isEmptyField(u.name) ? (
-                          <span className="text-gray-900 dark:text-gray-100">{u.name}</span>
-                        ) : !isEmptyField(u.username) ? (
-                          <span className="text-gray-600 dark:text-gray-400">@{u.username}</span>
-                        ) : (
-                          <span className="text-gray-400 dark:text-zinc-500 italic">—</span>
-                        )}
+                      <td className="border-r border-gray-200 dark:border-zinc-800 px-2.5 py-2">
+                        <div className="h-3 w-28 bg-gray-200 dark:bg-zinc-700/60 animate-pulse" />
                       </td>
-                      <td className="border-r border-gray-200 px-2.5 py-1 font-mono dark:border-zinc-800 whitespace-nowrap">
-                        {!isEmptyField(u.usn) ? (
-                          <span>{u.usn}</span>
-                        ) : (
-                          <span className="text-gray-400 dark:text-zinc-500 italic">—</span>
-                        )}
+                      <td className="border-r border-gray-200 dark:border-zinc-800 px-2.5 py-2">
+                        <div className="h-3 w-20 bg-gray-200 dark:bg-zinc-700/60 animate-pulse" />
                       </td>
-                      <td className="border-r border-gray-200 px-2.5 py-1 dark:border-zinc-800">
-                        {!isEmptyField(u.email) ? (
-                          <span className="text-blue-600 hover:underline dark:text-blue-400 font-mono text-[11px]">
-                            {u.email}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 dark:text-zinc-500 italic">—</span>
-                        )}
+                      <td className="border-r border-gray-200 dark:border-zinc-800 px-2.5 py-2">
+                        <div className="h-3 w-36 bg-gray-200 dark:bg-zinc-700/60 animate-pulse" />
                       </td>
-                      <td className="border-r border-gray-200 px-2.5 py-1 dark:border-zinc-800 whitespace-nowrap font-mono text-[11px]">
-                        {formatDate(u.createdAt)}
+                      <td className="border-r border-gray-200 dark:border-zinc-800 px-2.5 py-2">
+                        <div className="h-3 w-16 bg-gray-200 dark:bg-zinc-700/60 animate-pulse" />
                       </td>
-                      <td className={`${activeTab === 'incomplete' ? 'border-r border-gray-200 dark:border-zinc-800' : ''} px-2.5 py-1 whitespace-nowrap text-gray-600 dark:text-gray-400 text-[11px] font-mono`}>
-                        {formatRelativeTime(u.lastActiveAt || u.updatedAt || u.createdAt)}
+                      <td className="border-r border-gray-200 dark:border-zinc-800 px-2.5 py-2">
+                        <div className="h-3 w-16 bg-gray-200 dark:bg-zinc-700/60 animate-pulse" />
                       </td>
                       {activeTab === 'incomplete' && (
-                        <td className="px-2.5 py-1 font-mono text-[11px] text-amber-700 dark:text-amber-400 whitespace-nowrap">
-                          {missingProfileFields.join(', ')}
+                        <td className="px-2.5 py-2">
+                          <div className="h-3 w-24 bg-gray-200 dark:bg-zinc-700/60 animate-pulse" />
                         </td>
                       )}
                     </tr>
-                  );
-                })}
+                  ))
+                ) : (
+                  visibleUsers.map((u, idx) => {
+                    const isEven = idx % 2 === 0;
+                    const rowNumber = (page - 1) * limit + idx + 1;
+                    const missingProfileFields = getMissingProfileFields(u);
+
+                    return (
+                      <tr
+                        key={u._id || u.id || idx}
+                        onClick={() => setSelectedUser(u)}
+                        className={`border-b border-gray-200 cursor-pointer transition-colors dark:border-zinc-800 ${
+                          isEven ? 'bg-white dark:bg-[#18181b]' : 'bg-gray-50/70 dark:bg-zinc-900/50'
+                        } hover:bg-blue-50/70 dark:hover:bg-zinc-800/80`}
+                      >
+                        <td className="border-r border-gray-200 px-2 py-1 font-mono text-center text-[11px] text-gray-500 dark:text-zinc-500 dark:border-zinc-800">
+                          {rowNumber}
+                        </td>
+                        <td className="border-r border-gray-200 px-2.5 py-1 font-medium dark:border-zinc-800">
+                          {!isEmptyField(u.name) ? (
+                            <span className="text-gray-900 dark:text-gray-100">{u.name}</span>
+                          ) : !isEmptyField(u.username) ? (
+                            <span className="text-gray-600 dark:text-gray-400">@{u.username}</span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-zinc-500 italic">—</span>
+                          )}
+                        </td>
+                        <td className="border-r border-gray-200 px-2.5 py-1 font-mono dark:border-zinc-800 whitespace-nowrap">
+                          {!isEmptyField(u.usn) ? (
+                            <span>{u.usn}</span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-zinc-500 italic">—</span>
+                          )}
+                        </td>
+                        <td className="border-r border-gray-200 px-2.5 py-1 dark:border-zinc-800">
+                          {!isEmptyField(u.email) ? (
+                            <span className="text-blue-600 hover:underline dark:text-blue-400 font-mono text-[11px]">
+                              {u.email}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-zinc-500 italic">—</span>
+                          )}
+                        </td>
+                        <td className="border-r border-gray-200 px-2.5 py-1 dark:border-zinc-800 whitespace-nowrap font-mono text-[11px]">
+                          {formatDate(u.createdAt)}
+                        </td>
+                        <td className={`${activeTab === 'incomplete' ? 'border-r border-gray-200 dark:border-zinc-800' : ''} px-2.5 py-1 whitespace-nowrap text-gray-600 dark:text-gray-400 text-[11px] font-mono`}>
+                          {formatRelativeTime(u.lastActiveAt || u.updatedAt || u.createdAt)}
+                        </td>
+                        {activeTab === 'incomplete' && (
+                          <td className="px-2.5 py-1 font-mono text-[11px] text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                            {missingProfileFields.join(', ')}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
+
+            {/* Chunked Progressive Loaded Users Bar: don't dump all loaded users at once! */}
+            {users.length > visibleCount && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border border-t-0 border-gray-300 dark:border-zinc-700 bg-gray-50/90 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-mono">
+                <span className="text-gray-600 dark:text-gray-400">
+                  Showing <strong className="text-gray-900 dark:text-gray-100">{visibleUsers.length}</strong> of <strong className="text-gray-900 dark:text-gray-100">{users.length}</strong> loaded users on this page
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => Math.min(prev + 6, users.length))}
+                    className="text-blue-600 underline font-semibold hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    + Show next {Math.min(6, users.length - visibleCount)}
+                  </button>
+                  <span className="text-gray-300 dark:text-zinc-600">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount(users.length)}
+                    className="text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    Show all {users.length}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Compact Text-Based Pagination */}
-        {!loading && !error && totalPages > 1 && (
-          <div className="mt-2.5 flex items-center gap-1.5 text-xs font-mono text-gray-700 dark:text-gray-300 select-none">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => handlePageChange(page - 1)}
-              className="text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline dark:text-blue-400 dark:disabled:text-zinc-600"
-            >
-              Previous
-            </button>
-            <span className="text-gray-400 dark:text-zinc-600">|</span>
-
-            {getPaginationRange().map((p) => (
-              <React.Fragment key={p}>
-                {p === page ? (
-                  <span className="font-bold text-gray-900 underline dark:text-white">
-                    {p}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handlePageChange(p)}
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    {p}
-                  </button>
-                )}
+        {/* Compact Text-Based Pagination & Page Size Control */}
+        {!error && totalCount > 0 && (
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-gray-700 dark:text-gray-300 select-none">
+            {totalPages > 1 ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => handlePageChange(page - 1)}
+                  className="text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline dark:text-blue-400 dark:disabled:text-zinc-600"
+                >
+                  Previous
+                </button>
                 <span className="text-gray-400 dark:text-zinc-600">|</span>
-              </React.Fragment>
-            ))}
 
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => handlePageChange(page + 1)}
-              className="text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline dark:text-blue-400 dark:disabled:text-zinc-600"
-            >
-              Next
-            </button>
+                {getPaginationRange().map((p) => (
+                  <React.Fragment key={p}>
+                    {p === page ? (
+                      <span className="font-bold text-gray-900 underline dark:text-white">
+                        {p}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(p)}
+                        className="text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        {p}
+                      </button>
+                    )}
+                    <span className="text-gray-400 dark:text-zinc-600">|</span>
+                  </React.Fragment>
+                ))}
+
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => handlePageChange(page + 1)}
+                  className="text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline dark:text-blue-400 dark:disabled:text-zinc-600"
+                >
+                  Next
+                </button>
+              </div>
+            ) : (
+              <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                Page 1 of 1
+              </div>
+            )}
+
+            {/* Page Limit Selector */}
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+              <span>Per page:</span>
+              {[15, 30, 50].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    if (limit !== size) {
+                      setLimit(size);
+                      setPage(1);
+                      setVisibleCount(INITIAL_CHUNK_SIZE);
+                    }
+                  }}
+                  className={`${
+                    limit === size
+                      ? 'font-bold text-gray-900 underline dark:text-white'
+                      : 'text-blue-600 hover:underline dark:text-blue-400'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -1,7 +1,7 @@
 import apiClient from './apiClient';
 
 export const userService = {
-  getUsers: async ({ page = 1, limit = 50, search = '', sortBy = 'recent', filter = '' } = {}) => {
+  getUsers: async ({ page = 1, limit = 15, search = '', sortBy = 'recent', filter = '' } = {}) => {
     try {
       const response = await apiClient.get('/admin/analytics/users', {
         params: {

@@ -208,6 +208,17 @@ export default function MaterialsPage() {
     });
   };
 
+  const notifyMaterialChange = () => {
+    try {
+      const bc = new BroadcastChannel('askursenior_materials_sync');
+      bc.postMessage({ type: 'MATERIAL_UPDATED', timestamp: Date.now() });
+      bc.close();
+    } catch (e) {}
+    try {
+      localStorage.setItem('materials_last_updated', Date.now().toString());
+    } catch (e) {}
+  };
+
   // Save Edit Changes
   const handleSaveEdit = async (e) => {
     e.preventDefault();
@@ -221,6 +232,7 @@ export default function MaterialsPage() {
       });
       setSuccessMessage(`Updated "${editForm.title}" successfully.`);
       setEditingMaterial(null);
+      notifyMaterialChange();
       fetchMaterials();
       fetchStats();
     } catch (err) {
@@ -336,6 +348,7 @@ export default function MaterialsPage() {
       const res = await materialService.bulkUpdateStatus(selectedIds, status);
       setSuccessMessage(res.message || `Updated status to "${status}" for selected items.`);
       setSelectedIds([]);
+      notifyMaterialChange();
       fetchMaterials();
       fetchStats();
     } catch (err) {
@@ -354,6 +367,7 @@ export default function MaterialsPage() {
       const res = await materialService.bulkDelete(selectedIds, false);
       setSuccessMessage(res.message || `Moved ${selectedIds.length} materials to Trash.`);
       setSelectedIds([]);
+      notifyMaterialChange();
       fetchMaterials();
       fetchStats();
     } catch (err) {
@@ -373,6 +387,7 @@ export default function MaterialsPage() {
       }
       setSuccessMessage(`Restored ${selectedIds.length} material(s) from Trash.`);
       setSelectedIds([]);
+      notifyMaterialChange();
       fetchMaterials();
       fetchStats();
     } catch (err) {
@@ -391,6 +406,7 @@ export default function MaterialsPage() {
       const res = await materialService.bulkDelete(selectedIds, true);
       setSuccessMessage(res.message || `Permanently erased ${selectedIds.length} material(s).`);
       setSelectedIds([]);
+      notifyMaterialChange();
       fetchMaterials();
       fetchStats();
     } catch (err) {
@@ -419,6 +435,7 @@ export default function MaterialsPage() {
       setSuccessMessage(res.message || `Reassigned ${selectedIds.length} materials successfully.`);
       setIsBatchReassignOpen(false);
       setSelectedIds([]);
+      notifyMaterialChange();
       fetchMaterials();
       fetchStats();
     } catch (err) {

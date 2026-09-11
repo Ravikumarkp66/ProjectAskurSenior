@@ -11,6 +11,7 @@ export const subjectService = {
     limit = 50,
     search = '',
     year = '',
+    semester = '',
     branch = '',
     scheme = '',
     status = ''
@@ -20,6 +21,7 @@ export const subjectService = {
       limit,
       search: search.trim() || undefined,
       year: year || undefined,
+      semester: semester || undefined,
       branch: branch || undefined,
       scheme: scheme || undefined,
       status: status || undefined

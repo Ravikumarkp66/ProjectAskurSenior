@@ -9,6 +9,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import AdminsPage from './pages/AdminsPage';
 import SecurityPage from './pages/SecurityPage';
+import AcademicStructurePage from './pages/AcademicStructurePage';
+import InterviewsPage from './pages/InterviewsPage';
 import SuperAdminRoute from './components/SuperAdminRoute';
 import SessionReplacedModal from './components/SessionReplacedModal';
 
@@ -30,8 +32,10 @@ export function App() {
         >
           <Route index element={<Navigate to="/users" replace />} />
           <Route path="users" element={<UsersPage />} />
+          <Route path="structure" element={<AcademicStructurePage />} />
           <Route path="subjects" element={<SubjectsPage />} />
           <Route path="materials" element={<MaterialsPage />} />
+          <Route path="interviews" element={<InterviewsPage />} />
           <Route
             path="admins"
             element={

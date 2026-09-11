@@ -76,3 +76,27 @@ export const canManageRequests = (admin) => {
     canReject: hasPermission(admin, 'requests', 'reject')
   };
 };
+
+export const canManageStructure = (admin) => {
+  return {
+    canView: hasPermission(admin, 'academic_structure', 'view'),
+    canCreate: hasPermission(admin, 'academic_structure', 'create'),
+    canUpdate: hasPermission(admin, 'academic_structure', 'update'),
+    canDelete: hasPermission(admin, 'academic_structure', 'delete')
+  };
+};
+
+export const canManageInterviews = (admin) => {
+  return {
+    canView: hasPermission(admin, 'interviews', 'view'),
+    canCreate: hasPermission(admin, 'interviews', 'create') || hasPermission(admin, 'interviews', 'publish'),
+    canPublish: hasPermission(admin, 'interviews', 'publish'),
+    canArchive: hasPermission(admin, 'interviews', 'archive'),
+    canDelete: hasPermission(admin, 'interviews', 'delete'),
+    canViewCompanies: hasPermission(admin, 'companies', 'view'),
+    canCreateCompany: hasPermission(admin, 'companies', 'create'),
+    canUpdateCompany: hasPermission(admin, 'companies', 'update'),
+    canDeleteCompany: hasPermission(admin, 'companies', 'delete')
+  };
+};
+
