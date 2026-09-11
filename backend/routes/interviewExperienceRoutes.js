@@ -7,24 +7,35 @@ const {
   createExperience, 
   upvoteExperience,
   updateExperience,
-  createCompany
+  updateExperienceStatus,
+  deleteExperience,
+  createCompany,
+  updateCompany,
+  deleteCompany
 } = require('../controllers/interviewExperienceController');
 const authMiddleware = require('../middleware/auth');
-const adminMiddleware = require('../middleware/admin');
+const { requireAdmin, requirePermission } = require('../middleware/adminAuth');
 
 // Health check for this router
 router.get('/ping', (req, res) => res.json({ message: 'pong', router: 'interview-experience' }));
 
 router.get('/companies', getCompanies);
 router.get('/companies/:id/roles', getCompanyRoles);
-router.get('/list', getExperiences); // Changed from / to /list to avoid root conflicts
+router.get('/list', getExperiences);
 
-// Protected routes
+// Student & Admin creation routes
 router.post('/create', authMiddleware, createExperience);
+router.post('/', authMiddleware, createExperience);
 router.post('/upvote/:id', authMiddleware, upvoteExperience);
-router.put('/:id', authMiddleware, adminMiddleware, updateExperience);
 
-// Admin only
-router.post('/admin/companies', authMiddleware, adminMiddleware, createCompany);
+// Admin moderation & experience management routes
+router.put('/:id', authMiddleware, requireAdmin, requirePermission('interviews.publish'), updateExperience);
+router.patch('/:id/status', authMiddleware, requireAdmin, requirePermission('interviews.publish'), updateExperienceStatus);
+router.delete('/:id', authMiddleware, requireAdmin, requirePermission('interviews.archive'), deleteExperience);
+
+// Admin company management routes
+router.post('/admin/companies', authMiddleware, requireAdmin, requirePermission('companies.create'), createCompany);
+router.put('/admin/companies/:id', authMiddleware, requireAdmin, requirePermission('companies.update'), updateCompany);
+router.delete('/admin/companies/:id', authMiddleware, requireAdmin, requirePermission('companies.delete'), deleteCompany);
 
 module.exports = router;

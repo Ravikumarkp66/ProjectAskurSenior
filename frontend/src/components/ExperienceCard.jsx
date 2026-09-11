@@ -48,37 +48,17 @@ const ExperienceCard = ({ experience, isExpanded, onToggle, isLightMode }) => {
                             </div>
                         </div>
                     </div>
-                    {experience.selected ? (
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
-                            <CheckCircle2 size={12} />
-                            Selected
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-wider">
-                            <XCircle size={12} />
-                            Not Selected
-                        </div>
-                    )}
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-3">
+                <div className="mb-6">
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-3 w-fit">
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
                             <CircleDollarSign size={16} />
                         </div>
                         <div>
                             <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">CTC (LPA)</p>
                             <p className="text-sm font-black text-white">{experience.ctc} LPA</p>
-                        </div>
-                    </div>
-                    <div className="p-3 rounded-2xl bg-white/5 border border-white/5 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-                            <Target size={16} />
-                        </div>
-                        <div>
-                            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">Difficulty</p>
-                            <p className="text-sm font-black text-white">{experience.difficulty}</p>
                         </div>
                     </div>
                 </div>

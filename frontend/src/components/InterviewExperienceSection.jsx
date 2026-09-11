@@ -78,7 +78,7 @@ const InterviewExperienceSection = () => {
                         {companies.map((company, idx) => (
                             <div
                                 key={company._navSlug || company._id || idx}
-                                onClick={() => navigate(`/interview/${company._navSlug || company._id}`)}
+                                onClick={() => navigate(`/home/interview/${company._navSlug || company._id}`)}
                                 className="group p-6 rounded-3xl bg-white/5 border border-white/10 hover:border-purple-500/30 hover:bg-white/[0.08] transition-all cursor-pointer hover:-translate-y-2"
                             >
                                 <div className="flex items-start justify-between mb-6">

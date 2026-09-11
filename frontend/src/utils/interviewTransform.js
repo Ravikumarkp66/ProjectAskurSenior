@@ -13,10 +13,12 @@ export const transformExperiencesByRound = (data) => {
       rounds[roundNum].push({
         _id: exp._id, // Critical for backend updates!
         roundNumber: roundNum,
+        roundType: round.type || 'Technical',
         role: exp.role,
-        upvotes: exp.totalUpvotes || 0,
+        companyName: exp.company?.name || exp.companyName || '',
+        upvotes: exp.totalUpvotes || exp.upvotes || 0,
         overview: round.notes || round.overview || "No detailed overview provided for this round.",
-        questions: round.questions.map(q => {
+        questions: (round.questions || []).map(q => {
           if (typeof q === 'string') return { text: q, solveLink: '' };
           if (q && q.text) return q;
           // Repair logic for corrupted objects with numerical keys

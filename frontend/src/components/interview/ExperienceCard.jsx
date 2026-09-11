@@ -5,17 +5,17 @@ import {
   ThumbsUp, 
   Bookmark, 
   Copy, 
-  CheckCircle, 
-  Quote, 
+  Check, 
   MessageSquare, 
   Terminal, 
+  ExternalLink,
   AlertCircle
 } from 'lucide-react';
 import { interviewExperiencesAPI } from '../../services/api';
 
-const ExperienceCard = ({ data: initialData, isLightMode }) => {
+const ExperienceCard = ({ data: initialData, isLightMode, defaultExpanded = true }) => {
   const [data, setData] = useState(initialData);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultExpanded);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState(data.upvotes || 0);
   const [hasUpvoted, setHasUpvoted] = useState(false);
@@ -24,7 +24,12 @@ const ExperienceCard = ({ data: initialData, isLightMode }) => {
   const handleCopy = (e) => {
     e.stopPropagation();
     const overviewText = Array.isArray(data.overview) ? data.overview.join('\n') : data.overview;
-    const text = `${data.experienceId}\n\nOVERVIEW:\n${overviewText}\n\nQUESTIONS:\n${data.questions.join('\n')}`;
+    const questionsText = (data.questions || []).map((q, i) => {
+      const qText = typeof q === 'string' ? q : q?.text || '';
+      const link = typeof q === 'object' && q?.solveLink ? ` (${q.solveLink})` : '';
+      return `Q${i + 1}: ${qText}${link}`;
+    }).join('\n');
+    const text = `${data.experienceId || 'Interview Experience'} - ${data.companyName || ''} (Round ${data.roundNumber})\n\nOVERVIEW:\n${overviewText}\n\nQUESTIONS:\n${questionsText}`;
     navigator.clipboard.writeText(text);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
@@ -52,221 +57,201 @@ const ExperienceCard = ({ data: initialData, isLightMode }) => {
   };
 
   return (
-    <motion.div 
-      layout
-      className={`group relative rounded-[2.5rem] border transition-all duration-500 overflow-hidden ${
+    <div 
+      className={`rounded-xl border transition-colors overflow-hidden ${
         isLightMode 
-          ? 'bg-white border-slate-200/80 hover:border-purple-300 shadow-xl shadow-purple-500/5' 
-          : 'bg-[#161B22]/40 backdrop-blur-2xl border-white/5 hover:border-white/10 shadow-2xl hover:shadow-purple-500/5'
+          ? 'bg-white border-slate-200 hover:border-slate-300' 
+          : 'bg-[#0e1117] border-white/[0.08] hover:border-white/[0.16]'
       }`}
     >
-      {/* Visual Accent */}
-      <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-purple-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
+      {/* Experience Header Row */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="p-8 md:p-10 cursor-pointer"
+        className={`px-4 py-3 cursor-pointer flex items-center justify-between gap-3 border-b transition-colors select-none ${
+          isLightMode 
+            ? 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200' 
+            : 'bg-[#121620]/80 hover:bg-[#161b26] border-white/[0.06]'
+        }`}
       >
-        {/* Header Content */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-start md:items-center gap-5">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-lg transition-transform duration-500 group-hover:scale-105 shadow-inner ${
-              isLightMode ? 'bg-purple-50 text-purple-600' : 'bg-white/5 text-purple-400 border border-white/5'
-            }`}>
-              <Quote size={24} className="opacity-80" />
-            </div>
-
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400">
-                  {data.experienceId}
-                </span>
-                <span className="w-1 h-1 rounded-full bg-slate-500" />
-                <span className="text-xs font-bold text-slate-400">
-                  Round {data.roundNumber}: {data.roundType}
-                </span>
-              </div>
-              <h3 className={`text-xl font-bold tracking-tight ${isLightMode ? 'text-slate-900' : 'text-white'}`}>
-                {data.companyName}
-              </h3>
-              {data.role && (
-                <span className="text-[9px] font-black text-purple-500 uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                    {data.role}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 text-slate-500 mr-4">
-                <button 
-                  onClick={handleUpvote}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
-                    hasUpvoted ? 'bg-purple-500/10 border-purple-500/20 text-purple-400 shadow-lg shadow-purple-900/10' : 'bg-white/5 border-white/5 hover:border-purple-500/30'
-                  }`}
-                >
-                  <ThumbsUp size={14} fill={hasUpvoted ? "currentColor" : "none"} />
-                  <span className="text-[10px] font-black">{upvoteCount}</span>
-                </button>
-                
-                <button 
-                  onClick={handleBookmark}
-                  className={`p-1.5 rounded-xl border transition-all ${
-                    isBookmarked ? 'bg-purple-500/10 border-purple-500/20 text-purple-400' : 'bg-white/5 border-white/5 hover:border-purple-500/30'
-                  }`}
-                >
-                  <Bookmark size={14} fill={isBookmarked ? "currentColor" : "none"} />
-                </button>
-                
-                <button 
-                  onClick={handleCopy}
-                  className={`p-1.5 rounded-xl border transition-all ${
-                    isCopied ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/5 border-white/5 hover:border-emerald-500/30'
-                  }`}
-                >
-                  {isCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
-                </button>
-              </div>
-
-              <motion.div
-                animate={{ rotate: isOpen ? 180 : 0 }}
-                className={isLightMode ? 'text-slate-400' : 'text-slate-600 group-hover:text-purple-400 transition-colors'}
-              >
-                <ChevronDown size={20} strokeWidth={3} />
-              </motion.div>
-          </div>
+        {/* Left: Metadata Hierarchy */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+          <span className="font-mono text-xs font-bold uppercase tracking-wider text-purple-400 shrink-0">
+            {data.experienceId || 'Experience'}
+          </span>
+          <span className="text-slate-600 dark:text-slate-500">•</span>
+          <span className="text-xs text-slate-400 font-medium shrink-0">
+            Round {data.roundNumber}
+          </span>
+          {(data.roundType || data.role) && (
+            <>
+              <span className="text-slate-600 dark:text-slate-500">•</span>
+              <span className="text-xs font-semibold text-slate-300 uppercase tracking-wide truncate max-w-[200px] sm:max-w-xs">
+                {data.roundType || data.role}
+              </span>
+            </>
+          )}
         </div>
 
-        {/* Collapsed Preview */}
-        {!isOpen && (
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-sm text-slate-500 line-clamp-2 mt-8 font-medium leading-relaxed"
-            >
-                {Array.isArray(data.overview) 
-                  ? (typeof data.overview[0] === 'string' ? data.overview[0] : '') 
-                  : (typeof data.overview === 'string' ? data.overview : '')}
-            </motion.p>
-        )}
+        {/* Right: Actions + Chevron */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button 
+            type="button"
+            onClick={handleUpvote}
+            title="Upvote"
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium transition-colors border ${
+              hasUpvoted 
+                ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' 
+                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ThumbsUp size={12} fill={hasUpvoted ? "currentColor" : "none"} />
+            <span>{upvoteCount}</span>
+          </button>
+          
+          <button 
+            type="button"
+            onClick={handleBookmark}
+            title={isBookmarked ? "Bookmarked" : "Bookmark"}
+            className={`p-1.5 rounded transition-colors border ${
+              isBookmarked 
+                ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' 
+                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-purple-400'
+            }`}
+          >
+            <Bookmark size={13} fill={isBookmarked ? "currentColor" : "none"} />
+          </button>
+          
+          <button 
+            type="button"
+            onClick={handleCopy}
+            title="Copy Experience"
+            className={`p-1.5 rounded transition-colors border ${
+              isCopied 
+                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            {isCopied ? <Check size={13} /> : <Copy size={13} />}
+          </button>
 
-        {/* Expanded Content */}
-        <AnimatePresence>
-            {isOpen && (
-            <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="overflow-hidden"
-            >
-                <div className="pt-8 md:pt-12 grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
-                    {/* Overview Column */}
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <MessageSquare size={16} className="text-purple-500 opacity-50" />
-                                <h4 className={`text-[11px] font-black uppercase tracking-[0.25em] ${isLightMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                                    Detailed Overview
-                                </h4>
-                            </div>
-                        </div>
+          <div className="pl-1 text-slate-400">
+            <ChevronDown 
+              size={16} 
+              className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-purple-400' : ''}`} 
+            />
+          </div>
+        </div>
+      </div>
 
-                        <div className={`text-[15px] leading-[1.8] font-medium ${isLightMode ? 'text-slate-700' : 'text-slate-300'} whitespace-pre-line`}>
-                          {Array.isArray(data.overview) ? (
-                            <ul className="space-y-4">
-                              {data.overview.map((point, idx) => (
-                                <li key={idx} className="flex gap-4">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-2 shrink-0" />
-                                  {point}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="bg-white/5 p-6 rounded-2xl border border-white/5 italic">
-                                {typeof data.overview === 'string' ? data.overview : 'No overview provided'}
-                            </div>
+      {/* Collapsed One-line Preview */}
+      {!isOpen && (
+        <div 
+          onClick={() => setIsOpen(true)}
+          className="px-4 py-2.5 text-xs text-slate-400 hover:text-slate-300 line-clamp-1 italic cursor-pointer font-sans"
+        >
+          {Array.isArray(data.overview) 
+            ? (data.overview[0] || 'Click to expand overview & questions...') 
+            : (data.overview || 'Click to expand overview & questions...')}
+        </div>
+      )}
+
+      {/* Expanded Structured Two-Column View */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-8 font-sans">
+              {/* Left Column: Detailed Overview */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                  <MessageSquare size={13} className="text-purple-400" />
+                  <span>Detailed Overview</span>
+                </div>
+
+                <div className={`text-xs sm:text-sm leading-relaxed ${isLightMode ? 'text-slate-700' : 'text-slate-300'}`}>
+                  {Array.isArray(data.overview) && data.overview.length > 0 ? (
+                    <ul className="space-y-2">
+                      {data.overview.map((point, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-purple-400 select-none font-bold mt-0.5">•</span>
+                          <span className="flex-1">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : typeof data.overview === 'string' && data.overview.trim() ? (
+                    <p className="whitespace-pre-line leading-relaxed">{data.overview}</p>
+                  ) : (
+                    <p className="text-xs text-slate-500 italic p-3 rounded-lg border border-dashed border-white/[0.08]">
+                      No detailed overview provided for this round.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Interview Questions */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                    <Terminal size={13} className="text-purple-400" />
+                    <span>Interview Questions ({data.questions?.length || 0})</span>
+                  </div>
+                </div>
+
+                {data.questions && data.questions.length > 0 ? (
+                  <div className="space-y-2">
+                    {data.questions.map((q, idx) => {
+                      const qText = typeof q === 'string' 
+                        ? q 
+                        : (q?.text || (Object.keys(q || {}).filter(k => !isNaN(k)).sort((a,b) => a-b).map(k => q[k]).join('')));
+                      const solveLink = typeof q === 'object' ? q?.solveLink : null;
+
+                      return (
+                        <div 
+                          key={idx}
+                          className="p-3 rounded-lg bg-[#141721] border border-white/[0.05] hover:border-white/[0.12] transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                            <span className="font-mono text-xs font-bold text-purple-400 shrink-0 select-none pt-0.5">
+                              Q{idx + 1}
+                            </span>
+                            <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed break-words">
+                              {qText}
+                            </p>
+                          </div>
+
+                          {solveLink && (
+                            <a 
+                              href={solveLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 text-[11px] font-mono font-medium shrink-0 transition-colors self-start sm:self-center"
+                            >
+                              <span>Solve Problem</span>
+                              <ExternalLink size={11} />
+                            </a>
                           )}
                         </div>
-                    </div>
-
-                    {/* Questions Column */}
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Terminal size={16} className="text-purple-500 opacity-50" />
-                                <h4 className={`text-[11px] font-black uppercase tracking-[0.25em] ${isLightMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                                    Interview Questions
-                                </h4>
-                            </div>
-                        </div>
-
-                        {data.questions && data.questions.length > 0 ? (
-                        <div className="space-y-4">
-                            {data.questions.map((q, idx) => (
-                            <motion.div 
-                              initial={{ opacity: 0, x: 20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: idx * 0.1 }}
-                              key={idx} 
-                              onClick={(e) => e.stopPropagation()}
-                              className={`p-6 rounded-3xl border transition-all duration-300 ${
-                                isLightMode ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-[#1F2937]/50 border-white/5 text-slate-200'
-                              } group/q hover:scale-[1.02] hover:-translate-y-1`}
-                            >
-                                <div className="flex flex-col gap-4">
-                                  <div className="flex gap-4">
-                                    <span className="text-purple-500 font-black opacity-30 select-none">Q{idx + 1}</span>
-                                    <p className="flex-1">
-                                      {(() => {
-                                        if (typeof q === 'string') return q;
-                                        if (q && q.text) return q.text;
-                                        const parts = Object.keys(q || {})
-                                          .filter(k => !isNaN(k))
-                                          .sort((a, b) => Number(a) - Number(b))
-                                          .map(k => q[k]);
-                                        return parts.length > 0 ? parts.join('') : '';
-                                      })()}
-                                    </p>
-                                  </div>
-                                  
-                                  {q.solveLink && (
-                                    <a 
-                                      href={q.solveLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="flex items-center gap-3 self-center sm:self-end px-5 py-2.5 rounded-full border border-purple-500/50 bg-purple-500/5 text-purple-400 text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all duration-300 shadow-lg shadow-purple-900/10"
-                                    >
-                                      Solve Problem
-                                      <div className="flex items-center bg-[#0a0a0b] h-7 sm:h-8 px-2 rounded-full border border-white/20 group-hover:border-white/40 transition-all overflow-hidden shrink-0">
-                                        <img 
-                                          src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/creator-section/takeuforward-icon-filled-256.png" 
-                                          alt="TUF" 
-                                          className="h-full w-auto object-contain scale-125"
-                                        />
-                                      </div>
-                                    </a>
-                                  )}
-                                </div>
-                            </motion.div>
-                            ))}
-                        </div>
-                        ) : (
-                        <div className="py-12 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                                <AlertCircle size={20} className="text-slate-700" />
-                            </div>
-                            <p className="text-xs italic text-slate-600">No questions provided for this round.</p>
-                        </div>
-                        )}
-                    </div>
-                </div>
-            </motion.div>
-            )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 border border-dashed border-white/[0.08] rounded-lg flex items-center gap-2 text-xs text-slate-500 italic">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>No specific questions recorded for this round.</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

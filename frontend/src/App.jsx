@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { useAuth } from './utils/hooks';
@@ -106,6 +106,11 @@ const CompleteProfileRoute = ({ children }) => {
     return children;
 };
 
+const InterviewRedirect = () => {
+    const { id } = useParams();
+    return <Navigate to={`/home/interview/${id}`} replace />;
+};
+
 function AppContent() {
     const { isAuthenticated, user } = useAuth();
     const location = useLocation();
@@ -164,6 +169,7 @@ function AppContent() {
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/ask-finder" element={<AskFinderPage />} />
+                    <Route path="/materials" element={<AskFinderPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/lost-and-found" element={<Navigate to="/home/lost-and-found" replace />} />
                     <Route path="/marketplace" element={<Navigate to="/home/marketplace" replace />} />
@@ -249,6 +255,10 @@ function AppContent() {
                         <Route index element={<UserHomePage />} />
                         <Route path="materials" element={<UserHomePage />} />
                         <Route path="interview-experiences" element={<UserHomePage />} />
+                        <Route path="interview" element={<InterviewExperiencesPage />} />
+                        <Route path="interview/:id" element={<CompanyRolePage />} />
+                        <Route path="interview/add" element={<ShareExperience />} />
+                        <Route path="interview/share" element={<ShareExperience />} />
                         <Route path="faculty-ratings" element={<UserHomePage />} />
                         <Route path="faculty-ratings/:facultyId" element={<UserHomePage />} />
                         <Route path="faculty-directory" element={<UserHomePage />} />
@@ -333,13 +343,11 @@ function AppContent() {
                     <Route path="/admin/*" element={<Navigate to="/" replace />} />
                     <Route path="/admin" element={<Navigate to="/" replace />} />
 
-                    {/* Interview Experiences - Fully Public (no login required) */}
-                    <Route path="/interview" element={<InterviewLayout />}>
-                        <Route index element={<InterviewExperiencesPage />} />
-                        <Route path=":id" element={<CompanyRolePage />} />
-                        <Route path="add" element={<ShareExperience />} />
-                        <Route path="share" element={<ShareExperience />} />
-                    </Route>
+                    {/* Interview Experiences - Route smoothly to /home/interview */}
+                    <Route path="/interview" element={<Navigate to="/home/interview" replace />} />
+                    <Route path="/interview/:id" element={<InterviewRedirect />} />
+                    <Route path="/interview/add" element={<Navigate to="/home/interview/add" replace />} />
+                    <Route path="/interview/share" element={<Navigate to="/home/interview/share" replace />} />
 
                     {/* Catch-all */}
                     <Route path="*" element={<Navigate to="/" replace />} />

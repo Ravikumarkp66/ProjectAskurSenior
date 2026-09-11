@@ -166,39 +166,7 @@ const ShareExperience = () => {
                                 />
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Did you get selected?</label>
-                            <div className="flex gap-2">
-                                {[
-                                    { label: 'Yes', value: true },
-                                    { label: 'No', value: false }
-                                ].map(opt => (
-                                    <button
-                                        key={opt.label}
-                                        type="button"
-                                        onClick={() => setForm({...form, selected: opt.value})}
-                                        className={`flex-1 py-4 rounded-2xl font-bold transition-all border ${
-                                            form.selected === opt.value 
-                                            ? (opt.value ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-red-600 border-red-500 text-white')
-                                            : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
-                                        } shadow-lg shadow-black/10`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Difficulty</label>
-                            <select 
-                                required
-                                value={form.difficulty}
-                                onChange={(e) => setForm({...form, difficulty: e.target.value})}
-                                className={`w-full p-4 rounded-2xl border outline-none transition-all ${isLightMode ? 'bg-slate-50 border-slate-200' : 'bg-[#0a0a0b] border-white/10 focus:border-purple-500'}`}
-                            >
-                                {['Easy', 'Medium', 'Hard'].map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                        </div>
+
                         <div>
                             <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Placement Year</label>
                             <div className="relative">

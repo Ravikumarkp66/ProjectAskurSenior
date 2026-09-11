@@ -54,7 +54,8 @@ const DashboardLayout = () => {
     const isMainDashboardRoute = location.pathname === '/home' || location.pathname === '/plus' || location.pathname === '/home/' || location.pathname === '/plus/';
     const isHomeOrPlusRoute = location.pathname.startsWith('/home') || location.pathname.startsWith('/plus');
     const isAttendanceRoute = location.pathname.includes('attendance') || location.pathname.includes('timetable') || location.pathname.includes('cie') || location.pathname.includes('sgpa');
-    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute;
+    const isInterviewRoute = location.pathname.includes('interview-experiences') || location.pathname.includes('/interview');
+    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute && !isInterviewRoute;
     
     // Active navigation states
     const isHomeActive = location.pathname === '/plus' || location.pathname === '/home';

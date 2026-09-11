@@ -44,6 +44,16 @@ const experienceSchema = new mongoose.Schema({
   upvotes: {
     type: Number,
     default: 0,
+  },
+  status: {
+    type: String,
+    enum: ['Pending', 'Published', 'Rejected', 'Archived'],
+    default: 'Published',
+    index: true,
+  },
+  overallExperience: {
+    type: String,
+    default: '',
   }
 }, { timestamps: true });
 
