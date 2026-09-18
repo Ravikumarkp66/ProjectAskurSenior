@@ -32,9 +32,9 @@ async function resolveStudentSubjects(student, requestedSemester = null) {
 
     const studentIdStr = student._id ? student._id.toString() : 'anon';
     const effectiveSem = requestedSemester ? Number(requestedSemester) : (student.semester || 1);
-    const secKey = (student.section || '').trim().toUpperCase();
-    const labKey = (student.labBatch || '').trim().toUpperCase();
-    const branchKey = (student.branch?.code || student.branch || '').toString();
+    const secKey = typeof student.section === 'object' ? (student.section?.name || student.section?.section || '') : String(student.section || '').trim().toUpperCase();
+    const labKey = typeof student.labBatch === 'object' ? (student.labBatch?.name || '') : String(student.labBatch || '').trim().toUpperCase();
+    const branchKey = (student.branch?.code || student.branch?.name || student.branch || '').toString();
     const cacheKey = `${studentIdStr}_sem${effectiveSem}_sec${secKey}_lab${labKey}_br${branchKey}`;
 
     const isTestEnv = Boolean(process.env.NODE_TEST_CONTEXT) || process.env.NODE_ENV === 'test' || process.argv.some(a => a.includes('test')) || process.execArgv.some(a => a.includes('test'));

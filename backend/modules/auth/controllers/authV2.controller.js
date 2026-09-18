@@ -1434,7 +1434,10 @@ class AuthV2Controller {
             const escapeRegex = (str) => (str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
             // Fetch subject modules directly from the database Subject collection
-            const studentBranch = (req.student.branch || req.student.department || '').toUpperCase().trim();
+            const rawBranch = typeof req.student.branch === 'object'
+                ? (req.student.branch?.code || req.student.branch?.name || '')
+                : (req.student.branch || req.student.department || '');
+            const studentBranch = String(rawBranch || '').toUpperCase().trim();
             const populated = await Promise.all(semFiltered.map(async (item) => {
                 try {
                     const sObj = item.subject || {};
