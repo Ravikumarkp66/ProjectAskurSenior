@@ -3,6 +3,19 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
     plugins: [react()],
+    test: {
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'html', 'json-summary'],
+            reportsDirectory: './coverage',
+            exclude: [
+                'src/**/__tests__/**',
+                'src/**/*.test.{js,jsx}',
+                'src/**/*.spec.{js,jsx}',
+                'node_modules/**'
+            ]
+        }
+    },
     server: {
         port: 3000,
         headers: {

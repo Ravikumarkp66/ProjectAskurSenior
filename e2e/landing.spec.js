@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Staging Landing Page', () => {
+test.describe('Staging Landing Page', { tag: '@regression' }, () => {
   test('homepage loads successfully with hero, navigation, and CTA', async ({ page }) => {
     // Collect console errors to detect fatal runtime errors
     const consoleErrors = [];

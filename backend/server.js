@@ -33,6 +33,7 @@ const eventRoutes = require('./routes/eventRoutes');
 const seedDatabase = require('./utils/seedDatabase');
 const User = require('./models/User');
 require('./modules/assistant/cron');
+require('./modules/announcements/cron');
 
 const app = express();
 const server = http.createServer(app);
@@ -145,6 +146,7 @@ mongoose
             await require('./services/contributorService').seedContributorsIfEmpty();
             await require('./services/subscriptionModuleService').seedAllIfEmpty();
             await require('./services/playgroundService').seedPlaygroundIfEmpty();
+            await require('./services/featureRegistryService').seedFeaturesIfEmpty();
         } catch (error) {
             console.error('Error seeding initial datasets:', error.message);
         }
@@ -169,6 +171,7 @@ app.use('/api/v2/auth', unifiedAuthRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/bugs', bugRoutes);
+app.use('/api/account', require('./routes/accountRoutes'));
 app.use('/api/requests', requestRoutes);
 app.use('/api/download', downloadRoutes);
 app.use('/api/upload', uploadRoutes);
@@ -176,6 +179,9 @@ app.use('/api/user-uploads', userUploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/user-notifications', require('./routes/userNotificationRoutes'));
 app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/admin/users', require('./routes/adminUserRoutes'));
+app.use('/api/admin/features', require('./routes/adminFeatureRoutes'));
+app.use('/api/features', require('./routes/publicFeatureRoutes'));
 app.use('/api/events', eventRoutes);
 app.use('/api/admin/utils', require('./routes/adminUtilsRoutes').default || require('./routes/adminUtilsRoutes'));
 app.use('/api/admin-utils', require('./routes/adminUtilsRoutes').default || require('./routes/adminUtilsRoutes'));
@@ -189,7 +195,13 @@ app.use('/api/mentorship', require('./routes/mentorshipRoutes'));
 app.use('/api/discussions', require('./routes/discussionRoutes'));
 app.use('/api/campus-hub', require('./routes/campusHub'));
 app.use('/api/faculty', require('./routes/facultyRoutes'));
+app.use('/api/faculty-insights', require('./routes/facultyInsightRoutes'));
+app.use('/api/academic/structure', require('./routes/academicStructureRoutes'));
 app.use('/api/academic', require('./modules/academic/academic.routes'));
+app.use('/api/student/academics', require('./routes/studentAcademicsRoutes'));
+app.use('/api/student/results', require('./routes/studentResultRoutes'));
+app.use('/api/v2/academic-content', require('./routes/academicContentRoutes'));
+app.use('/api/evaluation-results', require('./routes/evaluationResultRoutes'));
 
 // CMS Routes
 app.use('/api/lookups', require('./routes/lookupRoutes'));
@@ -199,10 +211,15 @@ app.post('/api/cms/materials/:id/download', require('./controllers/studentCmsCon
 app.use('/api/admin/subjects', require('./routes/adminCmsSubjectRoutes'));
 app.use('/api/academic-subjects', require('./routes/academicSubjectRoutes'));
 app.use('/api/admin/materials', require('./routes/adminCmsMaterialRoutes'));
+app.use('/api/admin/announcements', require('./routes/adminAnnouncementRoutes'));
+app.use('/api/plus/announcements', require('./routes/studentAnnouncementRoutes'));
 app.use('/api/admin/admins', require('./routes/adminManagementRoutes'));
 app.use('/api/admin/security', require('./routes/securityRoutes'));
 app.use('/api/branches', require('./routes/branchRoutes'));
+app.use('/api/branch-change', require('./routes/branchChangeRoutes'));
 app.use('/api/admin/schemes', require('./routes/schemeRoutes'));
+app.use('/api/admin/evaluation-groups', require('./routes/evaluationGroupRoutes'));
+app.use('/api/admin/evaluation-rules', require('./routes/evaluationRuleRoutes'));
 app.use('/api/admin/academic-materials', require('./routes/academicMaterialRoutes'));
 
 app.get('/api/hero-stats', async (req, res) => {

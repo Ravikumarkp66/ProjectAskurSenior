@@ -3,27 +3,29 @@ import { SearchX, RotateCcw } from 'lucide-react';
 
 const InterviewEmptyState = ({ searchQuery, onReset }) => {
     return (
-        <div className="w-full py-20 px-4 flex flex-col items-center justify-center text-center rounded-2xl bg-[#0e1015]/60 border border-white/[0.06]">
-            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-slate-500 mb-4 shadow-inner">
-                <SearchX size={32} className="text-purple-400/60" />
+        <div className="w-full py-16 px-4 flex flex-col items-center justify-center text-center rounded-xl bg-zinc-50/50 dark:bg-[#0e1015]/60 border border-zinc-200 dark:border-white/[0.06]">
+            <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-white/[0.04] border border-zinc-200 dark:border-white/[0.08] flex items-center justify-center text-zinc-400 dark:text-zinc-500 mb-3">
+                <SearchX size={24} />
             </div>
-            <h3 className="text-lg font-bold text-white mb-1">
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-1">
                 No matching companies found
             </h3>
-            <p className="text-xs text-slate-400 max-w-sm mb-6">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mb-5 font-mono">
                 {searchQuery ? (
-                    <>We couldn't find any placement track matching <span className="text-purple-300 font-semibold">"{searchQuery}"</span> with the current filters.</>
+                    <>No placement track matching "{searchQuery}".</>
                 ) : (
-                    <>No companies match your selected filters. Try broadening your criteria.</>
+                    <>No placement records found.</>
                 )}
             </p>
-            <button
-                onClick={onReset}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/30 text-purple-300 text-xs font-bold transition-all"
-            >
-                <RotateCcw size={13} />
-                <span>Reset All Filters</span>
-            </button>
+            {searchQuery && (
+                <button
+                    onClick={onReset}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white text-xs font-mono transition-colors"
+                >
+                    <RotateCcw size={12} />
+                    <span>Clear Search</span>
+                </button>
+            )}
         </div>
     );
 };

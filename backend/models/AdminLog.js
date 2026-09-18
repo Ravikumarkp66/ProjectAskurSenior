@@ -18,7 +18,12 @@ const adminLogSchema = new mongoose.Schema({
             "PAYMENT_APPROVED",
             "PAYMENT_REJECTED",
             "MANUAL_PLAN_CHANGE",
-            "PAYMENT_RECORD_DELETED"
+            "PAYMENT_RECORD_DELETED",
+            "TEST_USER_ENABLED",
+            "TEST_USER_DISABLED",
+            "FEATURE_UPDATED",
+            "ACCOUNT_SUSPENDED",
+            "ACCOUNT_REACTIVATED"
         ]
     },
     targetUserId: {

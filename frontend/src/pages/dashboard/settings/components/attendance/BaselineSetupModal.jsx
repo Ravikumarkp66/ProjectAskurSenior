@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, AlertCircle, Info, BookOpen } from 'lucide-react';
+import { X, Save, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiV2 } from '../../../../../services/authService';
+import { useTheme } from '../../../../../context/ThemeContext';
 
 const BaselineSetupModal = ({
     isOpen,
@@ -10,6 +11,22 @@ const BaselineSetupModal = ({
     registeredSubjects = [],
     onBaselineSaved
 }) => {
+    const { isDark = true } = useTheme?.() || {};
+
+    const t = {
+        surface: isDark ? '#0D111C' : '#FFFFFF',
+        surfaceSubtle: isDark ? 'rgba(255, 255, 255, 0.02)' : '#F8FAFC',
+        surfaceElevated: isDark ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9',
+        border: isDark ? 'rgba(255, 255, 255, 0.1)' : '#E2E8F0',
+        borderSubtle: isDark ? 'rgba(255, 255, 255, 0.06)' : '#CBD5E1',
+        text: isDark ? '#F1F5F9' : '#0F172A',
+        textMuted: isDark ? '#94A3B8' : '#64748B',
+        textFaint: isDark ? '#64748B' : '#94A3B8',
+        inputBg: isDark ? '#141724' : '#FFFFFF',
+        accent: '#6D28D9',
+        accentLight: isDark ? '#C4B5FD' : '#6D28D9'
+    };
+
     const [baselineData, setBaselineData] = useState({});
     const [isSaving, setIsSaving] = useState(false);
 
@@ -80,78 +97,57 @@ const BaselineSetupModal = ({
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        }}>
-            <div style={{
-                background: '#13111C',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '20px',
-                width: '100%',
-                maxWidth: '560px',
-                maxHeight: '90vh',
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)',
-                overflow: 'hidden',
-                color: '#fff'
-            }}>
+        <div 
+            className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+            onClick={onClose}
+        >
+            <div 
+                className="w-full max-w-[560px] max-h-[90vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden font-sans transition-colors"
+                style={{
+                    backgroundColor: t.surface,
+                    borderColor: t.border,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    color: t.text
+                }}
+                onClick={e => e.stopPropagation()}
+            >
                 {/* Modal Header */}
-                <div style={{
-                    padding: '20px 24px',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
+                <div 
+                    className="p-5 sm:px-6 flex justify-between items-center shrink-0"
+                    style={{ borderBottom: `1px solid ${t.borderSubtle}` }}
+                >
                     <div>
-                        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>
+                        <h3 className="text-base sm:text-lg font-bold" style={{ color: t.text }}>
                             Mid-Semester Baseline Setup
                         </h3>
-                        <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0 0' }}>
+                        <p className="text-xs mt-1" style={{ color: t.textMuted }}>
                             Semester {semester} · Enter past aggregate classes attended before starting on AskUrSenior.
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '8px',
-                            color: '#94a3b8',
-                            padding: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}
+                        className="p-1.5 rounded-lg transition-colors"
+                        style={{ color: t.textMuted }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = t.surfaceElevated; e.currentTarget.style.color = t.text; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = t.textMuted; }}
                     >
-                        <X size={16} />
+                        <X size={17} />
                     </button>
                 </div>
 
                 {/* Info Alert */}
-                <div style={{ padding: '16px 24px 0 24px' }}>
-                    <div style={{
-                        background: 'rgba(124, 58, 237, 0.08)',
-                        border: '1px solid rgba(124, 58, 237, 0.2)',
-                        borderRadius: '10px',
-                        padding: '12px 14px',
-                        display: 'flex',
-                        gap: '10px',
-                        fontSize: '12px',
-                        color: '#c4b5fd'
-                    }}>
-                        <Info size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div className="px-5 sm:px-6 pt-4 shrink-0">
+                    <div 
+                        className="p-3 rounded-xl flex gap-2.5 text-xs"
+                        style={{
+                            backgroundColor: isDark ? 'rgba(124, 58, 237, 0.08)' : '#F5F3FF',
+                            border: `1px solid ${isDark ? 'rgba(124, 58, 237, 0.2)' : '#DDD6FE'}`,
+                            color: isDark ? '#C4B5FD' : '#6D28D9'
+                        }}
+                    >
+                        <Info size={16} className="shrink-0 mt-0.5" />
                         <span>
                             These baseline numbers will be added to your daily tracked classes for overall percentage calculation without generating fake calendar dates.
                         </span>
@@ -159,16 +155,9 @@ const BaselineSetupModal = ({
                 </div>
 
                 {/* Subject List Form */}
-                <div style={{
-                    padding: '20px 24px',
-                    overflowY: 'auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px',
-                    flex: 1
-                }}>
+                <div className="p-5 sm:px-6 overflow-y-auto flex flex-col gap-3 flex-1">
                     {registeredSubjects.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8', fontSize: '13px' }}>
+                        <div className="text-center py-8 text-xs" style={{ color: t.textMuted }}>
                             No registered subjects found for Semester {semester}.
                         </div>
                     ) : (
@@ -180,29 +169,26 @@ const BaselineSetupModal = ({
                             const conductedVal = baselineData[id]?.conducted ?? 0;
 
                             return (
-                                <div key={id} style={{
-                                    background: 'rgba(255, 255, 255, 0.02)',
-                                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                                    borderRadius: '12px',
-                                    padding: '14px 16px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    gap: '16px',
-                                    flexWrap: 'wrap'
-                                }}>
-                                    <div style={{ flex: 1, minWidth: '180px' }}>
-                                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#f8fafc' }}>
+                                <div 
+                                    key={id} 
+                                    className="p-3.5 rounded-xl flex justify-between items-center gap-4 flex-wrap"
+                                    style={{
+                                        backgroundColor: t.surfaceSubtle,
+                                        border: `1px solid ${t.borderSubtle}`
+                                    }}
+                                >
+                                    <div className="flex-1 min-w-[160px]">
+                                        <div className="text-sm font-semibold truncate" style={{ color: t.text }}>
                                             {name}
                                         </div>
-                                        <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                                        <div className="text-[11px] mt-0.5" style={{ color: t.textMuted }}>
                                             {code ? `${code} · ` : ''}{reg.category || 'Theory'} · {reg.registeredCredits || 0} Credits
                                         </div>
                                     </div>
 
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div className="flex items-center gap-3">
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>
+                                            <label className="block text-[10px] uppercase font-mono tracking-wider mb-1" style={{ color: t.textMuted }}>
                                                 Present
                                             </label>
                                             <input
@@ -210,23 +196,17 @@ const BaselineSetupModal = ({
                                                 min="0"
                                                 value={presentVal}
                                                 onChange={(e) => handlePresentChange(id, e.target.value)}
+                                                className="w-16 h-8 rounded-lg text-xs font-bold font-mono text-center focus:outline-none focus:border-violet-500"
                                                 style={{
-                                                    background: '#0F0D16',
-                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                    borderRadius: '6px',
-                                                    color: '#6ee7b7',
-                                                    padding: '6px 10px',
-                                                    fontSize: '13px',
-                                                    fontWeight: 700,
-                                                    width: '60px',
-                                                    textAlign: 'center',
-                                                    outline: 'none'
+                                                    backgroundColor: t.inputBg,
+                                                    border: `1px solid ${t.borderSubtle}`,
+                                                    color: isDark ? '#34D399' : '#059669'
                                                 }}
                                             />
                                         </div>
-                                        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '14px', marginTop: '16px' }}>/</span>
+                                        <span className="text-sm mt-4" style={{ color: t.textFaint }}>/</span>
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '10px', color: '#94a3b8', marginBottom: '4px' }}>
+                                            <label className="block text-[10px] uppercase font-mono tracking-wider mb-1" style={{ color: t.textMuted }}>
                                                 Conducted
                                             </label>
                                             <input
@@ -234,17 +214,11 @@ const BaselineSetupModal = ({
                                                 min="0"
                                                 value={conductedVal}
                                                 onChange={(e) => handleConductedChange(id, e.target.value)}
+                                                className="w-16 h-8 rounded-lg text-xs font-bold font-mono text-center focus:outline-none focus:border-violet-500"
                                                 style={{
-                                                    background: '#0F0D16',
-                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                    borderRadius: '6px',
-                                                    color: '#f8fafc',
-                                                    padding: '6px 10px',
-                                                    fontSize: '13px',
-                                                    fontWeight: 700,
-                                                    width: '60px',
-                                                    textAlign: 'center',
-                                                    outline: 'none'
+                                                    backgroundColor: t.inputBg,
+                                                    border: `1px solid ${t.borderSubtle}`,
+                                                    color: t.text
                                                 }}
                                             />
                                         </div>
@@ -256,25 +230,18 @@ const BaselineSetupModal = ({
                 </div>
 
                 {/* Modal Footer */}
-                <div style={{
-                    padding: '16px 24px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    gap: '12px'
-                }}>
+                <div 
+                    className="p-4 sm:px-6 flex justify-end gap-2.5 shrink-0"
+                    style={{ borderTop: `1px solid ${t.borderSubtle}` }}
+                >
                     <button
                         type="button"
                         onClick={onClose}
+                        className="px-4 py-2 text-xs font-medium rounded-xl transition-all"
                         style={{
-                            background: 'transparent',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            borderRadius: '8px',
-                            color: '#94a3b8',
-                            padding: '8px 16px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: 'pointer'
+                            backgroundColor: t.surfaceElevated,
+                            color: t.textMuted,
+                            border: `1px solid ${t.border}`
                         }}
                     >
                         Cancel
@@ -283,22 +250,10 @@ const BaselineSetupModal = ({
                         type="button"
                         onClick={handleSave}
                         disabled={isSaving}
-                        style={{
-                            background: '#7c3aed',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: '#fff',
-                            padding: '8px 20px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: isSaving ? 'wait' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                        }}
+                        className="px-5 py-2 text-xs font-semibold rounded-xl text-white bg-violet-600 hover:bg-violet-500 transition-all flex items-center gap-1.5 shadow-sm shadow-violet-600/30 disabled:opacity-50"
                     >
                         <Save size={14} />
-                        {isSaving ? 'Saving...' : 'Save Baseline'}
+                        <span>{isSaving ? 'Saving...' : 'Save Baseline'}</span>
                     </button>
                 </div>
             </div>

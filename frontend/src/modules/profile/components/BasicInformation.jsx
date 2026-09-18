@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { basicInformationConfig } from '../config/basicInformation';
+import { CheckCircle2, AlertCircle, Lock } from 'lucide-react';
+import { useTheme } from '../../../context/ThemeContext';
+import SectionChangeModal from './SectionChangeModal';
 
 const BasicInformation = ({ student }) => {
+    const navigate = useNavigate();
+    const { isDark } = useTheme();
+    const [showSectionModal, setShowSectionModal] = useState(false);
+
     if (!student) return null;
 
     const getYearOfStudy = (semester) => {
@@ -13,14 +21,59 @@ const BasicInformation = ({ student }) => {
         return `${year}${suffix} Year`;
     };
 
-    const renderRowContent = (key) => {
+    const labelColor = isDark ? '#94A3B8' : '#64748B';
+    const valColor = isDark ? '#F1F5F9' : '#0F172A';
+    const rowBorder = isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(15, 23, 42, 0.05)';
+    const iconColor = isDark ? '#A78BFA' : '#7C3AED';
+
+    const renderValue = (key) => {
         switch (key) {
             case 'usn': {
-                const usnVal = student.usn || 'N/A';
+                const usnVal = student.usn || '';
+                const isVerified = !!student.usnVerified;
+
                 return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        USN: <span style={{ color: '#f8fafc', fontWeight: 600, letterSpacing: '0.03em' }}>{usnVal}</span>
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                        <span style={{ color: valColor, fontWeight: 600, letterSpacing: '0.02em', fontFamily: 'monospace', fontSize: '12px' }}>
+                            {usnVal || 'Not Set'}
+                        </span>
+                        {usnVal && isVerified ? (
+                            <span style={{
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '1.5px 6px',
+                                borderRadius: '4px',
+                                background: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(16, 185, 129, 0.1)',
+                                color: isDark ? '#34d399' : '#059669',
+                                border: `1px solid ${isDark ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.2)'}`,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                            }}>
+                                <CheckCircle2 size={10} /> Verified
+                            </span>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/profile/edit/basic')}
+                                style={{
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    padding: '1.5px 6px',
+                                    borderRadius: '4px',
+                                    background: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)',
+                                    color: isDark ? '#fbbf24' : '#d97706',
+                                    border: `1px solid ${isDark ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.2)'}`,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                }}
+                            >
+                                <AlertCircle size={10} /> {usnVal ? 'Temp' : 'Add'}
+                            </button>
+                        )}
+                    </div>
                 );
             }
             case 'college': {
@@ -28,26 +81,95 @@ const BasicInformation = ({ student }) => {
                     ? (student.college?.name || student.collegeName) 
                     : (student.college || student.collegeName || 'Siddaganga Institute of Technology');
                 return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        College: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{collegeVal}</span>
+                    <span 
+                        style={{ color: valColor, fontWeight: 500, fontSize: '12px', textAlign: 'right', maxWidth: '210px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} 
+                        title={collegeVal}
+                    >
+                        {collegeVal}
                     </span>
                 );
             }
             case 'branch': {
-                let branchStr = 'Information Science and Engineering (ISE)';
-                if (typeof student.branch === 'object' && student.branch) {
-                    if (student.branch.name && student.branch.shortName) {
-                        branchStr = `${student.branch.name} (${student.branch.shortName})`;
-                    } else {
-                        branchStr = student.branch.name || student.branch.shortName || branchStr;
-                    }
-                } else if (typeof student.branch === 'string' && student.branch.trim()) {
-                    branchStr = student.branch;
-                }
+                const branchStr = typeof student.branch === 'object' && student.branch
+                    ? (student.branch.shortName || student.branch.name || 'ISE')
+                    : (student.branch || 'ISE');
                 return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Branch: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{branchStr}</span>
+                    <span style={{ color: valColor, fontWeight: 600, fontSize: '12px' }}>
+                        {branchStr}
                     </span>
+                );
+            }
+            case 'section': {
+                const secName = (typeof student.academicSection === 'object' && student.academicSection?.name)
+                    ? student.academicSection.name
+                    : (student.section || (typeof student.academicSection === 'string' && student.academicSection.length <= 2 ? student.academicSection : ''));
+                const isLocked = Boolean(student.sectionLocked);
+                const displaySecName = secName ? (secName.toLowerCase().startsWith('section') ? secName : `Section ${secName}`) : 'Not Selected';
+
+                return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                        <span style={{ color: valColor, fontWeight: 600, fontSize: '12px' }}>
+                            {displaySecName}
+                        </span>
+                        {isLocked ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span title="Section locked" style={{ color: labelColor, display: 'inline-flex', alignItems: 'center' }}>
+                                    <Lock size={11} />
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSectionModal(true)}
+                                    style={{
+                                        fontSize: '10px',
+                                        fontWeight: 600,
+                                        padding: '1.5px 6px',
+                                        borderRadius: '4px',
+                                        background: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(124, 58, 237, 0.08)',
+                                        color: isDark ? '#c084fc' : '#7c3aed',
+                                        border: `1px solid ${isDark ? 'rgba(192, 132, 252, 0.25)' : 'rgba(124, 58, 237, 0.2)'}`,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Change
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => navigate('/profile/edit/basic')}
+                                style={{
+                                    fontSize: '10px',
+                                    fontWeight: 600,
+                                    padding: '1.5px 6px',
+                                    borderRadius: '4px',
+                                    background: isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(124, 58, 237, 0.08)',
+                                    color: isDark ? '#c084fc' : '#7c3aed',
+                                    border: `1px solid ${isDark ? 'rgba(192, 132, 252, 0.25)' : 'rgba(124, 58, 237, 0.2)'}`,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Set
+                            </button>
+                        )}
+                    </div>
+                );
+            }
+            case 'labBatch': {
+                const labBatchVal = student.labBatch;
+                if (!labBatchVal) return null;
+                const isLocked = !!student.labBatchLocked;
+
+                return (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                        <span style={{ color: valColor, fontWeight: 600, fontSize: '12px' }}>
+                            Batch {labBatchVal}
+                        </span>
+                        {isLocked && (
+                            <span title="Lab batch locked" style={{ color: labelColor, display: 'inline-flex', alignItems: 'center' }}>
+                                <Lock size={11} />
+                            </span>
+                        )}
+                    </div>
                 );
             }
             case 'scheme': {
@@ -55,8 +177,8 @@ const BasicInformation = ({ student }) => {
                     ? student.scheme.name
                     : (student.scheme || '2022');
                 return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Scheme: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{schemeName} Scheme</span>
+                    <span style={{ color: valColor, fontWeight: 500, fontSize: '12px' }}>
+                        {schemeName} Scheme
                     </span>
                 );
             }
@@ -64,15 +186,15 @@ const BasicInformation = ({ student }) => {
                 const sem = student.semester || 1;
                 const yearLabel = getYearOfStudy(sem);
                 return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Year & Sem: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{yearLabel} · Semester {sem}</span>
+                    <span style={{ color: valColor, fontWeight: 500, fontSize: '12px' }}>
+                        {yearLabel} · Sem {sem}
                     </span>
                 );
             }
             case 'graduationYear':
                 return (
-                    <span style={{ fontSize: '13px', color: '#94a3b8', lineHeight: '1.4' }}>
-                        Expected Graduation: <span style={{ color: '#f8fafc', fontWeight: 500 }}>{student.graduationYear || '2027'}</span>
+                    <span style={{ color: valColor, fontWeight: 500, fontSize: '12px' }}>
+                        {student.graduationYear || '2027'}
                     </span>
                 );
             default:
@@ -84,14 +206,16 @@ const BasicInformation = ({ student }) => {
         <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
+            gap: '6px',
             fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
         }}>
             <h3 style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#94a3b8',
-                margin: '0 0 4px 0'
+                fontSize: '11px',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                color: labelColor,
+                margin: '0 0 2px 0'
             }}>
                 Basic Information
             </h3>
@@ -99,10 +223,10 @@ const BasicInformation = ({ student }) => {
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px',
-                paddingLeft: '2px'
             }}>
                 {basicInformationConfig.map((item) => {
+                    const valueEl = renderValue(item.key);
+                    if (!valueEl) return null;
                     const Icon = item.icon;
                     
                     return (
@@ -110,37 +234,58 @@ const BasicInformation = ({ student }) => {
                             key={item.key}
                             style={{
                                 display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: '12px',
-                                minHeight: '32px',
-                                padding: '3px 0',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '10px',
+                                minHeight: '30px',
+                                padding: '4px 0',
+                                borderBottom: `1px solid ${rowBorder}`,
                                 boxSizing: 'border-box',
                                 minWidth: 0
                             }}
                         >
-                            {/* Icon wrapper */}
+                            {/* Label column (CSES key) */}
                             <div style={{
-                                color: '#a78bfa',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center',
-                                flexShrink: 0,
-                                paddingTop: '2px'
+                                gap: '8px',
+                                width: '105px',
+                                flexShrink: 0
                             }}>
-                                <Icon size={14} strokeWidth={2.2} />
+                                <Icon size={13} color={iconColor} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                                <span style={{
+                                    fontSize: '12px',
+                                    color: labelColor,
+                                    fontWeight: 500,
+                                    whiteSpace: 'nowrap'
+                                }}>
+                                    {item.label}
+                                </span>
                             </div>
 
-                            {/* Value Display */}
+                            {/* Value column (CSES value) */}
                             <div style={{
                                 minWidth: 0,
-                                flex: 1
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'flex-end'
                             }}>
-                                {renderRowContent(item.key)}
+                                {valueEl}
                             </div>
                         </div>
                     );
                 })}
             </div>
+
+            <SectionChangeModal
+                isOpen={showSectionModal}
+                onClose={() => setShowSectionModal(false)}
+                student={student}
+                onSubmitted={() => {
+                    setShowSectionModal(false);
+                }}
+            />
         </div>
     );
 };

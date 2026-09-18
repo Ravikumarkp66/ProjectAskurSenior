@@ -9,29 +9,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const BrandStatement = ({ brandStatement }) => {
+const BrandStatement = () => {
     return (
         <motion.div
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.18, ease: "easeOut" }}
-            className="mb-5 flex flex-col items-center lg:items-start"
+            transition={{ duration: 0.45, delay: 0.14, ease: "easeOut" }}
+            className="mb-4 flex flex-col items-start text-left"
         >
-            <div
-                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg border text-xs sm:text-sm md:text-base font-bold tracking-wide transition-all duration-200"
-                style={{
-                    backgroundColor: 'var(--brand-pill-bg, #7C3AED)',
-                    borderColor: 'var(--brand-pill-border, rgba(124, 58, 237, 0.4))',
-                    color: 'var(--brand-pill-text, #FFFFFF)',
-                    boxShadow: 'var(--brand-pill-shadow, 0 4px 14px rgba(124, 58, 237, 0.25))'
-                }}
-            >
-                <span>We share</span>
-                <span className="font-extrabold tracking-wider uppercase text-sm sm:text-base md:text-lg" style={{ color: 'var(--brand-pill-highlight, #FDE047)' }}>
-                    EXPERIENCE,
-                </span>
-                <span>not speculation.</span>
+            <div className="flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-purple-600 dark:text-purple-400 mb-1">
+                <span className="text-[10px]">✦</span>
+                <span>REAL STUDENT EXPERIENCE</span>
             </div>
+            <p className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 tracking-tight">
+                We share <span className="text-purple-600 dark:text-purple-400 font-bold">EXPERIENCE</span>, not speculation.
+            </p>
         </motion.div>
     );
 };

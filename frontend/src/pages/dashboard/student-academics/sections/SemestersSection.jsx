@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { motion } from 'framer-motion';
 import { 
-    Lock, CheckCircle2, Calendar, Edit3, 
-    ArrowRight, AlertTriangle, ShieldAlert, Sparkles, BookOpen, Layers, X, Check, Save 
+    Lock, CheckCircle2, Calendar, 
+    ArrowRight, BookOpen, Layers, ShieldCheck, Clock
 } from 'lucide-react';
 import { useStudentAcademics } from '../../../../contexts/StudentAcademicsContext';
 import { useTheme } from '../../../../context/ThemeContext';
@@ -12,84 +12,12 @@ const SemestersSection = ({ onNavigateTab }) => {
         semestersData, 
         currentSemester, 
         selectedSemester, 
-        selectSemester, 
-        semesterCreditsMap, 
-        timetableConfig,
-        finalizeSemester, 
-        updateSemester,
-        saving 
+        selectSemester,
+        academicOverview
     } = useStudentAcademics();
 
     const themeContext = useTheme();
     const isDark = themeContext ? themeContext.isDark : true;
-
-    const [finalizingSem, setFinalizingSem] = useState(null);
-    
-    // Inline editing state: stores the ID of the semester currently being edited
-    const [editingSemId, setEditingSemId] = useState(null);
-    const [editFormData, setEditFormData] = useState({
-        startDate: '',
-        endDate: '',
-        sgpa: '',
-        academicYear: ''
-    });
-
-    const handleConfirmFinalize = async () => {
-        if (!finalizingSem) return;
-        await finalizeSemester(finalizingSem);
-        setFinalizingSem(null);
-    };
-
-    // Start inline editing for a specific semester
-    const handleStartInlineEdit = (sem, e) => {
-        e.stopPropagation();
-        
-        let startVal = sem.startDate || '';
-        let endVal = sem.endDate || '';
-
-        // If active semester and dates exist in timetableConfig, use those
-        if (sem.semester === currentSemester && !startVal && timetableConfig?.semesterStartDate) {
-            startVal = timetableConfig.semesterStartDate;
-        }
-        if (sem.semester === currentSemester && !endVal && timetableConfig?.lastWorkingDate) {
-            endVal = timetableConfig.lastWorkingDate;
-        }
-
-        // Clean to YYYY-MM-DD for date input value
-        if (startVal && startVal.includes('T')) startVal = startVal.split('T')[0];
-        if (endVal && endVal.includes('T')) endVal = endVal.split('T')[0];
-
-        setEditFormData({
-            startDate: startVal,
-            endDate: endVal,
-            sgpa: sem.sgpa !== null && sem.sgpa !== undefined ? String(sem.sgpa) : '',
-            academicYear: sem.academicYear || ''
-        });
-        setEditingSemId(sem.semester);
-    };
-
-    // Cancel inline editing
-    const handleCancelInlineEdit = (e) => {
-        if (e) e.stopPropagation();
-        setEditingSemId(null);
-    };
-
-    // Save inline edited semester
-    const handleSaveInlineEdit = async (semNumber, e) => {
-        if (e) e.stopPropagation();
-
-        const payload = {
-            startDate: editFormData.startDate || null,
-            endDate: editFormData.endDate || null,
-            academicYear: editFormData.academicYear || null,
-            sgpa: editFormData.sgpa ? parseFloat(editFormData.sgpa) : null
-        };
-
-        const success = await updateSemester(semNumber, payload);
-        if (success) {
-            setEditingSemId(null);
-        }
-    };
 
     // Format display date safely (returns "—" if not set)
     const formatDisplayDate = (dateVal) => {
@@ -103,276 +31,175 @@ const SemestersSection = ({ onNavigateTab }) => {
         }
     };
 
-    const getSemesterDates = (sem) => {
-        let sDate = sem.startDate;
-        let eDate = sem.endDate;
-
-        if (sem.semester === currentSemester) {
-            if (!sDate && timetableConfig?.semesterStartDate) sDate = timetableConfig.semesterStartDate;
-            if (!eDate && timetableConfig?.lastWorkingDate) eDate = timetableConfig.lastWorkingDate;
-        }
-
-        return {
-            start: formatDisplayDate(sDate),
-            end: formatDisplayDate(eDate),
-            rawStart: sDate,
-            rawEnd: eDate
-        };
-    };
-
     return (
-        <div className="flex flex-col gap-2.5 w-full">
-
-            {/* Semesters Clean Vertical List */}
-            <div className="flex flex-col gap-2.5">
-                {semestersData.map((sem) => {
-                    const isCurrent = sem.semester === currentSemester;
-                    const isSelected = sem.semester === selectedSemester;
-                    const isPast = sem.semester < currentSemester;
-                    const isFrozen = sem.status === 'completed' || isPast;
-                    const credits = semesterCreditsMap[sem.semester] ?? sem.credits ?? 20;
-                    const dates = getSemesterDates(sem);
-                    const isInlineEditing = editingSemId === sem.semester;
-
-                    // Active or not status badge
-                    let statusBadge = (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800/80 text-slate-400 border border-white/5 flex items-center gap-1">
-                            Inactive ○
-                        </span>
-                    );
-
-                    if (isCurrent) {
-                        statusBadge = (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 shadow-sm shadow-emerald-950/40">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Active ●
+        <div className="flex flex-col gap-4 w-full">
+            {/* Header info banner */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-transparent border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                        <Layers size={20} />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-bold text-white flex items-center gap-2">
+                            Academic Semesters
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium">
+                                Authoritative Baseline
                             </span>
-                        );
-                    } else if (isFrozen) {
-                        statusBadge = (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20 flex items-center gap-1">
-                                <Lock size={9} /> Finalized 🔒
-                            </span>
-                        );
-                    }
+                        </h2>
+                        <p className="text-xs text-slate-400">
+                            Academic structure configured by {academicOverview?.college?.name || 'SIT'}. Showing official active & historical terms.
+                        </p>
+                    </div>
+                </div>
 
-                    return (
-                        <div
-                            key={sem.semester}
-                            onClick={() => !isInlineEditing && selectSemester(sem.semester)}
-                            className={`p-3.5 sm:p-4 rounded-xl border transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 shadow-md ${
-                                isInlineEditing
-                                    ? 'bg-[#12082b] border-purple-500/70 ring-2 ring-purple-500/40'
-                                    : isSelected
-                                        ? 'bg-purple-950/30 border-purple-500/50 ring-1 ring-purple-500/30 cursor-pointer'
-                                        : 'bg-[#090518]/70 border-purple-500/15 hover:border-purple-500/30 hover:bg-white/[0.02] cursor-pointer'
-                            }`}
-                        >
-                            {/* Left Column: Semester ID & Active Status */}
-                            <div className="flex items-center gap-3.5 min-w-[200px]">
-                                <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm ${
-                                    isCurrent 
-                                        ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30'
-                                        : isSelected 
-                                            ? 'bg-purple-600/30 text-purple-200 border border-purple-500/40' 
-                                            : 'bg-white/[0.03] text-slate-400 border border-white/5'
-                                }`}>
-                                    S{sem.semester}
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <h3 className="text-sm font-bold text-white">
-                                            Semester {sem.semester}
-                                        </h3>
-                                        {statusBadge}
-                                    </div>
-                                    <span className="text-[11px] text-slate-400">
-                                        {sem.academicYear ? `Academic Year ${sem.academicYear}` : `Term ${sem.semester % 2 === 1 ? 'Odd' : 'Even'}`}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Middle Column: Start Date & End Date (View vs Inline Edit) */}
-                            {isInlineEditing ? (
-                                <div 
-                                    className="flex flex-wrap items-center gap-3 bg-[#190f36] p-2.5 rounded-lg border border-purple-500/30"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {/* Start Date Input */}
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[11px] font-semibold text-purple-200 whitespace-nowrap">Start:</span>
-                                        <input
-                                            type="date"
-                                            value={editFormData.startDate}
-                                            onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
-                                            style={{
-                                                colorScheme: isDark ? 'dark' : 'light'
-                                            }}
-                                            className="px-2.5 py-1 text-xs rounded-md bg-[#0a0518] text-white border border-purple-500/40 focus:outline-none focus:border-purple-400 font-mono shadow-inner cursor-pointer"
-                                        />
-                                    </div>
-
-                                    <span className="text-purple-400 font-bold hidden sm:inline">→</span>
-
-                                    {/* End Date Input */}
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[11px] font-semibold text-purple-200 whitespace-nowrap">End:</span>
-                                        <input
-                                            type="date"
-                                            value={editFormData.endDate}
-                                            onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
-                                            style={{
-                                                colorScheme: isDark ? 'dark' : 'light'
-                                            }}
-                                            className="px-2.5 py-1 text-xs rounded-md bg-[#0a0518] text-white border border-purple-500/40 focus:outline-none focus:border-purple-400 font-mono shadow-inner cursor-pointer"
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex flex-wrap items-center gap-3 sm:gap-6 bg-[#120c24]/50 px-3 py-2 rounded-lg border border-purple-500/10">
-                                    <div className="flex items-center gap-1.5 text-xs">
-                                        <Calendar size={13} className="text-purple-400 shrink-0" />
-                                        <span className="text-slate-400 text-[11px]">Start Date:</span>
-                                        <span className={`font-mono text-xs font-semibold ${dates.start !== '—' ? 'text-purple-200' : 'text-slate-400'}`}>
-                                            {dates.start}
-                                        </span>
-                                    </div>
-
-                                    <div className="hidden sm:block text-slate-600">→</div>
-
-                                    <div className="flex items-center gap-1.5 text-xs">
-                                        <Calendar size={13} className="text-purple-400 shrink-0" />
-                                        <span className="text-slate-400 text-[11px]">End Date:</span>
-                                        <span className={`font-mono text-xs font-semibold ${dates.end !== '—' ? 'text-purple-200' : 'text-slate-400'}`}>
-                                            {dates.end}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Right Column: Actions (Edit / Save / Cancel / Conditional Finalize) */}
-                            <div className="flex items-center justify-between lg:justify-end gap-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 border-white/5">
-                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                    {isInlineEditing ? (
-                                        <>
-                                            {/* Inline Save Button */}
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handleSaveInlineEdit(sem.semester, e)}
-                                                disabled={saving}
-                                                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow-md shadow-emerald-950/40 disabled:opacity-50"
-                                                title="Save semester dates"
-                                            >
-                                                <Check size={13} />
-                                                <span>{saving ? 'Saving...' : 'Save'}</span>
-                                            </button>
-
-                                            {/* Inline Cancel Button */}
-                                            <button
-                                                type="button"
-                                                onClick={handleCancelInlineEdit}
-                                                className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
-                                                title="Cancel editing"
-                                            >
-                                                <X size={13} />
-                                                <span>Cancel</span>
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            {/* Edit Button */}
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handleStartInlineEdit(sem, e)}
-                                                className="px-3 py-1.5 rounded-lg bg-purple-600/15 hover:bg-purple-600/30 text-purple-200 border border-purple-500/30 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-                                                title="Edit semester dates"
-                                            >
-                                                <Edit3 size={12} className="text-purple-300" />
-                                                <span>Edit</span>
-                                            </button>
-
-                                            {/* Finalize button shown only in last week or after end date */}
-                                            {(() => {
-                                                if (!isCurrent || isFrozen || !dates.rawEnd) return null;
-                                                const endDateObj = new Date(dates.rawEnd);
-                                                if (isNaN(endDateObj.getTime())) return null;
-                                                const sevenDaysBeforeEnd = new Date(endDateObj.getTime() - (7 * 24 * 60 * 60 * 1000));
-                                                const now = new Date();
-                                                const canFinalize = now >= sevenDaysBeforeEnd;
-
-                                                if (!canFinalize) return null;
-
-                                                return (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setFinalizingSem(sem.semester);
-                                                        }}
-                                                        className="px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 text-xs font-semibold transition-colors cursor-pointer"
-                                                        title="Finalize completed semester"
-                                                    >
-                                                        Finalize
-                                                    </button>
-                                                );
-                                            })()}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="text-xs text-slate-400">Current Standing:</span>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        Semester {currentSemester}
+                    </span>
+                </div>
             </div>
 
-            {/* Finalization Confirmation Modal */}
-            <AnimatePresence>
-                {finalizingSem && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="w-full max-w-md p-5 rounded-xl bg-[#0e0826] border border-purple-500/30 shadow-2xl space-y-3.5"
-                        >
-                            <div className="w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
-                                <ShieldAlert size={20} />
-                            </div>
-
-                            <div>
-                                <h3 className="text-base font-bold text-white">Finalize Semester {finalizingSem}?</h3>
-                                <p className="text-xs text-slate-300 mt-1">
-                                    Finalizing freezes subjects, timetable, and attendance history as an immutable permanent record.
-                                </p>
-                            </div>
-
-                            <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-amber-300 space-y-1">
-                                <p className="font-semibold text-[11px]">What will happen:</p>
-                                <ul className="list-disc list-inside text-[11px] text-slate-300">
-                                    <li>Subjects and timetable for Semester {finalizingSem} will become read-only.</li>
-                                    <li>All historical attendance entries are permanently preserved.</li>
-                                </ul>
-                            </div>
-
-                            <div className="flex justify-end gap-2 pt-2">
-                                <button
-                                    onClick={() => setFinalizingSem(null)}
-                                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold cursor-pointer"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleConfirmFinalize}
-                                    disabled={saving}
-                                    className="px-4 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-md shadow-amber-600/30 cursor-pointer disabled:opacity-50"
-                                >
-                                    {saving ? 'Freezing...' : 'Confirm & Finalize'}
-                                </button>
-                            </div>
-                        </motion.div>
+            {/* Semesters Read-Only List */}
+            <div className="flex flex-col gap-3">
+                {(!semestersData || semestersData.length === 0) ? (
+                    <div className="p-8 text-center rounded-xl bg-purple-950/20 border border-purple-500/20 text-slate-400">
+                        <p className="text-sm">No official academic semesters found for your enrolled batch.</p>
                     </div>
+                ) : (
+                    semestersData.map((sem) => {
+                        const semNumber = Number(sem.number || sem.semester);
+                        const isCurrent = semNumber === currentSemester;
+                        const isSelected = semNumber === selectedSemester;
+                        const isPast = semNumber < currentSemester;
+
+                        let statusBadge = (
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800/80 text-slate-400 border border-white/5 flex items-center gap-1">
+                                Historical
+                            </span>
+                        );
+
+                        if (isCurrent) {
+                            statusBadge = (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm shadow-emerald-950/40">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    Active Term
+                                </span>
+                            );
+                        } else if (isPast) {
+                            statusBadge = (
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20 flex items-center gap-1">
+                                    <Lock size={10} /> Completed
+                                </span>
+                            );
+                        }
+
+                        return (
+                            <div
+                                key={semNumber}
+                                onClick={() => selectSemester(semNumber)}
+                                className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md cursor-pointer ${
+                                    isSelected
+                                        ? 'bg-purple-950/40 border-purple-500/60 ring-2 ring-purple-500/30'
+                                        : 'bg-[#0b061c]/80 border-purple-500/15 hover:border-purple-500/40 hover:bg-white/[0.02]'
+                                }`}
+                            >
+                                {/* Left: Semester Number & Program */}
+                                <div className="flex items-center gap-3.5 min-w-[220px]">
+                                    <div className={`w-12 h-12 rounded-xl shrink-0 flex items-center justify-center font-bold text-base shadow-inner ${
+                                        isCurrent 
+                                            ? 'bg-emerald-600/25 text-emerald-300 border border-emerald-500/40'
+                                            : isSelected 
+                                                ? 'bg-purple-600/30 text-purple-200 border border-purple-500/50' 
+                                                : 'bg-white/[0.04] text-slate-400 border border-white/10'
+                                    }`}>
+                                        S{semNumber}
+                                    </div>
+
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="text-sm font-bold text-white">
+                                                Semester {semNumber}
+                                            </h3>
+                                            {statusBadge}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-xs text-purple-300 font-medium">
+                                                {sem.name || `Semester ${semNumber}`}
+                                            </span>
+                                            <span className="text-xs text-slate-500">•</span>
+                                            <span className="text-xs text-slate-400">
+                                                {sem.type || (semNumber % 2 === 1 ? 'Odd Semester' : 'Even Semester')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Center: Official Academic Dates */}
+                                <div className="flex items-center gap-6 px-3 py-2 rounded-lg bg-black/25 border border-white/5 text-xs">
+                                    <div className="flex items-center gap-2">
+                                        <Calendar size={13} className="text-purple-400" />
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-slate-500 font-medium uppercase">Start Date</span>
+                                            <span className="text-slate-200 font-semibold">{formatDisplayDate(sem.startDate)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-6 w-px bg-white/10" />
+
+                                    <div className="flex items-center gap-2">
+                                        <Clock size={13} className="text-purple-400" />
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-slate-500 font-medium uppercase">Last Working Day</span>
+                                            <span className="text-slate-200 font-semibold">{formatDisplayDate(sem.endDate)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right: Section info & Select indicator */}
+                                <div className="flex items-center justify-between md:justify-end gap-3 min-w-[160px]">
+                                    <div className="text-right">
+                                        <span className="text-[10px] text-slate-500 uppercase block font-medium">Assigned Section</span>
+                                        <span className="text-xs font-bold text-slate-200">
+                                            {academicOverview?.section?.name || 'Section A'}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        {isSelected && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (onNavigateTab) onNavigateTab('results');
+                                                }}
+                                                className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow transition-colors flex items-center gap-1.5"
+                                            >
+                                                <span>View Results</span>
+                                                <ArrowRight size={13} />
+                                            </button>
+                                        )}
+                                        <div className={`p-2 rounded-lg transition-colors ${
+                                            isSelected 
+                                                ? 'bg-purple-600/30 text-purple-300' 
+                                                : 'text-slate-500 group-hover:text-slate-300'
+                                        }`}>
+                                            <ArrowRight size={16} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
                 )}
-            </AnimatePresence>
+            </div>
+
+            {/* Read-Only Notice Footer */}
+            <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
+                <ShieldCheck size={16} className="text-purple-400 shrink-0" />
+                <span>
+                    Academic semesters and terms are governed directly by institutional admin policies. Future semesters unlock automatically upon term advancement.
+                </span>
+            </div>
         </div>
     );
 };

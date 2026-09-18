@@ -67,11 +67,10 @@ const validateRegister = [
             return true;
         }),
     body('usn')
-        .notEmpty()
-        .withMessage('USN is required')
+        .optional({ checkFalsy: true })
         .customSanitizer(normalizeUsn)
         .custom((value) => {
-            if (!validateUsn(value)) {
+            if (value && !validateUsn(value)) {
                 throw new Error('Invalid USN format (e.g. 1SI23IS080)');
             }
             return true;

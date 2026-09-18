@@ -1,15 +1,15 @@
 # Database Performance Profile Report
 
-**Timestamp:** 2026-08-22T05:14:15.353Z
+**Timestamp:** 2026-09-09T17:10:19.498Z
 
 | Feature | MongoDB Query | Time (ms) | Returned | Examined | Index Used | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Year Stats & CMS Sidebar** | `AcademicSubject.find({ year: "1st Year", status: "Published" })` | **0 ms** | 30 | 30 | ✅ Yes | 🟢 EXCELLENT |
-| **Global Subjects List** | `AcademicSubject.find({ status: "Published" })` | **0 ms** | 603 | 603 | ✅ Yes | 🟢 EXCELLENT |
-| **Card Breakdown Notes Count** | `AcademicMaterial.find({ subject: { $in: ids }, materialType: "Notes", status: "Published" })` | **2 ms** | 78 | 78 | ✅ Yes | 🟢 EXCELLENT |
-| **Top Subjects Aggregation** | `AcademicMaterial.aggregate([ $match, $group, $sort, $limit ])` | **2 ms** | 3 | 120 | ✅ Yes | 🟢 EXCELLENT |
+| **Year Stats & CMS Sidebar** | `AcademicSubject.find({ year: "1st Year", status: "Published" })` | **1 ms** | 29 | 29 | ✅ Yes | 🟢 EXCELLENT |
+| **Global Subjects List** | `AcademicSubject.find({ status: "Published" })` | **0 ms** | 438 | 438 | ✅ Yes | 🟢 EXCELLENT |
+| **Card Breakdown Notes Count** | `AcademicMaterial.find({ subject: { $in: ids }, materialType: "Notes", status: "Published" })` | **3 ms** | 78 | 78 | ✅ Yes | 🟢 EXCELLENT |
+| **Top Subjects Aggregation** | `AcademicMaterial.aggregate([ $match, $group, $sort, $limit ])` | **2 ms** | 3 | 116 | ✅ Yes | 🟢 EXCELLENT |
 | **Subject Content View** | `AcademicMaterial.find({ subject: subId, status: "Published" })` | **0 ms** | 8 | 8 | ✅ Yes | 🟢 EXCELLENT |
-| **Preview / Download Lookup** | `AcademicMaterial.findById(materialId)` | **0 ms** | 1 | 1 | ✅ Yes | 🟢 EXCELLENT |
+| **Preview / Download Lookup** | `AcademicMaterial.findById(materialId)` | **1 ms** | 1 | 1 | ✅ Yes | 🟢 EXCELLENT |
 
 ## Recommendations
 - 🟢 **All queried fields are indexed efficiently with sub-millisecond to low-millisecond execution times.**

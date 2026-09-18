@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarDays, ArrowRight, Clock, MapPin, Edit2 } from 'lucide-react';
+import { CalendarDays, ArrowRight, MapPin, Edit2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiV2 } from '../../../services/authService';
+import { useTheme } from '../../../context/ThemeContext';
 
 function getOffsetDateString(date) {
     const y = date.getFullYear();
@@ -10,7 +11,7 @@ function getOffsetDateString(date) {
     return `${y}-${m}-${d}`;
 }
 
-const TimetableEmptyState = ({ label, message }) => (
+const TimetableEmptyState = ({ label, message, isDark }) => (
     <div style={{
         flex: 1,
         display: 'flex',
@@ -18,16 +19,16 @@ const TimetableEmptyState = ({ label, message }) => (
         alignItems: 'center',
         justifyContent: 'center',
         gap: '8px',
-        border: '1px dashed rgba(52, 211, 153, 0.15)',
-        borderRadius: '8px',
-        background: 'rgba(52, 211, 153, 0.02)'
+        border: isDark ? '1px dashed rgba(52, 211, 153, 0.2)' : '1px dashed rgba(16, 185, 129, 0.25)',
+        borderRadius: '10px',
+        background: isDark ? 'rgba(52, 211, 153, 0.03)' : 'rgba(16, 185, 129, 0.02)'
     }}>
-        <CalendarDays size={22} color="rgba(52, 211, 153, 0.35)" />
+        <CalendarDays size={22} color={isDark ? 'rgba(52, 211, 153, 0.45)' : 'rgba(16, 185, 129, 0.5)'} />
         <p style={{
             margin: 0,
             fontSize: '12px',
             fontWeight: 600,
-            color: 'rgba(148, 163, 184, 0.5)',
+            color: isDark ? '#94a3b8' : '#334155',
             textAlign: 'center'
         }}>
             {message || `No classes scheduled for ${label}`}
@@ -36,6 +37,7 @@ const TimetableEmptyState = ({ label, message }) => (
 );
 
 const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
+    const { isDark } = useTheme();
     const navigate = useNavigate();
     const cacheKeyClasses = `aus_classes_${getOffsetDateString(selectedDate || new Date())}`;
     const cacheKeyConfig = 'aus_timetable_config';
@@ -180,13 +182,15 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
 
     const formattedDateStr = targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     const headerTitle = isToday ? "Today's Classes" : `Classes on ${formattedDateStr}`;
+    const dividerColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.06)';
 
     return (
         <div style={{
-            background: 'rgba(19,18,26,0.45)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: '12px',
+            background: isDark ? 'rgba(13, 17, 28, 0.85)' : '#FFFFFF',
+            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
+            borderRadius: '16px',
             padding: '16px',
+            boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
@@ -210,7 +214,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                     <h2 style={{
                         fontSize: '15px',
                         fontWeight: 700,
-                        color: '#f8fafc',
+                        color: isDark ? '#F8FAFC' : '#0F172A',
                         margin: 0,
                         letterSpacing: '-0.01em'
                     }}>
@@ -220,10 +224,10 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                         <button
                             onClick={() => setSelectedDate(null)}
                             style={{
-                                background: 'rgba(255,255,255,0.05)',
-                                border: '1px solid rgba(255,255,255,0.08)',
+                                background: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9',
+                                border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(15,23,42,0.08)',
                                 borderRadius: '4px',
-                                color: 'rgba(255,255,255,0.6)',
+                                color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
                                 fontSize: '9px',
                                 padding: '2px 6px',
                                 cursor: 'pointer',
@@ -244,38 +248,38 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                         cursor: 'pointer',
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: 'rgba(148,163,184,0.4)',
+                        color: isDark ? 'rgba(148,163,184,0.7)' : '#64748B',
                         padding: 0,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '3px',
                         transition: 'color 0.2s'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#6ee7b7'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(148,163,184,0.4)'}
+                    onMouseEnter={e => e.currentTarget.style.color = isDark ? '#6ee7b7' : '#059669'}
+                    onMouseLeave={e => e.currentTarget.style.color = isDark ? 'rgba(148,163,184,0.7)' : '#64748B'}
                 >
                     View Timetable <ArrowRight size={11} />
                 </button>
             </div>
 
             {/* Divider */}
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', flexShrink: 0, marginBottom: '12px' }} />
+            <div style={{ height: '1px', background: dividerColor, flexShrink: 0, marginBottom: '12px' }} />
 
             {/* Body */}
             {loading ? (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'rgba(255,255,255,0.3)' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.4)' }}>
                     Loading...
                 </div>
             ) : isOutsideSemesterRange ? (
-                <TimetableEmptyState message="No classes allotted" />
+                <TimetableEmptyState message="No classes allotted" isDark={isDark} />
             ) : !hasData ? (
-                <TimetableEmptyState label={isToday ? 'today' : formattedDateStr} />
+                <TimetableEmptyState label={isToday ? 'today' : formattedDateStr} isDark={isDark} />
             ) : (
                 <div style={{
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px',
+                    gap: '8px',
                     overflowY: 'auto',
                     paddingRight: '4px',
                     minHeight: 0
@@ -324,20 +328,20 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                         let textDec = 'none';
                         let decColor = 'transparent';
                         let itemOpacity = 1;
-                        let statusColor = '#94a3b8';
+                        let statusColor = isDark ? '#94a3b8' : '#64748b';
 
                         if (isMarked && !isEditing && !isBreak && !isFuture) {
                             textDec = 'line-through';
-                            itemOpacity = 0.35;
+                            itemOpacity = isDark ? 0.35 : 0.45;
                             if (slot.status === 'Present') {
-                                decColor = '#10b981';
-                                statusColor = '#10b981';
+                                decColor = isDark ? '#10b981' : '#059669';
+                                statusColor = isDark ? '#10b981' : '#059669';
                             } else if (slot.status === 'Absent') {
-                                decColor = '#ef4444';
-                                statusColor = '#ef4444';
+                                decColor = isDark ? '#ef4444' : '#dc2626';
+                                statusColor = isDark ? '#ef4444' : '#dc2626';
                             } else { // Cancelled / Suspended
-                                decColor = '#94a3b8';
-                                statusColor = '#64748b';
+                                decColor = isDark ? '#94a3b8' : '#64748b';
+                                statusColor = isDark ? '#64748b' : '#64748b';
                             }
                         }
 
@@ -345,6 +349,13 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                         const timeParts = slot.timeSlot.split('-');
                         const timeStartStr = timeParts[0] || '';
                         const timeEndStr = timeParts[1] || '';
+
+                        const itemBg = isBreak
+                            ? (isDark ? 'rgba(255,255,255,0.01)' : 'rgba(15,23,42,0.02)')
+                            : (isDark ? 'rgba(255,255,255,0.02)' : '#F8FAFC');
+                        const itemBorder = isBreak
+                            ? (isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(15,23,42,0.04)')
+                            : (isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(15,23,42,0.06)');
 
                         return (
                             <div
@@ -354,8 +365,8 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                     gridTemplateColumns: '70px 1fr auto',
                                     alignItems: 'center',
                                     gap: '12px',
-                                    background: isBreak ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.015)',
-                                    border: '1px solid rgba(255,255,255,0.03)',
+                                    background: itemBg,
+                                    border: itemBorder,
                                     borderRadius: '10px',
                                     padding: '8px 12px',
                                     opacity: isBreak ? 0.5 : 1,
@@ -370,8 +381,8 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                     justifyContent: 'center',
                                     fontSize: '11px',
                                     fontWeight: 700,
-                                    color: 'rgba(255,255,255,0.6)',
-                                    borderRight: '1px solid rgba(255,255,255,0.04)',
+                                    color: isDark ? 'rgba(255,255,255,0.7)' : '#334155',
+                                    borderRight: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,23,42,0.06)',
                                     paddingRight: '10px',
                                     textAlign: 'center',
                                     lineHeight: 1.3
@@ -396,7 +407,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                     <span style={{
                                         fontSize: '12px',
                                         fontWeight: 700,
-                                        color: isBreak ? '#94a3b8' : '#f1f5f9',
+                                        color: isBreak ? (isDark ? '#94a3b8' : '#64748b') : (isDark ? '#f1f5f9' : '#0f172a'),
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis'
@@ -406,7 +417,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                     {slot.room && !isBreak && (
                                         <span style={{
                                             fontSize: '10px',
-                                            color: 'rgba(255,255,255,0.4)',
+                                            color: isDark ? 'rgba(255,255,255,0.45)' : '#64748b',
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '3px'
@@ -420,7 +431,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                 {/* Right: Actions, Status or Type */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     {isBreak ? (
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase' }}>
+                                        <span style={{ fontSize: '10px', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.3)' : '#94a3b8', textTransform: 'uppercase' }}>
                                             Break
                                         </span>
                                     ) : isFuture ? (
@@ -429,9 +440,15 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                             fontWeight: 600,
                                             padding: '2px 6px',
                                             borderRadius: '4px',
-                                            background: slot.lectureType === 'Lab' ? 'rgba(167, 139, 250, 0.1)' : 'rgba(255,255,255,0.03)',
-                                            border: slot.lectureType === 'Lab' ? '1px solid rgba(167, 139, 250, 0.2)' : '1px solid rgba(255,255,255,0.06)',
-                                            color: slot.lectureType === 'Lab' ? '#c4b5fd' : 'rgba(255,255,255,0.4)'
+                                            background: slot.lectureType === 'Lab'
+                                                ? (isDark ? 'rgba(167, 139, 250, 0.1)' : 'rgba(124, 58, 237, 0.08)')
+                                                : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.04)'),
+                                            border: slot.lectureType === 'Lab'
+                                                ? (isDark ? '1px solid rgba(167, 139, 250, 0.2)' : '1px solid rgba(124, 58, 237, 0.2)')
+                                                : (isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,23,42,0.06)'),
+                                            color: slot.lectureType === 'Lab'
+                                                ? (isDark ? '#c4b5fd' : '#7c3aed')
+                                                : (isDark ? 'rgba(255,255,255,0.5)' : '#64748b')
                                         }}>
                                             {slot.lectureType || 'Theory'}
                                         </span>
@@ -440,9 +457,9 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                             <button
                                                 onClick={() => markAttendance(slot, 'Present')}
                                                 style={{
-                                                    background: 'rgba(16, 185, 129, 0.05)',
-                                                    border: '1px solid rgba(16, 185, 129, 0.25)',
-                                                    color: '#10b981',
+                                                    background: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)',
+                                                    border: isDark ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
+                                                    color: isDark ? '#10b981' : '#059669',
                                                     padding: '3px 7px',
                                                     borderRadius: '6px',
                                                     fontSize: '9.5px',
@@ -456,8 +473,8 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                                     e.currentTarget.style.color = '#fff';
                                                 }}
                                                 onMouseLeave={e => {
-                                                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.05)';
-                                                    e.currentTarget.style.color = '#10b981';
+                                                    e.currentTarget.style.background = isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)';
+                                                    e.currentTarget.style.color = isDark ? '#10b981' : '#059669';
                                                 }}
                                             >
                                                 P
@@ -465,9 +482,9 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                             <button
                                                 onClick={() => markAttendance(slot, 'Absent')}
                                                 style={{
-                                                    background: 'rgba(239, 68, 68, 0.05)',
-                                                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                                                    color: '#ef4444',
+                                                    background: isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.1)',
+                                                    border: isDark ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(239, 68, 68, 0.3)',
+                                                    color: isDark ? '#ef4444' : '#dc2626',
                                                     padding: '3px 7px',
                                                     borderRadius: '6px',
                                                     fontSize: '9.5px',
@@ -481,8 +498,8 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                                     e.currentTarget.style.color = '#fff';
                                                 }}
                                                 onMouseLeave={e => {
-                                                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)';
-                                                    e.currentTarget.style.color = '#ef4444';
+                                                    e.currentTarget.style.background = isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.1)';
+                                                    e.currentTarget.style.color = isDark ? '#ef4444' : '#dc2626';
                                                 }}
                                             >
                                                 A
@@ -490,9 +507,9 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                             <button
                                                 onClick={() => markAttendance(slot, 'Cancelled')}
                                                 style={{
-                                                    background: 'rgba(148, 163, 184, 0.05)',
-                                                    border: '1px solid rgba(148, 163, 184, 0.25)',
-                                                    color: '#94a3b8',
+                                                    background: isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.1)',
+                                                    border: isDark ? '1px solid rgba(148, 163, 184, 0.25)' : '1px solid rgba(100, 116, 139, 0.3)',
+                                                    color: isDark ? '#94a3b8' : '#475569',
                                                     padding: '3px 7px',
                                                     borderRadius: '6px',
                                                     fontSize: '9.5px',
@@ -502,12 +519,12 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                                     outline: 'none'
                                                 }}
                                                 onMouseEnter={e => {
-                                                    e.currentTarget.style.background = '#94a3b8';
-                                                    e.currentTarget.style.color = '#000';
+                                                    e.currentTarget.style.background = isDark ? '#94a3b8' : '#475569';
+                                                    e.currentTarget.style.color = '#fff';
                                                 }}
                                                 onMouseLeave={e => {
-                                                    e.currentTarget.style.background = 'rgba(148, 163, 184, 0.05)';
-                                                    e.currentTarget.style.color = '#94a3b8';
+                                                    e.currentTarget.style.background = isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.1)';
+                                                    e.currentTarget.style.color = isDark ? '#94a3b8' : '#475569';
                                                 }}
                                             >
                                                 S
@@ -534,11 +551,11 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                                     padding: 0,
                                                     display: 'flex',
                                                     alignItems: 'center',
-                                                    color: 'rgba(255,255,255,0.4)',
+                                                    color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.4)',
                                                     transition: 'color 0.15s'
                                                 }}
-                                                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                                                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.4)'}
+                                                onMouseEnter={e => e.currentTarget.style.color = isDark ? '#fff' : '#0f172a'}
+                                                onMouseLeave={e => e.currentTarget.style.color = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.4)'}
                                             >
                                                 <Edit2 size={11} />
                                             </button>
@@ -547,11 +564,17 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                         <span style={{
                                             fontSize: '9.5px',
                                             fontWeight: 700,
-                                            color: displayLabel.startsWith('Ends in') ? '#a78bfa' : 'rgba(255,255,255,0.3)',
-                                            background: displayLabel.startsWith('Ends in') ? 'rgba(167, 139, 250, 0.08)' : 'transparent',
+                                            color: displayLabel.startsWith('Ends in')
+                                                ? (isDark ? '#a78bfa' : '#7c3aed')
+                                                : (isDark ? 'rgba(255,255,255,0.4)' : '#64748b'),
+                                            background: displayLabel.startsWith('Ends in')
+                                                ? (isDark ? 'rgba(167, 139, 250, 0.08)' : 'rgba(124, 58, 237, 0.08)')
+                                                : 'transparent',
                                             padding: displayLabel.startsWith('Ends in') ? '3px 8px' : '0',
                                             borderRadius: '6px',
-                                            border: displayLabel.startsWith('Ends in') ? '1px solid rgba(167, 139, 250, 0.2)' : 'none'
+                                            border: displayLabel.startsWith('Ends in')
+                                                ? (isDark ? '1px solid rgba(167, 139, 250, 0.2)' : '1px solid rgba(124, 58, 237, 0.2)')
+                                                : 'none'
                                         }}>
                                             {displayLabel}
                                         </span>

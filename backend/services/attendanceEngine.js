@@ -39,6 +39,7 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     let holidays = [];
     let events = [];
     let entries = [];
+    let timetableSlots = [];
 
     // 2. Fetch Data (Snapshot vs. Live)
     if (isArchived) {
@@ -102,21 +103,91 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
             entries = await StudentAttendanceEntry.find({ student: studentId, semester }).lean();
         }
         timetableSlots = timetableSlotsDocs || [];
+
+        // Authoritative resolution of enrolled subjects from SectionTimetable
+        try {
+            const { resolveStudentSubjects } = require('./studentSubjectResolver');
+            const dynamicSubjData = await resolveStudentSubjects(student, semester);
+            if (dynamicSubjData && dynamicSubjData.subjects && dynamicSubjData.subjects.length > 0) {
+                const registeredMap = new Map();
+                for (const regDoc of (subjectsDocs || [])) {
+                    const sId = (regDoc.subject?._id || regDoc.subject)?.toString();
+                    if (sId) registeredMap.set(sId, regDoc);
+                }
+                subjects = dynamicSubjData.subjects.map(resSubj => {
+                    const subjIdStr = (resSubj._id || resSubj.subjectId)?.toString();
+                    const regDoc = registeredMap.get(subjIdStr);
+                    return {
+                        subject: {
+                            _id: resSubj._id || resSubj.subjectId,
+                            name: resSubj.name,
+                            code: resSubj.code,
+                            credits: resSubj.credits,
+                            category: resSubj.type || resSubj.category
+                        },
+                        customName: regDoc?.customName || resSubj.name,
+                        customCode: regDoc?.customCode || resSubj.code,
+                        registeredCredits: regDoc?.registeredCredits || resSubj.credits || 0,
+                        category: regDoc?.category || resSubj.type || 'Theory',
+                        userThreshold: regDoc?.userThreshold || null,
+                        baseline: regDoc?.baseline || { present: 0, conducted: 0 },
+                        weeklyPlan: {
+                            theory: { required: resSubj.classesPerWeek || 0 },
+                            lab: { required: resSubj.labSessionsPerWeek || 0 }
+                        }
+                    };
+                });
+            }
+        } catch (dynErr) {
+            console.warn('[attendanceEngine] Dynamic subjects resolution fallback:', dynErr.message);
+        }
     }
 
     if (!entries) entries = [];
 
-    // Strictly bound occurrences to the semester timeline configuration (source of truth)
-    if (configuration && configuration.semesterStartDate) {
-        const startBound = formatDate(configuration.semesterStartDate);
-        const endBound = configuration.lastWorkingDate ? formatDate(configuration.lastWorkingDate) : '9999-12-31';
-        entries = (entries || []).filter(e => e.date >= startBound && e.date <= endBound);
+    // Fetch academic context (Authoritative SectionTimetable, Semester & Milestone Dates)
+    let academicContext = null;
+    try {
+        const { resolveStudentAcademicContext } = require('./studentAcademicResolver');
+        academicContext = await resolveStudentAcademicContext(student, semester);
+        if (academicContext?.sectionTimetable?.slots?.length > 0) {
+            const studentLabBatch = (student.labBatch || '').toUpperCase();
+            timetableSlots = academicContext.sectionTimetable.slots.filter(s => {
+                if (!studentLabBatch) return true;
+                const bg = (s.batchGroup || 'ALL').toUpperCase();
+                return bg === 'ALL' || bg === studentLabBatch;
+            });
+        }
+    } catch (ctxErr) {
+        console.warn('[attendanceEngine] context resolution error:', ctxErr.message);
     }
 
-    // Fetch timetable slots to derive weekly frequency (classes/week & lab/week)
-    if (!timetableSlots) {
+    // Strictly bound occurrences to the teaching timeline (Commencement of Regular Classes -> Last Working Day)
+    let startBound = null;
+    let endBound = null;
+
+    if (academicContext?.commencementDate) {
+        startBound = formatDate(academicContext.commencementDate);
+    } else if (configuration?.semesterStartDate) {
+        startBound = formatDate(configuration.semesterStartDate);
+    }
+
+    if (academicContext?.lastWorkingDayDate) {
+        endBound = formatDate(academicContext.lastWorkingDayDate);
+    } else if (configuration?.lastWorkingDate) {
+        endBound = formatDate(configuration.lastWorkingDate);
+    }
+
+    if (startBound || endBound) {
+        const sB = startBound || '0000-01-01';
+        const eB = endBound || '9999-12-31';
+        entries = (entries || []).filter(e => e.date >= sB && e.date <= eB);
+    }
+
+    // FALLBACK ONLY: Legacy StudentTimetable if no section timetable is published
+    if (!timetableSlots || timetableSlots.length === 0) {
         const StudentTimetable = require('../models/StudentTimetable');
-        timetableSlots = await StudentTimetable.find({ student: studentId, semester }).lean();
+        timetableSlots = await StudentTimetable.find({ student: studentId, semester }).lean() || [];
     }
     const timetableSlotsBySubj = new Map();
     for (const s of (timetableSlots || [])) {
@@ -203,7 +274,10 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
         if (!subjectId) continue;
 
         const subjectIdStr = subjectId.toString();
-        const subjTimeline = timeline.filter(t => t.subject && t.subject.toString() === subjectIdStr);
+        const subjTimeline = timeline.filter(t => {
+            const tSubj = t.subject?._id || t.subject;
+            return tSubj && tSubj.toString() === subjectIdStr;
+        });
 
         const theoryTimeline = subjTimeline.filter(t => t.lectureType?.toLowerCase() !== 'lab');
         const labTimeline = subjTimeline.filter(t => t.lectureType?.toLowerCase() === 'lab');
@@ -360,7 +434,11 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     let overallStatusCategory = 'SAFE';
     let overallStatusMessage = 'Target reached';
 
-    if (overallPct < collegeThreshold) {
+    if (overallPct === null) {
+        overallHealthStatus = '⚪ Not Started';
+        overallStatusCategory = 'NOT_STARTED';
+        overallStatusMessage = 'No classes conducted yet';
+    } else if (overallPct < collegeThreshold) {
         overallHealthStatus = '🔴 Critical';
         overallStatusCategory = 'CRITICAL';
         overallStatusMessage = 'Below college minimum';
@@ -570,7 +648,9 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
             events: events.length,
             govHolidays: holidays.length,
             studentHolidays: events.filter(e => e.eventType === 'Custom' && e.classesSuspended).length
-        }
+        },
+        commencementDate: academicContext?.commencementDate || null,
+        lastWorkingDayDate: academicContext?.lastWorkingDayDate || null
     };
 }
 
@@ -594,9 +674,12 @@ function compileRawTimeline(expectedClasses, entries) {
         }
     }
 
+    const matchedEntryIds = new Set();
+
     for (const exp of expectedClasses) {
         if (!exp || !exp.subject) continue;
-        const subjectIdStr = exp.subject.toString();
+        const expSubjectId = exp.subject?._id || exp.subject;
+        const subjectIdStr = expSubjectId ? expSubjectId.toString() : '';
         const keyWithSubj = `${subjectIdStr}_${exp.date}_${exp.timeSlot}`;
         
         let matchedEntry = entryMap.get(keyWithSubj);
@@ -607,8 +690,8 @@ function compileRawTimeline(expectedClasses, entries) {
             matchedEntry = entries.find(e => {
                 if (e.date !== exp.date || !e.timeSlot || !e.timeSlot.includes('-')) return false;
                 const eTimes = parseTimeSlot(e.timeSlot);
-                const eSchedSubj = e.scheduledSubject ? e.scheduledSubject.toString() : (e.subject ? e.subject.toString() : (e.actualSubject ? e.actualSubject.toString() : ''));
-                const eActSubj = e.actualSubject ? e.actualSubject.toString() : (e.subject ? e.subject.toString() : '');
+                const eSchedSubj = e.scheduledSubject ? (e.scheduledSubject._id ? e.scheduledSubject._id.toString() : e.scheduledSubject.toString()) : (e.subject ? (e.subject._id ? e.subject._id.toString() : e.subject.toString()) : (e.actualSubject ? (e.actualSubject._id ? e.actualSubject._id.toString() : e.actualSubject.toString()) : ''));
+                const eActSubj = e.actualSubject ? (e.actualSubject._id ? e.actualSubject._id.toString() : e.actualSubject.toString()) : (e.subject ? (e.subject._id ? e.subject._id.toString() : e.subject.toString()) : '');
                 const isSubjMatch = eSchedSubj === subjectIdStr || eActSubj === subjectIdStr;
                 const isTimeCovered = eTimes.start <= expTimes.start && expTimes.end <= eTimes.end;
                 return isSubjMatch && isTimeCovered;
@@ -616,14 +699,15 @@ function compileRawTimeline(expectedClasses, entries) {
         }
 
         if (matchedEntry) {
-            const actSubj = matchedEntry.actualSubject || matchedEntry.subject || exp.subject;
+            if (matchedEntry._id) matchedEntryIds.add(matchedEntry._id.toString());
+            const actSubj = matchedEntry.actualSubject || matchedEntry.subject || expSubjectId;
             timeline.push({
                 _id: matchedEntry._id,
                 date: exp.date,
                 timeSlot: exp.timeSlot,
-                scheduledSubject: exp.subject,
+                scheduledSubject: expSubjectId,
                 subject: actSubj,
-                isSubjectChanged: Boolean(actSubj && actSubj.toString() !== exp.subject.toString()),
+                isSubjectChanged: Boolean(actSubj && actSubj.toString() !== expSubjectId.toString()),
                 lectureType: exp.lectureType || 'Lecture',
                 status: matchedEntry.status,
                 isExtraClass: false,
@@ -635,8 +719,8 @@ function compileRawTimeline(expectedClasses, entries) {
                 _id: null,
                 date: exp.date,
                 timeSlot: exp.timeSlot,
-                scheduledSubject: exp.subject,
-                subject: exp.subject,
+                scheduledSubject: expSubjectId,
+                subject: expSubjectId,
                 isSubjectChanged: false,
                 lectureType: exp.lectureType || 'Lecture',
                 status: 'Yet To Be Taken',
@@ -645,6 +729,25 @@ function compileRawTimeline(expectedClasses, entries) {
                 createdBy: 'System'
             });
         }
+    }
+
+    // Include any student attendance entries that occurred but were not part of pre-computed expected schedule
+    for (const entry of entries) {
+        if (entry.isExtraClass) continue;
+        if (entry._id && matchedEntryIds.has(entry._id.toString())) continue;
+        timeline.push({
+            _id: entry._id,
+            date: entry.date,
+            timeSlot: entry.timeSlot || '',
+            scheduledSubject: entry.scheduledSubject || entry.subject || entry.actualSubject,
+            subject: entry.actualSubject || entry.subject || entry.scheduledSubject,
+            isSubjectChanged: Boolean(entry.actualSubject && entry.scheduledSubject && entry.actualSubject.toString() !== entry.scheduledSubject.toString()),
+            lectureType: entry.lectureType || 'Lecture',
+            status: entry.status,
+            isExtraClass: false,
+            remarks: entry.remarks || '',
+            createdBy: entry.markedBy || entry.createdBy || 'Student'
+        });
     }
 
     for (const extra of extraEntries) {
@@ -686,7 +789,7 @@ const isUnmarked = (s) => {
  * Computes analytics stats for a timeline subset
  */
 function computeTimelineStats(timeline, todayStr) {
-    const conductedRecords = timeline.filter(t => t.date <= todayStr && !isSuspended(t.status) && !isUnmarked(t.status));
+    const conductedRecords = timeline.filter(t => !isSuspended(t.status) && !isUnmarked(t.status));
     const conducted = conductedRecords.length;
     const present = conductedRecords.filter(t => isPresent(t.status)).length;
     const absent = conductedRecords.filter(t => isAbsent(t.status)).length;
@@ -695,7 +798,7 @@ function computeTimelineStats(timeline, todayStr) {
     const suspended = timeline.filter(t => isSuspended(t.status)).length;
     const cancelled = suspended;
 
-    const toBeConductedRecords = timeline.filter(t => t.date > todayStr && !isSuspended(t.status));
+    const toBeConductedRecords = timeline.filter(t => t.date > todayStr && !isSuspended(t.status) && isUnmarked(t.status));
     const toBeConducted = toBeConductedRecords.length;
 
     const expected = conducted + toBeConducted;

@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
-    Check, X, PauseCircle, Edit2, Clock, Calendar, 
-    BookOpen, Sparkles, AlertCircle, ChevronDown, ChevronUp, Sliders, ArrowRightLeft,
-    CheckCheck, AlertTriangle, Info, Zap, RotateCcw
+    Check, X, RotateCcw, ChevronLeft, ChevronRight, CalendarDays, AlertCircle, Clock,
+    MoreVertical, Pause, Play, Edit3, Undo2
 } from 'lucide-react';
+import { useTheme } from '../../../../../context/ThemeContext';
+import CalendarDateNavigator from './CalendarDateNavigator';
+import EditClassOccurrenceModal from './EditClassOccurrenceModal';
+import SuspendClassModal from './SuspendClassModal';
 
 const DailyAttendanceWorkspace = ({
     selectedDate,
+    onSelectDate,
+    onPrevDay,
+    onNextDay,
+    onTodayClick,
     dayClasses = [],
     isLoading,
     onMarkAttendance,
@@ -15,14 +22,40 @@ const DailyAttendanceWorkspace = ({
     unconfirmedPastCount = 0,
     onQuickMarkPast,
     readOnly,
-    overallMetrics,
-    progressList = [],
-    onEditSubjectHistory,
-    onOpenBaselineModal,
-    onOpenSwapModal
+    timetableConfig,
+    groupedTimeline = [],
+    events = [],
+    dayEventInfo = {},
+    canEditAnytime = false,
+    registeredSubjects = [],
+    onConfirmSubjectSwap,
+    onRestoreOriginalClass
 }) => {
-    // Local state for editing previously marked cards
-    const [editingSlotId, setEditingSlotId] = useState(null);
+    const { isDark } = useTheme();
+
+    const t = useMemo(() => ({
+        surface: isDark ? '#0D111C' : '#FFFFFF',
+        surfaceSubtle: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC',
+        surfaceElevated: isDark ? '#13151D' : '#F1F5F9',
+        border: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+        borderSubtle: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.06)',
+        divider: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.06)',
+        text: isDark ? '#F8FAFC' : '#0F172A',
+        textMuted: isDark ? '#94A3B8' : '#64748B',
+        textFaint: isDark ? '#64748B' : '#94A3B8',
+        accent: isDark ? '#C4B5FD' : '#6D28D9',
+        accentBg: isDark ? 'rgba(124, 58, 237, 0.16)' : '#F5F3FF',
+        accentBorder: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(124, 58, 237, 0.25)',
+        rowHover: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(15, 23, 42, 0.02)',
+        nowBg: isDark ? 'rgba(124, 58, 237, 0.08)' : 'rgba(124, 58, 237, 0.05)',
+    }), [isDark]);
+
+    // State to toggle inline quick-change controls for marked cards
+    const [activeChangeSlotId, setActiveChangeSlotId] = useState(null);
+    const [activeMenuSlotId, setActiveMenuSlotId] = useState(null);
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+    const [editingClassItem, setEditingClassItem] = useState(null);
+    const [suspendingClassItem, setSuspendingClassItem] = useState(null);
 
     const getLocalDateString = (d = new Date()) => {
         const date = new Date(d);
@@ -35,6 +68,7 @@ const DailyAttendanceWorkspace = ({
     const formatDateHeading = (dateStr) => {
         if (!dateStr) return '';
         const d = new Date(dateStr + 'T12:00:00');
+        if (isNaN(d.getTime())) return dateStr;
         return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     };
 
@@ -43,659 +77,781 @@ const DailyAttendanceWorkspace = ({
     const isTodayDate = selectedDate === todayStr;
     const isFutureDate = selectedDate > todayStr;
 
-    // Header Status Message
-    let statusBannerText = 'Scheduled classes for selected date.';
-    let statusBannerColor = '#94a3b8';
+    // Filter official events applicable to selectedDate
+    const dayEvents = useMemo(() => {
+        if (dayEventInfo?.dayEvents && dayEventInfo.dayEvents.length > 0) {
+            return dayEventInfo.dayEvents;
+        }
+        if (!events || events.length === 0 || !selectedDate) return [];
+        return events.filter(ev => {
+            if (!ev.startDate) return false;
+            const s = new Date(ev.startDate).toISOString().slice(0, 10);
+            const e = new Date(ev.endDate || ev.startDate).toISOString().slice(0, 10);
+            return s <= selectedDate && selectedDate <= e;
+        });
+    }, [dayEventInfo, events, selectedDate]);
 
-    if (isPastDate) {
-        statusBannerText = 'Past attendance · You can edit recorded classes.';
-        statusBannerColor = '#c4b5fd';
-    } else if (isTodayDate) {
-        statusBannerText = 'Today · Mark classes as they occur.';
-        statusBannerColor = '#6ee7b7';
-    } else if (isFutureDate) {
-        statusBannerText = 'Upcoming schedule · Attendance cannot be marked yet.';
-        statusBannerColor = '#38bdf8';
-    }
+    // Check full-day suspension vs time-range suspension
+    const fullDayEvent = dayEvents.find(e => 
+        e.suspensionType === 'full_day' || 
+        e.eventType === 'Holiday / Closure' || 
+        (e.classesSuspended && (!e.suspensionType || e.suspensionType === 'none' || e.suspensionType === 'full_day')) ||
+        /holiday|closure|vacation|preparation.*holiday/i.test(e.title || '')
+    );
+
+    const isClassesSuspended = Boolean(dayEventInfo?.classesSuspended && dayEventInfo?.suspensionType !== 'time_range') || 
+        Boolean(fullDayEvent);
+
+    const activeDayEvent = isClassesSuspended 
+        ? (dayEventInfo?.activeEvent || fullDayEvent || dayEvents[0] || null)
+        : (dayEventInfo?.activeEvent || dayEvents[0] || null);
+
+    const timeRangeEvent = !isClassesSuspended && (
+        dayEvents.find(e => e.suspensionType === 'time_range' && e.suspensionStartTime && e.suspensionEndTime) ||
+        (dayEventInfo?.suspensionType === 'time_range' && dayEventInfo?.timeRangeSuspension ? {
+            title: dayEventInfo.timeRangeSuspension.title || dayEventInfo.activeEvent?.title || 'Special Event',
+            suspensionStartTime: dayEventInfo.timeRangeSuspension.startTime,
+            suspensionEndTime: dayEventInfo.timeRangeSuspension.endTime
+        } : null)
+    );
+
+    // Live NOW class detection
+    const checkIsNow = (timeSlot) => {
+        if (!isTodayDate || !timeSlot) return false;
+        try {
+            const parts = timeSlot.split('-').map(s => s.trim());
+            if (parts.length < 2) return false;
+            const parseMinutes = (timeStr) => {
+                const [hStr, mStr] = timeStr.split(':');
+                return parseInt(hStr, 10) * 60 + parseInt(mStr || '0', 10);
+            };
+            const startMins = parseMinutes(parts[0]);
+            const endMins = parseMinutes(parts[1]);
+            const now = new Date();
+            const nowMins = now.getHours() * 60 + now.getMinutes();
+            return nowMins >= startMins && nowMins <= endMins;
+        } catch {
+            return false;
+        }
+    };
 
     const normStatus = (s) => (s ? String(s).trim().toUpperCase() : '');
     const isPresentStatus = (s) => ['PRESENT', 'ON DUTY', 'ON_DUTY'].includes(normStatus(s));
     const isAbsentStatus = (s) => ['ABSENT', 'MEDICAL LEAVE', 'MEDICAL_LEAVE'].includes(normStatus(s));
-    const isSuspendedStatus = (s) => ['SUSPENDED', 'CANCELLED'].includes(normStatus(s));
+    const isSuspendedStatus = (s) => ['SUSPENDED', 'SUSPEND'].includes(normStatus(s));
     const isMarkedStatus = (s) => {
         const sn = normStatus(s);
         return sn !== '' && sn !== 'YET TO BE TAKEN' && sn !== 'NOT_MARKED' && sn !== 'PENDING' && sn !== 'NULL' && sn !== 'UNDEFINED';
     };
+    const isUnmarkedStatus = (s) => {
+        const sn = normStatus(s);
+        return !sn || sn === 'YET TO BE TAKEN' || sn === 'NOT_MARKED' || sn === 'PENDING';
+    };
 
-    const unrecordedCount = dayClasses.filter(c => !isMarkedStatus(c.status)).length;
-    const markedCount = dayClasses.filter(c => isMarkedStatus(c.status)).length;
+    const totalClasses = isClassesSuspended ? 0 : dayClasses.length;
+    const markedCount = isClassesSuspended ? 0 : dayClasses.filter(c => isMarkedStatus(c.status)).length;
+    const progressPct = totalClasses > 0 ? (markedCount / totalClasses) * 100 : 0;
+    const allMarked = totalClasses > 0 && markedCount === totalClasses;
 
-    // Helper to calculate "Can I Bunk Today?"
-    const getBunkPrediction = (item) => {
-        const subj = progressList.find(s => 
-            String(s.subjectId) === String(item.subjectId) || 
-            s.name?.toLowerCase() === item.subjectName?.toLowerCase()
-        );
-
-        const present = subj?.analytics?.present ?? 0;
-        const conducted = subj?.analytics?.conducted ?? 0;
-        const cThresh = subj?.collegeThreshold || overallMetrics?.collegeThreshold || 85;
-        const uThresh = subj?.userThreshold || overallMetrics?.userThreshold || cThresh;
-
-        // If this class were to be missed (bunked):
-        const pctIfBunk = conducted > 0 || present > 0
-            ? ((present) / (conducted + 1)) * 100
-            : 0;
-
-        if (pctIfBunk >= uThresh) {
-            return {
-                status: 'SAFE',
-                badgeText: '🟢 Safe to bunk',
-                detailText: `Will be ${pctIfBunk.toFixed(1)}% (≥ ${uThresh}%)`,
-                color: '#10b981',
-                bg: 'rgba(16, 185, 129, 0.08)',
-                border: 'rgba(16, 185, 129, 0.25)'
-            };
+    const handleConfirmOverride = async ({ classItem, scheduledSubjectId, newSubjectId, status }) => {
+        if (onConfirmSubjectSwap) {
+            await onConfirmSubjectSwap({ classItem, scheduledSubjectId, newSubjectId, status });
+        } else {
+            await onMarkAttendance({ ...classItem, scheduledSubjectId, subjectId: newSubjectId }, status);
         }
+    };
 
-        if (pctIfBunk >= cThresh) {
-            return {
-                status: 'CAUTION',
-                badgeText: '🟡 Caution',
-                detailText: `Will drop to ${pctIfBunk.toFixed(1)}% (< ${uThresh}%)`,
-                color: '#f59e0b',
-                bg: 'rgba(245, 158, 11, 0.08)',
-                border: 'rgba(245, 158, 11, 0.25)'
-            };
+    const handleRestoreOriginal = async (classItem) => {
+        if (onRestoreOriginalClass) {
+            await onRestoreOriginalClass(classItem);
+        } else if (onConfirmSubjectSwap && classItem.scheduledSubjectId) {
+            await onConfirmSubjectSwap({
+                classItem,
+                scheduledSubjectId: classItem.scheduledSubjectId,
+                newSubjectId: classItem.scheduledSubjectId,
+                status: classItem.status || 'Present'
+            });
         }
+    };
 
-        return {
-            status: 'CRITICAL',
-            badgeText: '🔴 Cannot bunk',
-            detailText: `Will drop to ${pctIfBunk.toFixed(1)}% (< ${cThresh}%)`,
-            color: '#ef4444',
-            bg: 'rgba(239, 68, 68, 0.08)',
-            border: 'rgba(239, 68, 68, 0.25)'
-        };
+    const handleConfirmSuspend = async (classItem) => {
+        await onMarkAttendance(classItem, 'Suspended');
     };
 
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            color: '#fff',
-            width: '100%'
-        }}>
+        <section className="w-full flex flex-col gap-5 font-sans" style={{ color: t.text }}>
             {/* ════════════════════════════════════════════════════════════════
-                UNCONFIRMED PAST CLASSES ALERT BANNER
+                1. HEADER & DATE SWITCHER (CSES Sheet Style)
             ════════════════════════════════════════════════════════════════ */}
-            {unconfirmedPastCount > 0 && !readOnly && (
-                <div style={{
-                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    borderRadius: '14px',
-                    padding: '14px 18px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '12px',
-                    flexWrap: 'wrap'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <AlertCircle size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
-                        <div style={{ fontSize: '13px', color: '#fef3c7', fontWeight: 500 }}>
-                            You have <strong style={{ color: '#f59e0b' }}>{unconfirmedPastCount} unconfirmed {unconfirmedPastCount === 1 ? 'class' : 'classes'}</strong> from past days.
-                        </div>
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 pb-3 border-b" style={{ borderBottomColor: t.divider }}>
+                <div>
+                    <h1 className="text-xl font-bold tracking-tight" style={{ color: t.text }}>
+                        Today's Classes
+                    </h1>
+                    <div className="flex items-center gap-2 pt-0.5 text-xs font-mono" style={{ color: t.textMuted }}>
+                        <span>{formatDateHeading(selectedDate)}</span>
+                        {isTodayDate && (
+                            <span 
+                                className="text-[10px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider border"
+                                style={{ backgroundColor: t.accentBg, color: t.accent, borderColor: t.accentBorder }}
+                            >
+                                Today
+                            </span>
+                        )}
+                        {isClassesSuspended ? (
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider border ${
+                                isDark 
+                                    ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' 
+                                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                            }`}>
+                                Suspended
+                            </span>
+                        ) : timeRangeEvent ? (
+                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider border ${
+                                isDark 
+                                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' 
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                                Suspended {timeRangeEvent.suspensionStartTime}–{timeRangeEvent.suspensionEndTime}
+                            </span>
+                        ) : null}
+                        {canEditAnytime && (isFutureDate || readOnly) && (
+                            <span 
+                                className="text-[10px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider border"
+                                style={{ backgroundColor: t.accentBg, color: t.accent, borderColor: t.accentBorder }}
+                            >
+                                Admin Editable
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Day Navigation Controls + Full Calendar Toggle */}
+                <div className="flex items-center gap-2">
+                    <div 
+                        className="flex items-center rounded-lg p-0.5 border"
+                        style={{ backgroundColor: t.surfaceSubtle, borderColor: t.border }}
+                    >
+                        <button
+                            type="button"
+                            onClick={onPrevDay}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: t.textMuted }}
+                            title="Previous Day"
+                        >
+                            <ChevronLeft size={15} />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onTodayClick}
+                            className="px-3 py-1 text-xs font-mono font-medium rounded transition-colors border"
+                            style={isTodayDate ? {
+                                backgroundColor: t.accentBg,
+                                color: t.accent,
+                                borderColor: t.accentBorder,
+                                fontWeight: 700
+                            } : {
+                                color: t.textMuted,
+                                borderColor: 'transparent'
+                            }}
+                        >
+                            Today
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onNextDay}
+                            className="p-1.5 rounded transition-colors"
+                            style={{ color: t.textMuted }}
+                            title="Next Day"
+                        >
+                            <ChevronRight size={15} />
+                        </button>
                     </div>
 
+                    <button
+                        type="button"
+                        onClick={() => setIsCalendarOpen(prev => !prev)}
+                        className="flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg transition-colors border"
+                        style={isCalendarOpen ? {
+                            backgroundColor: t.accentBg,
+                            color: t.accent,
+                            borderColor: t.accentBorder
+                        } : {
+                            backgroundColor: t.surfaceSubtle,
+                            borderColor: t.border,
+                            color: t.textMuted
+                        }}
+                    >
+                        <CalendarDays size={13} style={{ color: isCalendarOpen ? t.accent : t.textMuted }} />
+                        <span className="hidden sm:inline">{isCalendarOpen ? 'Hide' : 'Full Calendar'}</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* Collapsible Month Calendar */}
+            {isCalendarOpen && (
+                <div className="rounded-xl overflow-hidden">
+                    <CalendarDateNavigator
+                        selectedDate={selectedDate}
+                        onSelectDate={(d) => {
+                            if (onSelectDate) onSelectDate(d);
+                            // Do NOT close calendar on date click so the user can easily browse dates
+                        }}
+                        timetableConfig={timetableConfig}
+                        groupedTimeline={groupedTimeline}
+                        selectedDayClasses={dayClasses}
+                        events={events}
+                    />
+                </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                2. COMPACT SUMMARY BOX
+            ════════════════════════════════════════════════════════════════ */}
+            {isClassesSuspended ? (
+                <div className={`flex items-center justify-between px-4 py-2.5 rounded-lg border text-xs font-mono ${
+                    isDark ? 'bg-[#14101A] border-rose-500/25' : 'bg-rose-50/70 border-rose-200'
+                }`}>
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-rose-500" />
+                        <span className="font-semibold" style={{ color: t.text }}>
+                            {activeDayEvent?.title || 'Holiday / Closure'}
+                        </span>
+                        <span className="hidden sm:inline" style={{ color: t.textFaint }}>·</span>
+                        <span className="font-medium hidden sm:inline text-rose-500">
+                            Classes Suspended
+                        </span>
+                    </div>
+
+                    <span className={`px-2 py-0.5 rounded border text-[11px] font-semibold ${
+                        isDark ? 'bg-rose-500/15 text-rose-300 border-rose-500/30' : 'bg-rose-100 text-rose-800 border-rose-200'
+                    }`}>
+                        0 classes today
+                    </span>
+                </div>
+            ) : (
+                <div 
+                    className="flex items-center justify-between px-4 py-2.5 rounded-lg border text-xs font-mono"
+                    style={{ backgroundColor: t.surfaceSubtle, borderColor: t.border }}
+                >
+                    <span className="font-medium" style={{ color: t.text }}>
+                        {totalClasses} {totalClasses === 1 ? 'class' : 'classes'} today
+                    </span>
+                    
+                    <div className="flex items-center gap-3">
+                        <span className="font-semibold" style={{ color: t.text }}>
+                            {markedCount} / {totalClasses} marked
+                        </span>
+                        {totalClasses > 0 && (
+                            <div 
+                                className="w-20 h-1.5 rounded-full overflow-hidden"
+                                style={{ backgroundColor: isDark ? '#27272a' : '#E2E8F0' }}
+                            >
+                                <div 
+                                    className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                    style={{ width: `${progressPct}%` }}
+                                />
+                            </div>
+                        )}
+                        {totalClasses > 0 && (!readOnly || canEditAnytime) && (!isFutureDate || canEditAnytime) && (
+                            <div className="flex items-center gap-1.5 ml-1 sm:ml-2">
+                                {!allMarked && (
+                                    <button
+                                        type="button"
+                                        onClick={onMarkAllPresent}
+                                        className={`px-2 py-0.5 text-[11px] font-medium rounded border transition-all ${
+                                            isDark 
+                                                ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/30' 
+                                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
+                                        }`}
+                                        title="Mark all unrecorded classes as Present"
+                                    >
+                                        ✓ All Present
+                                    </button>
+                                )}
+                                {markedCount > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => onResetDayAttendance(selectedDate)}
+                                        className="p-1 rounded transition-all hover:opacity-80"
+                                        style={{ color: t.textMuted }}
+                                        title="Reset all marked classes to unmarked"
+                                    >
+                                        <RotateCcw size={13} />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Time-Range Suspension Notice */}
+            {timeRangeEvent && !isClassesSuspended && (
+                <div className={`px-4 py-2.5 rounded-lg border flex items-center justify-between gap-3 text-xs font-mono ${
+                    isDark ? 'bg-amber-500/10 border-amber-500/25' : 'bg-amber-50 border-amber-200'
+                }`}>
+                    <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-amber-500 flex-shrink-0" />
+                        <span className={`font-semibold ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
+                            {timeRangeEvent.title || 'Official Event'}
+                        </span>
+                        <span className="text-zinc-500 hidden sm:inline">·</span>
+                        <span className={`hidden sm:inline ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
+                            Classes suspended <strong>{timeRangeEvent.suspensionStartTime} – {timeRangeEvent.suspensionEndTime}</strong>
+                        </span>
+                        <span className={`sm:hidden ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
+                            Suspended {timeRangeEvent.suspensionStartTime}–{timeRangeEvent.suspensionEndTime}
+                        </span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${
+                        isDark ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'bg-amber-100 text-amber-800 border-amber-300'
+                    }`}>
+                        Partial
+                    </span>
+                </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════
+                3. UNCONFIRMED PAST CLASSES NOTICE (Subtle banner)
+            ════════════════════════════════════════════════════════════════ */}
+            {!isClassesSuspended && unconfirmedPastCount > 0 && !readOnly && (
+                <div className={`p-3 rounded-lg border flex items-center justify-between gap-2 text-xs ${
+                    isDark ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50/80 border-amber-200'
+                }`}>
+                    <div className={`flex items-center gap-2 font-medium ${isDark ? 'text-amber-300' : 'text-amber-850'}`}>
+                        <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />
+                        <span>You have <strong>{unconfirmedPastCount}</strong> past unmarked {unconfirmedPastCount === 1 ? 'class' : 'classes'}.</span>
+                    </div>
                     {onQuickMarkPast && (
                         <button
                             type="button"
                             onClick={onQuickMarkPast}
-                            style={{
-                                background: 'rgba(245, 158, 11, 0.2)',
-                                border: '1px solid rgba(245, 158, 11, 0.4)',
-                                color: '#fef08a',
-                                borderRadius: '8px',
-                                padding: '6px 14px',
-                                fontSize: '11.5px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245, 158, 11, 0.3)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245, 158, 11, 0.2)'; }}
+                            className={`px-2.5 py-0.5 rounded text-xs font-mono font-medium border transition-all flex-shrink-0 ${
+                                isDark 
+                                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-500/30' 
+                                    : 'bg-amber-100 hover:bg-amber-200 text-amber-800 border-amber-300'
+                            }`}
                         >
-                            <CheckCheck size={13} />
-                            Quick-Confirm All as Present
+                            Confirm all as Present
                         </button>
                     )}
                 </div>
             )}
 
             {/* ════════════════════════════════════════════════════════════════
-                SELECTED DATE HEADER & BATCH ACTIONS
+                4. MASTER GRID CLASS ROWS (Strict 3-Column Alignment)
+                Columns: TIME (170px) | CLASS (1fr) | STATUS & ACTIONS (auto)
             ════════════════════════════════════════════════════════════════ */}
-            <div style={{
-                background: 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
-                borderRadius: '16px',
-                padding: '20px 24px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
-            }}>
-                <div>
-                    <h2 style={{
-                        fontSize: '20px',
-                        fontWeight: 700,
-                        margin: 0,
-                        letterSpacing: '-0.02em',
-                        color: '#f8fafc'
-                    }}>
-                        {formatDateHeading(selectedDate)}
-                    </h2>
-                    <div style={{
-                        fontSize: '12px',
-                        color: statusBannerColor,
-                        marginTop: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                    }}>
-                        <span>{statusBannerText}</span>
+            <div className="flex flex-col">
+                {isLoading ? (
+                    <div className="py-12 text-center text-xs font-mono animate-pulse" style={{ color: t.textMuted }}>
+                        Loading scheduled classes...
                     </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        background: 'rgba(124, 58, 237, 0.1)',
-                        border: '1px solid rgba(124, 58, 237, 0.25)',
-                        color: '#c4b5fd',
-                        padding: '5px 12px',
-                        borderRadius: '20px'
-                    }}>
-                        {dayClasses.length} {dayClasses.length === 1 ? 'class scheduled' : 'classes scheduled'}
-                    </span>
-
-                    {/* One-Tap Mark All Present Today */}
-                    {onMarkAllPresent && !readOnly && !isFutureDate && unrecordedCount > 0 && (
-                        <button
-                            type="button"
-                            onClick={onMarkAllPresent}
-                            title="Mark all unrecorded classes for this date as Present"
-                            style={{
-                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.25) 100%)',
-                                border: '1px solid rgba(16, 185, 129, 0.4)',
-                                color: '#6ee7b7',
-                                borderRadius: '8px',
-                                padding: '6px 14px',
-                                fontSize: '11.5px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s',
-                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.3)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'; }}
-                        >
-                            <CheckCheck size={14} />
-                            Mark All Present Today
-                        </button>
-                    )}
-
-                    {/* Reset / Restore Today's Attendance */}
-                    {onResetDayAttendance && !readOnly && markedCount > 0 && (
-                        <button
-                            type="button"
-                            onClick={onResetDayAttendance}
-                            title="Reset all recorded attendance for this date back to original unmarked state"
-                            style={{
-                                background: 'rgba(255, 255, 255, 0.04)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                color: '#cbd5e1',
-                                borderRadius: '8px',
-                                padding: '6px 12px',
-                                fontSize: '11.5px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; }}
-                            onMouseLeave={e => { e.currentTarget.style.color = '#cbd5e1'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'; }}
-                        >
-                            <RotateCcw size={13} />
-                            Reset Day
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* ════════════════════════════════════════════════════════════════
-                CLASS CARDS SECTION WITH "CAN I BUNK TODAY?" SIMULATOR
-            ════════════════════════════════════════════════════════════════ */}
-            {isLoading ? (
-                <div style={{ padding: '60px 0', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                    Loading schedule for {selectedDate}...
-                </div>
-            ) : dayClasses.length === 0 ? (
-                <div style={{
-                    padding: '60px 24px',
-                    background: 'rgba(255, 255, 255, 0.01)',
-                    border: '1px dashed rgba(255, 255, 255, 0.08)',
-                    borderRadius: '16px',
-                    textAlign: 'center',
-                    color: '#94a3b8',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: '12px'
-                }}>
-                    <BookOpen size={32} style={{ color: 'rgba(255,255,255,0.2)' }} />
-                    <div style={{ fontSize: '14px', fontWeight: 600 }}>No classes scheduled for this date.</div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)' }}>
-                        Enjoy your day off or review your overall attendance summary below.
+                ) : isClassesSuspended ? (
+                    <div className={`py-14 text-center border border-dashed rounded-xl flex flex-col items-center justify-center gap-2.5 mt-2 font-mono ${
+                        isDark ? 'border-rose-500/30 bg-[#14101A]/60' : 'border-rose-200 bg-rose-50/40'
+                    }`}>
+                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-lg ${
+                            isDark ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-rose-100 border-rose-200 text-rose-600'
+                        }`}>
+                            {activeDayEvent?.eventType === 'Exam' ? '📝' : activeDayEvent?.eventType === 'College Event' ? '🎯' : '🌴'}
+                        </div>
+                        <div className="text-base font-bold" style={{ color: t.text }}>
+                            {activeDayEvent?.title || 'Classes Suspended'}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                            <span 
+                                className="px-2 py-0.5 rounded text-[11px] border"
+                                style={{ backgroundColor: t.surfaceSubtle, borderColor: t.border, color: t.textMuted }}
+                            >
+                                {activeDayEvent?.eventType || 'Holiday / Closure'}
+                            </span>
+                            <span className="text-rose-500 font-semibold text-[11px]">
+                                ● Regular classes suspended
+                            </span>
+                        </div>
+                        <p className="text-xs max-w-sm mt-1" style={{ color: t.textMuted }}>
+                            {activeDayEvent?.description || 'No classes scheduled on this day in accordance with the official academic calendar.'}
+                        </p>
                     </div>
-                </div>
-            ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {dayClasses.map((item, idx) => {
-                        const slotId = item._id || `${item.subjectId}_${item.timeSlot}`;
-                        const isMarked = item.status && item.status !== 'Yet To Be Taken' && item.status !== 'NOT_MARKED';
-                        const isEditingThis = editingSlotId === slotId;
-                        const isNonMarkableFuture = isFutureDate || item.isFuture;
-                        const isSwapped = item.isSubjectChanged || (item.scheduledSubjectName && item.scheduledSubjectName !== item.subjectName);
-
-                        // Bunk prediction calculation
-                        const bunk = getBunkPrediction(item);
+                ) : totalClasses === 0 ? (
+                    <div 
+                        className="py-14 text-center border border-dashed rounded-xl flex flex-col items-center justify-center gap-2 mt-2 font-mono"
+                        style={{ backgroundColor: t.surfaceSubtle, borderColor: t.border }}
+                    >
+                        <Clock size={24} style={{ color: t.textFaint }} className="stroke-[1.5]" />
+                        <div className="text-sm font-semibold" style={{ color: t.text }}>
+                            No classes scheduled for this date.
+                        </div>
+                        <p className="text-xs max-w-sm" style={{ color: t.textMuted }}>
+                            {isFutureDate 
+                                ? 'No teaching slots scheduled.' 
+                                : 'Enjoy your day off or review your semester attendance.'}
+                        </p>
+                    </div>
+                ) : (
+                    dayClasses.map((item, idx) => {
+                        const slotId = item._id || `${item.subjectId || idx}_${item.timeSlot}`;
+                        const isMarked = isMarkedStatus(item.status);
+                        const isPresent = isPresentStatus(item.status);
+                        const isAbsent = isAbsentStatus(item.status);
+                        const isSuspended = isSuspendedStatus(item.status);
+                        const isUpcoming = isFutureDate && !canEditAnytime;
+                        const isNow = checkIsNow(item.timeSlot);
+                        const isEditingThis = activeChangeSlotId === slotId;
+                        const isMenuOpen = activeMenuSlotId === slotId;
+                        const isLab = String(item.lectureType || '').toLowerCase() === 'lab';
+                        const isSubstituted = Boolean(item.isSubjectChanged || (item.scheduledSubjectId && item.scheduledSubjectId !== item.subjectId));
 
                         return (
-                            <div
-                                key={slotId || idx}
-                                style={{
-                                    background: 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)',
-                                    border: isSwapped 
-                                        ? '1px solid rgba(168, 85, 247, 0.3)' 
-                                        : (item.status === 'Suspended'
-                                            ? '1px solid rgba(245, 158, 11, 0.25)'
-                                            : '1px solid rgba(255, 255, 255, 0.07)'),
-                                    borderRadius: '14px',
-                                    padding: '14px 18px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    gap: '14px',
-                                    flexWrap: 'wrap',
-                                    boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-                                    transition: 'all 0.2s',
-                                    width: '100%',
-                                    boxSizing: 'border-box'
+                            <div 
+                                key={slotId}
+                                className={`grid grid-cols-1 sm:grid-cols-[150px_minmax(0,1fr)_auto] md:grid-cols-[160px_minmax(0,1fr)_260px] items-center gap-3 sm:gap-6 py-4 border-b transition-colors relative ${
+                                    isNow 
+                                        ? '-mx-3 px-3 rounded-lg border' 
+                                        : 'hover:bg-black/[0.015] dark:hover:bg-white/[0.01]'
+                                }`}
+                                style={isNow ? {
+                                    backgroundColor: t.nowBg,
+                                    borderColor: t.accentBorder,
+                                    borderBottomColor: t.accentBorder
+                                } : {
+                                    borderBottomColor: t.divider
                                 }}
                             >
-                                {/* Time & Main Content */}
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', flex: 1, minWidth: '220px', flexWrap: 'wrap' }}>
-                                    {/* Prominent Time Display */}
-                                    <div style={{
-                                        minWidth: '110px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'flex-start',
-                                        background: 'rgba(124, 58, 237, 0.08)',
-                                        border: '1px solid rgba(139, 92, 246, 0.2)',
-                                        borderRadius: '8px',
-                                        padding: '4px 8px'
-                                    }}>
-                                        <div style={{
-                                            fontSize: '13.5px',
-                                            fontWeight: 700,
-                                            color: '#e2e8f0',
-                                            letterSpacing: '-0.01em',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '5px'
-                                        }}>
-                                            <Clock size={13} style={{ color: '#a78bfa' }} />
-                                            {item.timeSlot}
-                                        </div>
-                                        {item.room && (
-                                            <div style={{ fontSize: '10.5px', color: '#94a3b8', marginTop: '1px' }}>
-                                                Room {item.room}
-                                            </div>
+                                {/* ── COLUMN 1: TIME ANCHOR (160px Monospace, Violet Accent) ── */}
+                                <div 
+                                    className="flex items-center gap-2 font-mono text-[16px] sm:text-[17px] font-bold tracking-tight flex-shrink-0"
+                                    style={{ color: t.accent }}
+                                >
+                                    <span>{item.timeSlot}</span>
+                                    {isNow && (
+                                        <span 
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase ml-1 border"
+                                            style={{ backgroundColor: t.accentBg, color: t.accent, borderColor: t.accentBorder }}
+                                        >
+                                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                            NOW
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* ── COLUMN 2: CLASS INFORMATION (Strong Title, Muted Compact Metadata) ── */}
+                                <div className="flex flex-col min-w-0 pr-2">
+                                    <div className="flex items-baseline flex-wrap gap-2">
+                                        <span className="text-[15px] sm:text-[16px] font-semibold leading-snug break-words" style={{ color: t.text }}>
+                                            {item.subjectName || item.subject?.name || 'Class'}
+                                        </span>
+                                        {isSubstituted && (
+                                            <span 
+                                                className="px-1.5 py-0.2 rounded text-[10px] font-mono font-semibold border whitespace-nowrap" 
+                                                style={{ backgroundColor: t.accentBg, color: t.accent, borderColor: t.accentBorder }}
+                                                title={`Originally: ${item.scheduledSubjectName || 'Original Class'}`}
+                                            >
+                                                Substituted
+                                            </span>
                                         )}
                                     </div>
-
-                                    {/* Subject Title & Details */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '180px' }}>
-                                        <div style={{ fontSize: '15.5px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>
-                                            {item.subjectName}
-                                        </div>
-                                        <div style={{ fontSize: '12px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                            {item.subjectCode && (
-                                                <span style={{ fontWeight: 600, color: '#cbd5e1' }}>{item.subjectCode}</span>
-                                            )}
-                                            <span>•</span>
-                                            <span>{item.lectureType || 'Theory'}</span>
-                                            {item.credits > 0 && (
-                                                <>
-                                                    <span>•</span>
-                                                    <span>{item.credits} {item.credits === 1 ? 'Credit' : 'Credits'}</span>
-                                                </>
-                                            )}
-                                        </div>
-
-                                        {/* "Can I Bunk Today?" Live Simulator Chip */}
-                                        {!isMarked && !isNonMarkableFuture && (
-                                            <div style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                background: bunk.bg,
-                                                border: `1px solid ${bunk.border}`,
-                                                borderRadius: '6px',
-                                                padding: '2px 8px',
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                color: bunk.color,
-                                                marginTop: '3px',
-                                                width: 'fit-content'
-                                            }} title="Real-time safe bunk status for this class">
-                                                <span>{bunk.badgeText}</span>
-                                                <span style={{ opacity: 0.6 }}>·</span>
-                                                <span style={{ fontWeight: 500 }}>{bunk.detailText}</span>
-                                            </div>
+                                    <div className="text-xs font-mono flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1" style={{ color: t.textMuted }}>
+                                        {item.subjectCode && (
+                                            <span className="font-semibold" style={{ color: t.text }}>{item.subjectCode}</span>
                                         )}
-
-                                        {/* Subject Swapped / Changed Badge */}
-                                        {isSwapped && (
-                                            <div style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                background: 'rgba(168, 85, 247, 0.12)',
-                                                border: '1px solid rgba(168, 85, 247, 0.3)',
-                                                color: '#c084fc',
-                                                borderRadius: '6px',
-                                                padding: '2px 8px',
-                                                fontSize: '11px',
-                                                fontWeight: 600,
-                                                marginTop: '2px',
-                                                width: 'fit-content'
-                                            }}>
-                                                <ArrowRightLeft size={11} />
-                                                Changed from {item.scheduledSubjectName}
-                                            </div>
+                                        {item.subjectCode && <span>·</span>}
+                                        {isLab ? (
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                                                isDark ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' : 'bg-amber-50 text-amber-800 border-amber-200'
+                                            }`}>
+                                                LAB{item.batchGroup && item.batchGroup !== 'ALL' ? ` (${item.batchGroup})` : ''}
+                                            </span>
+                                        ) : (
+                                            <span style={{ color: t.textMuted }}>Theory</span>
+                                        )}
+                                        {item.credits > 0 && (
+                                            <>
+                                                <span>·</span>
+                                                <span style={{ color: t.textFaint }}>{item.credits} Cr</span>
+                                            </>
+                                        )}
+                                        {item.room && (
+                                            <>
+                                                <span>·</span>
+                                                <span style={{ color: t.textFaint }}>Rm {item.room}</span>
+                                            </>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Attendance Actions / Status Display */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
-                                    {isNonMarkableFuture ? (
-                                        <div style={{
-                                            background: 'rgba(56, 189, 248, 0.06)',
-                                            border: '1px solid rgba(56, 189, 248, 0.2)',
-                                            borderRadius: '10px',
-                                            padding: '8px 14px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'flex-end',
-                                            gap: '2px'
-                                        }}>
-                                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#38bdf8', letterSpacing: '0.04em' }}>
+                                {/* ── COLUMN 3: STATUS / ACTIONS (Symmetrical 260px Right Alignment) ── */}
+                                <div className="flex items-center justify-start sm:justify-end gap-2 flex-shrink-0 relative">
+                                    {/* 1. UPCOMING STATE */}
+                                    {isUpcoming ? (
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-2.5 py-1 rounded-md text-xs font-mono font-semibold uppercase tracking-wide border ${
+                                                isDark ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30' : 'bg-cyan-50 text-cyan-700 border-cyan-200'
+                                            }`}>
                                                 UPCOMING
                                             </span>
-                                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                                                Starts at {item.timeSlot ? item.timeSlot.split('-')[0] : 'scheduled time'}
+                                        </div>
+                                    ) : isEditingThis ? (
+                                        /* Inline Quick Change Mode */
+                                        <div className="flex items-center gap-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    onMarkAttendance(item, 'Present');
+                                                    setActiveChangeSlotId(null);
+                                                }}
+                                                className={`px-2.5 py-1 text-xs font-mono font-semibold rounded-md transition-all flex items-center gap-1 ${
+                                                    isPresent
+                                                        ? 'bg-emerald-600 text-white font-bold'
+                                                        : isDark 
+                                                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/35'
+                                                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                                }`}
+                                            >
+                                                <Check size={12} strokeWidth={2.5} />
+                                                <span>Present</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    onMarkAttendance(item, 'Absent');
+                                                    setActiveChangeSlotId(null);
+                                                }}
+                                                className={`px-2.5 py-1 text-xs font-mono font-semibold rounded-md transition-all flex items-center gap-1 ${
+                                                    isAbsent
+                                                        ? 'bg-rose-600 text-white font-bold'
+                                                        : isDark 
+                                                            ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/35'
+                                                            : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                                                }`}
+                                            >
+                                                <X size={12} strokeWidth={2.5} />
+                                                <span>Absent</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    onMarkAttendance(item, 'RESET');
+                                                    setActiveChangeSlotId(null);
+                                                }}
+                                                className="px-2 py-1 text-xs font-mono rounded-md border transition-all hover:opacity-80"
+                                                style={{ color: t.textMuted, borderColor: t.border }}
+                                                title="Reset to unmarked"
+                                            >
+                                                Reset
+                                            </button>
+                                        </div>
+                                    ) : isPresent ? (
+                                        /* 2. PRESENT STATE */
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => (!readOnly || canEditAnytime) && setActiveChangeSlotId(slotId)}
+                                                className={`px-3 py-1 rounded-md text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 ${
+                                                    isDark 
+                                                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/35 hover:bg-emerald-500/25' 
+                                                        : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                                }`}
+                                                title="Click to change attendance"
+                                            >
+                                                <Check size={13} strokeWidth={2.5} />
+                                                <span>PRESENT</span>
+                                            </button>
+                                        </div>
+                                    ) : isAbsent ? (
+                                        /* 3. ABSENT STATE */
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => (!readOnly || canEditAnytime) && setActiveChangeSlotId(slotId)}
+                                                className={`px-3 py-1 rounded-md text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 ${
+                                                    isDark 
+                                                        ? 'bg-rose-500/15 text-rose-400 border-rose-500/35 hover:bg-rose-500/25' 
+                                                        : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                                }`}
+                                                title="Click to change attendance"
+                                            >
+                                                <X size={13} strokeWidth={2.5} />
+                                                <span>ABSENT</span>
+                                            </button>
+                                        </div>
+                                    ) : isSuspended ? (
+                                        /* 4. SUSPENDED STATE */
+                                        <div className="flex items-center gap-2">
+                                            <span className={`px-3 py-1 rounded-md text-xs font-mono font-semibold border flex items-center gap-1.5 ${
+                                                isDark 
+                                                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/35' 
+                                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                            }`}>
+                                                <Pause size={12} strokeWidth={2.5} />
+                                                <span>SUSPENDED</span>
                                             </span>
                                         </div>
-                                    ) : isMarked && !isEditingThis ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                            {(() => {
-                                                const sNorm = normStatus(item.status);
-                                                const isPres = isPresentStatus(sNorm);
-                                                const isAbs = isAbsentStatus(sNorm);
-                                                const isSusp = isSuspendedStatus(sNorm);
-
-                                                return (
-                                                    <div style={{
-                                                        background: isPres
-                                                            ? 'rgba(16, 185, 129, 0.1)'
-                                                            : (isAbs ? 'rgba(239, 68, 68, 0.1)' : 'rgba(245, 158, 11, 0.1)'),
-                                                        border: isPres
-                                                            ? '1px solid rgba(16, 185, 129, 0.3)'
-                                                            : (isAbs ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(245, 158, 11, 0.3)'),
-                                                        color: isPres
-                                                            ? '#6ee7b7'
-                                                            : (isAbs ? '#fca5a5' : '#fcd34d'),
-                                                        borderRadius: '10px',
-                                                        padding: '8px 14px',
-                                                        display: 'flex',
-                                                        flexDirection: 'column',
-                                                        alignItems: 'flex-start',
-                                                        gap: '2px'
-                                                    }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.03em' }}>
-                                                            {isPres ? (
-                                                                <Check size={14} />
-                                                            ) : isAbs ? (
-                                                                <X size={14} />
-                                                            ) : (
-                                                                <PauseCircle size={14} />
-                                                            )}
-                                                            <span>{isSusp ? '⊘ SUSPENDED' : (isPres ? 'PRESENT' : (isAbs ? 'ABSENT' : sNorm))}</span>
-                                                        </div>
-                                                        {isSusp && (
-                                                            <span style={{ fontSize: '9px', fontWeight: 500, opacity: 0.8, color: '#fef08a' }}>
-                                                                Not counted in attendance
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
-
-                                            {!readOnly && (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setEditingSlotId(slotId)}
-                                                        style={{
-                                                            background: 'rgba(255, 255, 255, 0.04)',
-                                                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                                                            color: '#94a3b8',
-                                                            borderRadius: '8px',
-                                                            padding: '8px 12px',
-                                                            fontSize: '12px',
-                                                            fontWeight: 600,
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '4px',
-                                                            transition: 'all 0.15s'
-                                                        }}
-                                                        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                                                    >
-                                                        <Edit2 size={12} />
-                                                        Edit
-                                                    </button>
-
-                                                    {onOpenSwapModal && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => onOpenSwapModal(item)}
-                                                            title="Change subject for this class occurrence"
-                                                            style={{
-                                                                background: 'rgba(168, 85, 247, 0.08)',
-                                                                border: '1px solid rgba(168, 85, 247, 0.2)',
-                                                                color: '#c084fc',
-                                                                borderRadius: '8px',
-                                                                padding: '8px 10px',
-                                                                fontSize: '12px',
-                                                                fontWeight: 600,
-                                                                cursor: 'pointer',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '4px',
-                                                                transition: 'all 0.15s'
-                                                            }}
-                                                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)'; }}
-                                                            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)'; }}
-                                                        >
-                                                            <ArrowRightLeft size={12} />
-                                                        </button>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
                                     ) : (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                        /* 5. UNMARKED STATE */
+                                        <div className="flex items-center gap-1.5">
                                             <button
                                                 type="button"
-                                                onClick={() => { onMarkAttendance(item, 'Present'); setEditingSlotId(null); }}
-                                                style={{
-                                                    background: 'rgba(16, 185, 129, 0.08)',
-                                                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                                                    color: '#6ee7b7',
-                                                    borderRadius: '10px',
-                                                    padding: '9px 14px',
-                                                    fontSize: '12px',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    transition: 'all 0.15s'
-                                                }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.2)'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16, 185, 129, 0.08)'; }}
+                                                onClick={() => onMarkAttendance(item, 'Present')}
+                                                className="px-2.5 py-1 text-xs font-mono font-medium rounded-md border transition-all flex items-center gap-1 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-300"
+                                                style={{ borderColor: t.border, color: t.text }}
                                             >
-                                                <Check size={14} />
-                                                Present
+                                                <Check size={12} strokeWidth={2} />
+                                                <span>Present</span>
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => { onMarkAttendance(item, 'Absent'); setEditingSlotId(null); }}
-                                                style={{
-                                                    background: 'rgba(239, 68, 68, 0.08)',
-                                                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                                                    color: '#fca5a5',
-                                                    borderRadius: '10px',
-                                                    padding: '9px 14px',
-                                                    fontSize: '12px',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    transition: 'all 0.15s'
-                                                }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; }}
+                                                onClick={() => onMarkAttendance(item, 'Absent')}
+                                                className="px-2.5 py-1 text-xs font-mono font-medium rounded-md border transition-all flex items-center gap-1 hover:border-rose-500 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-300"
+                                                style={{ borderColor: t.border, color: t.text }}
                                             >
-                                                <X size={14} />
-                                                Absent
+                                                <X size={12} strokeWidth={2} />
+                                                <span>Absent</span>
                                             </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => { onMarkAttendance(item, 'Suspended'); setEditingSlotId(null); }}
-                                                style={{
-                                                    background: 'rgba(245, 158, 11, 0.08)',
-                                                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                                                    color: '#fcd34d',
-                                                    borderRadius: '10px',
-                                                    padding: '9px 14px',
-                                                    fontSize: '12px',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '6px',
-                                                    transition: 'all 0.15s'
-                                                }}
-                                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245, 158, 11, 0.2)'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245, 158, 11, 0.08)'; }}
-                                            >
-                                                <PauseCircle size={14} />
-                                                Suspended
-                                            </button>
-
-                                            {/* Reset Slot Option (when editing previously recorded slot) */}
-                                            {isEditingThis && isMarked && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { onMarkAttendance(item, 'RESET'); setEditingSlotId(null); }}
-                                                    title="Clear attendance for this class back to unmarked"
-                                                    style={{
-                                                        background: 'rgba(255, 255, 255, 0.04)',
-                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                        color: '#94a3b8',
-                                                        borderRadius: '10px',
-                                                        padding: '9px 12px',
-                                                        fontSize: '12px',
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        transition: 'all 0.15s'
-                                                    }}
-                                                    onMouseEnter={e => { e.currentTarget.style.color = '#fca5a5'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'; }}
-                                                    onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'; }}
-                                                >
-                                                    <RotateCcw size={12} />
-                                                    Reset
-                                                </button>
-                                            )}
-
-                                            {onOpenSwapModal && !readOnly && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => onOpenSwapModal(item)}
-                                                    title="Change subject for this class occurrence"
-                                                    style={{
-                                                        background: 'rgba(168, 85, 247, 0.08)',
-                                                        border: '1px solid rgba(168, 85, 247, 0.2)',
-                                                        color: '#c084fc',
-                                                        borderRadius: '10px',
-                                                        padding: '9px 10px',
-                                                        fontSize: '12px',
-                                                        fontWeight: 600,
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px',
-                                                        transition: 'all 0.15s'
-                                                    }}
-                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.18)'; }}
-                                                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.08)'; }}
-                                                >
-                                                    <ArrowRightLeft size={13} />
-                                                </button>
-                                            )}
                                         </div>
                                     )}
+
+                                    {/* ── THREE-DOT ACTION MENU [ ⋮ ] ── */}
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveMenuSlotId(isMenuOpen ? null : slotId);
+                                            }}
+                                            className="p-1.5 rounded-md transition-colors"
+                                            style={isMenuOpen ? {
+                                                backgroundColor: t.accentBg,
+                                                color: t.accent
+                                            } : {
+                                                color: t.textMuted
+                                            }}
+                                            title="Class options"
+                                        >
+                                            <MoreVertical size={15} />
+                                        </button>
+
+                                        {/* Context Menu Dropdown */}
+                                        {isMenuOpen && (
+                                            <>
+                                                <div 
+                                                    className="fixed inset-0 z-40" 
+                                                    onClick={() => setActiveMenuSlotId(null)}
+                                                />
+                                                <div 
+                                                    className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-lg border py-1 text-xs font-mono flex flex-col"
+                                                    style={{
+                                                        backgroundColor: t.surface,
+                                                        borderColor: t.border,
+                                                        color: t.text,
+                                                        boxShadow: isDark ? '0 10px 25px -5px rgba(0,0,0,0.5)' : '0 10px 25px -5px rgba(0,0,0,0.1)'
+                                                    }}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setEditingClassItem(item);
+                                                            setActiveMenuSlotId(null);
+                                                        }}
+                                                        className="px-3 py-2 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                                                        style={{ color: t.text }}
+                                                    >
+                                                        <Edit3 size={13} style={{ color: t.accent }} />
+                                                        <span>Edit class</span>
+                                                    </button>
+
+                                                    {isMarked && !isSuspended && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setActiveChangeSlotId(slotId);
+                                                                setActiveMenuSlotId(null);
+                                                            }}
+                                                            className="px-3 py-2 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                                                            style={{ color: t.text }}
+                                                        >
+                                                            <RotateCcw size={13} className="text-cyan-500" />
+                                                            <span>Edit attendance</span>
+                                                        </button>
+                                                    )}
+
+                                                    {!isSuspended ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSuspendingClassItem(item);
+                                                                setActiveMenuSlotId(null);
+                                                            }}
+                                                            className={`px-3 py-2 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors ${
+                                                                isDark ? 'text-amber-300/90 hover:text-amber-200' : 'text-amber-700 hover:text-amber-800'
+                                                            }`}
+                                                        >
+                                                            <Pause size={13} className="text-amber-500" />
+                                                            <span>Suspend class</span>
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                onMarkAttendance(item, 'RESET');
+                                                                setActiveMenuSlotId(null);
+                                                            }}
+                                                            className={`px-3 py-2 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors ${
+                                                                isDark ? 'text-emerald-300 hover:text-emerald-200' : 'text-emerald-700 hover:text-emerald-800'
+                                                            }`}
+                                                        >
+                                                            <Play size={13} className="text-emerald-500" />
+                                                            <span>Resume class</span>
+                                                        </button>
+                                                    )}
+
+                                                    {isSubstituted && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={async () => {
+                                                                await handleRestoreOriginal(item);
+                                                                setActiveMenuSlotId(null);
+                                                            }}
+                                                            className="px-3 py-2 text-left hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 border-t transition-colors"
+                                                            style={{ borderTopColor: t.divider, color: t.accent }}
+                                                        >
+                                                            <Undo2 size={13} style={{ color: t.accent }} />
+                                                            <span>Restore original</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );
-                    })}
-                </div>
-            )}
-        </div>
+                    })
+                )}
+            </div>
+
+            {/* Edit Class Modal (Single-Day / Slot Override) */}
+            <EditClassOccurrenceModal
+                isOpen={Boolean(editingClassItem)}
+                onClose={() => setEditingClassItem(null)}
+                classItem={editingClassItem}
+                selectedDate={selectedDate}
+                registeredSubjects={registeredSubjects}
+                onConfirmOverride={handleConfirmOverride}
+                onRestoreOriginal={handleRestoreOriginal}
+            />
+
+            {/* Suspend Class Confirmation Modal */}
+            <SuspendClassModal
+                isOpen={Boolean(suspendingClassItem)}
+                onClose={() => setSuspendingClassItem(null)}
+                classItem={suspendingClassItem}
+                selectedDate={selectedDate}
+                onConfirmSuspend={handleConfirmSuspend}
+            />
+        </section>
     );
 };
 

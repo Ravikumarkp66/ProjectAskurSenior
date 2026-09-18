@@ -25,7 +25,9 @@ import {
   Sliders,
   Check,
   Coffee,
-  Sparkles
+  Sparkles,
+  Lock,
+  Eye
 } from 'lucide-react';
 
 
@@ -64,8 +66,13 @@ export default function AcademicStructurePage() {
   // Form states (Pre-linked to SIT)
   const currentYear = new Date().getFullYear();
   const [newBatch, setNewBatch] = useState({ admissionYear: currentYear, graduationYear: currentYear + 4 });
-  const [newSection, setNewSection] = useState({ batchId: '', semester: 1, branchId: '', name: 'A', capacity: 60 });
+  const [newSection, setNewSection] = useState({ batchId: '', semester: 1, branchId: '', name: 'A', room: '', capacity: 60 });
+  const [sectionBatchFilter, setSectionBatchFilter] = useState('ALL');
+  const [sectionSemesterFilter, setSectionSemesterFilter] = useState('ALL');
+  const [sectionBranchFilter, setSectionBranchFilter] = useState('ALL');
+  const [sectionStatusFilter, setSectionStatusFilter] = useState('ALL');
   const [newSemester, setNewSemester] = useState({ batchId: '', number: 1, startDate: '', endDate: '', status: 'Upcoming' });
+  const [semesterBatchFilter, setSemesterBatchFilter] = useState('ALL');
 
   // Edit modal states
   const [editingBatch, setEditingBatch] = useState(null);
@@ -73,37 +80,34 @@ export default function AcademicStructurePage() {
   const [editingSemester, setEditingSemester] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Calendar items state (Step 4)
-  const [calendarItems, setCalendarItems] = useState([]);
-  const [governmentHolidays, setGovernmentHolidays] = useState([]);
-  const [loadingGovHolidays, setLoadingGovHolidays] = useState(false);
-  const [govHolidaySearch, setGovHolidaySearch] = useState('');
-  const [govHolidayStatusFilter, setGovHolidayStatusFilter] = useState('');
-  const [syncingGov, setSyncingGov] = useState(false);
-  const [eventsBatchId, setEventsBatchId] = useState('');
-  const [eventsSemesterId, setEventsSemesterId] = useState('');
-  const [calendarSubTab, setCalendarSubTab] = useState('holidays'); // 'holidays' | 'events'
-  const [calendarScopeFilter, setCalendarScopeFilter] = useState('ALL');
-  const [calendarBranchFilter, setCalendarBranchFilter] = useState('');
-  const [calendarStatusFilter, setCalendarStatusFilter] = useState('');
-  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
-  const [calendarModalKind, setCalendarModalKind] = useState('HOLIDAY'); // 'GOVERNMENT_HOLIDAY' | 'HOLIDAY' | 'EVENT'
-  const [editingCalendarItem, setEditingCalendarItem] = useState(null);
-  const [calendarForm, setCalendarForm] = useState({
+
+  // Step 5: Events state (Canonical Architecture)
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsScopeFilter, setEventsScopeFilter] = useState('ALL'); // 'ALL' | 'GLOBAL' | 'SEMESTER'
+  const [eventsTypeFilter, setEventsTypeFilter] = useState('ALL');
+  const [eventsStatusFilter, setEventsStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'CANCELLED' | 'ARCHIVED'
+  const [eventsSemesterFilter, setEventsSemesterFilter] = useState('ALL');
+  const [eventsSearch, setEventsSearch] = useState('');
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventSaving, setEventSaving] = useState(false);
+  const [eventFormError, setEventFormError] = useState('');
+  const [eventForm, setEventForm] = useState({
     title: '',
-    holidayCategory: 'GOVERNMENT',
+    eventType: 'College Event',
     scope: 'GLOBAL',
-    branchId: '',
-    dateMode: 'single',
+    academicSemesterId: '',
+    allDay: true,
     startDate: '',
     endDate: '',
-    observedByCollege: true,
-    classImpact: 'FULL_DAY',
     startTime: '09:00',
     endTime: '17:00',
     description: '',
-    status: 'Published'
+    status: 'ACTIVE'
   });
+
+  // Step 5: Section Timetable state
 
   // Step 5: Section Timetable state
   const [ttBatchId, setTtBatchId] = useState('');
@@ -118,23 +122,29 @@ export default function AcademicStructurePage() {
     subject: '',
     faculty: '',
     room: '',
-    lectureType: 'Lecture',
+    classType: 'Theory',
+    lectureType: 'Theory',
+    batchGroup: 'ALL',
     spanConsecutive: false
   });
   const [ttSaving, setTtSaving] = useState(false);
 
-  // Institutional Timetable Structure state (Super Admin)
+  // Institutional Timetable Structure & Settings state
   const [timetableStructure, setTimetableStructure] = useState(null);
-  const [ttSubView, setTtSubView] = useState('sections'); // 'sections' | 'structure'
+  const [ttSubView, setTtSubView] = useState('structure'); // 'structure' | 'sections'
   const [editingStructure, setEditingStructure] = useState(null);
   const [structureSaving, setStructureSaving] = useState(false);
-
-  // Ensure normal admins cannot stay on or switch to institutional structure subview
-  useEffect(() => {
-    if (!isSuper && ttSubView !== 'sections') {
-      setTtSubView('sections');
-    }
-  }, [isSuper, ttSubView]);
+  const [draftWorkingDays, setDraftWorkingDays] = useState([]);
+  const [draftCollegeStartMinute, setDraftCollegeStartMinute] = useState(480);
+  const [draftCollegeEndMinute, setDraftCollegeEndMinute] = useState(960);
+  const [draftClassDuration, setDraftClassDuration] = useState(50);
+  const [draftLabDuration, setDraftLabDuration] = useState(100);
+  const [draftBreaks, setDraftBreaks] = useState([
+    { id: 'brk_morning', name: 'Morning Break', startMinute: 580, duration: 20, endMinute: 600, status: 'Active' },
+    { id: 'brk_lunch', name: 'Lunch Break', startMinute: 700, duration: 60, endMinute: 760, status: 'Active' }
+  ]);
+  const [isEditingSettings, setIsEditingSettings] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   // Resolve "Common to All" branch (used for 1st-year curriculum)
   const commonBranch = useMemo(() => {
@@ -197,45 +207,32 @@ export default function AcademicStructurePage() {
 
   const adminAllocatedBranchId = adminAllocatedBranch?._id?.toString() || '';
 
-  // Auto-allocate branch when semester changes:
-  // - Sem 1 & 2: automatically set branch to "Common to All"
-  // - Sem 3 to 8: automatically set branch to admin's assigned department
-  const handleSemesterChange = (selectedSem) => {
-    setTtSemesterNum(selectedSem);
-    setTtSectionId('');
-    const semNum = Number(selectedSem);
-    if (semNum === 1 || semNum === 2) {
-      if (commonBranchId) {
-        setTtBranchId(commonBranchId);
-      }
-    } else if (semNum >= 3) {
-      if (adminAllocatedBranchId) {
-        setTtBranchId(adminAllocatedBranchId);
-      }
-    } else {
-      if (!isSuper && adminAllocatedBranchId) {
-        setTtBranchId(adminAllocatedBranchId);
-      }
-    }
-  };
-
-  // Keep branch in sync for normal admins
+  // For branch admins, keep their allocated branch selected
   useEffect(() => {
-    if (!isSuper) {
-      const semNum = Number(ttSemesterNum);
-      if (semNum === 1 || semNum === 2) {
-        if (commonBranchId && ttBranchId !== commonBranchId) {
-          setTtBranchId(commonBranchId);
-        }
-      } else if (semNum >= 3) {
-        if (adminAllocatedBranchId && ttBranchId !== adminAllocatedBranchId) {
-          setTtBranchId(adminAllocatedBranchId);
-        }
-      } else if (!ttSemesterNum && adminAllocatedBranchId && !ttBranchId) {
-        setTtBranchId(adminAllocatedBranchId);
-      }
+    if (!isSuper && adminAllocatedBranchId && ttBranchId !== adminAllocatedBranchId) {
+      setTtBranchId(adminAllocatedBranchId);
     }
-  }, [isSuper, ttSemesterNum, commonBranchId, adminAllocatedBranchId, ttBranchId]);
+  }, [isSuper, adminAllocatedBranchId, ttBranchId]);
+
+  const displayedSemesters = useMemo(() => {
+    if (!semesterBatchFilter || semesterBatchFilter === 'ALL') return semesters;
+    return semesters.filter((s) => String(s.batch?._id || s.batch) === String(semesterBatchFilter));
+  }, [semesters, semesterBatchFilter]);
+
+  const availableSemestersForSectionFilter = useMemo(() => {
+    if (!sectionBatchFilter || sectionBatchFilter === 'ALL') return semesters;
+    return semesters.filter((s) => String(s.batch?._id || s.batch) === String(sectionBatchFilter));
+  }, [semesters, sectionBatchFilter]);
+
+  const displayedSections = useMemo(() => {
+    return sections.filter((sec) => {
+      const matchBatch = sectionBatchFilter === 'ALL' || String(sec.batch?._id || sec.batch) === String(sectionBatchFilter);
+      const matchSem = sectionSemesterFilter === 'ALL' || Number(sec.semester) === Number(sectionSemesterFilter);
+      const matchBranch = sectionBranchFilter === 'ALL' || String(sec.branch?._id || sec.branch) === String(sectionBranchFilter);
+      const matchStatus = sectionStatusFilter === 'ALL' || sec.status === sectionStatusFilter;
+      return matchBatch && matchSem && matchBranch && matchStatus;
+    });
+  }, [sections, sectionBatchFilter, sectionSemesterFilter, sectionBranchFilter, sectionStatusFilter]);
 
   const fetchTimetableStructure = async () => {
     try {
@@ -318,6 +315,7 @@ export default function AcademicStructurePage() {
     return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${ampm}`;
   };
 
+  // Compute periods dynamically from start, end, duration, and breaks
   const computePeriodsPreview = (startMin, endMin, duration, breaksList = []) => {
     const periods = [];
     const start = Number(startMin ?? 480);
@@ -357,6 +355,348 @@ export default function AcademicStructurePage() {
       pNum++;
     }
     return periods;
+  };
+
+  // Synchronize draft settings from institutional timetable structure
+  const syncSettingsDraft = (struct) => {
+    if (!struct) return;
+    const workingDays = (struct.workingDays || [
+      { dayOfWeek: 1, dayName: 'Monday', status: 'Full Day' },
+      { dayOfWeek: 2, dayName: 'Tuesday', status: 'Full Day' },
+      { dayOfWeek: 3, dayName: 'Wednesday', status: 'Full Day' },
+      { dayOfWeek: 4, dayName: 'Thursday', status: 'Full Day' },
+      { dayOfWeek: 5, dayName: 'Friday', status: 'Full Day' },
+      { dayOfWeek: 6, dayName: 'Saturday', status: 'Half Day' },
+      { dayOfWeek: 7, dayName: 'Sunday', status: 'Non-Working' },
+    ]).map(wd => ({
+      dayOfWeek: Number(wd.dayOfWeek),
+      dayName: wd.dayName,
+      status: wd.dayOfWeek === 7 ? 'Non-Working' : (wd.status === 'Holiday' ? 'Non-Working' : wd.status),
+      maxPeriods: wd.maxPeriods || 4
+    }));
+    setDraftWorkingDays(workingDays);
+
+    const startMin = struct.collegeStartMinute ?? (struct.periods?.[0]?.startMinute ?? 480);
+    setDraftCollegeStartMinute(Number(startMin));
+
+    const endMin = struct.collegeEndMinute ?? (struct.periods?.[struct.periods.length - 1]?.endMinute ?? 960);
+    setDraftCollegeEndMinute(Number(endMin));
+
+    const cDur = struct.classDuration ?? (struct.periods?.[0] ? (struct.periods[0].endMinute - struct.periods[0].startMinute) : 50);
+    setDraftClassDuration(Number(cDur));
+
+    setDraftLabDuration(Number(struct.labDuration ?? 100));
+
+    let breaksList = [];
+    if (Array.isArray(struct.breaks) && struct.breaks.length > 0) {
+      breaksList = struct.breaks.map((b, idx) => ({
+        id: b.id || `break_${idx + 1}`,
+        name: b.name || `Break ${idx + 1}`,
+        startMinute: Number(b.startMinute),
+        duration: Number(b.duration || (b.endMinute ? b.endMinute - b.startMinute : 15)),
+        endMinute: Number(b.endMinute || (Number(b.startMinute) + Number(b.duration || 15))),
+        status: b.status || 'Active'
+      }));
+    } else if (Array.isArray(struct.timeline) && struct.timeline.some(t => t.type === 'break')) {
+      breaksList = struct.timeline.filter(t => t.type === 'break').map((b, idx) => ({
+        id: b.id || `break_${idx + 1}`,
+        name: b.name || `Break ${idx + 1}`,
+        startMinute: Number(b.startMinute),
+        duration: Number(b.duration || (b.endMinute ? b.endMinute - b.startMinute : 15)),
+        endMinute: Number(b.endMinute || (Number(b.startMinute) + Number(b.duration || 15))),
+        status: b.status || 'Active'
+      }));
+    } else {
+      breaksList = [
+        { id: 'brk_morning', name: 'Morning Break', startMinute: 580, duration: 20, endMinute: 600, status: 'Active' },
+        { id: 'brk_lunch', name: 'Lunch Break', startMinute: 700, duration: 60, endMinute: 760, status: 'Active' }
+      ];
+    }
+    breaksList.sort((a, b) => a.startMinute - b.startMinute);
+    setDraftBreaks(breaksList);
+  };
+
+  useEffect(() => {
+    if (timetableStructure) {
+      syncSettingsDraft(timetableStructure);
+    }
+  }, [timetableStructure]);
+
+  // Derived: auto-calculated periods
+  const calculatedPeriods = useMemo(() => {
+    return computePeriodsPreview(
+      draftCollegeStartMinute,
+      draftCollegeEndMinute,
+      draftClassDuration,
+      draftBreaks
+    );
+  }, [draftCollegeStartMinute, draftCollegeEndMinute, draftClassDuration, draftBreaks]);
+
+  // Derived: combined timeline items for preview
+  const activeTimelineItems = useMemo(() => {
+    const periods = calculatedPeriods.map(p => ({
+      type: 'period',
+      id: `p${p.periodNumber}`,
+      periodNumber: p.periodNumber,
+      name: p.name,
+      startMinute: p.startMinute,
+      endMinute: p.endMinute,
+      duration: p.endMinute - p.startMinute,
+      timeSlot: p.timeSlot,
+      status: 'Active'
+    }));
+
+    const breaks = (draftBreaks || []).filter(b => b.status !== 'Retired').map((b, idx) => ({
+      type: 'break',
+      id: b.id || `break_${idx + 1}`,
+      name: b.name || 'Break',
+      startMinute: Number(b.startMinute),
+      endMinute: Number(b.endMinute || (Number(b.startMinute) + Number(b.duration || 15))),
+      duration: Number(b.duration || (b.endMinute ? b.endMinute - b.startMinute : 15)),
+      status: 'Active'
+    }));
+
+    return [...periods, ...breaks].sort((a, b) => a.startMinute - b.startMinute);
+  }, [calculatedPeriods, draftBreaks]);
+
+  // Derived: Saturday policy & periods
+  const saturdayWorkingDay = useMemo(() => {
+    return draftWorkingDays.find(w => w.dayOfWeek === 6);
+  }, [draftWorkingDays]);
+
+  const saturdayPeriods = useMemo(() => {
+    if (!saturdayWorkingDay || saturdayWorkingDay.status === 'Non-Working') return [];
+    if (saturdayWorkingDay.status === 'Full Day') return calculatedPeriods;
+
+    // Half Day: periods before lunch or maxPeriods (default 4)
+    const lunch = (draftBreaks || []).find(b => b.name && b.name.toLowerCase().includes('lunch'));
+    if (lunch) {
+      const preLunch = calculatedPeriods.filter(p => p.endMinute <= lunch.startMinute);
+      if (preLunch.length > 0) return preLunch;
+    }
+    const maxP = saturdayWorkingDay.maxPeriods || 4;
+    return calculatedPeriods.slice(0, maxP);
+  }, [saturdayWorkingDay, calculatedPeriods, draftBreaks]);
+
+  const isSettingsDirty = useMemo(() => {
+    if (!timetableStructure) return false;
+
+    // Working days comparison
+    const origWd = (timetableStructure.workingDays || []).map(w => ({
+      dayOfWeek: w.dayOfWeek,
+      status: w.dayOfWeek === 7 ? 'Non-Working' : (w.status === 'Holiday' ? 'Non-Working' : w.status)
+    }));
+    const curWd = draftWorkingDays.map(w => ({
+      dayOfWeek: w.dayOfWeek,
+      status: w.status
+    }));
+    if (JSON.stringify(origWd) !== JSON.stringify(curWd)) return true;
+
+    // Timing and durations
+    const origStart = timetableStructure.collegeStartMinute ?? 480;
+    const origEnd = timetableStructure.collegeEndMinute ?? 960;
+    const origClassDur = timetableStructure.classDuration ?? 50;
+    const origLabDur = timetableStructure.labDuration ?? 100;
+
+    if (Number(draftCollegeStartMinute) !== Number(origStart)) return true;
+    if (Number(draftCollegeEndMinute) !== Number(origEnd)) return true;
+    if (Number(draftClassDuration) !== Number(origClassDur)) return true;
+    if (Number(draftLabDuration) !== Number(origLabDur)) return true;
+
+    // Breaks comparison
+    const origBreaks = (timetableStructure.breaks || []).map(b => ({
+      name: b.name,
+      startMinute: Number(b.startMinute),
+      duration: Number(b.duration || (b.endMinute - b.startMinute))
+    })).sort((a, b) => a.startMinute - b.startMinute);
+
+    const curBreaks = (draftBreaks || []).map(b => ({
+      name: b.name,
+      startMinute: Number(b.startMinute),
+      duration: Number(b.duration)
+    })).sort((a, b) => a.startMinute - b.startMinute);
+
+    if (JSON.stringify(origBreaks) !== JSON.stringify(curBreaks)) return true;
+
+    return false;
+  }, [timetableStructure, draftWorkingDays, draftCollegeStartMinute, draftCollegeEndMinute, draftClassDuration, draftLabDuration, draftBreaks]);
+
+  const settingsValidationError = useMemo(() => {
+    // 1. Working days
+    const hasWorkingDay = draftWorkingDays.some(w => w.status === 'Full Day' || w.status === 'Half Day');
+    if (!hasWorkingDay) {
+      return 'At least one working day (Full Day or Half Day) must be configured.';
+    }
+    const sunday = draftWorkingDays.find(w => w.dayOfWeek === 7);
+    if (sunday && sunday.status !== 'Non-Working') {
+      return 'Sunday is strictly Non-Working by institutional policy.';
+    }
+
+    // 2. Timings
+    if (draftCollegeStartMinute >= draftCollegeEndMinute) {
+      return `College Start Time (${minutesToTime(draftCollegeStartMinute)}) must be strictly before College End Time (${minutesToTime(draftCollegeEndMinute)}).`;
+    }
+    if (draftCollegeEndMinute - draftCollegeStartMinute < draftClassDuration) {
+      return `Daily college duration must be at least one class period (${draftClassDuration} mins).`;
+    }
+
+    // 3. Class duration
+    if (draftClassDuration < 15 || draftClassDuration > 180) {
+      return 'Class duration must be between 15 and 180 minutes.';
+    }
+
+    // 4. Breaks
+    for (let i = 0; i < (draftBreaks || []).length; i++) {
+      const b = draftBreaks[i];
+      if (!b.name || !b.name.trim()) {
+        return `Break #${i + 1} must have a name.`;
+      }
+      if (b.startMinute < draftCollegeStartMinute || b.startMinute >= draftCollegeEndMinute) {
+        return `Break "${b.name}" (${minutesToTime(b.startMinute)}) must start within college operating hours (${minutesToTime(draftCollegeStartMinute)}–${minutesToTime(draftCollegeEndMinute)}).`;
+      }
+      const endMin = b.startMinute + Number(b.duration || 0);
+      if (endMin > draftCollegeEndMinute) {
+        return `Break "${b.name}" ends at ${minutesToTime(endMin)}, which exceeds College End Time (${minutesToTime(draftCollegeEndMinute)}).`;
+      }
+    }
+
+    // 5. Break overlaps
+    const sortedBreaks = [...(draftBreaks || [])].sort((a, b) => a.startMinute - b.startMinute);
+    for (let i = 0; i < sortedBreaks.length - 1; i++) {
+      const b1 = sortedBreaks[i];
+      const b2 = sortedBreaks[i + 1];
+      const b1End = b1.startMinute + Number(b1.duration);
+      if (b1End > b2.startMinute) {
+        return `Break "${b1.name}" (${minutesToTime(b1.startMinute)}–${minutesToTime(b1End)}) overlaps with "${b2.name}" (${minutesToTime(b2.startMinute)}).`;
+      }
+    }
+
+    // 6. Periods count
+    if (calculatedPeriods.length === 0) {
+      return 'The current configuration does not fit any teaching periods. Please adjust timings, class duration, or breaks.';
+    }
+
+    return null;
+  }, [draftWorkingDays, draftCollegeStartMinute, draftCollegeEndMinute, draftClassDuration, draftBreaks, calculatedPeriods]);
+
+  const handleWorkingDayChange = (dayOfWeek, status) => {
+    if (dayOfWeek === 7) return; // Sunday is locked to Non-Working
+    setDraftWorkingDays(prev => prev.map(w => w.dayOfWeek === dayOfWeek ? { ...w, status } : w));
+  };
+
+  const handleAddBreakItem = () => {
+    const lastBreak = draftBreaks[draftBreaks.length - 1];
+    const suggestedStart = lastBreak ? Math.min(lastBreak.startMinute + Number(lastBreak.duration) + 100, draftCollegeEndMinute - 30) : 600;
+    const newBreak = {
+      id: `brk_${Date.now().toString(36)}`,
+      name: `Break ${draftBreaks.length + 1}`,
+      startMinute: suggestedStart,
+      duration: 15,
+      endMinute: suggestedStart + 15,
+      status: 'Active'
+    };
+    setDraftBreaks(prev => [...prev, newBreak].sort((a, b) => a.startMinute - b.startMinute));
+  };
+
+  const handleUpdateBreakItem = (index, field, value) => {
+    setDraftBreaks(prev => {
+      const updated = [...prev];
+      const item = { ...updated[index], [field]: value };
+      if (field === 'startMinute' || field === 'duration') {
+        const s = field === 'startMinute' ? Number(value) : Number(item.startMinute);
+        const d = field === 'duration' ? Number(value) : Number(item.duration);
+        item.endMinute = s + d;
+      }
+      updated[index] = item;
+      return updated.sort((a, b) => a.startMinute - b.startMinute);
+    });
+  };
+
+  const handleDeleteBreakItem = (index) => {
+    setDraftBreaks(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleDiscardSettings = () => {
+    syncSettingsDraft(timetableStructure);
+    setIsEditingSettings(false);
+  };
+
+  const handleSaveSettings = async () => {
+    if (settingsValidationError) return;
+    setSettingsSaving(true);
+    try {
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      
+      const satMax = (saturdayWorkingDay?.status === 'Half Day') ? (saturdayWorkingDay?.maxPeriods || 4) : 0;
+      const lunch = (draftBreaks || []).find(b => b.name && b.name.toLowerCase().includes('lunch'));
+      
+      const formattedPeriods = calculatedPeriods.map(p => {
+        let isSat = false;
+        if (saturdayWorkingDay?.status === 'Full Day') {
+          isSat = true;
+        } else if (saturdayWorkingDay?.status === 'Half Day') {
+          if (lunch) {
+            isSat = p.endMinute <= lunch.startMinute;
+          } else {
+            isSat = p.periodNumber <= satMax;
+          }
+        }
+        return {
+          id: `p_${p.periodNumber}`,
+          periodNumber: p.periodNumber,
+          name: p.name || `Period ${p.periodNumber}`,
+          startMinute: p.startMinute,
+          endMinute: p.endMinute,
+          timeSlot: `${minutesToTime(p.startMinute)}-${minutesToTime(p.endMinute)}`,
+          saturdayAvailable: isSat,
+          status: 'Active',
+          order: p.periodNumber
+        };
+      });
+
+      const formattedBreaks = (draftBreaks || []).map((b, idx) => {
+        const endM = Number(b.startMinute) + Number(b.duration);
+        return {
+          id: b.id || `brk_${idx + 1}`,
+          name: b.name.trim(),
+          startMinute: Number(b.startMinute),
+          endMinute: endM,
+          duration: Number(b.duration),
+          timeSlot: `${minutesToTime(b.startMinute)}-${minutesToTime(endM)}`,
+          status: 'Active',
+          order: idx + 1
+        };
+      });
+
+      const payload = {
+        name: timetableStructure?.name || 'SIT Institutional Bell Schedule',
+        collegeStartMinute: draftCollegeStartMinute,
+        collegeEndMinute: draftCollegeEndMinute,
+        classDuration: draftClassDuration,
+        labDuration: Number(draftLabDuration || 100),
+        workingDays: draftWorkingDays,
+        breaks: formattedBreaks,
+        periods: formattedPeriods
+      };
+
+      const res = await fetch('/api/academic/structure/timetable-structure', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatusMessage({ type: 'success', text: 'Institutional Timetable Settings saved successfully!' });
+        setTimetableStructure(data.data);
+        setIsEditingSettings(false);
+      } else {
+        setStatusMessage({ type: 'error', text: data.error || 'Failed to save timetable settings' });
+      }
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: err.message });
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const sectionGridColumns = useMemo(() => {
@@ -401,38 +741,30 @@ export default function AcademicStructurePage() {
       }));
   }, [ttData?.structure?.workingDays]);
 
-  const filteredSections = useMemo(() => {
-    return sections.filter((sec) => {
-      const bId = sec.batch?._id || sec.batch;
-      const brId = sec.branch?._id || sec.branch;
-      const matchBatch = !ttBatchId || bId?.toString() === ttBatchId;
-      const matchSem = !ttSemesterNum || sec.semester === Number(ttSemesterNum);
-      
-      const isFirstYear = Number(ttSemesterNum) === 1 || Number(ttSemesterNum) === 2;
-      
-      let matchBranch = true;
-      if (ttBranchId) {
-        if (isFirstYear && ttBranchId === commonBranchId) {
-          // In 1st year (common curriculum), section could belong to 'Common to All'
-          // OR belong to the department (e.g. ISE Sec A, CSE Sec A)
-          const isSecCommon = brId?.toString() === commonBranchId;
-          const isSecAdminBranch = adminAllocatedBranchId && brId?.toString() === adminAllocatedBranchId;
-          
-          if (isSuper) {
-            matchBranch = true;
-          } else {
-            matchBranch = isSecCommon || isSecAdminBranch;
-          }
-        } else {
-          matchBranch = brId?.toString() === ttBranchId;
-        }
-      } else if (!isSuper && adminAllocatedBranchId) {
-        matchBranch = brId?.toString() === adminAllocatedBranchId || (isFirstYear && brId?.toString() === commonBranchId);
-      }
+  // Step 6 Hierarchy: Batch -> Official Semester -> Department/Branch -> Class Section
+  const availableSemestersForBatch = useMemo(() => {
+    if (!ttBatchId) return [];
+    return semesters.filter((s) => String(s.batch?._id || s.batch) === String(ttBatchId));
+  }, [semesters, ttBatchId]);
 
-      return matchBatch && matchSem && matchBranch;
+  const availableBranchesForTimetable = useMemo(() => {
+    // Show actual departments/branches - strictly exclude 'COMMON' / 'Common to All'
+    return branches.filter((br) => {
+      const code = (br.shortName || br.code || '').toUpperCase();
+      const name = (br.name || '').toLowerCase();
+      return code !== 'COMMON' && !name.includes('common');
     });
-  }, [sections, ttBatchId, ttSemesterNum, ttBranchId, commonBranchId, adminAllocatedBranchId, isSuper]);
+  }, [branches]);
+
+  const availableSectionsForTimetable = useMemo(() => {
+    if (!ttBatchId || !ttSemesterNum || !ttBranchId) return [];
+    return sections.filter((sec) => {
+      const bId = String(sec.batch?._id || sec.batch);
+      const semNum = Number(sec.semester);
+      const brId = String(sec.branch?._id || sec.branch);
+      return bId === String(ttBatchId) && semNum === Number(ttSemesterNum) && brId === String(ttBranchId);
+    });
+  }, [sections, ttBatchId, ttSemesterNum, ttBranchId]);
 
   const fetchSectionTimetable = async (secId) => {
     if (!secId) {
@@ -443,7 +775,13 @@ export default function AcademicStructurePage() {
     setTtLoading(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch(`/api/academic/structure/section-timetables/${secId}`, {
+      const params = new URLSearchParams();
+      if (ttBatchId) params.append('batch', ttBatchId);
+      if (ttSemesterNum) params.append('semester', ttSemesterNum);
+      if (ttBranchId) params.append('branch', ttBranchId);
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+
+      const res = await fetch(`/api/academic/structure/section-timetables/${secId}${queryString}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -452,17 +790,24 @@ export default function AcademicStructurePage() {
         const map = {};
         if (data.data.timetable?.slots) {
           data.data.timetable.slots.forEach((s) => {
-            map[`${s.dayOfWeek}_${s.periodNumber}`] = {
-              dayOfWeek: s.dayOfWeek,
-              periodNumber: s.periodNumber,
-              subject: s.subject?._id || s.subject || '',
-              subjectDoc: s.subject,
-              faculty: s.faculty?._id || s.faculty || '',
-              facultyDoc: s.faculty,
-              room: s.room || '',
-              lectureType: s.lectureType || 'Lecture',
-              sessionGroupId: s.sessionGroupId || null
-            };
+            if (s.subject) {
+              const classType = s.lectureType === 'Lab' || s.classType === 'Lab' ? 'Lab' : 'Theory';
+              const batchGroup = s.batchGroup ? String(s.batchGroup).trim().toUpperCase() : (classType === 'Lab' ? 'B1' : 'ALL');
+              const slotKey = `${s.dayOfWeek}_${s.periodNumber}_${batchGroup}`;
+              map[slotKey] = {
+                dayOfWeek: s.dayOfWeek,
+                periodNumber: s.periodNumber,
+                subject: s.subject?._id || s.subject || '',
+                subjectDoc: s.subject,
+                faculty: s.faculty?._id || s.faculty || '',
+                facultyDoc: s.faculty,
+                room: s.room || '',
+                classType,
+                lectureType: classType,
+                batchGroup,
+                sessionGroupId: s.sessionGroupId || null
+              };
+            }
           });
         }
         setTtSlots(map);
@@ -481,9 +826,32 @@ export default function AcademicStructurePage() {
     setTtSaving(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const slotsPayload = Object.values(ttSlots).filter(s => s.subject || s.room || s.faculty || s.lectureType === 'Free Period');
+      const params = new URLSearchParams();
+      if (ttBatchId) params.append('batch', ttBatchId);
+      if (ttSemesterNum) params.append('semester', ttSemesterNum);
+      if (ttBranchId) params.append('branch', ttBranchId);
+      const queryString = params.toString() ? `?${params.toString()}` : '';
 
-      const res = await fetch(`/api/academic/structure/section-timetables/${ttSectionId}`, {
+      // Only include assigned slots (must have a subject)
+      const slotsPayload = Object.values(ttSlots)
+        .filter(s => s.subject)
+        .map(s => {
+          const classType = s.classType === 'Lab' || s.lectureType === 'Lab' ? 'Lab' : 'Theory';
+          const batchGroup = classType === 'Lab' ? (s.batchGroup || 'B1') : 'ALL';
+          return {
+            dayOfWeek: s.dayOfWeek,
+            periodNumber: s.periodNumber,
+            subject: s.subject,
+            classType,
+            lectureType: classType,
+            batchGroup,
+            faculty: s.faculty || null,
+            room: s.room ? s.room.trim().toUpperCase() : '',
+            sessionGroupId: s.sessionGroupId || null
+          };
+        });
+
+      const res = await fetch(`/api/academic/structure/section-timetables/${ttSectionId}${queryString}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -539,61 +907,140 @@ export default function AcademicStructurePage() {
     }
   };
 
-  const handleOpenSlotModal = (dayOfWeek, periodNumber) => {
-    const key = `${dayOfWeek}_${periodNumber}`;
+  const handleReopenTimetable = async () => {
+    if (!ttSectionId) return;
+    const confirmed = window.confirm(
+      'Reopen this published timetable for editing? Its status will revert to Draft so you can adjust slot assignments before publishing again.'
+    );
+    if (!confirmed) return;
+    setTtSaving(true);
+    try {
+      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const res = await fetch(`/api/academic/structure/section-timetables/${ttSectionId}/reopen`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setStatusMessage({ type: 'success', text: 'Timetable reopened as Draft. You can now modify slot assignments.' });
+        fetchSectionTimetable(ttSectionId);
+      } else {
+        setStatusMessage({ type: 'error', text: data.error || 'Failed to reopen timetable' });
+      }
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: err.message });
+    } finally {
+      setTtSaving(false);
+    }
+  };
+
+  const handleOpenSlotModal = (dayOfWeek, periodNumber, targetBatch = 'ALL') => {
+    const key = `${dayOfWeek}_${periodNumber}_${targetBatch}`;
     const existing = ttSlots[key];
     setEditingSlotKey(key);
+    const classType = existing?.classType || (existing?.lectureType === 'Lab' ? 'Lab' : targetBatch !== 'ALL' ? 'Lab' : 'Theory');
+    const batchGroup = targetBatch !== 'ALL' ? targetBatch : (existing?.batchGroup || 'ALL');
     setSlotForm({
       dayOfWeek,
       periodNumber,
       subject: existing?.subject || '',
+      classType,
+      lectureType: classType,
+      batchGroup,
       faculty: existing?.faculty || '',
       room: existing?.room || '',
-      lectureType: existing?.lectureType || 'Lecture',
-      spanConsecutive: false
+      spanConsecutive: Boolean(existing?.sessionGroupId) || (classType === 'Lab' && !existing)
     });
+  };
+
+  const handleClearSlot = () => {
+    if (!editingSlotKey) return;
+    const existing = ttSlots[editingSlotKey];
+    const newSlots = { ...ttSlots };
+
+    if (existing?.sessionGroupId) {
+      // Clear all slots sharing this sessionGroupId (e.g. 2-period lab block)
+      Object.keys(newSlots).forEach((k) => {
+        if (newSlots[k]?.sessionGroupId === existing.sessionGroupId) {
+          delete newSlots[k];
+        }
+      });
+    } else {
+      delete newSlots[editingSlotKey];
+    }
+
+    setTtSlots(newSlots);
+    setEditingSlotKey(null);
   };
 
   const handleSaveSlot = (e) => {
     e.preventDefault();
     if (!editingSlotKey) return;
-    const [day, period] = editingSlotKey.split('_').map(Number);
-
+    if (!slotForm.subject) {
+      setStatusMessage({ type: 'error', text: 'Please select a Subject for this period slot.' });
+      return;
+    }
+    const parts = editingSlotKey.split('_');
+    const day = Number(parts[0]);
+    const period = Number(parts[1]);
     const subjDoc = ttData?.branchSubjects?.find(s => s._id === slotForm.subject);
     const facDoc = ttData?.branchFaculties?.find(f => f._id === slotForm.faculty);
+    const classType = slotForm.classType === 'Lab' ? 'Lab' : 'Theory';
+    const batchGroup = classType === 'Lab' ? (slotForm.batchGroup || 'B1') : 'ALL';
 
     const newSlots = { ...ttSlots };
+    const dayDef = sectionWorkingDays.find(d => d.dayNum === day);
+    const maxAllowed = dayDef?.maxPeriods || (day === 6 ? 4 : (ttData?.periodDefinitions?.length || 7));
 
-    if (!slotForm.subject && !slotForm.room && slotForm.lectureType !== 'Free Period') {
-      delete newSlots[editingSlotKey];
+    // Generate unique session group ID for 2-period lab block
+    const groupId = (classType === 'Lab' && slotForm.spanConsecutive)
+      ? `LAB_${day}_P${period}_P${period + 1}_${batchGroup}_${subjDoc?.code || 'LAB'}`
+      : null;
+
+    const currentKey = `${day}_${period}_${batchGroup}`;
+
+    // If setting a whole-section Theory ('ALL'), clear any existing batch slots for this period
+    if (batchGroup === 'ALL') {
+      delete newSlots[`${day}_${period}_B1`];
+      delete newSlots[`${day}_${period}_B2`];
+      delete newSlots[`${day}_${period}_ALL`];
     } else {
-      const groupId = slotForm.spanConsecutive ? `LAB_${day}_P${period}_P${period + 1}` : null;
-      newSlots[editingSlotKey] = {
+      // If setting a Lab batch (B1 or B2), clear any existing whole-section 'ALL' slot in this period
+      delete newSlots[`${day}_${period}_ALL`];
+      delete newSlots[currentKey];
+    }
+
+    newSlots[currentKey] = {
+      dayOfWeek: day,
+      periodNumber: period,
+      subject: slotForm.subject,
+      subjectDoc: subjDoc || null,
+      classType,
+      lectureType: classType,
+      batchGroup,
+      faculty: slotForm.faculty || null,
+      facultyDoc: facDoc || null,
+      room: slotForm.room ? slotForm.room.trim().toUpperCase() : '',
+      sessionGroupId: groupId
+    };
+
+    if (classType === 'Lab' && slotForm.spanConsecutive && period < maxAllowed) {
+      const nextKey = `${day}_${period + 1}_${batchGroup}`;
+      delete newSlots[`${day}_${period + 1}_ALL`];
+      delete newSlots[nextKey];
+      newSlots[nextKey] = {
         dayOfWeek: day,
-        periodNumber: period,
-        subject: slotForm.subject || null,
+        periodNumber: period + 1,
+        subject: slotForm.subject,
         subjectDoc: subjDoc || null,
+        classType,
+        lectureType: classType,
+        batchGroup,
         faculty: slotForm.faculty || null,
         facultyDoc: facDoc || null,
-        room: slotForm.room.trim().toUpperCase(),
-        lectureType: slotForm.lectureType,
+        room: slotForm.room ? slotForm.room.trim().toUpperCase() : '',
         sessionGroupId: groupId
       };
-
-      if (slotForm.spanConsecutive && period < (day === 6 ? 4 : 8)) {
-        const nextKey = `${day}_${period + 1}`;
-        newSlots[nextKey] = {
-          dayOfWeek: day,
-          periodNumber: period + 1,
-          subject: slotForm.subject || null,
-          subjectDoc: subjDoc || null,
-          faculty: slotForm.faculty || null,
-          facultyDoc: facDoc || null,
-          room: slotForm.room.trim().toUpperCase(),
-          lectureType: slotForm.lectureType,
-          sessionGroupId: groupId
-        };
-      }
     }
 
     setTtSlots(newSlots);
@@ -601,86 +1048,208 @@ export default function AcademicStructurePage() {
   };
 
   const handleClearGrid = () => {
+    if (ttData?.timetable?.status === 'Published') {
+      setStatusMessage({
+        type: 'error',
+        text: 'Cannot clear a Published timetable. Click "Reopen for Editing" first.'
+      });
+      return;
+    }
     if (window.confirm('Clear all period assignments in this grid?')) {
       setTtSlots({});
     }
   };
 
   const renderSlotCell = (dayOfWeek, periodNumber) => {
-    const key = `${dayOfWeek}_${periodNumber}`;
-    const slot = ttSlots[key];
+    const isPublished = ttData?.timetable?.status === 'Published';
     const isArchived = ttData?.timetable?.status === 'Archived';
+    const isLocked = isPublished || isArchived;
 
-    if (!slot || (!slot.subject && !slot.room && slot.lectureType !== 'Free Period')) {
+    const allSlot = ttSlots[`${dayOfWeek}_${periodNumber}_ALL`];
+    const b1Slot = ttSlots[`${dayOfWeek}_${periodNumber}_B1`];
+    const b2Slot = ttSlots[`${dayOfWeek}_${periodNumber}_B2`];
+
+    const hasAnySlot = Boolean(allSlot || b1Slot || b2Slot);
+
+    if (!hasAnySlot) {
       return (
         <td
           key={periodNumber}
-          onClick={() => !isArchived && handleOpenSlotModal(dayOfWeek, periodNumber)}
+          onClick={() => {
+            if (isPublished) {
+              setStatusMessage({
+                type: 'info',
+                text: 'This timetable is Published and protected from accidental edits. Click "Reopen for Editing" in the toolbar above to modify slots.'
+              });
+              return;
+            }
+            if (isArchived) {
+              setStatusMessage({ type: 'error', text: 'This timetable is Archived and read-only.' });
+              return;
+            }
+            handleOpenSlotModal(dayOfWeek, periodNumber, 'ALL');
+          }}
+          title={isPublished ? 'Published & Protected. Reopen to edit.' : isArchived ? 'Archived read-only.' : 'Click to assign period'}
           className={`p-1.5 border-r border-gray-100 dark:border-zinc-800 text-center transition-colors ${
-            isArchived
-              ? 'cursor-not-allowed opacity-60'
-              : 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/20'
+            isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-950/20'
           }`}
         >
-          <div className="h-14 rounded border border-dashed border-gray-200 dark:border-zinc-800 flex items-center justify-center text-gray-300 dark:text-zinc-600 hover:border-blue-400 hover:text-blue-500 transition-colors">
-            <Plus className="w-3.5 h-3.5" />
+          <div className="h-16 rounded border border-dashed border-gray-200 dark:border-zinc-800 flex items-center justify-center text-gray-300 dark:text-zinc-600 hover:border-blue-400 hover:text-blue-500 transition-colors">
+            {isPublished ? <Lock className="w-3 h-3 text-gray-400" /> : <Plus className="w-3.5 h-3.5" />}
           </div>
         </td>
       );
     }
 
-    const subjectCode = slot.subjectDoc?.code || (ttData?.branchSubjects?.find(s => s._id === slot.subject)?.code) || 'SUBJ';
-    const subjectName = slot.subjectDoc?.name || (ttData?.branchSubjects?.find(s => s._id === slot.subject)?.name) || '';
-    const facultyName = slot.facultyDoc?.name || (ttData?.branchFaculties?.find(f => f._id === slot.faculty)?.name) || 'TBA';
-    const isLab = slot.lectureType === 'Lab';
-    const isTutorial = slot.lectureType === 'Tutorial';
-    const isSeminar = slot.lectureType === 'Seminar';
-    const isFree = slot.lectureType === 'Free Period';
+    // Case 1: Whole section class (Theory)
+    if (allSlot) {
+      const subjectCode = allSlot.subjectDoc?.code || (ttData?.branchSubjects?.find(s => s._id === allSlot.subject)?.code) || 'SUBJ';
+      const subjectName = allSlot.subjectDoc?.name || (ttData?.branchSubjects?.find(s => s._id === allSlot.subject)?.name) || '';
+      const facultyName = allSlot.facultyDoc?.name || (ttData?.branchFaculties?.find(f => f._id === allSlot.faculty)?.name) || 'TBA';
 
-    let badgeBg = 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/50 text-blue-900 dark:text-blue-200';
-    let typeBadgeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300';
-
-    if (isLab) {
-      badgeBg = 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/50 text-purple-900 dark:text-purple-200';
-      typeBadgeColor = 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-300';
-    } else if (isTutorial) {
-      badgeBg = 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200';
-      typeBadgeColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300';
-    } else if (isSeminar) {
-      badgeBg = 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/50 text-amber-900 dark:text-amber-200';
-      typeBadgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300';
-    } else if (isFree) {
-      badgeBg = 'bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400';
-      typeBadgeColor = 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300';
+      return (
+        <td
+          key={periodNumber}
+          onClick={() => {
+            if (isLocked) {
+              setStatusMessage({ type: 'info', text: isPublished ? 'Timetable is Published. Reopen to edit.' : 'Timetable is Archived.' });
+              return;
+            }
+            handleOpenSlotModal(dayOfWeek, periodNumber, 'ALL');
+          }}
+          title={isPublished ? 'Published & Protected.' : 'Click to edit slot'}
+          className={`p-1 border-r border-gray-100 dark:border-zinc-800 transition-colors ${
+            isLocked ? 'cursor-not-allowed opacity-90' : 'cursor-pointer hover:opacity-90'
+          }`}
+        >
+          <div className="h-16 p-1.5 rounded border bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/50 text-blue-900 dark:text-blue-200 flex flex-col justify-between text-[11px] overflow-hidden relative shadow-xs">
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-bold truncate text-xs" title={subjectName || subjectCode}>
+                {subjectCode}
+              </span>
+              <div className="flex items-center gap-1">
+                {allSlot.room && (
+                  <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 uppercase">
+                    {allSlot.room}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-1 text-[10px] text-gray-600 dark:text-gray-400">
+              <span className="truncate max-w-[65px]" title={facultyName}>
+                {facultyName}
+              </span>
+              <span className="text-[8px] px-1 py-0.2 rounded font-semibold uppercase bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                Theory
+              </span>
+            </div>
+          </div>
+        </td>
+      );
     }
 
+    // Case 2: Parallel Lab Batches (B1 and/or B2)
     return (
       <td
         key={periodNumber}
-        onClick={() => !isArchived && handleOpenSlotModal(dayOfWeek, periodNumber)}
-        className={`p-1 border-r border-gray-100 dark:border-zinc-800 transition-colors ${
-          isArchived ? 'cursor-not-allowed opacity-75' : 'cursor-pointer hover:opacity-90'
-        }`}
+        className="p-1 border-r border-gray-100 dark:border-zinc-800 align-top min-w-[120px]"
       >
-        <div className={`h-14 p-1 rounded border ${badgeBg} flex flex-col justify-between text-[11px] overflow-hidden`}>
-          <div className="flex items-center justify-between gap-1">
-            <span className="font-bold truncate" title={subjectName || subjectCode}>
-              {isFree ? 'Free' : subjectCode}
-            </span>
-            {slot.room && (
-              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-black/5 dark:bg-white/10 uppercase">
-                {slot.room}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center justify-between gap-1 text-[10px] text-gray-600 dark:text-gray-400">
-            <span className="truncate max-w-[70px]" title={facultyName}>
-              {facultyName}
-            </span>
-            <span className={`text-[8px] px-1 py-0.2 rounded font-semibold uppercase ${typeBadgeColor}`}>
-              {slot.lectureType || 'Lecture'}
-            </span>
-          </div>
+        <div className="h-16 flex flex-col gap-1">
+          {/* Batch B1 Card / Slot */}
+          {b1Slot ? (
+            <div
+              onClick={() => {
+                if (isLocked) {
+                  setStatusMessage({ type: 'info', text: isPublished ? 'Timetable is Published. Reopen to edit.' : 'Timetable is Archived.' });
+                  return;
+                }
+                handleOpenSlotModal(dayOfWeek, periodNumber, 'B1');
+              }}
+              className={`flex-1 px-1.5 py-0.5 rounded border bg-purple-50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800/60 flex items-center justify-between gap-1 text-[10px] transition-all shadow-2xs ${
+                isLocked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-purple-100/70 dark:hover:bg-purple-900/40'
+              }`}
+              title={`Batch B1: ${b1Slot.subjectDoc?.name || b1Slot.subjectDoc?.code || 'Lab'} (Click to edit)`}
+            >
+              <div className="flex items-center gap-1 truncate">
+                <span className="text-[8px] font-black px-1 py-0.2 rounded bg-purple-600 text-white tracking-wider shrink-0">
+                  B1
+                </span>
+                <span className="font-bold truncate text-purple-950 dark:text-purple-200">
+                  {b1Slot.subjectDoc?.code || (ttData?.branchSubjects?.find(s => s._id === b1Slot.subject)?.code) || 'LAB'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {b1Slot.sessionGroupId && (
+                  <span className="text-[7.5px] font-bold px-0.5 rounded bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-300">
+                    2P
+                  </span>
+                )}
+                {b1Slot.room && (
+                  <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/5 dark:bg-white/10 uppercase">
+                    {b1Slot.room}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isLocked}
+              onClick={() => handleOpenSlotModal(dayOfWeek, periodNumber, 'B1')}
+              className="flex-1 rounded border border-dashed border-purple-200 dark:border-purple-900/40 text-[9px] font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50/50 dark:hover:bg-purple-950/30 flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+              title="Assign B1 Lab"
+            >
+              <Plus className="w-2.5 h-2.5" /> <span>B1 Lab</span>
+            </button>
+          )}
+
+          {/* Batch B2 Card / Slot */}
+          {b2Slot ? (
+            <div
+              onClick={() => {
+                if (isLocked) {
+                  setStatusMessage({ type: 'info', text: isPublished ? 'Timetable is Published. Reopen to edit.' : 'Timetable is Archived.' });
+                  return;
+                }
+                handleOpenSlotModal(dayOfWeek, periodNumber, 'B2');
+              }}
+              className={`flex-1 px-1.5 py-0.5 rounded border bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800/60 flex items-center justify-between gap-1 text-[10px] transition-all shadow-2xs ${
+                isLocked ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-indigo-100/70 dark:hover:bg-indigo-900/40'
+              }`}
+              title={`Batch B2: ${b2Slot.subjectDoc?.name || b2Slot.subjectDoc?.code || 'Lab'} (Click to edit)`}
+            >
+              <div className="flex items-center gap-1 truncate">
+                <span className="text-[8px] font-black px-1 py-0.2 rounded bg-indigo-600 text-white tracking-wider shrink-0">
+                  B2
+                </span>
+                <span className="font-bold truncate text-indigo-950 dark:text-indigo-200">
+                  {b2Slot.subjectDoc?.code || (ttData?.branchSubjects?.find(s => s._id === b2Slot.subject)?.code) || 'LAB'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {b2Slot.sessionGroupId && (
+                  <span className="text-[7.5px] font-bold px-0.5 rounded bg-indigo-200 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-300">
+                    2P
+                  </span>
+                )}
+                {b2Slot.room && (
+                  <span className="text-[7.5px] font-mono px-0.5 rounded bg-black/5 dark:bg-white/10 uppercase">
+                    {b2Slot.room}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isLocked}
+              onClick={() => handleOpenSlotModal(dayOfWeek, periodNumber, 'B2')}
+              className="flex-1 rounded border border-dashed border-indigo-200 dark:border-indigo-900/40 text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+              title="Assign B2 Lab"
+            >
+              <Plus className="w-2.5 h-2.5" /> <span>B2 Lab</span>
+            </button>
+          )}
         </div>
       </td>
     );
@@ -695,25 +1264,28 @@ export default function AcademicStructurePage() {
         Authorization: `Bearer ${token}`
       };
 
-      const [resColleges, resPrograms, resBranches, resBatches, resSemesters, resSections] = await Promise.all([
-        fetch('/api/academic/structure/colleges', { headers }).then(r => r.json()),
-        fetch('/api/academic/structure/programs', { headers }).then(r => r.json()),
-        fetch('/api/academic/structure/branches', { headers }).then(r => r.json()),
-        fetch('/api/academic/structure/batches', { headers }).then(r => r.json()),
-        fetch('/api/academic/structure/semesters', { headers }).then(r => r.json()),
-        fetch('/api/academic/structure/sections', { headers }).then(r => r.json())
+      const [resColleges, resPrograms, resBranches, resBatches, resSemesters, resSections, resEvents] = await Promise.all([
+        fetch('/api/academic/structure/colleges', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/academic/structure/programs', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/academic/structure/branches', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/academic/structure/batches', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/academic/structure/semesters', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/academic/structure/sections', { headers }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/academic/structure/events', { headers }).then(r => r.json()).catch(() => ({}))
       ]);
 
-      if (resColleges.success) {
+      if (resColleges?.success) {
         setColleges(resColleges.data);
         const primary = resColleges.primary || resColleges.data?.[0];
         setSitCollege(primary);
       }
-      if (resPrograms.success) setPrograms(resPrograms.data);
-      if (resBranches.success) setBranches(resBranches.data);
-      if (resBatches.success) setBatches(resBatches.data);
-      if (resSemesters.success) setSemesters(resSemesters.data);
-      if (resSections.success) setSections(resSections.data);
+      if (resPrograms?.success) setPrograms(resPrograms.data);
+      if (resBranches?.success) setBranches(resBranches.data);
+      if (resBatches?.success) setBatches(resBatches.data);
+      if (resSemesters?.success) setSemesters(resSemesters.data);
+      if (resSections?.success) setSections(resSections.data);
+      
+      if (resEvents?.success) setEvents(resEvents.data);
     } catch (err) {
       console.error('Failed to fetch academic structure:', err);
     } finally {
@@ -727,20 +1299,55 @@ export default function AcademicStructurePage() {
 
   const handleCreateBatch = async (e) => {
     e.preventDefault();
+    const adm = Number(newBatch.admissionYear);
+    const grad = Number(newBatch.graduationYear);
+
+    if (!adm || !grad) {
+      setStatusMessage({ type: 'error', text: 'Both admission year and graduation year are required.' });
+      return;
+    }
+    if (!Number.isInteger(adm) || adm < 1950 || adm > 2100) {
+      setStatusMessage({ type: 'error', text: 'Admission year must be a valid 4-digit year between 1950 and 2100.' });
+      return;
+    }
+    if (!Number.isInteger(grad) || grad < 1950 || grad > 2100) {
+      setStatusMessage({ type: 'error', text: 'Graduation year must be a valid 4-digit year between 1950 and 2100.' });
+      return;
+    }
+    if (grad <= adm) {
+      setStatusMessage({ type: 'error', text: 'Graduation year must be after admission year.' });
+      return;
+    }
+    if (grad - adm !== 4) {
+      setStatusMessage({
+        type: 'error',
+        text: `For the 4-year B.E. program, graduation year must be exactly 4 years after admission year (${adm} → ${adm + 4}).`
+      });
+      return;
+    }
+    const duplicate = batches.some((b) => Number(b.admissionYear) === adm);
+    if (duplicate) {
+      setStatusMessage({
+        type: 'error',
+        text: `A B.E. cohort batch for ${adm}–${grad} already exists.`
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       const res = await fetch('/api/academic/structure/batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          admissionYear: newBatch.admissionYear,
-          graduationYear: newBatch.graduationYear,
+          admissionYear: adm,
+          graduationYear: grad,
           ...(sitCollege?._id ? { collegeId: sitCollege._id } : {})
         })
       });
       const data = await res.json();
       if (data.success) {
-        setStatusMessage({ type: 'success', text: `Cohort Batch "${data.data.name}" created!` });
+        setStatusMessage({ type: 'success', text: `Cohort Batch "${data.data.name}" created successfully!` });
         const cur = new Date().getFullYear();
         setNewBatch({ admissionYear: cur, graduationYear: cur + 4 });
         fetchHierarchy();
@@ -783,6 +1390,21 @@ export default function AcademicStructurePage() {
   };
 
   const handleDeleteBatch = async (batch) => {
+    if (batch.hasDependencies || (batch.totalDependencies && batch.totalDependencies > 0)) {
+      const depItems = [];
+      if (batch.semestersCount > 0) depItems.push(`${batch.semestersCount} semester(s)`);
+      if (batch.sectionsCount > 0) depItems.push(`${batch.sectionsCount} section(s)`);
+      if (batch.studentsCount > 0) depItems.push(`${batch.studentsCount} student(s)`);
+      if (batch.timetablesCount > 0) depItems.push(`${batch.timetablesCount} timetable(s)`);
+      if (batch.eventsCount > 0) depItems.push(`${batch.eventsCount} event(s)`);
+      const details = depItems.length > 0 ? ` (${depItems.join(', ')})` : '';
+      setStatusMessage({
+        type: 'error',
+        text: `This batch cannot be deleted because academic records${details} are linked to it. Archive the batch instead.`
+      });
+      return;
+    }
+
     const confirmed = window.confirm(`Are you sure you want to delete Cohort Batch "${batch.name}"?`);
     if (!confirmed) return;
 
@@ -807,33 +1429,76 @@ export default function AcademicStructurePage() {
   const handleOpenEditBatch = (b) => {
     setEditingBatch({
       _id: b._id,
+      name: b.name || `${b.admissionYear}–${b.graduationYear}`,
       admissionYear: b.admissionYear,
       graduationYear: b.graduationYear,
-      status: b.status
+      status: b.status || 'Active',
+      hasDependencies: Boolean(b.hasDependencies || (b.totalDependencies && b.totalDependencies > 0)),
+      semestersCount: b.semestersCount || 0,
+      sectionsCount: b.sectionsCount || 0,
+      studentsCount: b.studentsCount || 0,
+      timetablesCount: b.timetablesCount || 0,
+      eventsCount: b.eventsCount || 0
     });
   };
 
   const handleSaveEditBatch = async (e) => {
     e.preventDefault();
     if (!editingBatch) return;
+
     const adm = Number(editingBatch.admissionYear);
     const grad = Number(editingBatch.graduationYear);
-    if (adm >= grad) {
-      setStatusMessage({ type: 'error', text: 'Graduation year must be after admission year.' });
-      return;
+
+    if (!editingBatch.hasDependencies) {
+      if (!adm || !grad) {
+        setStatusMessage({ type: 'error', text: 'Both admission year and graduation year are required.' });
+        return;
+      }
+      if (!Number.isInteger(adm) || adm < 1950 || adm > 2100) {
+        setStatusMessage({ type: 'error', text: 'Admission year must be a valid 4-digit year between 1950 and 2100.' });
+        return;
+      }
+      if (!Number.isInteger(grad) || grad < 1950 || grad > 2100) {
+        setStatusMessage({ type: 'error', text: 'Graduation year must be a valid 4-digit year between 1950 and 2100.' });
+        return;
+      }
+      if (grad <= adm) {
+        setStatusMessage({ type: 'error', text: 'Graduation year must be after admission year.' });
+        return;
+      }
+      if (grad - adm !== 4) {
+        setStatusMessage({
+          type: 'error',
+          text: `For the 4-year B.E. program, graduation year must be exactly 4 years after admission year (${adm} → ${adm + 4}).`
+        });
+        return;
+      }
+      const duplicate = batches.some((b) => b._id !== editingBatch._id && Number(b.admissionYear) === adm);
+      if (duplicate) {
+        setStatusMessage({
+          type: 'error',
+          text: `A B.E. cohort batch for ${adm}–${grad} already exists.`
+        });
+        return;
+      }
     }
+
     setSavingEdit(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const payload = {
+        status: editingBatch.status,
+        forceTransition: true
+      };
+      if (!editingBatch.hasDependencies) {
+        payload.admissionYear = adm;
+        payload.graduationYear = grad;
+      }
+
       const res = await fetch(`/api/academic/structure/batches/${editingBatch._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          admissionYear: adm,
-          graduationYear: grad,
-          status: editingBatch.status,
-          forceTransition: true
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -856,10 +1521,36 @@ export default function AcademicStructurePage() {
       setStatusMessage({ type: 'error', text: 'Please select a batch cohort.' });
       return;
     }
+    const semNum = Number(newSection.semester);
+    if (!semNum || semNum < 1 || semNum > 8) {
+      setStatusMessage({ type: 'error', text: 'Semester must be between 1 and 8.' });
+      return;
+    }
     if (!newSection.branchId) {
       setStatusMessage({ type: 'error', text: 'Please select a branch.' });
       return;
     }
+    if (!newSection.name || !newSection.name.trim()) {
+      setStatusMessage({ type: 'error', text: 'Section name is required.' });
+      return;
+    }
+
+    const cleanName = newSection.name.trim().toUpperCase();
+    const isDuplicate = sections.some(
+      (s) =>
+        String(s.batch?._id || s.batch) === String(newSection.batchId) &&
+        Number(s.semester) === semNum &&
+        String(s.branch?._id || s.branch) === String(newSection.branchId) &&
+        s.name.toUpperCase() === cleanName
+    );
+    if (isDuplicate) {
+      setStatusMessage({
+        type: 'error',
+        text: `Section "${cleanName}" already exists for this batch, branch, and semester.`
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       const res = await fetch('/api/academic/structure/sections', {
@@ -867,9 +1558,10 @@ export default function AcademicStructurePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           batchId: newSection.batchId,
-          semester: Number(newSection.semester),
+          semester: semNum,
           branchId: newSection.branchId,
-          name: newSection.name.trim().toUpperCase(),
+          name: cleanName,
+          room: newSection.room ? newSection.room.trim() : '',
           capacity: Number(newSection.capacity) || 60,
           ...(sitCollege?._id ? { collegeId: sitCollege._id } : {})
         })
@@ -880,6 +1572,7 @@ export default function AcademicStructurePage() {
         setNewSection((prev) => ({
           ...prev,
           name: 'A',
+          room: '',
           capacity: 60
         }));
         fetchHierarchy();
@@ -911,18 +1604,30 @@ export default function AcademicStructurePage() {
     }
   };
 
-  const handleDeleteSection = async (sectionId, sectionName) => {
-    const confirmed = window.confirm(`Are you sure you want to delete Section "${sectionName}"?`);
+  const handleDeleteSection = async (sec) => {
+    if (sec.hasDependencies || (sec.totalDependencies && sec.totalDependencies > 0)) {
+      const depItems = [];
+      if (sec.timetablesCount > 0) depItems.push(`${sec.timetablesCount} timetable(s)`);
+      if (sec.studentsCount > 0) depItems.push(`${sec.studentsCount} student(s)`);
+      const details = depItems.length > 0 ? ` (${depItems.join(', ')})` : '';
+      setStatusMessage({
+        type: 'error',
+        text: `Section "${sec.name}" cannot be deleted because academic records${details} are linked to it. Archive the section instead.`
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to delete Section "${sec.name}"?`);
     if (!confirmed) return;
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch(`/api/academic/structure/sections/${sectionId}`, {
+      const res = await fetch(`/api/academic/structure/sections/${sec._id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {
-        setStatusMessage({ type: 'success', text: `Section "${sectionName}" deleted.` });
+        setStatusMessage({ type: 'success', text: `Section "${sec.name}" deleted.` });
         fetchHierarchy();
       } else {
         setStatusMessage({ type: 'error', text: data.error || 'Failed to delete section' });
@@ -936,12 +1641,17 @@ export default function AcademicStructurePage() {
     setEditingSection({
       _id: sec._id,
       name: sec.name,
+      room: sec.room || '',
       capacity: sec.capacity || 60,
       semester: sec.semester,
       branchId: sec.branch?._id || sec.branch || '',
       batchId: sec.batch?._id || sec.batch || '',
       status: sec.status || 'Active',
-      batchName: sec.batch?.name || 'Cohort Batch'
+      batchName: sec.batch?.name || 'Cohort Batch',
+      branchName: sec.branch?.shortName || sec.branch?.name || 'Branch',
+      hasDependencies: Boolean(sec.hasDependencies || (sec.totalDependencies && sec.totalDependencies > 0)),
+      timetablesCount: sec.timetablesCount || 0,
+      studentsCount: sec.studentsCount || 0
     });
   };
 
@@ -951,16 +1661,20 @@ export default function AcademicStructurePage() {
     setSavingEdit(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const payload = {
+        room: editingSection.room ? editingSection.room.trim() : '',
+        capacity: Number(editingSection.capacity) || 60,
+        status: editingSection.status
+      };
+      if (!editingSection.hasDependencies) {
+        payload.name = editingSection.name.trim().toUpperCase();
+        payload.semester = Number(editingSection.semester);
+        payload.branchId = editingSection.branchId || null;
+      }
       const res = await fetch(`/api/academic/structure/sections/${editingSection._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          name: editingSection.name.trim().toUpperCase(),
-          capacity: Number(editingSection.capacity),
-          semester: Number(editingSection.semester),
-          branchId: editingSection.branchId || null,
-          status: editingSection.status
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -983,14 +1697,34 @@ export default function AcademicStructurePage() {
       setStatusMessage({ type: 'error', text: 'Please select a batch cohort.' });
       return;
     }
+    const semNum = Number(newSemester.number);
+    if (!semNum || semNum < 1 || semNum > 8) {
+      setStatusMessage({ type: 'error', text: 'Semester must be between 1 and 8.' });
+      return;
+    }
     if (!newSemester.startDate || !newSemester.endDate) {
       setStatusMessage({ type: 'error', text: 'Official start date and end date are required.' });
       return;
     }
-    if (new Date(newSemester.startDate) >= new Date(newSemester.endDate)) {
+    const start = new Date(newSemester.startDate);
+    const end = new Date(newSemester.endDate);
+    if (start >= end) {
       setStatusMessage({ type: 'error', text: 'Official start date must be before end date.' });
       return;
     }
+
+    // Client-side duplicate check for this batch
+    const isDuplicate = semesters.some(
+      (s) => String(s.batch?._id || s.batch) === String(newSemester.batchId) && Number(s.number) === semNum
+    );
+    if (isDuplicate) {
+      setStatusMessage({
+        type: 'error',
+        text: `Official Semester ${semNum} already exists for this batch cohort.`
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
       const res = await fetch('/api/academic/structure/semesters', {
@@ -998,10 +1732,10 @@ export default function AcademicStructurePage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           batchId: newSemester.batchId,
-          number: Number(newSemester.number),
+          number: semNum,
           startDate: newSemester.startDate,
           endDate: newSemester.endDate,
-          status: newSemester.status,
+          status: newSemester.status || 'Upcoming',
           ...(sitCollege?._id ? { collegeId: sitCollege._id } : {})
         })
       });
@@ -1044,18 +1778,31 @@ export default function AcademicStructurePage() {
     }
   };
 
-  const handleDeleteSemester = async (semesterId, semNumber) => {
-    const confirmed = window.confirm(`Are you sure you want to delete Semester ${semNumber}?`);
+  const handleDeleteSemester = async (s) => {
+    if (s.hasDependencies || (s.totalDependencies && s.totalDependencies > 0)) {
+      const depItems = [];
+      if (s.sectionsCount > 0) depItems.push(`${s.sectionsCount} section(s)`);
+      if (s.timetablesCount > 0) depItems.push(`${s.timetablesCount} timetable(s)`);
+      if (s.eventsCount > 0) depItems.push(`${s.eventsCount} calendar event(s)`);
+      const details = depItems.length > 0 ? ` (${depItems.join(', ')})` : '';
+      setStatusMessage({
+        type: 'error',
+        text: `This semester cannot be deleted because academic records${details} are linked to it. Archive or cancel the semester instead.`
+      });
+      return;
+    }
+
+    const confirmed = window.confirm(`Are you sure you want to delete Official Semester ${s.number}?`);
     if (!confirmed) return;
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch(`/api/academic/structure/semesters/${semesterId}`, {
+      const res = await fetch(`/api/academic/structure/semesters/${s._id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {
-        setStatusMessage({ type: 'success', text: `Semester ${semNumber} deleted.` });
+        setStatusMessage({ type: 'success', text: `Official Semester ${s.number} deleted successfully.` });
         fetchHierarchy();
       } else {
         setStatusMessage({ type: 'error', text: data.error || 'Failed to delete semester' });
@@ -1074,7 +1821,12 @@ export default function AcademicStructurePage() {
       startDate: startStr,
       endDate: endStr,
       status: s.status || 'Upcoming',
-      batchName: s.batch?.name || 'Cohort Batch'
+      batchId: s.batch?._id || s.batch,
+      batchName: s.batch?.name || 'Cohort Batch',
+      hasDependencies: Boolean(s.hasDependencies || (s.totalDependencies && s.totalDependencies > 0)),
+      sectionsCount: s.sectionsCount || 0,
+      timetablesCount: s.timetablesCount || 0,
+      eventsCount: s.eventsCount || 0
     });
   };
 
@@ -1092,15 +1844,18 @@ export default function AcademicStructurePage() {
     setSavingEdit(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+      const payload = {
+        startDate: editingSemester.startDate,
+        endDate: editingSemester.endDate,
+        status: editingSemester.status
+      };
+      if (!editingSemester.hasDependencies) {
+        payload.number = Number(editingSemester.number);
+      }
       const res = await fetch(`/api/academic/structure/semesters/${editingSemester._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          number: Number(editingSemester.number),
-          startDate: editingSemester.startDate,
-          endDate: editingSemester.endDate,
-          status: editingSemester.status
-        })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -1117,135 +1872,212 @@ export default function AcademicStructurePage() {
     }
   };
 
-  const formatCalendarDate = (startDate, endDate) => {
+  const formatDateRange = (startDate, endDate) => {
     if (!startDate) return '—';
     const s = new Date(startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     if (!endDate) return s;
     const e = new Date(endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     return s === e ? s : `${s} → ${e}`;
   };
+  const formatCalendarDate = formatDateRange;
 
-  const fetchCalendarItems = async (semId) => {
-    if (!semId) return;
+
+  // Step 5: Events Fetch and Management Handlers
+  const fetchEvents = async () => {
+    setEventsLoading(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch(`/api/academic/structure/calendar-items?semesterId=${semId}`, {
+      const res = await fetch('/api/academic/structure/events', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {
-        setCalendarItems(data.data || []);
+        setEvents(data.data || []);
       }
     } catch (err) {
-      console.error('Failed to fetch calendar items:', err);
-    }
-  };
-
-  const fetchGovernmentHolidays = async () => {
-    setLoadingGovHolidays(true);
-    try {
-      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch('/api/academic/structure/calendar-items?kind=HOLIDAY&holidayCategory=GOVERNMENT', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (data.success) {
-        setGovernmentHolidays(data.data || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch government holidays:', err);
+      console.error('fetchEvents error:', err);
     } finally {
-      setLoadingGovHolidays(false);
-    }
-  };
-
-  const handleSyncGovernmentHolidays = async () => {
-    setSyncingGov(true);
-    try {
-      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch('/api/academic/structure/calendar-items/sync-government-holidays', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to sync government holidays');
-      }
-      setStatusMessage({
-        type: 'success',
-        text: data.message || `Successfully synced government holidays. Total: ${data.totalCount || 0}`
-      });
-      await fetchGovernmentHolidays();
-    } catch (err) {
-      setStatusMessage({ type: 'error', text: err.message });
-    } finally {
-      setSyncingGov(false);
+      setEventsLoading(false);
     }
   };
 
   useEffect(() => {
     if (activeTab === 'events') {
-      fetchGovernmentHolidays();
-    } else if (activeTab === 'timetable_structure') {
+      fetchEvents();
+    } else if (activeTab === 'timetable_structure' || activeTab === 'weekly_timetable') {
       fetchTimetableStructure();
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    if (batches.length > 0 && !eventsBatchId) {
-      setEventsBatchId(batches[0]._id);
-    }
-  }, [batches]);
+  const handleOpenCreateEvent = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setEventForm({
+      title: '',
+      shortDescription: '',
+      eventType: 'College Event',
+      priority: 'Normal',
+      order: 0,
+      scope: 'GLOBAL',
+      academicSemesterId: semesters.length > 0 ? semesters[0]._id : '',
+      allDay: true,
+      startDate: today,
+      endDate: today,
+      startTime: '09:00',
+      endTime: '17:00',
+      classesSuspended: false,
+      suspensionType: 'none',
+      suspensionStartTime: '08:00',
+      suspensionEndTime: '13:00',
+      description: '',
+      content: {
+        overview: '',
+        whatHappens: '',
+        whatToDo: '',
+        preparationTips: '',
+        importantNotes: ''
+      },
+      resources: [],
+      status: 'ACTIVE'
+    });
+    setEditingEvent(null);
+    setEventFormError('');
+    setEventModalOpen(true);
+  };
 
-  useEffect(() => {
-    if (eventsBatchId) {
-      const batchSems = semesters.filter(s => String(s.batch?._id || s.batch) === String(eventsBatchId));
-      if (batchSems.length > 0 && (!eventsSemesterId || !batchSems.some(s => String(s._id) === String(eventsSemesterId)))) {
-        setEventsSemesterId(batchSems[0]._id);
-      } else if (batchSems.length === 0) {
-        setEventsSemesterId('');
+  const handleOpenEditEvent = (evt) => {
+    const startStr = evt.startDate ? new Date(evt.startDate).toISOString().split('T')[0] : '';
+    const endStr = evt.endDate ? new Date(evt.endDate).toISOString().split('T')[0] : '';
+    const isHoliday = evt.eventType === 'Holiday / Closure' || evt.eventType === 'HOLIDAY';
+    const suspType = evt.suspensionType || (isHoliday ? 'full_day' : (evt.classesSuspended ? 'full_day' : 'none'));
+
+    setEventForm({
+      title: evt.title,
+      shortDescription: evt.shortDescription || evt.description || '',
+      eventType: evt.eventType || 'College Event',
+      priority: evt.priority || 'Normal',
+      order: evt.order || 0,
+      scope: evt.scope || 'GLOBAL',
+      academicSemesterId: evt.academicSemesterId?._id || evt.academicSemesterId || (semesters.length > 0 ? semesters[0]._id : ''),
+      allDay: evt.allDay !== false,
+      startDate: startStr,
+      endDate: endStr || startStr,
+      startTime: evt.startTime || '09:00',
+      endTime: evt.endTime || '17:00',
+      classesSuspended: suspType !== 'none',
+      suspensionType: suspType,
+      suspensionStartTime: evt.suspensionStartTime || '08:00',
+      suspensionEndTime: evt.suspensionEndTime || '13:00',
+      description: evt.description || '',
+      content: {
+        overview: evt.content?.overview || '',
+        whatHappens: evt.content?.whatHappens || '',
+        whatToDo: evt.content?.whatToDo || '',
+        preparationTips: evt.content?.preparationTips || '',
+        importantNotes: evt.content?.importantNotes || ''
+      },
+      resources: Array.isArray(evt.resources) ? evt.resources : [],
+      status: evt.status || 'ACTIVE'
+    });
+    setEditingEvent(evt);
+    setEventFormError('');
+    setEventModalOpen(true);
+  };
+
+  const handleSaveEvent = async (e) => {
+    e.preventDefault();
+    setEventFormError('');
+
+    if (!eventForm.title.trim()) {
+      setEventFormError('Event title is required');
+      return;
+    }
+
+    if (eventForm.scope === 'SEMESTER' && !eventForm.academicSemesterId) {
+      setEventFormError('Academic Semester is required for semester-scoped events');
+      return;
+    }
+
+    if (eventForm.startDate && eventForm.endDate && eventForm.endDate < eventForm.startDate) {
+      setEventFormError('End date cannot be earlier than start date');
+      return;
+    }
+
+    if (!eventForm.allDay && eventForm.startDate === eventForm.endDate) {
+      if (eventForm.startTime && eventForm.endTime && eventForm.endTime <= eventForm.startTime) {
+        setEventFormError('End time must be strictly after start time for same-day timed events');
+        return;
       }
     }
-  }, [eventsBatchId, semesters]);
 
-  useEffect(() => {
-    if (eventsSemesterId) {
-      fetchCalendarItems(eventsSemesterId);
-    } else {
-      setCalendarItems([]);
+    if (eventForm.suspensionType === 'time_range') {
+      if (!eventForm.suspensionStartTime || !eventForm.suspensionEndTime) {
+        setEventFormError('Both start and end times are required for time-range class suspension');
+        return;
+      }
+      if (eventForm.suspensionEndTime <= eventForm.suspensionStartTime) {
+        setEventFormError('Suspension end time must be strictly after suspension start time');
+        return;
+      }
     }
-  }, [eventsSemesterId]);
 
-  const handleToggleObservance = async (item) => {
+    setEventSaving(true);
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const nextObserved = item.observedByCollege === false ? true : false;
-      const res = await fetch(`/api/academic/structure/calendar-items/${item._id}`, {
-        method: 'PUT',
+      const url = editingEvent
+        ? `/api/academic/structure/events/${editingEvent._id}`
+        : '/api/academic/structure/events';
+      const method = editingEvent ? 'PUT' : 'POST';
+
+      const payload = {
+        title: eventForm.title.trim(),
+        description: eventForm.description.trim(),
+        shortDescription: (eventForm.shortDescription || eventForm.description || '').trim(),
+        eventType: eventForm.eventType,
+        priority: eventForm.priority || 'Normal',
+        order: Number(eventForm.order) || 0,
+        scope: eventForm.scope,
+        academicSemesterId: eventForm.scope === 'SEMESTER' ? eventForm.academicSemesterId : null,
+        startDate: eventForm.startDate,
+        endDate: eventForm.endDate,
+        allDay: Boolean(eventForm.allDay),
+        startTime: !eventForm.allDay ? eventForm.startTime : null,
+        endTime: !eventForm.allDay ? eventForm.endTime : null,
+        classesSuspended: eventForm.suspensionType !== 'none',
+        suspensionType: eventForm.suspensionType || 'none',
+        suspensionStartTime: eventForm.suspensionType === 'time_range' ? eventForm.suspensionStartTime : null,
+        suspensionEndTime: eventForm.suspensionType === 'time_range' ? eventForm.suspensionEndTime : null,
+        content: eventForm.content || {},
+        resources: Array.isArray(eventForm.resources) ? eventForm.resources : [],
+        status: eventForm.status
+      };
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ observedByCollege: nextObserved })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
         setStatusMessage({
           type: 'success',
-          text: `Observance updated: "${item.title}" is now ${nextObserved ? 'Observed by SIT' : 'Not Observed'}.`
+          text: editingEvent ? `Event "${payload.title}" updated successfully.` : `Event "${payload.title}" created successfully.`
         });
-        fetchGovernmentHolidays();
-        if (eventsSemesterId) fetchCalendarItems(eventsSemesterId);
+        setEventModalOpen(false);
+        await fetchEvents();
       } else {
-        setStatusMessage({ type: 'error', text: data.error || 'Failed to update observance' });
+        setEventFormError(data.error || 'Failed to save event');
       }
     } catch (err) {
-      setStatusMessage({ type: 'error', text: err.message });
+      setEventFormError(err.message);
+    } finally {
+      setEventSaving(false);
     }
   };
 
-  const handleToggleGovStatus = async (item) => {
+  const handleToggleEventStatus = async (evt, nextStatus) => {
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const nextStatus = item.status === 'Published' ? 'Archived' : 'Published';
-      const res = await fetch(`/api/academic/structure/calendar-items/${item._id}`, {
+      const res = await fetch(`/api/academic/structure/events/${evt._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: nextStatus })
@@ -1254,179 +2086,36 @@ export default function AcademicStructurePage() {
       if (data.success) {
         setStatusMessage({
           type: 'success',
-          text: `Holiday "${item.title}" set to ${nextStatus === 'Published' ? 'Active' : 'Disabled'}.`
+          text: `Event "${evt.title}" status updated to ${nextStatus}.`
         });
-        fetchGovernmentHolidays();
-        if (eventsSemesterId) fetchCalendarItems(eventsSemesterId);
+        await fetchEvents();
       } else {
-        setStatusMessage({ type: 'error', text: data.error || 'Failed to update status' });
+        setStatusMessage({ type: 'error', text: data.error || 'Failed to update event status' });
       }
     } catch (err) {
       setStatusMessage({ type: 'error', text: err.message });
     }
   };
 
-  const handleOpenCreateCalendarItem = (kind) => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const selectedSem = semesters.find(s => String(s._id) === String(eventsSemesterId));
-    let defaultStart = todayStr;
-    let defaultEnd = todayStr;
-    if (kind !== 'GOVERNMENT_HOLIDAY' && selectedSem && selectedSem.startDate) {
-      defaultStart = new Date(selectedSem.startDate).toISOString().split('T')[0];
-      defaultEnd = defaultStart;
-    }
-    setCalendarForm({
-      title: '',
-      holidayCategory: kind === 'GOVERNMENT_HOLIDAY' ? 'GOVERNMENT' : kind === 'HOLIDAY' ? 'INSTITUTIONAL' : null,
-      scope: 'GLOBAL',
-      branchId: '',
-      dateMode: 'single',
-      startDate: defaultStart,
-      endDate: defaultEnd,
-      observedByCollege: true,
-      classImpact: kind === 'EVENT' ? 'NONE' : 'FULL_DAY',
-      startTime: '09:00',
-      endTime: '17:00',
-      description: '',
-      status: 'Published'
-    });
-    setCalendarModalKind(kind);
-    setEditingCalendarItem(null);
-    setCalendarModalOpen(true);
-  };
-
-  const handleOpenEditCalendarItem = (item) => {
-    const startStr = item.startDate ? new Date(item.startDate).toISOString().split('T')[0] : '';
-    const endStr = item.endDate ? new Date(item.endDate).toISOString().split('T')[0] : '';
-    const isRange = startStr !== endStr;
-
-    let modalKind = 'EVENT';
-    if (item.holidayCategory === 'GOVERNMENT') {
-      modalKind = 'GOVERNMENT_HOLIDAY';
-    } else if (item.kind === 'HOLIDAY') {
-      modalKind = 'HOLIDAY';
-    }
-
-    setCalendarForm({
-      title: item.title,
-      holidayCategory: item.holidayCategory || (modalKind === 'GOVERNMENT_HOLIDAY' ? 'GOVERNMENT' : 'INSTITUTIONAL'),
-      scope: item.scope || 'GLOBAL',
-      branchId: item.branch?._id || item.branch || '',
-      dateMode: isRange ? 'range' : 'single',
-      startDate: startStr,
-      endDate: endStr || startStr,
-      observedByCollege: item.observedByCollege !== false,
-      classImpact: item.classImpact || 'NONE',
-      startTime: minutesToTime(item.suspensionStartMinute),
-      endTime: minutesToTime(item.suspensionEndMinute),
-      description: item.description || '',
-      status: item.status || 'Published'
-    });
-    setCalendarModalKind(modalKind);
-    setEditingCalendarItem(item);
-    setCalendarModalOpen(true);
-  };
-
-  const handleSaveCalendarItem = async (e) => {
-    e.preventDefault();
-    if (calendarModalKind !== 'GOVERNMENT_HOLIDAY' && !eventsSemesterId) {
-      setStatusMessage({ type: 'error', text: 'Please select an Official Semester first.' });
-      return;
-    }
-    setSavingEdit(true);
-    try {
-      const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const finalEndDate = calendarForm.dateMode === 'range' ? calendarForm.endDate : calendarForm.startDate;
-
-      let payload;
-      if (calendarModalKind === 'GOVERNMENT_HOLIDAY') {
-        payload = {
-          kind: 'HOLIDAY',
-          holidayCategory: 'GOVERNMENT',
-          scope: 'GLOBAL',
-          title: calendarForm.title.trim(),
-          startDate: calendarForm.startDate,
-          endDate: finalEndDate,
-          observedByCollege: calendarForm.observedByCollege,
-          classImpact: calendarForm.observedByCollege ? 'FULL_DAY' : 'NONE',
-          description: calendarForm.description.trim(),
-          status: calendarForm.status
-        };
-      } else {
-        payload = {
-          semesterId: eventsSemesterId,
-          title: calendarForm.title.trim(),
-          kind: calendarModalKind,
-          holidayCategory: calendarModalKind === 'HOLIDAY' ? calendarForm.holidayCategory : null,
-          scope: calendarForm.scope,
-          branchId: calendarForm.scope === 'BRANCH' ? calendarForm.branchId : null,
-          startDate: calendarForm.startDate,
-          endDate: finalEndDate,
-          isAllDay: calendarForm.classImpact !== 'TIME_RANGE',
-          classImpact: calendarForm.classImpact,
-          suspensionStartMinute: calendarForm.classImpact === 'TIME_RANGE' ? timeToMinutes(calendarForm.startTime) : null,
-          suspensionEndMinute: calendarForm.classImpact === 'TIME_RANGE' ? timeToMinutes(calendarForm.endTime) : null,
-          description: calendarForm.description.trim(),
-          status: calendarForm.status
-        };
-      }
-
-      const url = editingCalendarItem
-        ? `/api/academic/structure/calendar-items/${editingCalendarItem._id}`
-        : '/api/academic/structure/calendar-items';
-      const method = editingCalendarItem ? 'PUT' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to save calendar item');
-      }
-
-      const itemNoun = calendarModalKind === 'GOVERNMENT_HOLIDAY'
-        ? 'Government Holiday'
-        : calendarModalKind === 'HOLIDAY' ? 'Holiday' : 'Calendar Event';
-
-      setStatusMessage({
-        type: 'success',
-        text: editingCalendarItem ? `${itemNoun} updated successfully.` : `${itemNoun} created successfully.`
-      });
-      setCalendarModalOpen(false);
-      setEditingCalendarItem(null);
-      fetchGovernmentHolidays();
-      if (eventsSemesterId) {
-        await fetchCalendarItems(eventsSemesterId);
-      }
-    } catch (err) {
-      setStatusMessage({ type: 'error', text: err.message });
-    } finally {
-      setSavingEdit(false);
-    }
-  };
-
-  const handleDeleteCalendarItem = async (item) => {
-    const isGov = item.holidayCategory === 'GOVERNMENT';
-    const label = isGov ? 'government holiday' : item.kind === 'HOLIDAY' ? 'holiday' : 'event';
-    if (!window.confirm(`Are you sure you want to delete ${label} "${item.title}"?`)) {
+  const handleDeleteEvent = async (evt) => {
+    if (!window.confirm(`Are you sure you want to delete event "${evt.title}"? It will be safely archived to protect historical records.`)) {
       return;
     }
     try {
       const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-      const res = await fetch(`/api/academic/structure/calendar-items/${item._id}`, {
+      const res = await fetch(`/api/academic/structure/events/${evt._id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to delete calendar item');
-      }
-      setStatusMessage({ type: 'success', text: `${isGov ? 'Government Holiday' : item.kind === 'HOLIDAY' ? 'Holiday' : 'Event'} deleted successfully.` });
-      fetchGovernmentHolidays();
-      if (eventsSemesterId) {
-        await fetchCalendarItems(eventsSemesterId);
+      if (data.success) {
+        setStatusMessage({
+          type: 'success',
+          text: `Event "${evt.title}" archived successfully.`
+        });
+        await fetchEvents();
+      } else {
+        setStatusMessage({ type: 'error', text: data.error || 'Failed to archive event' });
       }
     } catch (err) {
       setStatusMessage({ type: 'error', text: err.message });
@@ -1436,14 +2125,15 @@ export default function AcademicStructurePage() {
   const tabs = useMemo(() => {
     const allTabs = [
       { id: 'batches', label: 'Batches / Cohorts', icon: Calendar, count: batches.length },
-      { id: 'sections', label: 'Class Sections', icon: Users, count: sections.length },
       { id: 'semesters', label: 'Official Semesters', icon: Layers, count: semesters.length },
-      { id: 'events', label: 'Events', icon: CalendarCheck2, count: calendarItems.length || null },
-      { id: 'timetable_structure', label: 'Timetable Structure', icon: Clock, count: null },
+      { id: 'sections', label: 'Class Sections', icon: Users, count: sections.length },
+      { id: 'timetable_structure', label: 'Timetable Settings', icon: Clock, count: null },
+      { id: 'weekly_timetable', label: 'Weekly Timetable', icon: BookOpen, count: null },
+      { id: 'events', label: 'Events', icon: CalendarCheck2, count: events.length || null },
     ];
     if (isSuper) return allTabs;
-    return allTabs.filter(tab => tab.id === 'events' || tab.id === 'timetable_structure');
-  }, [isSuper, batches.length, sections.length, semesters.length, calendarItems.length]);
+    return allTabs.filter(tab => tab.id === 'timetable_structure' || tab.id === 'weekly_timetable' || tab.id === 'events');
+  }, [isSuper, batches.length, sections.length, semesters.length, events.length]);
 
   return (
     <div className="space-y-6 pb-12 font-sans">
@@ -1531,7 +2221,7 @@ export default function AcademicStructurePage() {
         })}
       </div>
 
-      {/* Tab 3: Batches */}
+      {/* Tab 1: Batches / Cohorts */}
       {isSuper && activeTab === 'batches' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-3">
@@ -1546,8 +2236,12 @@ export default function AcademicStructurePage() {
             </div>
 
             {batches.length === 0 ? (
-              <div className="bg-white dark:bg-[#18181b] p-8 text-center rounded-lg border border-gray-200 dark:border-zinc-800 text-gray-500 text-xs">
-                No batches registered yet. Create a 4-year B.E. cohort batch below to get started.
+              <div className="bg-white dark:bg-[#18181b] p-8 text-center rounded-lg border border-gray-200 dark:border-zinc-800 text-gray-500 text-xs space-y-2">
+                <Calendar className="w-8 h-8 text-gray-400 mx-auto opacity-50" />
+                <div className="font-semibold text-gray-800 dark:text-gray-200">No B.E. Cohort Batches Registered</div>
+                <p className="text-[11px] text-gray-500">
+                  Create a 4-year B.E. cohort batch (e.g. {currentYear}–{currentYear + 4}) using the form on the right.
+                </p>
               </div>
             ) : (
               <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm">
@@ -1564,6 +2258,7 @@ export default function AcademicStructurePage() {
                   <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
                     {batches.map((b) => {
                       const durationYears = b.graduationYear - b.admissionYear;
+                      const hasDeps = Boolean(b.hasDependencies || (b.totalDependencies && b.totalDependencies > 0));
                       const statusColor =
                         b.status === 'Active'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
@@ -1574,8 +2269,16 @@ export default function AcademicStructurePage() {
                       return (
                         <tr key={b._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-colors">
                           <td className="p-3">
-                            <div className="font-semibold text-gray-900 dark:text-gray-100">
-                              {b.name || `${b.admissionYear}–${b.graduationYear}`}
+                            <div className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-gray-100">
+                              <span>{b.name || `${b.admissionYear}–${b.graduationYear}`}</span>
+                              {hasDeps && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 font-mono font-normal"
+                                  title={`${b.semestersCount || 0} semester(s), ${b.sectionsCount || 0} section(s), ${b.studentsCount || 0} student(s) linked`}
+                                >
+                                  {b.semestersCount || 0} Sems • {b.sectionsCount || 0} Secs
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] font-mono text-gray-400">
                               {b.admissionYear} → {b.graduationYear}
@@ -1615,7 +2318,7 @@ export default function AcademicStructurePage() {
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditBatch(b)}
-                                  title="Edit Cohort Batch"
+                                  title={hasDeps ? "Edit status (years locked by dependencies)" : "Edit Cohort Batch"}
                                   className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded transition-colors"
                                 >
                                   <Edit2 className="w-4 h-4" />
@@ -1625,8 +2328,12 @@ export default function AcademicStructurePage() {
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteBatch(b)}
-                                  title="Delete Batch"
-                                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors"
+                                  title={hasDeps ? "Locked: Cannot delete because academic records are linked. Archive instead." : "Delete Batch"}
+                                  className={`p-1 rounded transition-colors ${
+                                    hasDeps
+                                      ? 'text-gray-300 dark:text-zinc-600 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20'
+                                      : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40'
+                                  }`}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -1651,7 +2358,7 @@ export default function AcademicStructurePage() {
                   <span>Create B.E. Cohort Batch</span>
                 </h3>
                 <p className="text-[11px] text-gray-500 mt-1">
-                  Batches represent entire B.E. cohorts (e.g. 2025–2029). Bound automatically to SIT Tumkur.
+                  Batches represent entire B.E. cohorts (e.g. 2026–2030). Automatically bound to SIT Tumkur.
                 </p>
               </div>
 
@@ -1662,7 +2369,7 @@ export default function AcademicStructurePage() {
                     <span>Auto-bound Institution & Program</span>
                   </div>
                   <div className="text-blue-700 dark:text-blue-300">
-                    SIT Tumkur • Bachelor of Engineering (B.E.)
+                    {sitCollege?.name || 'Siddaganga Institute of Technology, Tumkur'} • Bachelor of Engineering (B.E.)
                   </div>
                 </div>
 
@@ -1709,9 +2416,19 @@ export default function AcademicStructurePage() {
                   </div>
                 </div>
 
-                <div className="text-[11px] text-gray-400 font-mono">
-                  Batch Name: <span className="text-gray-700 dark:text-gray-200 font-semibold">{newBatch.admissionYear}–{newBatch.graduationYear}</span>
+                <div className="p-2 rounded bg-gray-50 dark:bg-zinc-900/60 border border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-[11px]">
+                  <span className="text-gray-500 font-mono">Cohort Name:</span>
+                  <span className="text-gray-900 dark:text-gray-100 font-semibold font-mono">
+                    {newBatch.admissionYear}–{newBatch.graduationYear || Number(newBatch.admissionYear) + 4}
+                  </span>
                 </div>
+
+                {newBatch.admissionYear && newBatch.graduationYear && (newBatch.graduationYear - newBatch.admissionYear !== 4) && (
+                  <div className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Graduation year must be exactly 4 years after admission ({newBatch.admissionYear} → {Number(newBatch.admissionYear) + 4})</span>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -1725,17 +2442,382 @@ export default function AcademicStructurePage() {
         </div>
       )}
 
-      {/* Tab 2: Class Sections */}
+      {/* Tab 2: Official Semesters */}
+      {isSuper && activeTab === 'semesters' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-500" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  SIT Official Baseline Semesters
+                </h2>
+                <span className="text-[11px] text-gray-500">
+                  ({displayedSemesters.length} of {semesters.length} scheduled)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-gray-500 font-medium">Cohort Filter:</span>
+                <select
+                  value={semesterBatchFilter}
+                  onChange={(e) => setSemesterBatchFilter(e.target.value)}
+                  className="px-2 py-1 rounded text-[11px] font-medium border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Cohorts ({batches.length})</option>
+                  {batches.map((b) => (
+                    <option key={b._id} value={b._id}>{b.name || `${b.admissionYear}–${b.graduationYear}`}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {displayedSemesters.length === 0 ? (
+              <div className="bg-white dark:bg-[#18181b] p-8 text-center rounded-lg border border-gray-200 dark:border-zinc-800 text-gray-500 text-xs space-y-2">
+                <Layers className="w-8 h-8 text-gray-400 mx-auto opacity-50" />
+                <div className="font-semibold text-gray-800 dark:text-gray-200">
+                  No Official Semesters Found
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  {semesterBatchFilter !== 'ALL'
+                    ? 'No official semesters scheduled yet for this cohort. Schedule one using the form on the right.'
+                    : 'No official semesters scheduled yet for SIT. Schedule an official semester baseline for a batch cohort.'}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 font-semibold text-gray-600 dark:text-gray-400">
+                      <th className="p-3">Batch</th>
+                      <th className="p-3">Semester</th>
+                      <th className="p-3">Start Date</th>
+                      <th className="p-3">End Date</th>
+                      <th className="p-3">Duration</th>
+                      <th className="p-3">Linked Records</th>
+                      <th className="p-3">Status</th>
+                      {(canUpdateSemester || canDeleteSemester) && <th className="p-3 text-right">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                    {displayedSemesters.map((s) => {
+                      const start = s.startDate ? new Date(s.startDate) : null;
+                      const end = s.endDate ? new Date(s.endDate) : null;
+                      const durationDays = start && end ? Math.round((end - start) / (1000 * 60 * 60 * 24)) : null;
+                      const hasDeps = Boolean(s.hasDependencies || (s.totalDependencies && s.totalDependencies > 0));
+
+                      const statusColor =
+                        s.status === 'Active'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                          : s.status === 'Upcoming'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60'
+                          : s.status === 'Completed'
+                          ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60'
+                          : s.status === 'Cancelled'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
+                          : 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700';
+
+                      return (
+                        <tr key={s._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                          <td className="p-3">
+                            <div className="font-semibold text-gray-900 dark:text-gray-100">
+                              {s.batch?.name || 'N/A'}
+                            </div>
+                            <div className="text-[10px] text-gray-500 font-mono">
+                              {s.batch?.admissionYear}–{s.batch?.graduationYear}
+                            </div>
+                          </td>
+                          <td className="p-3 font-bold text-blue-600 dark:text-blue-400 font-mono text-sm">
+                            Semester {s.number}
+                          </td>
+                          <td className="p-3 font-mono text-gray-600 dark:text-gray-400">
+                            {start ? start.toLocaleDateString() : 'TBD'}
+                          </td>
+                          <td className="p-3 font-mono text-gray-600 dark:text-gray-400">
+                            {end ? end.toLocaleDateString() : 'TBD'}
+                          </td>
+                          <td className="p-3 font-mono text-gray-500 dark:text-gray-400">
+                            {durationDays ? `${durationDays} days (${Math.round(durationDays / 7)} wks)` : '—'}
+                          </td>
+                          <td className="p-3">
+                            {hasDeps ? (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40 font-mono"
+                                title={`${s.sectionsCount || 0} section(s), ${s.timetablesCount || 0} timetable(s), ${s.eventsCount || 0} event(s) linked`}
+                              >
+                                {s.sectionsCount || 0} Secs • {s.eventsCount || 0} Evts
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-400 font-mono">0 Linked</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {canUpdateSemester ? (
+                              <select
+                                value={s.status}
+                                onChange={(e) => handleUpdateSemesterStatus(s._id, e.target.value)}
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded border outline-none cursor-pointer bg-white dark:bg-zinc-900 ${statusColor}`}
+                              >
+                                <option value="Upcoming">Upcoming</option>
+                                <option value="Active">Active</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Archived">Archived</option>
+                              </select>
+                            ) : (
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${statusColor}`}>
+                                {s.status}
+                              </span>
+                            )}
+                          </td>
+                          {(canUpdateSemester || canDeleteSemester) && (
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {canUpdateSemester && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditSemester(s)}
+                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded transition-colors"
+                                    title={hasDeps ? "Edit dates & status (semester number locked by dependencies)" : "Edit Semester"}
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {canDeleteSemester && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSemester(s)}
+                                    className={`p-1.5 rounded transition-colors ${
+                                      hasDeps
+                                        ? 'text-gray-300 dark:text-zinc-600 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20'
+                                        : 'text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40'
+                                    }`}
+                                    title={hasDeps ? "Cannot delete: academic records are linked. Archive or cancel instead." : "Delete Semester"}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Schedule Semester Form */}
+          {canCreateSemester && (
+            <div className="bg-white dark:bg-[#18181b] p-5 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm space-y-4">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-blue-500" />
+                  <span>Schedule Official Semester</span>
+                </h3>
+                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  Configure official semester calendar baseline for a B.E. cohort.
+                </p>
+              </div>
+
+              {/* Context Banner */}
+              <div className="p-3 bg-blue-50/60 dark:bg-blue-950/20 rounded-md border border-blue-100 dark:border-blue-900/40 text-xs text-blue-800 dark:text-blue-300">
+                <div className="font-semibold">SIT Tumkur • Bachelor of Engineering (B.E.)</div>
+                <div className="text-[11px] opacity-80 mt-0.5">Official dates define the baseline period for weekly timetables, classes, and academic events.</div>
+              </div>
+
+              <form onSubmit={handleCreateSemester} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Batch Cohort</label>
+                  <select
+                    required
+                    value={newSemester.batchId}
+                    onChange={(e) => setNewSemester({ ...newSemester, batchId: e.target.value })}
+                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">Select B.E. Cohort...</option>
+                    {batches.map((b) => (
+                      <option key={b._id} value={b._id}>{b.name} ({b.admissionYear}–{b.graduationYear})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Semester</label>
+                    <select
+                      required
+                      value={newSemester.number}
+                      onChange={(e) => setNewSemester({ ...newSemester, number: Number(e.target.value) })}
+                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                        <option key={s} value={s}>Semester {s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Initial Status</label>
+                    <select
+                      value={newSemester.status}
+                      onChange={(e) => setNewSemester({ ...newSemester, status: e.target.value })}
+                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="Upcoming">Upcoming</option>
+                      <option value="Active">Active</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Official Start Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={newSemester.startDate}
+                      onChange={(e) => setNewSemester({ ...newSemester, startDate: e.target.value })}
+                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Official End Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={newSemester.endDate}
+                      onChange={(e) => setNewSemester({ ...newSemester, endDate: e.target.value })}
+                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                {newSemester.startDate && newSemester.endDate && new Date(newSemester.startDate) >= new Date(newSemester.endDate) && (
+                  <div className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Official start date must be before end date</span>
+                  </div>
+                )}
+
+                {/* Compact Live Timeline Summary */}
+                {newSemester.batchId && (
+                  <div className="p-2.5 rounded bg-gray-50 dark:bg-zinc-900/60 border border-gray-100 dark:border-zinc-800/80 text-[11px] space-y-1">
+                    <div className="text-gray-500 font-mono text-[10px] uppercase">Authoritative Timeline Preview</div>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100 flex items-center justify-between">
+                      <span>{batches.find(b => String(b._id) === String(newSemester.batchId))?.name || 'Cohort'}</span>
+                      <span className="text-blue-600 dark:text-blue-400 font-mono">Semester {newSemester.number}</span>
+                    </div>
+                    <div className="font-mono text-gray-600 dark:text-gray-400 text-[10.5px]">
+                      {newSemester.startDate ? new Date(newSemester.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Start Date'} → {newSemester.endDate ? new Date(newSemester.endDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'End Date'}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full mt-2 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition-colors text-xs shadow-sm"
+                >
+                  Schedule Official Semester
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Class Sections */}
       {isSuper && activeTab === 'sections' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-3">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Users className="w-4 h-4 text-blue-500" />
-              <span>SIT Class Sections</span>
-            </h2>
-            {sections.length === 0 ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-500" />
+                <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  SIT Class Sections
+                </h2>
+                <span className="text-[11px] text-gray-500">
+                  ({displayedSections.length} of {sections.length} sections)
+                </span>
+              </div>
+            </div>
+
+            {/* Compact Filter Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 bg-gray-50 dark:bg-zinc-900/60 rounded-lg border border-gray-200 dark:border-zinc-800 text-xs">
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  Cohort
+                </label>
+                <select
+                  value={sectionBatchFilter}
+                  onChange={(e) => {
+                    setSectionBatchFilter(e.target.value);
+                    setSectionSemesterFilter('ALL');
+                  }}
+                  className="w-full px-2 py-1 rounded text-[11px] font-medium border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Cohorts ({batches.length})</option>
+                  {batches.map((b) => (
+                    <option key={b._id} value={b._id}>{b.name || `${b.admissionYear}–${b.graduationYear}`}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  Semester
+                </label>
+                <select
+                  value={sectionSemesterFilter}
+                  onChange={(e) => setSectionSemesterFilter(e.target.value)}
+                  className="w-full px-2 py-1 rounded text-[11px] font-medium border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Semesters</option>
+                  {Array.from(new Set(availableSemestersForSectionFilter.map((s) => s.number)))
+                    .sort((a, b) => a - b)
+                    .map((num) => (
+                      <option key={num} value={num}>Semester {num}</option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  Branch
+                </label>
+                <select
+                  value={sectionBranchFilter}
+                  onChange={(e) => setSectionBranchFilter(e.target.value)}
+                  className="w-full px-2 py-1 rounded text-[11px] font-medium border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Branches ({branches.length})</option>
+                  {branches.map((br) => (
+                    <option key={br._id} value={br._id}>{br.shortName || br.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  Status
+                </label>
+                <select
+                  value={sectionStatusFilter}
+                  onChange={(e) => setSectionStatusFilter(e.target.value)}
+                  className="w-full px-2 py-1 rounded text-[11px] font-medium border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Archived">Archived</option>
+                </select>
+              </div>
+            </div>
+
+            {displayedSections.length === 0 ? (
               <div className="bg-white dark:bg-[#18181b] p-8 text-center rounded-lg border border-gray-200 dark:border-zinc-800 text-gray-500 text-xs">
-                No class sections created yet for SIT. Create a section linked to a batch cohort, semester, and branch.
+                {sections.length === 0
+                  ? 'No class sections created yet for SIT. Create a section linked to a batch cohort, semester, and branch.'
+                  : 'No class sections match the active filter criteria.'}
               </div>
             ) : (
               <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm">
@@ -1746,16 +2828,23 @@ export default function AcademicStructurePage() {
                       <th className="p-3">Branch</th>
                       <th className="p-3">Semester</th>
                       <th className="p-3">Batch</th>
+                      <th className="p-3">Room</th>
                       <th className="p-3">Capacity</th>
+                      <th className="p-3">Linked Records</th>
                       <th className="p-3">Status</th>
                       {(canUpdate || canDelete) && <th className="p-3 text-right">Actions</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                    {sections.map((sec) => (
+                    {displayedSections.map((sec) => (
                       <tr key={sec._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40">
                         <td className="p-3 font-bold text-blue-600 dark:text-blue-400 font-mono text-sm">
-                          Section {sec.name}
+                          <div className="flex items-center gap-1.5">
+                            <span>Section {sec.name}</span>
+                            {sec.hasDependencies && (
+                              <Lock className="w-3 h-3 text-amber-500 shrink-0" title="Core identity locked (has linked academic records)" />
+                            )}
+                          </div>
                         </td>
                         <td className="p-3">
                           <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300">
@@ -1769,7 +2858,27 @@ export default function AcademicStructurePage() {
                           {sec.batch?.name || 'N/A'}
                         </td>
                         <td className="p-3 font-mono text-gray-700 dark:text-gray-300">
-                          {sec.capacity || 60} Students
+                          {sec.room ? (
+                            <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 text-[11px]">
+                              {sec.room}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 dark:text-zinc-600">—</span>
+                          )}
+                        </td>
+                        <td className="p-3 font-mono text-gray-700 dark:text-gray-300">
+                          {sec.capacity || 60}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1 text-[11px] font-mono">
+                            <span className="text-gray-600 dark:text-gray-400" title={`${sec.timetablesCount || 0} timetable entries`}>
+                              {sec.timetablesCount || 0} TT
+                            </span>
+                            <span className="text-gray-300 dark:text-gray-600">•</span>
+                            <span className="text-gray-600 dark:text-gray-400" title={`${sec.studentsCount || 0} enrolled students`}>
+                              {sec.studentsCount || 0} Std
+                            </span>
+                          </div>
                         </td>
                         <td className="p-3">
                           {canUpdate ? (
@@ -1811,9 +2920,13 @@ export default function AcademicStructurePage() {
                               {canDelete && (
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteSection(sec._id, sec.name)}
-                                  className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors"
-                                  title="Delete Section"
+                                  onClick={() => handleDeleteSection(sec)}
+                                  className={`p-1.5 rounded transition-colors ${
+                                    sec.hasDependencies
+                                      ? 'text-gray-300 dark:text-zinc-600 hover:text-amber-600 dark:hover:text-amber-400 cursor-not-allowed'
+                                      : 'text-gray-400 hover:text-red-600 dark:hover:text-red-400'
+                                  }`}
+                                  title={sec.hasDependencies ? "Cannot delete: section has linked academic records" : "Delete Section"}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -1932,16 +3045,28 @@ export default function AcademicStructurePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Max Capacity</label>
+                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Default Room (Optional)</label>
                     <input
-                      type="number"
-                      min="1"
-                      max="500"
-                      value={newSection.capacity}
-                      onChange={(e) => setNewSection({ ...newSection, capacity: Number(e.target.value) })}
+                      type="text"
+                      maxLength={30}
+                      value={newSection.room || ''}
+                      onChange={(e) => setNewSection({ ...newSection, room: e.target.value })}
+                      placeholder="e.g. LH-201, Room 104"
                       className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Max Capacity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={newSection.capacity}
+                    onChange={(e) => setNewSection({ ...newSection, capacity: Number(e.target.value) })}
+                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
                 </div>
 
                 <button
@@ -1956,1293 +3081,669 @@ export default function AcademicStructurePage() {
         </div>
       )}
 
-      {/* Tab 3: Official Semesters */}
-      {isSuper && activeTab === 'semesters' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-3">
-            <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-500" />
-              <span>SIT Official Baseline Semesters</span>
-            </h2>
-            {semesters.length === 0 ? (
-              <div className="bg-white dark:bg-[#18181b] p-8 text-center rounded-lg border border-gray-200 dark:border-zinc-800 text-gray-500 text-xs">
-                No official semesters scheduled yet for SIT. Schedule an official semester baseline for a batch cohort.
-              </div>
-            ) : (
-              <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/60 font-semibold text-gray-600 dark:text-gray-400">
-                      <th className="p-3">Batch</th>
-                      <th className="p-3">Semester</th>
-                      <th className="p-3">Start Date</th>
-                      <th className="p-3">End Date</th>
-                      <th className="p-3">Duration</th>
-                      <th className="p-3">Status</th>
-                      {(canUpdateSemester || canDeleteSemester) && <th className="p-3 text-right">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                    {semesters.map((s) => {
-                      const start = s.startDate ? new Date(s.startDate) : null;
-                      const end = s.endDate ? new Date(s.endDate) : null;
-                      const durationDays = start && end ? Math.round((end - start) / (1000 * 60 * 60 * 24)) : null;
-
-                      return (
-                        <tr key={s._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/40">
-                          <td className="p-3 font-semibold text-gray-900 dark:text-gray-100">
-                            {s.batch?.name || 'N/A'}
-                          </td>
-                          <td className="p-3 font-bold text-blue-600 dark:text-blue-400 font-mono text-sm">
-                            Semester {s.number}
-                          </td>
-                          <td className="p-3 font-mono text-gray-600 dark:text-gray-400">
-                            {start ? start.toLocaleDateString() : 'TBD'}
-                          </td>
-                          <td className="p-3 font-mono text-gray-600 dark:text-gray-400">
-                            {end ? end.toLocaleDateString() : 'TBD'}
-                          </td>
-                          <td className="p-3 font-mono text-gray-500 dark:text-gray-400">
-                            {durationDays ? `${durationDays} days` : '—'}
-                          </td>
-                          <td className="p-3">
-                            {canUpdateSemester ? (
-                              <select
-                                value={s.status}
-                                onChange={(e) => handleUpdateSemesterStatus(s._id, e.target.value)}
-                                className={`text-[11px] font-bold px-2 py-0.5 rounded border border-transparent outline-none cursor-pointer ${
-                                  s.status === 'Active'
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                    : s.status === 'Upcoming'
-                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
-                                    : s.status === 'Completed'
-                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
-                                    : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
-                                }`}
-                              >
-                                <option value="Upcoming">Upcoming</option>
-                                <option value="Active">Active</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Archived">Archived</option>
-                              </select>
-                            ) : (
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                s.status === 'Active'
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                  : s.status === 'Upcoming'
-                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
-                                  : s.status === 'Completed'
-                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300'
-                                  : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
-                              }`}>
-                                {s.status}
-                              </span>
-                            )}
-                          </td>
-                          {(canUpdateSemester || canDeleteSemester) && (
-                            <td className="p-3 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                {canUpdateSemester && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEditSemester(s)}
-                                    className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded transition-colors"
-                                    title="Edit Semester"
-                                  >
-                                    <Edit2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                                {canDeleteSemester && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteSemester(s._id, s.number)}
-                                    className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded transition-colors"
-                                    title="Delete Semester"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Schedule Semester Form */}
-          {canCreateSemester && (
-            <div className="bg-white dark:bg-[#18181b] p-5 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm space-y-4">
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                  <Plus className="w-4 h-4 text-blue-500" />
-                  <span>Schedule Official Semester</span>
-                </h3>
-                <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
-                  Configure official semester calendar baseline for a B.E. cohort.
-                </p>
-              </div>
-
-              {/* Context Banner */}
-              <div className="p-3 bg-blue-50/60 dark:bg-blue-950/20 rounded-md border border-blue-100 dark:border-blue-900/40 text-xs text-blue-800 dark:text-blue-300">
-                <div className="font-semibold">SIT Tumkur • Bachelor of Engineering (B.E.)</div>
-                <div className="text-[11px] opacity-80 mt-0.5">Official dates define the baseline period for weekly timetables, classes, and academic events.</div>
-              </div>
-
-              <form onSubmit={handleCreateSemester} className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Batch Cohort</label>
-                  <select
-                    required
-                    value={newSemester.batchId}
-                    onChange={(e) => setNewSemester({ ...newSemester, batchId: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="">Select B.E. Cohort...</option>
-                    {batches.map((b) => (
-                      <option key={b._id} value={b._id}>{b.name} ({b.admissionYear}–{b.graduationYear})</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Semester</label>
-                    <select
-                      required
-                      value={newSemester.number}
-                      onChange={(e) => setNewSemester({ ...newSemester, number: Number(e.target.value) })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                        <option key={s} value={s}>Semester {s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Initial Status</label>
-                    <select
-                      value={newSemester.status}
-                      onChange={(e) => setNewSemester({ ...newSemester, status: e.target.value })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="Upcoming">Upcoming</option>
-                      <option value="Active">Active</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Official Start Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={newSemester.startDate}
-                      onChange={(e) => setNewSemester({ ...newSemester, startDate: e.target.value })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Official End Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={newSemester.endDate}
-                      onChange={(e) => setNewSemester({ ...newSemester, endDate: e.target.value })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full mt-2 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded transition-colors text-xs shadow-sm"
-                >
-                  Schedule Official Semester
-                </button>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 4: Academic Calendar (Holidays & Events) */}
-      {activeTab === 'events' && (
+      {/* Tab 4: Timetable Settings */}
+      {activeTab === 'timetable_structure' && (
         <div className="space-y-6">
-          {/* Top Subtab Navigation Switcher */}
-          <div className="flex items-center justify-between border-b border-gray-200 dark:border-zinc-800 pb-2">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCalendarSubTab('holidays')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  calendarSubTab === 'holidays'
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <span>Holidays</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  calendarSubTab === 'holidays' ? 'bg-amber-600 text-white' : 'bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300'
-                }`}>
-                  {governmentHolidays.length + calendarItems.filter(i => i.kind === 'HOLIDAY' && i.holidayCategory !== 'GOVERNMENT').length}
-                </span>
-              </button>
+          {/* SUB-VIEW 1: CSES Institutional Timetable Settings Configuration Sheet */}
+          {(() => {
+            const earliestStart = draftCollegeStartMinute;
+            const latestEnd = draftCollegeEndMinute;
+            const activePeriodsCount = calculatedPeriods.length;
+            const activeBreaksCount = (draftBreaks || []).filter(b => b.status !== 'Retired').length;
+            const activeWorkingDaysCount = draftWorkingDays.filter(w => w.status === 'Full Day' || w.status === 'Half Day').length;
 
-              <button
-                type="button"
-                onClick={() => setCalendarSubTab('events')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                  calendarSubTab === 'events'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800'
-                }`}
-              >
-                <span>Calendar Events</span>
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                  calendarSubTab === 'events' ? 'bg-blue-700 text-white' : 'bg-gray-200 dark:bg-zinc-700 text-gray-700 dark:text-gray-300'
-                }`}>
-                  {calendarItems.filter(i => i.kind === 'EVENT').length}
-                </span>
-              </button>
-            </div>
+            const standardClassDuration = draftClassDuration;
+            const morningBreak = (draftBreaks || []).find(b => b.startMinute < 720);
+            const lunchBreak = (draftBreaks || []).find(b => (b.name && b.name.toLowerCase().includes('lunch')) || b.startMinute >= 720);
 
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              SIT Tumkur • Academic Calendar Management
-            </div>
-          </div>
+            const saturdayPeriodsCount = saturdayPeriods.length;
+            const saturdayStart = saturdayPeriods.length > 0 ? saturdayPeriods[0].startMinute : null;
+            const saturdayEnd = saturdayPeriods.length > 0 ? saturdayPeriods[saturdayPeriods.length - 1].endMinute : null;
 
-          {/* Subtab 1: HOLIDAYS */}
-          {calendarSubTab === 'holidays' && (
-            <div className="space-y-6">
-              {/* Layer A: Government Holidays (Global Reference Layer) */}
-              <div className="rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-sm overflow-hidden">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-amber-50/40 dark:bg-amber-950/10 border-b border-gray-200 dark:border-zinc-800">
+            return (
+              <div className="space-y-4">
+                {/* Header Strip */}
+                <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                        Government Holidays
+                      <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                        {timetableStructure?.name || 'SIT Institutional Timetable Settings'}
+                      </h2>
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
+                        Authoritative Grid
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                        Global Layer
-                      </span>
+                      {!isSuper && (
+                        <span className="px-2 py-0.5 text-[10px] font-semibold rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                          Read Only
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      National & State public holidays — maintained independently of cohort batches and official semesters.
+                      College-wide timetable baseline for Siddaganga Institute of Technology. All class sections inherit these standardized period windows, breaks, and working days.
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Search holiday..."
-                      value={govHolidaySearch}
-                      onChange={(e) => setGovHolidaySearch(e.target.value)}
-                      className="px-2.5 py-1 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none w-36"
-                    />
+                  {isSuper && (
+                    <div className="flex items-center gap-2 self-end md:self-auto">
+                      {isSettingsDirty ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded border border-amber-200 dark:border-amber-800/60">
+                          ● Unsaved Changes
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-gray-400 font-medium">
+                          All changes saved
+                        </span>
+                      )}
 
-                    <select
-                      value={govHolidayStatusFilter}
-                      onChange={(e) => setGovHolidayStatusFilter(e.target.value)}
-                      className="px-2.5 py-1 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="Published">Active</option>
-                      <option value="Archived">Disabled</option>
-                    </select>
-
-                    {canCreateEvents && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={handleSyncGovernmentHolidays}
-                          disabled={syncingGov}
-                          title="Sync government holidays from source repository"
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded border border-amber-300 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-200 text-xs font-semibold shadow-sm transition-colors"
-                        >
-                          <RefreshCw className={`w-3.5 h-3.5 ${syncingGov ? 'animate-spin' : ''}`} />
-                          <span>{syncingGov ? 'Syncing...' : 'Sync Repository'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCreateCalendarItem('GOVERNMENT_HOLIDAY')}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-sm transition-colors"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Add Government Holiday</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Government Holidays Table */}
-                {(() => {
-                  const filteredGov = governmentHolidays.filter(item => {
-                    if (govHolidaySearch && !item.title.toLowerCase().includes(govHolidaySearch.toLowerCase())) {
-                      return false;
-                    }
-                    if (govHolidayStatusFilter && item.status !== govHolidayStatusFilter) {
-                      return false;
-                    }
-                    return true;
-                  });
-
-                  if (filteredGov.length === 0) {
-                    return (
-                      <div className="p-8 text-center text-xs text-gray-500 dark:text-gray-400">
-                        {loadingGovHolidays ? 'Loading government holidays...' : 'No government holidays found.'}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-                        <thead className="bg-gray-50/60 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 text-[11px] uppercase tracking-wider font-semibold text-gray-700 dark:text-gray-300">
-                          <tr>
-                            <th className="px-4 py-2.5">Date</th>
-                            <th className="px-4 py-2.5">Holiday</th>
-                            <th className="px-4 py-2.5">Category</th>
-                            <th className="px-4 py-2.5">Observed by SIT</th>
-                            <th className="px-4 py-2.5">Status</th>
-                            <th className="px-4 py-2.5 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                          {filteredGov.map((item) => (
-                            <tr key={item._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-                              <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                {formatCalendarDate(item.startDate, item.endDate)}
-                              </td>
-                              <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">
-                                <div>{item.title}</div>
-                                {item.description && (
-                                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-normal line-clamp-1">
-                                    {item.description}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-4 py-2.5">
-                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50">
-                                  Government
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                    item.observedByCollege !== false
-                                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50'
-                                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                  }`}>
-                                    {item.observedByCollege !== false ? 'Yes (Observed)' : 'No (Classes Run)'}
-                                  </span>
-                                  {canUpdateEvents && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleObservance(item)}
-                                      className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline"
-                                    >
-                                      Toggle
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-2.5 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                    item.status === 'Published'
-                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
-                                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                  }`}>
-                                    {item.status === 'Published' ? 'Active' : 'Disabled'}
-                                  </span>
-                                  {canUpdateEvents && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleToggleGovStatus(item)}
-                                      className="text-[10px] text-gray-500 hover:underline"
-                                    >
-                                      Toggle
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  {canUpdateEvents && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditCalendarItem(item)}
-                                      title="Edit holiday"
-                                      className="p-1 rounded text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-                                    >
-                                      <Edit2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                  {canDeleteEvents && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteCalendarItem(item)}
-                                      title="Delete holiday"
-                                      className="p-1 rounded text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Layer B: Institutional & Branch Holidays (Semester Bound) */}
-              <div className="rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-sm overflow-hidden space-y-3 p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <CalendarCheck2 className="w-4 h-4 text-blue-500" />
-                      <span>Institutional & Branch Holidays</span>
-                    </h4>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                      College/department holidays and vacation breaks bound to an official semester timeline.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={eventsBatchId}
-                      onChange={(e) => {
-                        setEventsBatchId(e.target.value);
-                        const batchSems = semesters.filter(s => String(s.batch?._id || s.batch) === e.target.value);
-                        setEventsSemesterId(batchSems.length > 0 ? batchSems[0]._id : '');
-                      }}
-                      className="text-xs px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
-                    >
-                      <option value="">Select Cohort Batch...</option>
-                      {batches.map((b) => (
-                        <option key={b._id} value={b._id}>{b.name}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={eventsSemesterId}
-                      onChange={(e) => setEventsSemesterId(e.target.value)}
-                      className="text-xs px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
-                    >
-                      <option value="">Select Official Semester...</option>
-                      {semesters
-                        .filter((s) => !eventsBatchId || String(s.batch?._id || s.batch) === String(eventsBatchId))
-                        .map((s) => (
-                          <option key={s._id} value={s._id}>
-                            Semester {s.number} ({s.batch?.name || 'Cohort'}) • {s.status}
-                          </option>
-                        ))}
-                    </select>
-
-                    {canCreateEvents && eventsSemesterId && (
                       <button
                         type="button"
-                        onClick={() => handleOpenCreateCalendarItem('HOLIDAY')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
+                        onClick={handleDiscardSettings}
+                        disabled={!isSettingsDirty || settingsSaving}
+                        className="px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add Holiday</span>
+                        Discard
                       </button>
-                    )}
+
+                      <button
+                        type="button"
+                        onClick={handleSaveSettings}
+                        disabled={!isSettingsDirty || Boolean(settingsValidationError) || settingsSaving}
+                        className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {settingsSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        <span>Save Changes</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Validation Error Banner */}
+                {settingsValidationError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-lg text-xs text-red-800 dark:text-red-300 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                    <span className="font-semibold">{settingsValidationError}</span>
+                  </div>
+                )}
+
+                {/* AREA 1: Working Days Policy */}
+                <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <h3 className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider">
+                        1. Weekly Working Days Policy
+                      </h3>
+                    </div>
+                    <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                      Sunday locked as Non-Working • Saturday operates as Half Day
+                    </span>
+                  </div>
+
+                  <div className="p-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                      {draftWorkingDays.map((wd) => {
+                        const isSunday = wd.dayOfWeek === 7;
+                        return (
+                          <div
+                            key={wd.dayOfWeek}
+                            className={`p-2.5 rounded-lg border text-xs flex flex-col justify-between gap-2 ${
+                              isSunday
+                                ? 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800'
+                                : wd.status === 'Full Day'
+                                ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                                : wd.status === 'Half Day'
+                                ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40'
+                                : 'bg-zinc-50 dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                                {wd.dayName}
+                              </span>
+                              <span className="text-[10px] font-mono text-gray-400">
+                                D{wd.dayOfWeek}
+                              </span>
+                            </div>
+
+                            {isSunday ? (
+                              <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 text-[11px] font-semibold border border-zinc-200 dark:border-zinc-700">
+                                <Lock className="w-3 h-3 text-zinc-400" />
+                                <span>Non-Working</span>
+                              </div>
+                            ) : isSuper ? (
+                              <select
+                                value={wd.status}
+                                onChange={(e) => handleWorkingDayChange(wd.dayOfWeek, e.target.value)}
+                                className={`w-full px-2 py-1 rounded text-xs font-semibold border cursor-pointer bg-white dark:bg-zinc-900 ${
+                                  wd.status === 'Full Day'
+                                    ? 'text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                                    : wd.status === 'Half Day'
+                                    ? 'text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                                    : 'text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700'
+                                }`}
+                              >
+                                <option value="Full Day">Full Day</option>
+                                <option value="Half Day">Half Day</option>
+                                <option value="Non-Working">Non-Working</option>
+                              </select>
+                            ) : (
+                              <span className={`px-2 py-1 rounded text-center text-[11px] font-bold border ${
+                                wd.status === 'Full Day'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : wd.status === 'Half Day'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : 'bg-zinc-100 text-zinc-600 border-zinc-200'
+                              }`}>
+                                {wd.status}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
-                {!eventsSemesterId ? (
-                  <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400">
-                    Select a Cohort Batch and Official Semester above to view institutional holidays.
-                  </div>
-                ) : (
-                  <>
-                    {/* Active Semester Timeline Badge */}
-                    {(() => {
-                      const currentSem = semesters.find(s => String(s._id) === String(eventsSemesterId));
-                      if (!currentSem) return null;
-                      return (
-                        <div className="flex items-center justify-between px-3 py-1.5 rounded bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-blue-900 dark:text-blue-200">
-                              Semester {currentSem.number} Timeline:
-                            </span>
-                            <span className="text-blue-700 dark:text-blue-300">
-                              {formatCalendarDate(currentSem.startDate, currentSem.endDate)}
-                            </span>
-                            <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
-                              currentSem.status === 'Active'
-                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                                : 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
-                            }`}>
-                              {currentSem.status}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                            Must stay within official bounds.
-                          </div>
-                        </div>
-                      );
-                    })()}
+                {/* AREA 2: Period & Break Structure (In-Place CSES Configuration Sheet) */}
+                <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-zinc-900/60 border-b border-gray-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-xs font-bold text-gray-900 dark:text-gray-100 uppercase tracking-wider flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-blue-500" />
+                        <span>2. Period & Break Structure</span>
+                      </h3>
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                        Institutional schedule pattern and daily operational grid. Modify timings, duration, and breaks below to dynamically recalculate teaching periods.
+                      </p>
+                    </div>
 
-                    {/* Filter bar */}
-                    <div className="flex flex-wrap items-center gap-2 text-xs bg-gray-50/70 dark:bg-zinc-900/40 p-2 rounded border border-gray-100 dark:border-zinc-800/60">
-                      <span className="text-gray-500 dark:text-gray-400 font-medium">Filter by:</span>
-
-                      <select
-                        value={calendarScopeFilter}
-                        onChange={(e) => setCalendarScopeFilter(e.target.value)}
-                        className="px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 outline-none"
-                      >
-                        <option value="ALL">All Scopes</option>
-                        <option value="GLOBAL">Global Only</option>
-                        <option value="BRANCH">Branch Only</option>
-                      </select>
-
-                      <select
-                        value={calendarBranchFilter}
-                        onChange={(e) => setCalendarBranchFilter(e.target.value)}
-                        className="px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 outline-none"
-                      >
-                        <option value="">All Branches</option>
-                        {branches.map(br => (
-                          <option key={br._id} value={br._id}>{br.shortName} - {br.name}</option>
-                        ))}
-                      </select>
-
-                      <select
-                        value={calendarStatusFilter}
-                        onChange={(e) => setCalendarStatusFilter(e.target.value)}
-                        className="px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 outline-none"
-                      >
-                        <option value="">All Statuses</option>
-                        <option value="Published">Published</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Archived">Archived</option>
-                      </select>
-
-                      {(calendarScopeFilter !== 'ALL' || calendarBranchFilter || calendarStatusFilter) && (
+                    <div className="flex items-center gap-2">
+                      {isSuper && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setCalendarScopeFilter('ALL');
-                            setCalendarBranchFilter('');
-                            setCalendarStatusFilter('');
-                          }}
-                          className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline ml-1"
+                          onClick={() => setIsEditingSettings(prev => !prev)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all cursor-pointer ${
+                            isEditingSettings
+                              ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60'
+                              : 'bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800 shadow-2xs'
+                          }`}
                         >
-                          Reset filters
+                          {isEditingSettings ? (
+                            <>
+                              <Eye className="w-3.5 h-3.5" />
+                              <span>Done Editing</span>
+                            </>
+                          ) : (
+                            <>
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Edit Schedule</span>
+                            </>
+                          )}
                         </button>
                       )}
                     </div>
-
-                    {/* Table Render */}
-                    {(() => {
-                      const filtered = calendarItems.filter(item => {
-                        if (item.kind !== 'HOLIDAY' || item.holidayCategory === 'GOVERNMENT') return false;
-                        if (calendarScopeFilter !== 'ALL' && item.scope !== calendarScopeFilter) return false;
-                        if (calendarBranchFilter && String(item.branch?._id || item.branch) !== String(calendarBranchFilter)) return false;
-                        if (calendarStatusFilter && item.status !== calendarStatusFilter) return false;
-                        return true;
-                      });
-
-                      if (filtered.length === 0) {
-                        return (
-                          <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400">
-                            No institutional or branch holidays found for this semester.
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="overflow-x-auto rounded border border-gray-200 dark:border-zinc-800">
-                          <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-                            <thead className="bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 text-[11px] uppercase tracking-wider font-semibold text-gray-700 dark:text-gray-300">
-                              <tr>
-                                <th className="px-4 py-2.5">Date</th>
-                                <th className="px-4 py-2.5">Holiday</th>
-                                <th className="px-4 py-2.5">Category</th>
-                                <th className="px-4 py-2.5">Scope</th>
-                                <th className="px-4 py-2.5">Branch</th>
-                                <th className="px-4 py-2.5">Class Impact</th>
-                                <th className="px-4 py-2.5">Status</th>
-                                <th className="px-4 py-2.5 text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                              {filtered.map((item) => (
-                                <tr key={item._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-                                  <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                    {formatCalendarDate(item.startDate, item.endDate)}
-                                  </td>
-                                  <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">
-                                    <div>{item.title}</div>
-                                    {item.description && (
-                                      <div className="text-[11px] text-gray-500 dark:text-gray-400 font-normal line-clamp-1">
-                                        {item.description}
-                                      </div>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2.5">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                      item.holidayCategory === 'RANGE'
-                                        ? 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50'
-                                        : 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50'
-                                    }`}>
-                                      {item.holidayCategory}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-2.5">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                      item.scope === 'GLOBAL'
-                                        ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/50'
-                                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50'
-                                    }`}>
-                                      {item.scope}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">
-                                    {item.scope === 'BRANCH' && item.branch ? (
-                                      <span className="font-semibold">{item.branch.shortName || item.branch.name || 'Branch'}</span>
-                                    ) : (
-                                      <span className="text-gray-400 dark:text-gray-500">—</span>
-                                    )}
-                                  </td>
-                                  <td className="px-4 py-2.5 whitespace-nowrap">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                      item.classImpact === 'FULL_DAY'
-                                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
-                                        : item.classImpact === 'TIME_RANGE'
-                                        ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/50'
-                                        : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
-                                    }`}>
-                                      {item.classImpact === 'NONE' && 'No Suspension'}
-                                      {item.classImpact === 'FULL_DAY' && 'Full Day'}
-                                      {item.classImpact === 'TIME_RANGE' && `Time (${minutesToTime(item.suspensionStartMinute)} – ${minutesToTime(item.suspensionEndMinute)})`}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-2.5">
-                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                      item.status === 'Published'
-                                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
-                                        : item.status === 'Archived'
-                                        ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50'
-                                    }`}>
-                                      {item.status}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      {canUpdateEvents && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenEditCalendarItem(item)}
-                                          title="Edit holiday"
-                                          className="p-1 rounded text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-                                        >
-                                          <Edit2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                      {canDeleteEvents && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleDeleteCalendarItem(item)}
-                                          title="Delete holiday"
-                                          className="p-1 rounded text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Subtab 2: CALENDAR EVENTS */}
-          {calendarSubTab === 'events' && (
-            <div className="rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] shadow-sm overflow-hidden space-y-3 p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-zinc-800 pb-3">
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-blue-500" />
-                    <span>Official Semester Events</span>
-                  </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    Induction programmes, college fests, seminars, and branch-specific workshops.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={eventsBatchId}
-                    onChange={(e) => {
-                      setEventsBatchId(e.target.value);
-                      const batchSems = semesters.filter(s => String(s.batch?._id || s.batch) === e.target.value);
-                      setEventsSemesterId(batchSems.length > 0 ? batchSems[0]._id : '');
-                    }}
-                    className="text-xs px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
-                  >
-                    <option value="">Select Cohort Batch...</option>
-                    {batches.map((b) => (
-                      <option key={b._id} value={b._id}>{b.name}</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={eventsSemesterId}
-                    onChange={(e) => setEventsSemesterId(e.target.value)}
-                    className="text-xs px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
-                  >
-                    <option value="">Select Official Semester...</option>
-                    {semesters
-                      .filter((s) => !eventsBatchId || String(s.batch?._id || s.batch) === String(eventsBatchId))
-                      .map((s) => (
-                        <option key={s._id} value={s._id}>
-                          Semester {s.number} ({s.batch?.name || 'Cohort'}) • {s.status}
-                        </option>
-                      ))}
-                  </select>
-
-                  {canCreateEvents && eventsSemesterId && (
-                    <button
-                      type="button"
-                      onClick={() => handleOpenCreateCalendarItem('EVENT')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Event</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {!eventsSemesterId ? (
-                <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400">
-                  Select a Cohort Batch and Official Semester above to view calendar events.
-                </div>
-              ) : (
-                <>
-                  {/* Active Semester Timeline Badge */}
-                  {(() => {
-                    const currentSem = semesters.find(s => String(s._id) === String(eventsSemesterId));
-                    if (!currentSem) return null;
-                    return (
-                      <div className="flex items-center justify-between px-3 py-1.5 rounded bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-blue-900 dark:text-blue-200">
-                            Semester {currentSem.number} Timeline:
-                          </span>
-                          <span className="text-blue-700 dark:text-blue-300">
-                            {formatCalendarDate(currentSem.startDate, currentSem.endDate)}
-                          </span>
-                          <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
-                            currentSem.status === 'Active'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                              : 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
-                          }`}>
-                            {currentSem.status}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                          Must stay within official bounds.
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Filter bar */}
-                  <div className="flex flex-wrap items-center gap-2 text-xs bg-gray-50/70 dark:bg-zinc-900/40 p-2 rounded border border-gray-100 dark:border-zinc-800/60">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium">Filter by:</span>
-
-                    <select
-                      value={calendarScopeFilter}
-                      onChange={(e) => setCalendarScopeFilter(e.target.value)}
-                      className="px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 outline-none"
-                    >
-                      <option value="ALL">All Scopes</option>
-                      <option value="GLOBAL">Global Only</option>
-                      <option value="BRANCH">Branch Only</option>
-                    </select>
-
-                    <select
-                      value={calendarBranchFilter}
-                      onChange={(e) => setCalendarBranchFilter(e.target.value)}
-                      className="px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 outline-none"
-                    >
-                      <option value="">All Branches</option>
-                      {branches.map(br => (
-                        <option key={br._id} value={br._id}>{br.shortName} - {br.name}</option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={calendarStatusFilter}
-                      onChange={(e) => setCalendarStatusFilter(e.target.value)}
-                      className="px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-800 dark:text-gray-200 outline-none"
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="Published">Published</option>
-                      <option value="Draft">Draft</option>
-                      <option value="Archived">Archived</option>
-                    </select>
-
-                    {(calendarScopeFilter !== 'ALL' || calendarBranchFilter || calendarStatusFilter) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCalendarScopeFilter('ALL');
-                          setCalendarBranchFilter('');
-                          setCalendarStatusFilter('');
-                        }}
-                        className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline ml-1"
-                      >
-                        Reset filters
-                      </button>
-                    )}
                   </div>
 
-                  {/* Table Render */}
-                  {(() => {
-                    const filtered = calendarItems.filter(item => {
-                      if (item.kind !== 'EVENT') return false;
-                      if (calendarScopeFilter !== 'ALL' && item.scope !== calendarScopeFilter) return false;
-                      if (calendarBranchFilter && String(item.branch?._id || item.branch) !== String(calendarBranchFilter)) return false;
-                      if (calendarStatusFilter && item.status !== calendarStatusFilter) return false;
-                      return true;
-                    });
-
-                    if (filtered.length === 0) {
-                      return (
-                        <div className="p-6 text-center text-xs text-gray-500 dark:text-gray-400">
-                          No calendar events found for this official semester.
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div className="overflow-x-auto rounded border border-gray-200 dark:border-zinc-800">
-                        <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
-                          <thead className="bg-gray-50 dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 text-[11px] uppercase tracking-wider font-semibold text-gray-700 dark:text-gray-300">
-                            <tr>
-                              <th className="px-4 py-2.5">Date</th>
-                              <th className="px-4 py-2.5">Event</th>
-                              <th className="px-4 py-2.5">Scope</th>
-                              <th className="px-4 py-2.5">Branch</th>
-                              <th className="px-4 py-2.5">Class Impact</th>
-                              <th className="px-4 py-2.5">Status</th>
-                              <th className="px-4 py-2.5 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                            {filtered.map((item) => (
-                              <tr key={item._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/50 transition-colors">
-                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                  {formatCalendarDate(item.startDate, item.endDate)}
-                                </td>
-                                <td className="px-4 py-2.5 font-semibold text-gray-900 dark:text-gray-100">
-                                  <div>{item.title}</div>
-                                  {item.description && (
-                                    <div className="text-[11px] text-gray-500 dark:text-gray-400 font-normal line-clamp-1">
-                                      {item.description}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2.5">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                    item.scope === 'GLOBAL'
-                                      ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/50'
-                                      : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50'
-                                  }`}>
-                                    {item.scope}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">
-                                  {item.scope === 'BRANCH' && item.branch ? (
-                                    <span className="font-semibold">{item.branch.shortName || item.branch.name || 'Branch'}</span>
-                                  ) : (
-                                    <span className="text-gray-400 dark:text-gray-500">—</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-2.5 whitespace-nowrap">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                    item.classImpact === 'FULL_DAY'
-                                      ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/50'
-                                      : item.classImpact === 'TIME_RANGE'
-                                      ? 'bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800/50'
-                                      : 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400'
-                                  }`}>
-                                    {item.classImpact === 'NONE' && 'No Suspension'}
-                                    {item.classImpact === 'FULL_DAY' && 'Full Day'}
-                                    {item.classImpact === 'TIME_RANGE' && `Time (${minutesToTime(item.suspensionStartMinute)} – ${minutesToTime(item.suspensionEndMinute)})`}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2.5">
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                    item.status === 'Published'
-                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50'
-                                      : item.status === 'Archived'
-                                      ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
-                                      : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50'
-                                  }`}>
-                                    {item.status}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    {canUpdateEvents && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleOpenEditCalendarItem(item)}
-                                        title="Edit event"
-                                        className="p-1 rounded text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-                                      >
-                                        <Edit2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                    {canDeleteEvents && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteCalendarItem(item)}
-                                        title="Delete event"
-                                        className="p-1 rounded text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 5: Timetable Structure */}
-      {activeTab === 'timetable_structure' && (
-        <div className="space-y-6">
-          {/* Responsibility Boundary Switcher (Super Admin Only) */}
-          {isSuper && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#18181b] p-3 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm">
-              <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-zinc-800/80 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setTtSubView('sections')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    ttSubView === 'sections'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Class Section Timetables</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setTtSubView('structure')}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                    ttSubView === 'structure'
-                      ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                  }`}
-                >
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span>Institutional Bell Schedule & Structure</span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
-                    Super Admin
-                  </span>
-                </button>
-              </div>
-
-              <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                {ttSubView === 'structure' ? (
-                  <span>
-                    <strong>Super Admin Authority:</strong> Define college-wide teaching periods, breaks, and working days.
-                  </span>
-                ) : (
-                  <span>
-                    <strong>Scoped Admin Authority:</strong> Assign subjects, faculties, and rooms for authorized sections.
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* SUB-VIEW 1: Institutional Structure Framework (Super Admin Controlled) */}
-          {isSuper && ttSubView === 'structure' && (
-            <div className="space-y-6">
-              {/* Institutional Header Card */}
-              <div className="bg-white dark:bg-[#18181b] p-5 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">
-                      {timetableStructure?.name || 'SIT Institutional Bell Schedule & Framework'}
-                    </h2>
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      Authoritative Core
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-2xl">
-                    Super Admin establishes the institutional framework for Siddaganga Institute of Technology. All branches and class sections inherit these standardized period lengths, break windows, and working-day rules.
-                  </p>
-                </div>
-
-                {isSuper ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditingStructure({
-                      name: timetableStructure?.name || 'SIT Institutional Bell Schedule',
-                      collegeStartMinute: timetableStructure?.collegeStartMinute ?? 480,
-                      collegeEndMinute: timetableStructure?.collegeEndMinute ?? 960,
-                      classDuration: timetableStructure?.classDuration || 50,
-                      labDuration: timetableStructure?.labDuration || 100,
-                      workingDays: (timetableStructure?.workingDays || [
-                        { dayOfWeek: 1, dayName: 'Monday', status: 'Full Day' },
-                        { dayOfWeek: 2, dayName: 'Tuesday', status: 'Full Day' },
-                        { dayOfWeek: 3, dayName: 'Wednesday', status: 'Full Day' },
-                        { dayOfWeek: 4, dayName: 'Thursday', status: 'Full Day' },
-                        { dayOfWeek: 5, dayName: 'Friday', status: 'Full Day' },
-                        { dayOfWeek: 6, dayName: 'Saturday', status: 'Half Day' },
-                        { dayOfWeek: 7, dayName: 'Sunday', status: 'Non-Working' }
-                      ]).map(wd => ({
-                        dayOfWeek: wd.dayOfWeek,
-                        dayName: wd.dayName,
-                        status: wd.status === 'Holiday' ? 'Non-Working' : wd.status
-                      })),
-                      breaks: (timetableStructure?.breaks || []).map(b => ({
-                        name: b.name,
-                        startMinute: b.startMinute,
-                        duration: b.duration || (b.endMinute ? b.endMinute - b.startMinute : 15),
-                        endMinute: b.endMinute || (b.startMinute + (b.duration || 15))
-                      }))
-                    })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-all whitespace-nowrap"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>Edit Institutional Structure</span>
-                  </button>
-                ) : (
-                  <span className="text-[11px] px-2.5 py-1 rounded bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 font-medium">
-                    Read Only • Managed by Super Admin
-                  </span>
-                )}
-              </div>
-
-              {/* Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm">
-                  <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Daily Operating Hours</div>
-                  <div className="text-base font-bold text-gray-900 dark:text-gray-100 mt-1">
-                    {formatTime12(timetableStructure?.collegeStartMinute ?? 480)} – {formatTime12(timetableStructure?.collegeEndMinute ?? 960)}
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">
-                    {Math.round(((timetableStructure?.collegeEndMinute ?? 960) - (timetableStructure?.collegeStartMinute ?? 480)) / 60)} hrs / instructional day
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm">
-                  <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Theory Period Duration</div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-                    {timetableStructure?.classDuration || 50} <span className="text-xs font-normal text-gray-500">minutes</span>
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">Single teaching unit</div>
-                </div>
-
-                <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm">
-                  <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Lab Session Duration</div>
-                  <div className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1">
-                    {timetableStructure?.labDuration || 100} <span className="text-xs font-normal text-gray-500">minutes</span>
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">Standard practical block</div>
-                </div>
-
-                <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm">
-                  <div className="text-[11px] font-medium text-gray-500 uppercase tracking-wider">Teaching Periods / Day</div>
-                  <div className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-                    {timetableStructure?.periods?.length || 8} <span className="text-xs font-normal text-gray-500">periods</span>
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1">Dynamically generated schedule</div>
-                </div>
-              </div>
-
-              {/* Working Days & Breaks Layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Weekly Working Days */}
-                <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                  <div className="p-3.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-800/30 flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-blue-500" />
-                      <span>Weekly Working Day Policy</span>
-                    </h3>
-                    <span className="text-[10px] text-gray-400">Institutional Baseline</span>
-                  </div>
+                  {/* CSES In-Place Editable Sheet Table */}
                   <div className="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                    {(timetableStructure?.workingDays || []).map((wd) => (
-                      <div key={wd.dayOfWeek} className="p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center font-bold text-[11px]">
-                            {wd.dayOfWeek}
-                          </span>
-                          <div>
-                            <span className="font-semibold text-gray-900 dark:text-gray-100">{wd.dayName}</span>
-                            <div className="text-[10px] text-gray-400">
-                              {wd.status === 'Full Day' ? 'Full Instructional Day' : wd.status === 'Half Day' ? 'Half Day / Morning Sessions' : 'College Off / Non-Teaching'}
-                            </div>
-                          </div>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                          wd.status === 'Full Day'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
-                            : wd.status === 'Half Day'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-                            : 'bg-zinc-100 text-zinc-500 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
-                        }`}>
-                          {wd.status.toUpperCase()}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/40 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <th className="py-2.5 px-4 w-2/5 sm:w-1/3">Setting</th>
+                            <th className="py-2.5 px-4">Configured Value</th>
+                            <th className="py-2.5 px-4 text-right text-[10px] text-gray-400 hidden sm:table-cell">Policy / Calculation</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                          {/* 1. Normal Day Start Time & End Time */}
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">1. Normal Day Operating Timings</div>
+                              <div className="text-[11px] text-gray-500">School/College opening and closing bell</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {isEditingSettings ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded px-2 py-1">
+                                    <span className="text-[11px] text-gray-500 font-medium">Start:</span>
+                                    <input
+                                      type="time"
+                                      value={minutesToTime(draftCollegeStartMinute)}
+                                      onChange={(e) => setDraftCollegeStartMinute(timeToMinutes(e.target.value))}
+                                      className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100 bg-transparent focus:outline-none cursor-pointer"
+                                    />
+                                  </div>
+                                  <span className="text-gray-400 font-mono">→</span>
+                                  <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-zinc-900 border border-gray-300 dark:border-zinc-700 rounded px-2 py-1">
+                                    <span className="text-[11px] text-gray-500 font-medium">End:</span>
+                                    <input
+                                      type="time"
+                                      value={minutesToTime(draftCollegeEndMinute)}
+                                      onChange={(e) => setDraftCollegeEndMinute(timeToMinutes(e.target.value))}
+                                      className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100 bg-transparent focus:outline-none cursor-pointer"
+                                    />
+                                  </div>
+                                  <span className="text-[11px] font-mono font-semibold text-blue-600 dark:text-blue-400">
+                                    ({Math.floor((draftCollegeEndMinute - draftCollegeStartMinute) / 60)}h {(draftCollegeEndMinute - draftCollegeStartMinute) % 60}m span)
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="font-mono font-bold text-gray-900 dark:text-gray-100">
+                                  {minutesToTime(draftCollegeStartMinute)} – {minutesToTime(draftCollegeEndMinute)}
+                                  <span className="ml-2 font-normal text-xs text-gray-500">
+                                    ({formatTime12(draftCollegeStartMinute)} – {formatTime12(draftCollegeEndMinute)})
+                                  </span>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400 text-[11px] hidden sm:table-cell">
+                              Standard daily operating envelope
+                            </td>
+                          </tr>
+
+                          {/* 2. Class Duration */}
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">2. Class Duration</div>
+                              <div className="text-[11px] text-gray-500">Single instructional period length</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {isEditingSettings ? (
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={draftClassDuration}
+                                    onChange={(e) => setDraftClassDuration(Number(e.target.value))}
+                                    className="px-2.5 py-1 text-xs font-mono font-bold rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 cursor-pointer"
+                                  >
+                                    <option value={40}>40 mins</option>
+                                    <option value={45}>45 mins</option>
+                                    <option value={50}>50 mins (Standard SIT)</option>
+                                    <option value={55}>55 mins</option>
+                                    <option value={60}>60 mins (1 hour)</option>
+                                  </select>
+                                  <span className="text-[11px] text-gray-400">per lecture period</span>
+                                </div>
+                              ) : (
+                                <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
+                                  {draftClassDuration} mins
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400 text-[11px] hidden sm:table-cell">
+                              Basis for automatic period calculations
+                            </td>
+                          </tr>
+
+                          {/* Lab Duration (Companion Setting) */}
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">Lab Duration</span>
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 font-semibold">
+                                  Allocator Rule
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-gray-500">Consecutive duration for practical laboratory sessions</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {isEditingSettings ? (
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={draftLabDuration}
+                                    onChange={(e) => setDraftLabDuration(Number(e.target.value))}
+                                    className="px-2.5 py-1 text-xs font-mono font-bold rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 cursor-pointer"
+                                  >
+                                    <option value={draftClassDuration}>{draftClassDuration} mins (1 period)</option>
+                                    <option value={draftClassDuration * 2}>{draftClassDuration * 2} mins (2 periods)</option>
+                                    <option value={draftClassDuration * 3}>{draftClassDuration * 3} mins (3 periods)</option>
+                                    <option value={100}>100 mins</option>
+                                    <option value={150}>150 mins</option>
+                                    <option value={180}>180 mins</option>
+                                  </select>
+                                  <span className="text-[11px] text-gray-400">
+                                    ({Math.round(draftLabDuration / draftClassDuration)} consecutive periods)
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
+                                  {draftLabDuration} mins ({Math.round(draftLabDuration / draftClassDuration)} periods)
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400 text-[11px] hidden sm:table-cell">
+                              Timetable allocator automatically reserves consecutive slots
+                            </td>
+                          </tr>
+
+                          {/* 3. Breaks with each duration */}
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="py-3 px-4 align-top">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">3. Scheduled Breaks</div>
+                              <div className="text-[11px] text-gray-500">Tea break, lunch interval, and recesses</div>
+                              {isEditingSettings && (
+                                <button
+                                  type="button"
+                                  onClick={handleAddBreakItem}
+                                  className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 dark:text-amber-300 rounded border border-amber-200 dark:border-amber-800/60 transition-colors cursor-pointer"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>Add Break</span>
+                                </button>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {isEditingSettings ? (
+                                <div className="space-y-2">
+                                  {draftBreaks.map((b, idx) => {
+                                    const bEnd = Number(b.startMinute) + Number(b.duration || 15);
+                                    const isLunch = b.name.toLowerCase().includes('lunch');
+                                    return (
+                                      <div
+                                        key={b.id || idx}
+                                        className="flex flex-wrap items-center gap-2 p-2 rounded-md bg-gray-50 dark:bg-zinc-900/80 border border-gray-200 dark:border-zinc-800"
+                                      >
+                                        <div className="flex items-center gap-1.5 min-w-[130px] flex-1 sm:flex-initial">
+                                          <span className="text-xs">
+                                            {isLunch ? '🍱' : '☕'}
+                                          </span>
+                                          <input
+                                            type="text"
+                                            placeholder="Break Name"
+                                            value={b.name}
+                                            onChange={(e) => handleUpdateBreakItem(idx, 'name', e.target.value)}
+                                            className="w-full px-2 py-1 text-xs font-semibold rounded border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
+                                          />
+                                        </div>
+
+                                        <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded px-1.5 py-1">
+                                          <span className="text-[10px] text-gray-400 font-medium">Start:</span>
+                                          <input
+                                            type="time"
+                                            value={minutesToTime(b.startMinute)}
+                                            onChange={(e) => handleUpdateBreakItem(idx, 'startMinute', timeToMinutes(e.target.value))}
+                                            className="text-xs font-mono font-bold text-gray-900 dark:text-gray-100 bg-transparent focus:outline-none cursor-pointer"
+                                          />
+                                        </div>
+
+                                        <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded px-1.5 py-1">
+                                          <span className="text-[10px] text-gray-400 font-medium">Dur:</span>
+                                          <input
+                                            type="number"
+                                            min="5"
+                                            max="180"
+                                            step="5"
+                                            value={b.duration}
+                                            onChange={(e) => handleUpdateBreakItem(idx, 'duration', Number(e.target.value))}
+                                            className="w-12 text-xs font-mono font-bold text-gray-900 dark:text-gray-100 bg-transparent focus:outline-none"
+                                          />
+                                          <span className="text-[10px] text-gray-400">m</span>
+                                        </div>
+
+                                        <span className="font-mono text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                          → {minutesToTime(bEnd)}
+                                        </span>
+
+                                        {draftBreaks.length > 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleDeleteBreakItem(idx)}
+                                            className="p-1 text-red-400 hover:text-red-600 rounded transition-colors ml-auto cursor-pointer"
+                                            title="Remove break"
+                                          >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {draftBreaks.map((b, idx) => {
+                                    const bEnd = Number(b.startMinute) + Number(b.duration || (b.endMinute - b.startMinute) || 15);
+                                    const isLunch = b.name.toLowerCase().includes('lunch');
+                                    return (
+                                      <div key={b.id || idx} className="flex items-center gap-2 text-xs">
+                                        <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                          {isLunch ? '🍱' : '☕'} {b.name}:
+                                        </span>
+                                        <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">
+                                          {b.duration} mins
+                                        </span>
+                                        <span className="font-mono text-gray-500 dark:text-gray-400 text-[11px]">
+                                          ({minutesToTime(b.startMinute)} – {minutesToTime(bEnd)})
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400 text-[11px] hidden sm:table-cell align-top">
+                              Pauses inserted into teaching schedule
+                            </td>
+                          </tr>
+
+                          {/* 4. Calculate Automatically the Classes or Periods */}
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 bg-blue-50/20 dark:bg-blue-950/10">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">4. Number of Periods</span>
+                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold uppercase tracking-wider">
+                                  Auto-Calculated
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-gray-500">Dynamically fitted teaching capacity</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="px-2.5 py-1 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 font-mono font-bold text-sm">
+                                  {calculatedPeriods.length} periods / day
+                                </span>
+                                {calculatedPeriods.length > 0 && (
+                                  <span className="text-xs text-gray-600 dark:text-gray-300 font-mono">
+                                    (P1: {minutesToTime(calculatedPeriods[0].startMinute)} → P{calculatedPeriods.length}: {minutesToTime(calculatedPeriods[calculatedPeriods.length - 1].endMinute)})
+                                  </span>
+                                )}
+                              </div>
+                              {calculatedPeriods.length > 0 && (() => {
+                                const lastP = calculatedPeriods[calculatedPeriods.length - 1];
+                                const remainder = draftCollegeEndMinute - lastP.endMinute;
+                                if (remainder > 0) {
+                                  return (
+                                    <div className="text-[10px] text-gray-400 mt-1">
+                                      ⚡ {remainder} mins unallocated buffer before college closing ({minutesToTime(draftCollegeEndMinute)})
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400 text-[11px] hidden sm:table-cell">
+                              Automatically updates on timing, duration, or break changes
+                            </td>
+                          </tr>
+
+                          {/* Saturday Periods & Duration (Auto-Calculated) */}
+                          <tr className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30">
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">Saturday Periods & Duration</div>
+                              <div className="text-[11px] text-gray-500">Weekend operating capacity</div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {saturdayWorkingDay?.status === 'Non-Working' ? (
+                                <span className="font-mono font-bold text-zinc-500">
+                                  0 periods (College Off)
+                                </span>
+                              ) : saturdayPeriods.length > 0 ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-mono font-bold text-gray-800 dark:text-gray-200">
+                                    {saturdayPeriods.length} periods ({saturdayWorkingDay?.status || 'Half Day'})
+                                  </span>
+                                  <span className="font-mono text-xs text-gray-500 dark:text-gray-400">
+                                    ({minutesToTime(saturdayPeriods[0].startMinute)} – {minutesToTime(saturdayPeriods[saturdayPeriods.length - 1].endMinute)})
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="font-mono text-gray-500">No morning periods available</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-gray-400 text-[11px] hidden sm:table-cell">
+                              Derived from Saturday working day policy
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Timeline Preview Ribbon */}
+                  <div className="p-3.5 bg-gray-50/50 dark:bg-zinc-900/40 border-t border-gray-100 dark:border-zinc-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[11px] font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Timeline Preview</span>
+                        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-1.5 py-0.5 rounded ml-1">
+                          Live
                         </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {minutesToTime(draftCollegeStartMinute)} → {minutesToTime(draftCollegeEndMinute)}
+                      </span>
+                    </div>
 
-                {/* Breaks Framework */}
-                <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                  <div className="p-3.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-800/30 flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-emerald-500" />
-                      <span>Institutional Breaks & Interval Windows</span>
-                    </h3>
-                    <span className="text-[10px] text-gray-400">Structural Dividers</span>
-                  </div>
-                  <div className="divide-y divide-gray-100 dark:divide-zinc-800 text-xs">
-                    {(timetableStructure?.breaks || []).map((brk, idx) => (
-                      <div key={idx} className="p-3.5 flex items-center justify-between">
-                        <div>
-                          <div className="font-bold text-gray-900 dark:text-gray-100">{brk.name}</div>
-                          <div className="text-[10px] text-gray-400 mt-0.5">
-                            Occurs after Period {brk.afterPeriod} • Duration: {brk.duration} minutes
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60">
-                            {brk.timeSlot}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    <div className="p-3 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50/40 dark:bg-zinc-800/20 italic">
-                      * Breaks are structural timetable dividers and are automatically rendered between teaching periods. They cannot be scheduled as teaching classes.
+                    <div className="flex items-center gap-1 overflow-x-auto py-1 px-0.5 scrollbar-thin text-xs">
+                      {/* College Start */}
+                      <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[11px] font-semibold shrink-0">
+                        {minutesToTime(draftCollegeStartMinute)}
+                      </span>
+                      <span className="text-gray-300 dark:text-zinc-600 font-mono shrink-0 px-0.5">─</span>
+
+                      {activeTimelineItems.map((item, idx) => {
+                        const isPeriod = item.type === 'period';
+                        const isLunch = !isPeriod && item.name.toLowerCase().includes('lunch');
+                        const itemDuration = item.endMinute - item.startMinute;
+
+                        return (
+                          <React.Fragment key={item.id || idx}>
+                            {isPeriod ? (
+                              <span
+                                className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 shrink-0 shadow-2xs cursor-default"
+                                title={`${item.name}: ${minutesToTime(item.startMinute)} – ${minutesToTime(item.endMinute)} (${itemDuration}m)`}
+                              >
+                                P{item.periodNumber || (idx + 1)}
+                              </span>
+                            ) : isLunch ? (
+                              <span
+                                className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 shrink-0 shadow-2xs cursor-default"
+                                title={`${item.name}: ${minutesToTime(item.startMinute)} – ${minutesToTime(item.endMinute)} (${itemDuration}m)`}
+                              >
+                                🍱 Lunch ({itemDuration}m)
+                              </span>
+                            ) : (
+                              <span
+                                className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 shrink-0 shadow-2xs cursor-default"
+                                title={`${item.name}: ${minutesToTime(item.startMinute)} – ${minutesToTime(item.endMinute)} (${itemDuration}m)`}
+                              >
+                                ☕ Break ({itemDuration}m)
+                              </span>
+                            )}
+
+                            {idx < activeTimelineItems.length - 1 && (
+                              <span className="text-gray-300 dark:text-zinc-600 font-mono shrink-0 px-0.5">─</span>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+
+                      <span className="text-gray-300 dark:text-zinc-600 font-mono shrink-0 px-0.5">─</span>
+                      {/* College End */}
+                      <span className="px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono text-[11px] font-semibold shrink-0">
+                        {minutesToTime(draftCollegeEndMinute)}
+                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Master Bell Schedule Table */}
-              <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                <div className="p-3.5 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-800/30 flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    <span>SIT Master Bell Schedule ({timetableStructure?.periods?.length || 8} Teaching Periods)</span>
-                  </h3>
-                  <span className="text-[10px] text-gray-400">All Sections Adhere to this Grid</span>
+                {/* AREA 3: Summary & Actions Bar */}
+                <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-4 text-xs">
+                    <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-300 font-medium">
+                      <Clock className="w-4 h-4 text-blue-500" />
+                      <span>
+                        Operating Hours: <strong>{earliestStart != null ? `${minutesToTime(earliestStart)} – ${minutesToTime(latestEnd)}` : '08:00 – 17:00'}</strong>
+                      </span>
+                      {earliestStart != null && latestEnd != null && (
+                        <span className="text-[11px] font-mono text-gray-400">
+                          ({((latestEnd - earliestStart) / 60).toFixed(1)} hrs)
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="h-4 w-px bg-gray-200 dark:bg-zinc-800 hidden sm:block" />
+
+                    <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                      <span>Periods: <strong className="text-gray-800 dark:text-gray-200">{activePeriodsCount}</strong></span>
+                      <span>•</span>
+                      <span>Breaks: <strong className="text-gray-800 dark:text-gray-200">{activeBreaksCount}</strong></span>
+                      <span>•</span>
+                      <span>Working Days: <strong className="text-gray-800 dark:text-gray-200">{activeWorkingDaysCount}/7</strong></span>
+                    </div>
+                  </div>
+
+                  {isSuper && (
+                    <div className="flex items-center gap-3">
+                      {isSettingsDirty ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800/60">
+                          ● Unsaved Changes
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-gray-400">
+                          All settings saved
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleDiscardSettings}
+                        disabled={!isSettingsDirty || settingsSaving}
+                        className="px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Discard
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSaveSettings}
+                        disabled={!isSettingsDirty || Boolean(settingsValidationError) || settingsSaving}
+                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {settingsSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                        <span>Save Changes</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-gray-50 dark:bg-zinc-800 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-zinc-700">
-                      <tr>
-                        <th className="px-4 py-2.5">Period #</th>
-                        <th className="px-4 py-2.5">Period Name</th>
-                        <th className="px-4 py-2.5">Time Window</th>
-                        <th className="px-4 py-2.5">Duration</th>
-                        <th className="px-4 py-2.5">Saturday Availability</th>
-                        <th className="px-4 py-2.5">Interval / Break Following</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                      {(timetableStructure?.periods || []).map((p) => {
-                        const followingBreak = (timetableStructure?.breaks || []).find(b => b.afterPeriod === p.periodNumber || b.startMinute === p.endMinute);
-                        const satPolicy = (timetableStructure?.workingDays || []).find(w => w.dayOfWeek === 6);
-                        const isSatAllowed = satPolicy?.status === 'Full Day' || (satPolicy?.status === 'Half Day' && p.periodNumber <= (satPolicy.maxPeriods || 4));
-                        return (
-                          <tr key={p.periodNumber} className="hover:bg-gray-50/80 dark:hover:bg-zinc-800/50">
-                            <td className="px-4 py-3 font-bold text-blue-600 dark:text-blue-400">
-                              P{p.periodNumber}
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100">
-                              {p.name}
-                            </td>
-                            <td className="px-4 py-3 font-mono font-medium text-gray-700 dark:text-gray-300">
-                              {p.timeSlot}
-                            </td>
-                            <td className="px-4 py-3 text-gray-500">
-                              {p.endMinute - p.startMinute} min
-                            </td>
-                            <td className="px-4 py-3">
-                              {isSatAllowed ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                  <Check className="w-3 h-3" /> Working (Half Day)
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-400">
-                                  <X className="w-3 h-3" /> Off (Afternoon)
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {followingBreak ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60">
-                                  {followingBreak.name} ({followingBreak.timeSlot})
-                                </span>
-                              ) : (
-                                <span className="text-gray-400 text-[11px]">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                {/* Invariant Protection Notice */}
+                <div className="p-3 bg-gray-50/80 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800 rounded-lg text-gray-600 dark:text-gray-400 text-[11px] flex items-start gap-2">
+                  <Shield className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
+                  <span>
+                    <strong>Attendance Safety Invariant:</strong> Institutional timetable settings define the time grid and slot boundaries for projected classes. Historical student attendance records and completed classes remain 100% immutable and unaffected.
+                  </span>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
+        </div>
+      )}
 
-          {/* SUB-VIEW 2: Section Timetable Assignments (Scoped Admins + Super Admin) */}
-          {ttSubView === 'sections' && (
-            <div className="space-y-6">
-              {/* Section Selector Toolbar */}
-              <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm space-y-3">
+      {/* Tab 5: Weekly Timetable */}
+      {activeTab === 'weekly_timetable' && (
+        <div className="space-y-6">
+          {/* Section Selector Toolbar */}
+          <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3">
                   <div>
                     <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -3274,18 +3775,23 @@ export default function AcademicStructurePage() {
               )}
             </div>
 
-            {/* Cascading Selectors */}
+            {/* Cascading Selectors: Batch -> Official Semester -> Department/Branch -> Class Section */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Batch */}
+              {/* 1. Batch */}
               <div>
                 <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Cohort Batch
+                  1. Cohort Batch
                 </label>
                 <select
                   value={ttBatchId}
                   onChange={(e) => {
-                    setTtBatchId(e.target.value);
+                    const bId = e.target.value;
+                    setTtBatchId(bId);
+                    setTtSemesterNum('');
+                    if (isSuper) setTtBranchId('');
                     setTtSectionId('');
+                    setTtData(null);
+                    setTtSlots({});
                   }}
                   className="w-full px-2.5 py-1.5 rounded-md text-xs border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
                 >
@@ -3298,80 +3804,110 @@ export default function AcademicStructurePage() {
                 </select>
               </div>
 
-              {/* Semester */}
+              {/* 2. Official Semester */}
               <div>
                 <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Official Semester
+                  2. Official Semester
                 </label>
                 <select
                   value={ttSemesterNum}
-                  onChange={(e) => handleSemesterChange(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-md text-xs border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                  disabled={!ttBatchId}
+                  onChange={(e) => {
+                    setTtSemesterNum(e.target.value);
+                    if (isSuper) setTtBranchId('');
+                    setTtSectionId('');
+                    setTtData(null);
+                    setTtSlots({});
+                  }}
+                  className="w-full px-2.5 py-1.5 rounded-md text-xs border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">-- All Semesters --</option>
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                    <option key={num} value={num}>
-                      Semester {num} {num <= 2 ? '(1st Year - Common)' : ''}
+                  <option value="">
+                    {!ttBatchId
+                      ? '-- Select Batch First --'
+                      : availableSemestersForBatch.length === 0
+                      ? '-- No Semesters for Batch --'
+                      : '-- Select Official Semester --'}
+                  </option>
+                  {availableSemestersForBatch.map((s) => (
+                    <option key={s._id} value={s.number}>
+                      {s.label || `Semester ${s.number}`} {s.status ? `(${s.status})` : ''}
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Branch */}
+              {/* 3. Department / Branch */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400">
-                    Department / Branch
+                    3. Department / Branch
                   </label>
                   {!isSuper && (
                     <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-300">
-                      {Number(ttSemesterNum) === 1 || Number(ttSemesterNum) === 2 ? 'Auto: Common to All' : 'Auto: Your Department'}
+                      Your Department
                     </span>
                   )}
                 </div>
                 <select
                   value={ttBranchId}
-                  disabled={!isSuper}
+                  disabled={!ttBatchId || !ttSemesterNum || !isSuper}
                   onChange={(e) => {
                     setTtBranchId(e.target.value);
                     setTtSectionId('');
+                    setTtData(null);
+                    setTtSlots({});
                   }}
                   className={`w-full px-2.5 py-1.5 rounded-md text-xs border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 ${
-                    !isSuper ? 'opacity-85 cursor-not-allowed bg-gray-50 dark:bg-zinc-800/60' : ''
+                    !ttBatchId || !ttSemesterNum
+                      ? 'opacity-50 cursor-not-allowed'
+                      : !isSuper
+                      ? 'opacity-85 cursor-not-allowed bg-gray-50 dark:bg-zinc-800/60'
+                      : ''
                   }`}
                 >
-                  <option value="">-- Select Branch --</option>
-                  {branches.map((br) => (
+                  <option value="">
+                    {!ttBatchId || !ttSemesterNum ? '-- Select Semester First --' : '-- Select Department --'}
+                  </option>
+                  {availableBranchesForTimetable.map((br) => (
                     <option key={br._id} value={br._id}>
-                      {br.name} {br.shortName || br.code ? `(${br.shortName || br.code})` : ''}
+                      {br.name} ({br.shortName || br.code || ''})
                     </option>
                   ))}
                 </select>
               </div>
 
-              {/* Section */}
+              {/* 4. Class Section */}
               <div>
                 <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  Class Section
+                  4. Class Section
                 </label>
                 <select
                   value={ttSectionId}
+                  disabled={!ttBatchId || !ttSemesterNum || !ttBranchId}
                   onChange={(e) => {
                     const id = e.target.value;
                     setTtSectionId(id);
-                    fetchSectionTimetable(id);
+                    if (id) {
+                      fetchSectionTimetable(id);
+                    } else {
+                      setTtData(null);
+                      setTtSlots({});
+                    }
                   }}
-                  className="w-full px-2.5 py-1.5 rounded-md text-xs border border-blue-500 font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-zinc-900"
+                  className="w-full px-2.5 py-1.5 rounded-md text-xs border border-blue-500 font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:border-gray-200 dark:disabled:border-zinc-700 disabled:text-gray-400"
                 >
-                  <option value="">-- Select Class Section --</option>
-                  {filteredSections.map((sec) => {
-                    const brCode = sec.branch?.shortName || sec.branch?.code || 'GEN';
-                    return (
-                      <option key={sec._id} value={sec._id}>
-                        {brCode} - Sem {sec.semester} - Section {sec.name} ({sec.capacity} seats)
-                      </option>
-                    );
-                  })}
+                  <option value="">
+                    {!ttBatchId || !ttSemesterNum || !ttBranchId
+                      ? '-- Select Hierarchy First --'
+                      : availableSectionsForTimetable.length === 0
+                      ? '-- No Sections in Department --'
+                      : '-- Select Class Section --'}
+                  </option>
+                  {availableSectionsForTimetable.map((sec) => (
+                    <option key={sec._id} value={sec._id}>
+                      Section {sec.name} ({sec.capacity} seats)
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -3422,7 +3958,8 @@ export default function AcademicStructurePage() {
                   <button
                     type="button"
                     onClick={handleClearGrid}
-                    disabled={ttSaving || ttData?.timetable?.status === 'Archived'}
+                    disabled={ttSaving || ttData?.timetable?.status === 'Published' || ttData?.timetable?.status === 'Archived'}
+                    title={ttData?.timetable?.status === 'Published' ? 'Timetable is published and protected. Reopen to edit.' : 'Clear all slots'}
                     className="px-2.5 py-1 text-xs border border-gray-200 dark:border-zinc-700 text-gray-600 dark:text-gray-300 rounded hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50"
                   >
                     Clear Grid
@@ -3430,7 +3967,8 @@ export default function AcademicStructurePage() {
                   <button
                     type="button"
                     onClick={() => handleSaveTimetable('Draft')}
-                    disabled={ttSaving || ttData?.timetable?.status === 'Archived'}
+                    disabled={ttSaving || ttData?.timetable?.status === 'Published' || ttData?.timetable?.status === 'Archived'}
+                    title={ttData?.timetable?.status === 'Published' ? 'Timetable is published. Reopen for editing to modify.' : 'Save changes as Draft'}
                     className="flex items-center gap-1.5 px-3 py-1 text-xs font-medium border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 rounded hover:bg-gray-50 dark:hover:bg-zinc-800 disabled:opacity-50 shadow-sm"
                   >
                     <Save className="w-3.5 h-3.5" />
@@ -3447,15 +3985,68 @@ export default function AcademicStructurePage() {
                       <span>Publish Timetable</span>
                     </button>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleArchiveTimetable}
-                      disabled={ttSaving}
-                      className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                      <span>Archive</span>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleReopenTimetable}
+                        disabled={ttSaving}
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold border border-amber-300 dark:border-amber-700 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-200 rounded shadow-xs transition-all"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        <span>Reopen for Editing</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleArchiveTimetable}
+                        disabled={ttSaving}
+                        className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50"
+                      >
+                        <Archive className="w-3.5 h-3.5" />
+                        <span>Archive</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Context Summary Strip */}
+              <div className="bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-zinc-800 px-4 py-3 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Section:</span>
+                    <span className="font-bold text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 px-2.5 py-0.5 rounded border border-zinc-200 dark:border-zinc-700">
+                      {ttData?.section?.branch?.shortName || ttData?.section?.branch?.code || ttData?.section?.branch?.name || 'Unknown Department'} - Section {ttData?.section?.name || '?'}
+                    </span>
+                  </div>
+                  <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Semester:</span>
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
+                      {ttData?.section?.batch?.name || 'Cohort'} • Semester {ttData?.section?.semester}
+                    </span>
+                  </div>
+                  <span className="text-zinc-300 dark:text-zinc-700 hidden sm:inline">|</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Status:</span>
+                    <span className={`px-2.5 py-0.5 rounded font-bold text-[11px] uppercase tracking-wider border ${
+                      ttData?.timetable?.status === 'Published'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                        : ttData?.timetable?.status === 'Archived'
+                        ? 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700'
+                        : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                    }`}>
+                      ● {ttData?.timetable?.status ? ttData.timetable.status.toUpperCase() : 'DRAFT'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400 text-[11px]">
+                  <span>
+                    Allocated: <strong className="text-zinc-800 dark:text-zinc-200">{Object.values(ttSlots).filter(s => s.subject).length}</strong> slots
+                  </span>
+                  {ttData?.timetable?.status === 'Published' && (
+                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800/60">
+                      <Lock className="w-3 h-3" /> Published & Protected
+                    </span>
                   )}
                 </div>
               </div>
@@ -3463,24 +4054,12 @@ export default function AcademicStructurePage() {
               {/* Standard Timing Guide Strip */}
               <div className="bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 p-2.5 rounded text-[11px] text-blue-800 dark:text-blue-300 flex flex-wrap items-center justify-between gap-2">
                 <span>
-                  <strong>SIT Standard Bell Schedule:</strong> {ttData?.periodDefinitions?.length || 8} Teaching Periods ({ttData?.periodDefinitions?.[0]?.timeSlot?.split('–')?.[0] || '08:00'} – {ttData?.periodDefinitions?.[ttData?.periodDefinitions?.length - 1]?.timeSlot?.split('–')?.[1] || '16:00'}) • Standard Durations
+                  <strong>SIT Standard Bell Schedule:</strong> {ttData?.periodDefinitions?.length || 7} Teaching Periods ({ttData?.periodDefinitions?.[0]?.timeSlot?.split('–')?.[0] || '08:00'} – {ttData?.periodDefinitions?.[ttData?.periodDefinitions?.length - 1]?.timeSlot?.split('–')?.[1] || '16:00'}) • Standard Durations
                 </span>
                 <span className="font-semibold">
                   Working Days Policy Inherited from Institutional Timetable Structure
                 </span>
               </div>
-
-              {/* 1st Year Common Curriculum Indicator */}
-              {Number(ttData?.section?.semester) <= 2 && (
-                <div className="bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-2.5 rounded text-[11px] text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-                  <span className="font-bold px-1.5 py-0.5 rounded bg-emerald-200/80 dark:bg-emerald-900/60 text-[10px] uppercase tracking-wider text-emerald-900 dark:text-emerald-200">
-                    1st Year Common Curriculum
-                  </span>
-                  <span>
-                    All subjects for 1st Year (Semesters 1 & 2) are common across all engineering branches. Multi-department faculty (Sciences & Engineering) can be scheduled for this section.
-                  </span>
-                </div>
-              )}
 
               {/* Weekly Period Grid Table */}
               <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 overflow-x-auto shadow-sm">
@@ -3561,6 +4140,183 @@ export default function AcademicStructurePage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Subject Allocation & Workload Summary Table */}
+              <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-zinc-800 pb-2.5">
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span>Subject Allocation & Class Count Summary</span>
+                    </h3>
+                    <p className="text-[11px] text-gray-500">
+                      120-minute laboratory sessions occupy 2 periods but count as 1 class session per batch (B1 / B2).
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    Total Teaching Sessions: <strong className="text-zinc-800 dark:text-zinc-200">{
+                      (() => {
+                        const slotsArr = Object.values(ttSlots).filter(s => s.subject);
+                        const theoryCount = slotsArr.filter(s => (s.classType || s.lectureType) !== 'Lab').length;
+                        const labGroupIds = new Set();
+                        let labStandalone = 0;
+                        slotsArr.filter(s => (s.classType || s.lectureType) === 'Lab').forEach(s => {
+                          if (s.sessionGroupId) {
+                            labGroupIds.add(`${s.sessionGroupId}_${s.batchGroup || 'B1'}`);
+                          } else {
+                            labStandalone += 1;
+                          }
+                        });
+                        return theoryCount + labGroupIds.size + labStandalone;
+                      })()
+                    }</strong> classes / week
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/60 text-gray-700 dark:text-gray-300 font-bold">
+                        <th className="p-2 w-28">Course Code</th>
+                        <th className="p-2">Subject Name</th>
+                        <th className="p-2 text-center w-24">Delivery Type</th>
+                        <th className="p-2 text-center w-16">Credits</th>
+                        <th className="p-2 text-center w-28">Theory Classes</th>
+                        <th className="p-2 text-center w-36">Lab Sessions</th>
+                        <th className="p-2 text-center w-24">Total Classes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                      {(() => {
+                        const allottedSubjects = (ttData?.branchSubjects || []).filter((subj) => {
+                          const slotsArr = Object.values(ttSlots).filter(s => String(s.subject) === String(subj._id));
+                          return slotsArr.length > 0;
+                        });
+
+                        if (allottedSubjects.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} className="p-6 text-center text-gray-500 dark:text-zinc-400 text-xs">
+                                No subjects allotted to this section timetable yet.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return allottedSubjects.map((subj) => {
+                          const slotsArr = Object.values(ttSlots).filter(s => String(s.subject) === String(subj._id));
+                          const theorySlots = slotsArr.filter(s => (s.classType || s.lectureType) !== 'Lab');
+                          const theoryCount = theorySlots.length;
+
+                          // Whole section labs (batchGroup === 'ALL' or empty)
+                          const allLabSlots = slotsArr.filter(s => (s.classType || s.lectureType) === 'Lab' && (s.batchGroup === 'ALL' || !s.batchGroup));
+                          const allLabGroupIds = new Set();
+                          let allLabStandalone = 0;
+                          allLabSlots.forEach(s => {
+                            if (s.sessionGroupId) allLabGroupIds.add(s.sessionGroupId);
+                            else allLabStandalone += 1;
+                          });
+                          const allLabCount = allLabGroupIds.size + allLabStandalone;
+
+                          // Batch B1 labs
+                          const b1Slots = slotsArr.filter(s => (s.classType || s.lectureType) === 'Lab' && s.batchGroup === 'B1');
+                          const b1GroupIds = new Set();
+                          let b1Standalone = 0;
+                          b1Slots.forEach(s => {
+                            if (s.sessionGroupId) b1GroupIds.add(s.sessionGroupId);
+                            else b1Standalone += 1;
+                          });
+                          const b1Count = b1GroupIds.size + b1Standalone;
+
+                          // Batch B2 labs
+                          const b2Slots = slotsArr.filter(s => (s.classType || s.lectureType) === 'Lab' && s.batchGroup === 'B2');
+                          const b2GroupIds = new Set();
+                          let b2Standalone = 0;
+                          b2Slots.forEach(s => {
+                            if (s.sessionGroupId) b2GroupIds.add(s.sessionGroupId);
+                            else b2Standalone += 1;
+                          });
+                          const b2Count = b2GroupIds.size + b2Standalone;
+
+                          const isIpcc = subj.evaluationType === 'IPCC' || subj.category === 'Theory + Lab';
+                          const isLabOnly = subj.evaluationType === 'LAB_ONLY' || subj.category === 'Lab Only';
+                          const isTheoryOnly = subj.evaluationType === 'THEORY_ONLY' || subj.category === 'Theory';
+
+                          const hasBatchLabs = b1Count > 0 || b2Count > 0;
+                          const totalSubjClasses = theoryCount + allLabCount + (hasBatchLabs ? Math.max(b1Count, b2Count) : 0);
+
+                          return (
+                            <tr key={subj._id} className="hover:bg-gray-50/50 dark:hover:bg-zinc-800/20">
+                              <td className="p-2 font-mono font-bold text-gray-900 dark:text-gray-100">
+                                {subj.code}
+                              </td>
+                              <td className="p-2 font-medium text-gray-800 dark:text-gray-200">
+                                {subj.name}
+                              </td>
+                              <td className="p-2 text-center">
+                                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                                  isIpcc
+                                    ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60'
+                                    : isLabOnly
+                                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60'
+                                    : 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60'
+                                }`}>
+                                  {isIpcc ? 'Theory + Lab' : isLabOnly ? 'Lab Only' : 'Theory'}
+                                </span>
+                              </td>
+                              <td className="p-2 text-center font-mono text-gray-600 dark:text-gray-400">
+                                {subj.credits || 0}
+                              </td>
+                              <td className="p-2 text-center">
+                                {isLabOnly ? (
+                                  <span className="text-gray-400 font-mono">—</span>
+                                ) : (
+                                  <span className={`font-mono font-bold ${theoryCount > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
+                                    {theoryCount} {theoryCount === 1 ? 'class' : 'classes'}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 text-center">
+                                {isTheoryOnly ? (
+                                  <span className="text-gray-400 font-mono">—</span>
+                                ) : hasBatchLabs ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                                      b1Count > 0
+                                        ? 'bg-purple-50 text-purple-700 border-purple-200 font-bold dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800'
+                                        : 'bg-zinc-50 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500'
+                                    }`}>
+                                      B1: {b1Count}
+                                    </span>
+                                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                                      b2Count > 0
+                                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200 font-bold dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800'
+                                        : 'bg-zinc-50 text-zinc-400 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-500'
+                                    }`}>
+                                      B2: {b2Count}
+                                    </span>
+                                  </div>
+                                ) : allLabCount > 0 ? (
+                                  <div className="flex items-center justify-center">
+                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 font-bold">
+                                      {allLabCount} {allLabCount === 1 ? 'lab' : 'labs'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 font-mono">0</span>
+                                )}
+                              </td>
+                              <td className="p-2 text-center font-mono font-bold text-gray-900 dark:text-gray-100">
+                                {totalSubjClasses}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -3576,10 +4332,17 @@ export default function AcademicStructurePage() {
                     </h3>
                     <p className="text-[11px] text-gray-500">
                       {(() => {
-                        const [day, period] = editingSlotKey.split('_').map(Number);
+                        const parts = editingSlotKey.split('_');
+                        const day = Number(parts[0]);
+                        const period = Number(parts[1]);
+                        const batch = parts[2];
                         const days = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                        const pDef = PERIOD_DEFINITIONS.find((p) => p.periodNumber === period);
-                        return `${days[day]} — Period ${period} (${pDef?.timeSlot || ''})`;
+                        const pDef = (ttData?.periodDefinitions || []).find((p) => p.periodNumber === period);
+                        const isLab = (slotForm.classType || slotForm.lectureType) === 'Lab';
+                        const batchLabel = isLab
+                          ? ` • Lab Batch ${slotForm.batchGroup || (batch && batch !== 'ALL' ? batch : 'B1')}`
+                          : '';
+                        return `${days[day]} — Period ${period} (${pDef?.timeSlot || ''})${batchLabel}`;
                       })()}
                     </p>
                   </div>
@@ -3592,35 +4355,164 @@ export default function AcademicStructurePage() {
                   </button>
                 </div>
 
-                <form onSubmit={handleSaveSlot} className="space-y-3 text-xs">
-                  {/* Subject Selection */}
+                <form onSubmit={handleSaveSlot} className="space-y-3.5 text-xs">
+                  {/* Subject Selection (Required) - Filtered by selected Class Type */}
+                  {(() => {
+                    const isLabSlot = (slotForm.classType || slotForm.lectureType) === 'Lab';
+                    const availableSubjects = (ttData?.branchSubjects || []).filter(s => {
+                      const isIpcc = s.evaluationType === 'IPCC' || s.category === 'Theory + Lab';
+                      const isLabOnly = s.evaluationType === 'LAB_ONLY' || s.category === 'Lab Only';
+                      const isTheoryOnly = s.evaluationType === 'THEORY_ONLY' || s.category === 'Theory';
+
+                      return isLabSlot ? (isIpcc || isLabOnly) : (isIpcc || isTheoryOnly);
+                    });
+
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block font-semibold text-gray-700 dark:text-gray-300">
+                            Subject <span className="text-rose-500">*</span>
+                          </label>
+                          <span className="text-[10px] text-zinc-500">
+                            Filtered for {isLabSlot ? '🧪 Lab' : '📘 Theory'} ({availableSubjects.length} available)
+                          </span>
+                        </div>
+                        <select
+                          value={slotForm.subject}
+                          required
+                          onChange={(e) => {
+                            setSlotForm({
+                              ...slotForm,
+                              subject: e.target.value
+                            });
+                          }}
+                          className="w-full px-2.5 py-2 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-medium text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                          <option value="">-- Select Subject (Required) * --</option>
+                          {availableSubjects.map((s) => {
+                            const isIpcc = s.evaluationType === 'IPCC' || s.category === 'Theory + Lab';
+                            const isLabOnly = s.evaluationType === 'LAB_ONLY' || s.category === 'Lab Only';
+                            const isTheoryOnly = s.evaluationType === 'THEORY_ONLY' || s.category === 'Theory';
+                            const badge = isIpcc
+                              ? ' • Theory + Lab'
+                              : isLabOnly
+                              ? ' • Lab Only'
+                              : isTheoryOnly
+                              ? ' • Theory Only'
+                              : '';
+                            return (
+                              <option key={s._id} value={s._id}>
+                                [{s.code}] {s.name} ({s.credits || 0} Credits){badge}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Class Type Selection (Required: Theory | Lab ONLY) */}
                   <div>
-                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Subject {Number(ttData?.section?.semester) <= 2 ? '(1st Year Common Curriculum)' : ''}
+                    <label className="block font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      Class Type <span className="text-rose-500">*</span>
                     </label>
-                    <select
-                      value={slotForm.subject}
-                      onChange={(e) => setSlotForm({ ...slotForm, subject: e.target.value })}
-                      className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 font-medium"
-                    >
-                      <option value="">-- No Subject / Free Period --</option>
-                      {(ttData?.branchSubjects || []).map((s) => (
-                        <option key={s._id} value={s._id}>
-                          [{s.code}] {s.name} ({s.credits || 0} Credits){s.year ? ` • ${s.year}` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currSubj = (ttData?.branchSubjects || []).find(s => s._id === slotForm.subject);
+                          const isLabOnly = currSubj && (currSubj.evaluationType === 'LAB_ONLY' || currSubj.category === 'Lab Only');
+                          setSlotForm({
+                            ...slotForm,
+                            classType: 'Theory',
+                            lectureType: 'Theory',
+                            batchGroup: 'ALL',
+                            spanConsecutive: false,
+                            subject: isLabOnly ? '' : slotForm.subject
+                          });
+                        }}
+                        className={`py-2 px-3 text-xs font-bold rounded-md border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          (slotForm.classType || slotForm.lectureType) !== 'Lab'
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-500/30'
+                            : 'bg-zinc-50 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        <span>📘 Theory</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currSubj = (ttData?.branchSubjects || []).find(s => s._id === slotForm.subject);
+                          const isIpcc = currSubj && (currSubj.evaluationType === 'IPCC' || currSubj.category === 'Theory + Lab');
+                          const isLabOnly = currSubj && (currSubj.evaluationType === 'LAB_ONLY' || currSubj.category === 'Lab Only');
+                          const keepSubj = isIpcc || isLabOnly;
+                          setSlotForm({
+                            ...slotForm,
+                            classType: 'Lab',
+                            lectureType: 'Lab',
+                            batchGroup: slotForm.batchGroup === 'ALL' ? 'B1' : slotForm.batchGroup,
+                            spanConsecutive: true,
+                            subject: keepSubj ? slotForm.subject : ''
+                          });
+                        }}
+                        className={`py-2 px-3 text-xs font-bold rounded-md border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          (slotForm.classType || slotForm.lectureType) === 'Lab'
+                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs ring-2 ring-purple-500/30'
+                            : 'bg-zinc-50 dark:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                        }`}
+                      >
+                        <span>🧪 Lab</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Faculty Selection */}
+                  {/* Lab Batch Selection (Required for Labs: B1 | B2) */}
+                  {((slotForm.classType || slotForm.lectureType) === 'Lab') && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block font-semibold text-gray-700 dark:text-gray-300">
+                          Lab Batch <span className="text-rose-500">*</span>
+                        </label>
+                        <span className="text-[10px] text-zinc-500">
+                          Parallel lab batches in same period
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSlotForm({ ...slotForm, batchGroup: 'B1' })}
+                          className={`py-2 px-3 text-xs font-bold rounded-md border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            slotForm.batchGroup === 'B1'
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs ring-2 ring-purple-500/30'
+                              : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                          }`}
+                        >
+                          <span>🧪 Batch B1</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSlotForm({ ...slotForm, batchGroup: 'B2' })}
+                          className={`py-2 px-3 text-xs font-bold rounded-md border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                            slotForm.batchGroup === 'B2'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs ring-2 ring-indigo-500/30'
+                              : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                          }`}
+                        >
+                          <span>🔬 Batch B2</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Faculty Selection (Optional) */}
                   <div>
                     <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Faculty Member {Number(ttData?.section?.semester) <= 2 ? '(Sciences & Engineering)' : ''}
+                      Faculty Member <span className="text-zinc-400 font-normal">(Optional)</span>
                     </label>
                     <select
                       value={slotForm.faculty}
                       onChange={(e) => setSlotForm({ ...slotForm, faculty: e.target.value })}
-                      className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                      className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs"
                     >
                       <option value="">-- To Be Announced (TBA) --</option>
                       {(ttData?.branchFaculties || []).map((f) => {
@@ -3634,69 +4526,66 @@ export default function AcademicStructurePage() {
                     </select>
                   </div>
 
-                  {/* Room Number */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Classroom / Room
-                      </label>
-                      <input
-                        type="text"
-                        value={slotForm.room}
-                        onChange={(e) => setSlotForm({ ...slotForm, room: e.target.value.toUpperCase() })}
-                        placeholder="e.g. LH-201"
-                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 uppercase font-mono"
-                      />
-                    </div>
-
-                    {/* Lecture Type */}
-                    <div>
-                      <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Session Type
-                      </label>
-                      <select
-                        value={slotForm.lectureType}
-                        onChange={(e) => setSlotForm({ ...slotForm, lectureType: e.target.value })}
-                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                      >
-                        <option value="Lecture">Theory Lecture</option>
-                        <option value="Lab">Laboratory</option>
-                        <option value="Tutorial">Tutorial</option>
-                        <option value="Seminar">Seminar</option>
-                        <option value="Free Period">Free Period</option>
-                      </select>
-                    </div>
+                  {/* Classroom / Room (Optional) */}
+                  <div>
+                    <label className="block font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Classroom / Room <span className="text-zinc-400 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={slotForm.room}
+                      onChange={(e) => setSlotForm({ ...slotForm, room: e.target.value.toUpperCase() })}
+                      placeholder="e.g. LH-201, LAB-3"
+                      className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 uppercase font-mono text-xs"
+                    />
                   </div>
 
                   {/* Consecutive block option for Lab */}
-                  {slotForm.lectureType === 'Lab' && (
-                    <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50 p-2 rounded">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={slotForm.spanConsecutive}
-                          onChange={(e) => setSlotForm({ ...slotForm, spanConsecutive: e.target.checked })}
-                          className="rounded text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-[11px] font-medium text-purple-800 dark:text-purple-300">
-                          Block 2 consecutive periods (spans this period & next period)
-                        </span>
-                      </label>
-                    </div>
-                  )}
+                  {(() => {
+                    const isLab = (slotForm.classType || slotForm.lectureType) === 'Lab';
+                    if (!isLab) return null;
+                    const [day, period] = (editingSlotKey || '').split('_').map(Number);
+                    const breaks = ttData?.breakDefinitions || ttData?.structure?.breaks || [];
+                    const periodDefs = ttData?.periodDefinitions || [];
+                    const currDef = periodDefs.find(p => p.periodNumber === period);
+                    const nextDef = periodDefs.find(p => p.periodNumber === period + 1);
+                    const isFollowedByBreak = breaks.some(b => b.afterPeriod === period) || (currDef && nextDef && currDef.endMinute < nextDef.startMinute);
+                    const dayDef = sectionWorkingDays.find(d => d.dayNum === day);
+                    const maxAllowed = dayDef?.maxPeriods || (day === 6 ? 4 : (periodDefs.length || 7));
+                    const isLastPeriod = period >= maxAllowed;
+
+                    if (isFollowedByBreak || isLastPeriod) {
+                      return (
+                        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 p-2.5 rounded text-[11px] text-amber-800 dark:text-amber-300">
+                          ⚠️ <strong>Notice:</strong> {isLastPeriod ? `Period ${period} is the last period of the day.` : `Period ${period} is followed by a break/lunch.`} Consecutive 2-period lab blocks cannot cross breaks or extend past the end of the day.
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50 p-2.5 rounded">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={slotForm.spanConsecutive}
+                            onChange={(e) => setSlotForm({ ...slotForm, spanConsecutive: e.target.checked })}
+                            className="rounded text-purple-600 focus:ring-purple-500"
+                          />
+                          <span className="text-[11px] font-medium text-purple-800 dark:text-purple-300">
+                            Block 2 consecutive periods (spans Period {period} & Period {period + 1})
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-zinc-800">
                     <button
                       type="button"
-                      onClick={() => {
-                        const newSlots = { ...ttSlots };
-                        delete newSlots[editingSlotKey];
-                        setTtSlots(newSlots);
-                        setEditingSlotKey(null);
-                      }}
+                      onClick={handleClearSlot}
                       className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors"
                     >
-                      Clear Slot
+                      Clear {((slotForm.classType || slotForm.lectureType) === 'Lab' && slotForm.batchGroup && slotForm.batchGroup !== 'ALL') ? `Batch ${slotForm.batchGroup}` : 'Slot'}
                     </button>
                     <div className="flex items-center gap-2">
                       <button
@@ -3718,411 +4607,379 @@ export default function AcademicStructurePage() {
               </div>
             </div>
           )}
-            </div>
-          )}
         </div>
       )}
 
-      {/* Super Admin Timetable Structure Edit Modal */}
-      {editingStructure && (() => {
-        const previewPeriods = computePeriodsPreview(
-          editingStructure.collegeStartMinute,
-          editingStructure.collegeEndMinute,
-          editingStructure.classDuration,
-          editingStructure.breaks
-        );
+      {/* Tab 6: Events (Unified Step 5 Architecture) */}
+      {activeTab === 'events' && (() => {
+        const filteredEvents = events.filter(e => {
+          if (eventsScopeFilter !== 'ALL' && e.scope !== eventsScopeFilter) return false;
+          if (eventsTypeFilter !== 'ALL' && e.eventType !== eventsTypeFilter) return false;
+          if (eventsStatusFilter !== 'ALL' && e.status !== eventsStatusFilter) return false;
+          if (eventsSemesterFilter !== 'ALL') {
+            const semId = e.academicSemesterId?._id || e.academicSemesterId;
+            if (String(semId) !== String(eventsSemesterFilter)) return false;
+          }
+          if (eventsSearch.trim()) {
+            const q = eventsSearch.trim().toLowerCase();
+            const matchTitle = e.title && e.title.toLowerCase().includes(q);
+            const matchDesc = e.description && e.description.toLowerCase().includes(q);
+            if (!matchTitle && !matchDesc) return false;
+          }
+          return true;
+        });
+
+        const totalCount = events.length;
+        const globalCount = events.filter(e => e.scope === 'GLOBAL').length;
+        const semesterCount = events.filter(e => e.scope === 'SEMESTER').length;
+        const activeCount = events.filter(e => e.status === 'ACTIVE').length;
+
+        const getEventTypeBadge = (type) => {
+          switch (type) {
+            case 'Holiday / Closure':
+              return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60';
+            case 'Exam':
+              return 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 border-rose-200 dark:border-rose-800/60';
+            case 'Academic Event':
+              return 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border-purple-200 dark:border-purple-800/60';
+            case 'College Event':
+              return 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 dark:border-blue-800/60';
+            default:
+              return 'bg-zinc-50 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700';
+          }
+        };
+
+        const getStatusBadge = (status) => {
+          switch (status) {
+            case 'ACTIVE':
+              return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60';
+            case 'CANCELLED':
+              return 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border-amber-200 dark:border-amber-800/60';
+            case 'ARCHIVED':
+              return 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700';
+            default:
+              return 'bg-zinc-50 text-zinc-600 border-zinc-200';
+          }
+        };
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-            <div className="bg-white dark:bg-[#18181b] rounded-xl border border-gray-200 dark:border-zinc-800 shadow-2xl w-full max-w-3xl overflow-hidden max-h-[92vh] flex flex-col">
-              {/* Modal Header */}
-              <div className="p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-blue-500" />
-                    <span>Edit Institutional Timetable Structure</span>
-                  </h3>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                    Configure daily college timings, break intervals, and working days. Class periods (P1...Pn) are generated dynamically.
-                  </p>
+          <div className="space-y-4">
+            {/* Top Header Card with Quick Stats */}
+            <div className="bg-white dark:bg-[#18181b] p-4 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    College Events & Academic Calendar
+                  </h2>
+                  <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                    Step 5
+                  </span>
                 </div>
-                <button
-                  onClick={() => setEditingStructure(null)}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-5 space-y-6 overflow-y-auto flex-1 text-xs">
-                {/* Schedule Name */}
-                <div>
-                  <label className="block text-[11px] font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Institutional Schedule Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editingStructure.name}
-                    onChange={(e) => setEditingStructure({ ...editingStructure, name: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs font-medium"
-                  />
-                </div>
-
-                {/* Section 1: Daily Timings & Durations */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-500" />
-                    <h4 className="font-bold text-gray-900 dark:text-gray-100 text-xs">
-                      1. Daily Timings & Durations
-                    </h4>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-gray-50/70 dark:bg-zinc-900/60 p-3.5 rounded-lg border border-gray-200 dark:border-zinc-800">
-                    {/* Day Starts At */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        College Starts At *
-                      </label>
-                      <input
-                        type="time"
-                        value={minutesToTime(editingStructure.collegeStartMinute)}
-                        onChange={(e) => setEditingStructure({
-                          ...editingStructure,
-                          collegeStartMinute: timeToMinutes(e.target.value)
-                        })}
-                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs font-mono font-semibold"
-                      />
-                    </div>
-
-                    {/* Day Ends At */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        College Ends At *
-                      </label>
-                      <input
-                        type="time"
-                        value={minutesToTime(editingStructure.collegeEndMinute)}
-                        onChange={(e) => setEditingStructure({
-                          ...editingStructure,
-                          collegeEndMinute: timeToMinutes(e.target.value)
-                        })}
-                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs font-mono font-semibold"
-                      />
-                    </div>
-
-                    {/* Normal Class Duration */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Normal Class Duration *
-                      </label>
-                      <select
-                        value={editingStructure.classDuration}
-                        onChange={(e) => setEditingStructure({
-                          ...editingStructure,
-                          classDuration: Number(e.target.value)
-                        })}
-                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs font-semibold"
-                      >
-                        <option value={30}>30 Minutes</option>
-                        <option value={35}>35 Minutes</option>
-                        <option value={40}>40 Minutes</option>
-                        <option value={45}>45 Minutes</option>
-                        <option value={50}>50 Minutes</option>
-                        <option value={55}>55 Minutes</option>
-                        <option value={60}>60 Minutes (1 Hour)</option>
-                        <option value={75}>75 Minutes</option>
-                      </select>
-                    </div>
-
-                    {/* Lab Session Duration */}
-                    <div>
-                      <label className="block text-[11px] font-medium text-gray-600 dark:text-gray-400 mb-1">
-                        Lab Session Duration *
-                      </label>
-                      <select
-                        value={editingStructure.labDuration}
-                        onChange={(e) => setEditingStructure({
-                          ...editingStructure,
-                          labDuration: Number(e.target.value)
-                        })}
-                        className="w-full px-2.5 py-1.5 rounded-md border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs font-semibold"
-                      >
-                        <option value={60}>60 Minutes (1 Hour)</option>
-                        <option value={80}>80 Minutes</option>
-                        <option value={90}>90 Minutes (1.5 Hours)</option>
-                        <option value={100}>100 Minutes (2 Periods)</option>
-                        <option value={110}>110 Minutes</option>
-                        <option value={120}>120 Minutes (2 Hours)</option>
-                        <option value={150}>150 Minutes (2.5 Hours)</option>
-                        <option value={180}>180 Minutes (3 Hours)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 2: Break Timings & Intervals */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Coffee className="w-4 h-4 text-emerald-500" />
-                      <h4 className="font-bold text-gray-900 dark:text-gray-100 text-xs">
-                        2. Break Timings & Intervals
-                      </h4>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newBreaks = [
-                          ...(editingStructure.breaks || []),
-                          {
-                            name: `Break ${(editingStructure.breaks?.length || 0) + 1}`,
-                            startMinute: 600,
-                            duration: 15,
-                            endMinute: 615
-                          }
-                        ];
-                        setEditingStructure({ ...editingStructure, breaks: newBreaks });
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Add Break</span>
-                    </button>
-                  </div>
-
-                  {(!editingStructure.breaks || editingStructure.breaks.length === 0) ? (
-                    <div className="p-4 text-center text-xs text-gray-400 bg-gray-50/50 dark:bg-zinc-900/30 rounded-lg border border-dashed border-gray-200 dark:border-zinc-800">
-                      No breaks configured. Click "+ Add Break" above to configure lunch, snacks, or interval pauses.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {editingStructure.breaks.map((brk, idx) => (
-                        <div
-                          key={idx}
-                          className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 items-center p-2.5 bg-gray-50/60 dark:bg-zinc-900/50 rounded-lg border border-gray-200 dark:border-zinc-800"
-                        >
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-0.5">Break Name</label>
-                            <input
-                              type="text"
-                              value={brk.name}
-                              onChange={(e) => {
-                                const updated = [...editingStructure.breaks];
-                                updated[idx] = { ...updated[idx], name: e.target.value };
-                                setEditingStructure({ ...editingStructure, breaks: updated });
-                              }}
-                              placeholder="e.g. Tea Break / Lunch"
-                              className="w-full px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-gray-900 dark:text-gray-100"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-0.5">Starts At</label>
-                            <input
-                              type="time"
-                              value={minutesToTime(brk.startMinute)}
-                              onChange={(e) => {
-                                const updated = [...editingStructure.breaks];
-                                const newStart = timeToMinutes(e.target.value);
-                                const dur = updated[idx].duration || 15;
-                                updated[idx] = {
-                                  ...updated[idx],
-                                  startMinute: newStart,
-                                  endMinute: newStart + dur
-                                };
-                                setEditingStructure({ ...editingStructure, breaks: updated });
-                              }}
-                              className="w-full px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs font-mono text-gray-900 dark:text-gray-100"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-0.5">
-                              Duration ({brk.duration || 15} min)
-                            </label>
-                            <input
-                              type="number"
-                              min={5}
-                              max={120}
-                              step={5}
-                              value={brk.duration || 15}
-                              onChange={(e) => {
-                                const updated = [...editingStructure.breaks];
-                                const newDur = Math.max(5, parseInt(e.target.value, 10) || 5);
-                                updated[idx] = {
-                                  ...updated[idx],
-                                  duration: newDur,
-                                  endMinute: (updated[idx].startMinute || 0) + newDur
-                                };
-                                setEditingStructure({ ...editingStructure, breaks: updated });
-                              }}
-                              className="w-full px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-gray-900 dark:text-gray-100"
-                            />
-                          </div>
-
-                          <div className="flex items-center justify-between sm:justify-end gap-2 pt-3 sm:pt-0">
-                            <span className="text-[10px] text-gray-400 font-mono">
-                              {formatTime12(brk.startMinute)} – {formatTime12((brk.startMinute || 0) + (brk.duration || 15))}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const filtered = editingStructure.breaks.filter((_, i) => i !== idx);
-                                setEditingStructure({ ...editingStructure, breaks: filtered });
-                              }}
-                              className="p-1 text-red-500 hover:text-red-700 dark:hover:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-950/30 cursor-pointer"
-                              title="Delete break"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Section 3: Weekly Working Days */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-purple-500" />
-                      <h4 className="font-bold text-gray-900 dark:text-gray-100 text-xs">
-                        3. Weekly Working Days
-                      </h4>
-                    </div>
-                    <span className="text-[10px] text-gray-400">
-                      Institutional Working Day Policy
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 bg-gray-50/60 dark:bg-zinc-900/50 p-3 rounded-lg border border-gray-200 dark:border-zinc-800">
-                    {editingStructure.workingDays.map((wd, idx) => {
-                      const currentStatus = wd.status === 'Holiday' ? 'Non-Working' : wd.status;
-                      const isSunday = wd.dayOfWeek === 7;
-
-                      return (
-                        <div
-                          key={wd.dayOfWeek}
-                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white dark:bg-zinc-900 rounded-md border border-gray-100 dark:border-zinc-800"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 flex items-center justify-center font-bold text-[10px]">
-                              {wd.dayOfWeek}
-                            </span>
-                            <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs w-28">
-                              {wd.dayName}
-                            </span>
-                            {isSunday && (
-                              <span className="text-[10px] text-gray-400 italic">
-                                (Institutional Weekly Off)
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 self-end sm:self-auto">
-                            {[
-                              { label: 'Full Day', value: 'Full Day' },
-                              { label: 'Half Day', value: 'Half Day' },
-                              { label: 'Non-Working', value: 'Non-Working' }
-                            ].map((opt) => {
-                              const isSelected = currentStatus === opt.value;
-                              let activeClasses = '';
-                              if (isSelected) {
-                                if (opt.value === 'Full Day') {
-                                  activeClasses = 'bg-emerald-600 text-white font-bold shadow-xs';
-                                } else if (opt.value === 'Half Day') {
-                                  activeClasses = 'bg-amber-500 text-white font-bold shadow-xs';
-                                } else {
-                                  activeClasses = 'bg-zinc-700 text-white font-bold shadow-xs';
-                                }
-                              } else {
-                                activeClasses = 'bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-zinc-700';
-                              }
-
-                              return (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  onClick={() => {
-                                    const updatedWd = [...editingStructure.workingDays];
-                                    updatedWd[idx] = { ...updatedWd[idx], status: opt.value };
-                                    setEditingStructure({ ...editingStructure, workingDays: updatedWd });
-                                  }}
-                                  className={`px-2.5 py-1 text-[11px] rounded transition-all cursor-pointer ${activeClasses}`}
-                                >
-                                  {opt.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Section 4: Dynamic Periods Preview */}
-                <div className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-blue-900 dark:text-blue-200 font-bold text-xs">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                      <span>Live Dynamic Period Preview ({previewPeriods.length} Teaching Periods)</span>
-                    </div>
-                    <span className="text-[10px] text-blue-700 dark:text-blue-300 font-medium">
-                      Auto-generated from Daily Timings & Breaks
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {previewPeriods.map((p) => (
-                      <div
-                        key={p.periodNumber}
-                        className="px-2 py-1 rounded bg-white dark:bg-zinc-900 border border-blue-200 dark:border-blue-800/60 text-[10px] font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1 shadow-2xs"
-                      >
-                        <span className="font-bold text-blue-600 dark:text-blue-400">P{p.periodNumber}</span>
-                        <span className="font-mono text-gray-500">{p.timeSlot}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Attendance Safety Banner */}
-                <div className="p-3 bg-gray-50 dark:bg-zinc-900/80 border border-gray-200 dark:border-zinc-800 rounded-lg text-gray-600 dark:text-gray-300 text-[11px] flex items-start gap-2">
-                  <Shield className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
-                  <span>
-                    <strong>Attendance Safety Invariant:</strong> Saving updates the institutional timing framework for future projected classes across all sections. Historical attendance records and completed classes remain 100% immutable and unaffected.
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Institutional timetable baseline for public holidays, exams, academic recesses, and semester-scoped events.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+                  <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 font-semibold">
+                    Total: {totalCount}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 font-semibold">
+                    Global Holidays: {globalCount}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 font-semibold">
+                    Semester-Scoped: {semesterCount}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 font-semibold">
+                    Active: {activeCount}
                   </span>
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="p-3.5 border-t border-gray-100 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-800/30 flex justify-end gap-2">
+              {canCreateEvents && (
                 <button
                   type="button"
-                  onClick={() => setEditingStructure(null)}
-                  disabled={structureSaving}
-                  className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800 dark:text-gray-400 cursor-pointer"
+                  onClick={handleOpenCreateEvent}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm transition-all self-start md:self-auto cursor-pointer"
                 >
-                  Cancel
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Event</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveStructure(editingStructure)}
-                  disabled={structureSaving}
-                  className="px-4 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              )}
+            </div>
+
+            {/* Filter Toolbar */}
+            <div className="bg-white dark:bg-[#18181b] p-3 rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Search */}
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={eventsSearch}
+                  onChange={(e) => setEventsSearch(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none w-48 focus:border-blue-500"
+                />
+
+                {/* Scope Filter */}
+                <select
+                  value={eventsScopeFilter}
+                  onChange={(e) => setEventsScopeFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
                 >
-                  {structureSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  <span>Save Institutional Structure</span>
-                </button>
+                  <option value="ALL">All Scopes</option>
+                  <option value="GLOBAL">Global (Holidays & General)</option>
+                  <option value="SEMESTER">Semester Scoped</option>
+                </select>
+
+                {/* Event Type Filter */}
+                <select
+                  value={eventsTypeFilter}
+                  onChange={(e) => setEventsTypeFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Types</option>
+                  <option value="Holiday / Closure">Holiday / Closure</option>
+                  <option value="Academic Event">Academic Event</option>
+                  <option value="Exam">Exam</option>
+                  <option value="College Event">College Event</option>
+                  <option value="Other">Other</option>
+                </select>
+
+                {/* Status Filter */}
+                <select
+                  value={eventsStatusFilter}
+                  onChange={(e) => setEventsStatusFilter(e.target.value)}
+                  className="px-2.5 py-1.5 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="CANCELLED">Cancelled</option>
+                  <option value="ARCHIVED">Archived</option>
+                </select>
+
+                {/* Semester Filter (Dynamic) */}
+                {eventsScopeFilter !== 'GLOBAL' && semesters.length > 0 && (
+                  <select
+                    value={eventsSemesterFilter}
+                    onChange={(e) => setEventsSemesterFilter(e.target.value)}
+                    className="px-2.5 py-1.5 text-xs rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none cursor-pointer"
+                  >
+                    <option value="ALL">All Semesters</option>
+                    {semesters.map(s => (
+                      <option key={s._id} value={s._id}>
+                        {s.batch?.name ? `${s.batch.name} • ` : ''}{s.label || `Sem ${s.number}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="text-[11px] text-gray-500 font-mono">
+                Showing {filteredEvents.length} of {totalCount} events
+              </div>
+            </div>
+
+            {/* CSES Compact Events Table */}
+            <div className="bg-white dark:bg-[#18181b] rounded-lg border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-zinc-800 bg-gray-50/80 dark:bg-zinc-900/80 text-[11px] font-bold text-gray-600 dark:text-gray-400">
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3">Event</th>
+                      <th className="py-2.5 px-3 w-36">Type</th>
+                      <th className="py-2.5 px-3 w-28">Scope</th>
+                      <th className="py-2.5 px-3 w-40">Semester</th>
+                      <th className="py-2.5 px-3 w-44">Date</th>
+                      <th className="py-2.5 px-3 w-32">Time</th>
+                      <th className="py-2.5 px-3 w-36">Suspension</th>
+                      <th className="py-2.5 px-3 w-24 text-center">Status</th>
+                      <th className="py-2.5 px-3 w-24 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
+                    {filteredEvents.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="py-8 text-center text-gray-400 text-xs">
+                          {eventsLoading ? 'Loading events...' : 'No events found matching current criteria.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEvents.map((evt, idx) => {
+                        const startStr = formatDateRange(evt.startDate, evt.endDate);
+                        const sem = evt.academicSemesterId;
+                        const semLabel = sem ? (sem.label || `Sem ${sem.number}`) : '—';
+                        const batchLabel = sem?.batch?.name || '';
+
+                        return (
+                          <tr
+                            key={evt._id}
+                            className="hover:bg-gray-50/60 dark:hover:bg-zinc-800/30 transition-colors"
+                          >
+                            {/* # */}
+                            <td className="py-2.5 px-3 text-center font-mono text-gray-400 text-[11px]">
+                              {idx + 1}
+                            </td>
+
+                            {/* Event Title */}
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5 font-semibold text-gray-900 dark:text-gray-100">
+                                <span>{evt.title}</span>
+                                {evt.priority === 'Important' && (
+                                  <span className="px-1.5 py-0.5 rounded text-[9.5px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                    ● Important
+                                  </span>
+                                )}
+                                {evt.priority === 'Critical' && (
+                                  <span className="px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                                    ! Critical
+                                  </span>
+                                )}
+                              </div>
+                              {evt.description && (
+                                <div className="text-[11px] text-gray-500 truncate max-w-sm mt-0.5">
+                                  {evt.description}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Type */}
+                            <td className="py-2.5 px-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${getEventTypeBadge(evt.eventType)}`}>
+                                {evt.eventType}
+                              </span>
+                            </td>
+
+                            {/* Scope */}
+                            <td className="py-2.5 px-3">
+                              {evt.scope === 'GLOBAL' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60">
+                                  GLOBAL
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                                  SEMESTER
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Semester */}
+                            <td className="py-2.5 px-3">
+                              {evt.scope === 'GLOBAL' ? (
+                                <span className="text-gray-400 font-mono text-[11px]">—</span>
+                              ) : (
+                                <div>
+                                  <span className="font-semibold text-gray-800 dark:text-gray-200">
+                                    {semLabel}
+                                  </span>
+                                  {batchLabel && (
+                                    <div className="text-[10px] text-gray-400 font-mono">
+                                      {batchLabel}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Date */}
+                            <td className="py-2.5 px-3 font-mono text-gray-800 dark:text-gray-200 font-medium">
+                              {startStr}
+                            </td>
+
+                            {/* Time */}
+                            <td className="py-2.5 px-3">
+                              {evt.allDay ? (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400">
+                                  All Day
+                                </span>
+                              ) : (
+                                <span className="font-mono text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                  {evt.startTime || '—'} → {evt.endTime || '—'}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Classes Suspension */}
+                            <td className="py-2.5 px-3">
+                              {evt.suspensionType === 'full_day' || evt.eventType === 'Holiday / Closure' || (evt.classesSuspended && evt.suspensionType !== 'time_range') ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800/60">
+                                  Full Day Suspended
+                                </span>
+                              ) : evt.suspensionType === 'time_range' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 font-mono">
+                                  {evt.suspensionStartTime || '—'}–{evt.suspensionEndTime || '—'}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-600 dark:bg-zinc-800/60 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700">
+                                  Not Suspended
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusBadge(evt.status)}`}>
+                                {evt.status}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-2.5 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {canUpdateEvents && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditEvent(evt)}
+                                    className="p-1 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                                    title="Edit event"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+
+                                {canUpdateEvents && evt.status === 'ACTIVE' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleEventStatus(evt, 'CANCELLED')}
+                                    className="p-1 text-amber-500 hover:text-amber-700 rounded hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors cursor-pointer"
+                                    title="Cancel event"
+                                  >
+                                    <Archive className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+
+                                {canUpdateEvents && evt.status !== 'ACTIVE' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleEventStatus(evt, 'ACTIVE')}
+                                    className="p-1 text-emerald-500 hover:text-emerald-700 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors cursor-pointer"
+                                    title="Reactivate event"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+
+                                {canDeleteEvents && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteEvent(evt)}
+                                    className="p-1 text-red-400 hover:text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                                    title="Archive event"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
         );
       })()}
-
-
 
       {/* Edit Cohort Batch Modal */}
       {editingBatch && (
@@ -4131,7 +4988,7 @@ export default function AcademicStructurePage() {
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3">
               <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-500" />
-                <span>Edit Cohort Batch</span>
+                <span>Edit Cohort Batch ({editingBatch.name || `${editingBatch.admissionYear}–${editingBatch.graduationYear}`})</span>
               </h3>
               <button
                 type="button"
@@ -4144,22 +5001,44 @@ export default function AcademicStructurePage() {
 
             <div className="p-2.5 rounded bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 text-[11px] space-y-0.5">
               <div className="font-semibold text-blue-900 dark:text-blue-200">
-                SIT Tumkur • Bachelor of Engineering (B.E.)
+                {sitCollege?.name || 'SIT Tumkur'} • Bachelor of Engineering (B.E.)
               </div>
               <div className="text-blue-700 dark:text-blue-300">
-                Cohort batch spans 4 academic years.
+                Cohort batch spans 4 academic years (8 semesters).
               </div>
             </div>
+
+            {editingBatch.hasDependencies && (
+              <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+                <div>
+                  <div className="font-semibold">Admission and graduation years are locked</div>
+                  <div className="text-[10.5px] text-amber-700 dark:text-amber-300 mt-0.5">
+                    Academic records ({[
+                      editingBatch.semestersCount > 0 && `${editingBatch.semestersCount} semester(s)`,
+                      editingBatch.sectionsCount > 0 && `${editingBatch.sectionsCount} section(s)`,
+                      editingBatch.studentsCount > 0 && `${editingBatch.studentsCount} student(s)`,
+                      editingBatch.timetablesCount > 0 && `${editingBatch.timetablesCount} timetable(s)`,
+                      editingBatch.eventsCount > 0 && `${editingBatch.eventsCount} event(s)`
+                    ].filter(Boolean).join(', ') || 'linked records'}) are linked to this cohort. To preserve historical integrity, years cannot be modified. You can update the cohort status below.
+                  </div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSaveEditBatch} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Admission Year</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium flex items-center justify-between">
+                    <span>Admission Year</span>
+                    {editingBatch.hasDependencies && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal">Locked</span>}
+                  </label>
                   <input
                     type="number"
                     required
                     min="1950"
                     max="2100"
+                    disabled={editingBatch.hasDependencies}
                     value={editingBatch.admissionYear}
                     onChange={(e) => {
                       const adm = Number(e.target.value);
@@ -4169,22 +5048,37 @@ export default function AcademicStructurePage() {
                         graduationYear: adm ? adm + 4 : prev.graduationYear
                       }));
                     }}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    className={`w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none ${
+                      editingBatch.hasDependencies ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-zinc-800' : ''
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Graduation Year</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium flex items-center justify-between">
+                    <span>Graduation Year</span>
+                    {editingBatch.hasDependencies && <span className="text-[10px] text-amber-600 dark:text-amber-400 font-normal">Locked</span>}
+                  </label>
                   <input
                     type="number"
                     required
                     min="1950"
                     max="2100"
+                    disabled={editingBatch.hasDependencies}
                     value={editingBatch.graduationYear}
                     onChange={(e) => setEditingBatch({ ...editingBatch, graduationYear: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    className={`w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none ${
+                      editingBatch.hasDependencies ? 'opacity-60 cursor-not-allowed bg-gray-100 dark:bg-zinc-800' : ''
+                    }`}
                   />
                 </div>
               </div>
+
+              {!editingBatch.hasDependencies && editingBatch.admissionYear && editingBatch.graduationYear && (editingBatch.graduationYear - editingBatch.admissionYear !== 4) && (
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Graduation year must be exactly 4 years after admission ({editingBatch.admissionYear} → {Number(editingBatch.admissionYear) + 4})</span>
+                </div>
+              )}
 
               <div>
                 <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Status</label>
@@ -4243,14 +5137,25 @@ export default function AcademicStructurePage() {
                 SIT Tumkur • {editingSection.batchName}
               </div>
               <div className="text-blue-700 dark:text-blue-300">
-                Updating section details and capacity bounds.
+                {editingSection.hasDependencies ? 'Managing capacity, room assignment, and status.' : 'Updating section details and capacity bounds.'}
               </div>
             </div>
+
+            {editingSection.hasDependencies && (
+              <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-500" />
+                <div>
+                  <span className="font-semibold">Core Identity Locked:</span> This section has linked academic records ({editingSection.timetablesCount || 0} timetable entries, {editingSection.studentsCount || 0} enrolled students). Section name, branch, and semester cannot be modified. Only room, capacity, and status can be updated.
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSaveEditSection} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Semester</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">
+                    Semester {editingSection.hasDependencies && <Lock className="w-3 h-3 inline text-amber-500 ml-1" />}
+                  </label>
                   {(() => {
                     const scheduledForBatch = semesters
                       .filter((s) => String(s.batch?._id || s.batch) === String(editingSection.batchId))
@@ -4259,9 +5164,10 @@ export default function AcademicStructurePage() {
                       <>
                         <select
                           required
+                          disabled={editingSection.hasDependencies}
                           value={editingSection.semester}
                           onChange={(e) => setEditingSection({ ...editingSection, semester: Number(e.target.value) })}
-                          className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                          className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800"
                         >
                           {scheduledForBatch.length > 0 ? (
                             scheduledForBatch.map((s) => (
@@ -4285,12 +5191,15 @@ export default function AcademicStructurePage() {
                   })()}
                 </div>
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Branch</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">
+                    Branch {editingSection.hasDependencies && <Lock className="w-3 h-3 inline text-amber-500 ml-1" />}
+                  </label>
                   <select
                     required
+                    disabled={editingSection.hasDependencies}
                     value={editingSection.branchId}
                     onChange={(e) => setEditingSection({ ...editingSection, branchId: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800"
                   >
                     <option value="">Select Branch...</option>
                     {branches.map((br) => (
@@ -4302,19 +5211,36 @@ export default function AcademicStructurePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Section Name</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">
+                    Section Name {editingSection.hasDependencies && <Lock className="w-3 h-3 inline text-amber-500 ml-1" />}
+                  </label>
                   <input
                     type="text"
                     required
                     maxLength={3}
+                    disabled={editingSection.hasDependencies}
                     value={editingSection.name}
                     onChange={(e) => setEditingSection({ ...editingSection, name: e.target.value.toUpperCase() })}
                     placeholder="e.g. A, B, A1"
                     pattern="^[A-Za-z]{1,2}[0-9]?$"
                     title="1-2 letters optionally followed by a number (e.g. A, B, A1)"
-                    className="w-full px-3 py-1.5 font-mono uppercase rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-1.5 font-mono uppercase rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800"
                   />
                 </div>
+                <div>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Default Room (Optional)</label>
+                  <input
+                    type="text"
+                    maxLength={30}
+                    value={editingSection.room || ''}
+                    onChange={(e) => setEditingSection({ ...editingSection, room: e.target.value })}
+                    placeholder="e.g. LH-201, Room 104"
+                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Max Capacity</label>
                   <input
@@ -4326,18 +5252,17 @@ export default function AcademicStructurePage() {
                     className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Status</label>
-                <select
-                  value={editingSection.status}
-                  onChange={(e) => setEditingSection({ ...editingSection, status: e.target.value })}
-                  className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Archived">Archived</option>
-                </select>
+                <div>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Status</label>
+                  <select
+                    value={editingSection.status}
+                    onChange={(e) => setEditingSection({ ...editingSection, status: e.target.value })}
+                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Archived">Archived</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-zinc-800">
@@ -4388,15 +5313,30 @@ export default function AcademicStructurePage() {
               </div>
             </div>
 
+            {editingSemester.hasDependencies && (
+              <div className="p-2.5 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 text-[11px] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <span className="font-semibold">Semester number is locked:</span> Academic records ({editingSemester.sectionsCount} sections, {editingSemester.timetablesCount} timetables, {editingSemester.eventsCount} events) are linked to Semester {editingSemester.number}. Only timeline dates and status can be updated.
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSaveEditSemester} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Semester Number</label>
+                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">
+                    Semester Number
+                    {editingSemester.hasDependencies && (
+                      <span className="ml-1 text-[10px] text-amber-500 font-normal">(Locked)</span>
+                    )}
+                  </label>
                   <select
                     required
+                    disabled={editingSemester.hasDependencies}
                     value={editingSemester.number}
                     onChange={(e) => setEditingSemester({ ...editingSemester, number: Number(e.target.value) })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-zinc-800"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
                       <option key={s} value={s}>Semester {s}</option>
@@ -4413,6 +5353,7 @@ export default function AcademicStructurePage() {
                     <option value="Upcoming">Upcoming</option>
                     <option value="Active">Active</option>
                     <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
                     <option value="Archived">Archived</option>
                   </select>
                 </div>
@@ -4462,303 +5403,559 @@ export default function AcademicStructurePage() {
         </div>
       )}
 
-      {/* Create / Edit Calendar Item Modal */}
-      {calendarModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#18181b] p-5 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <CalendarCheck2 className={`w-4 h-4 ${calendarModalKind === 'GOVERNMENT_HOLIDAY' ? 'text-amber-500' : calendarModalKind === 'HOLIDAY' ? 'text-amber-500' : 'text-blue-500'}`} />
-                <span>
-                  {editingCalendarItem ? 'Edit ' : 'Add '}
-                  {calendarModalKind === 'GOVERNMENT_HOLIDAY'
-                    ? 'Government Holiday'
-                    : calendarModalKind === 'HOLIDAY'
-                    ? 'Institutional Holiday'
-                    : 'Calendar Event'}
-                </span>
-              </h3>
+      {/* Compact CSES Create / Edit Event Modal */}
+      {eventModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white dark:bg-[#18181b] rounded-xl border border-gray-200 dark:border-zinc-800 shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50">
+              <div className="flex items-center gap-2">
+                <CalendarCheck2 className="w-4 h-4 text-blue-500" />
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                  {editingEvent ? 'Edit Event' : 'Create New Event'}
+                </h3>
+              </div>
               <button
                 type="button"
-                onClick={() => setCalendarModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                onClick={() => setEventModalOpen(false)}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Context Badge */}
-            {calendarModalKind === 'GOVERNMENT_HOLIDAY' ? (
-              <div className="p-2.5 rounded bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-[11px] space-y-0.5">
-                <div className="font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                  <span>Global Reference Layer • Independent of Cohorts & Semesters</span>
+            {/* Modal Form */}
+            <form onSubmit={handleSaveEvent} className="p-4 space-y-3.5 text-xs">
+              {/* Form Error Banner */}
+              {eventFormError && (
+                <div className="p-2.5 rounded bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800/60 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                  <span>{eventFormError}</span>
                 </div>
-                <div className="text-amber-700 dark:text-amber-300">
-                  Maintained institution-wide for SIT Tumkur. Automatically overlaid across all official semesters.
-                </div>
-              </div>
-            ) : (
-              (() => {
-                const currentSem = semesters.find(s => String(s._id) === String(eventsSemesterId));
-                if (!currentSem) return null;
-                return (
-                  <div className="p-2.5 rounded bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 text-[11px] space-y-0.5">
-                    <div className="font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                      <span>SIT Tumkur • Semester {currentSem.number} Instance</span>
-                    </div>
-                    <div className="text-blue-700 dark:text-blue-300">
-                      Semester Duration: {formatCalendarDate(currentSem.startDate, currentSem.endDate)} ({currentSem.status})
-                    </div>
-                  </div>
-                );
-              })()
-            )}
+              )}
 
-            <form onSubmit={handleSaveCalendarItem} className="space-y-3.5 text-xs">
-              {/* Item Title */}
+              {/* Event Title */}
               <div>
-                <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">
-                  {calendarModalKind === 'EVENT' ? 'Event Name *' : 'Holiday Name *'}
+                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                  Event Title *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder={
-                    calendarModalKind === 'GOVERNMENT_HOLIDAY'
-                      ? 'e.g. Republic Day, Gandhi Jayanti, Independence Day'
-                      : calendarModalKind === 'HOLIDAY'
-                      ? 'e.g. College Foundation Day, Ayudha Pooja, Preparation Break'
-                      : 'e.g. Student Induction Programme, HALCYON Fest, Technical Symposium'
-                  }
-                  value={calendarForm.title}
-                  onChange={(e) => setCalendarForm({ ...calendarForm, title: e.target.value })}
+                  placeholder="e.g. Independence Day, CIE 1 Examinations, Branch Change Application"
+                  value={eventForm.title}
+                  onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
                   className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
                 />
               </div>
 
-              {/* Holiday Category (Only for Institutional HOLIDAY) */}
-              {calendarModalKind === 'HOLIDAY' && (
-                <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Holiday Type *</label>
-                  <select
-                    required
-                    value={calendarForm.holidayCategory === 'GOVERNMENT' ? 'INSTITUTIONAL' : calendarForm.holidayCategory}
-                    onChange={(e) => setCalendarForm({ ...calendarForm, holidayCategory: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="INSTITUTIONAL">Institutional (College / Special Holiday)</option>
-                    <option value="RANGE">Range (Vacation / Study Holidays / Break)</option>
-                  </select>
-                </div>
-              )}
-
-              {/* Date Mode & Dates */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-gray-600 dark:text-gray-400 font-medium">Date Schedule *</label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCalendarForm({ ...calendarForm, dateMode: 'single', endDate: calendarForm.startDate })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                        calendarForm.dateMode === 'single'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'
-                      }`}
-                    >
-                      Single Day
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCalendarForm({ ...calendarForm, dateMode: 'range' })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                        calendarForm.dateMode === 'range'
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300'
-                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-zinc-800'
-                      }`}
-                    >
-                      Date Range
-                    </button>
-                  </div>
-                </div>
-
-                {(() => {
-                  const currentSem = calendarModalKind !== 'GOVERNMENT_HOLIDAY'
-                    ? semesters.find(s => String(s._id) === String(eventsSemesterId))
-                    : null;
-                  const minDate = currentSem ? new Date(currentSem.startDate).toISOString().split('T')[0] : undefined;
-                  const maxDate = currentSem ? new Date(currentSem.endDate).toISOString().split('T')[0] : undefined;
-
-                  return (
-                    <div className={`grid ${calendarForm.dateMode === 'range' ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
-                      <div>
-                        <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">
-                          {calendarForm.dateMode === 'range' ? 'Start Date' : 'Date'}
-                        </label>
-                        <input
-                          type="date"
-                          required
-                          min={minDate}
-                          max={maxDate}
-                          value={calendarForm.startDate}
-                          onChange={(e) => {
-                            const newStart = e.target.value;
-                            setCalendarForm({
-                              ...calendarForm,
-                              startDate: newStart,
-                              endDate: calendarForm.dateMode === 'single' ? newStart : (calendarForm.endDate || newStart)
-                            });
-                          }}
-                          className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                        />
-                      </div>
-                      {calendarForm.dateMode === 'range' && (
-                        <div>
-                          <label className="block text-[11px] text-gray-500 dark:text-gray-400 mb-0.5">End Date</label>
-                          <input
-                            type="date"
-                            required
-                            min={calendarForm.startDate || minDate}
-                            max={maxDate}
-                            value={calendarForm.endDate}
-                            onChange={(e) => setCalendarForm({ ...calendarForm, endDate: e.target.value })}
-                            className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
+              {/* Short Description (Roadmap Row summary) */}
+              <div>
+                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                  Short Description (Timeline Subtitle)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Second internal assessment for the semester."
+                  value={eventForm.shortDescription || ''}
+                  onChange={(e) => setEventForm({ ...eventForm, shortDescription: e.target.value })}
+                  className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none text-xs"
+                />
               </div>
 
-              {/* Observed by SIT (Only for GOVERNMENT_HOLIDAY) */}
-              {calendarModalKind === 'GOVERNMENT_HOLIDAY' && (
+              {/* Event Type, Priority & Order (3 columns) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Observed by SIT *</label>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Event Type *
+                  </label>
                   <select
-                    value={calendarForm.observedByCollege ? 'true' : 'false'}
-                    onChange={(e) => setCalendarForm({ ...calendarForm, observedByCollege: e.target.value === 'true' })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    value={eventForm.eventType}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const isHoliday = val === 'Holiday / Closure' || val === 'HOLIDAY';
+                      setEventForm(prev => ({
+                        ...prev,
+                        eventType: val,
+                        suspensionType: isHoliday ? 'full_day' : prev.suspensionType,
+                        classesSuspended: isHoliday ? true : prev.classesSuspended
+                      }));
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-semibold outline-none cursor-pointer text-xs"
                   >
-                    <option value="true">Yes — Official Holiday for SIT (Classes Suspended)</option>
-                    <option value="false">No — College Working Day (Classes Continue Normally)</option>
+                    <optgroup label="Standard Types">
+                      <option value="ACADEMIC">ACADEMIC</option>
+                      <option value="EXAM">EXAM</option>
+                      <option value="REGISTRATION">REGISTRATION</option>
+                      <option value="DEADLINE">DEADLINE</option>
+                      <option value="CAREER">CAREER</option>
+                      <option value="CAMPUS">CAMPUS</option>
+                      <option value="HOLIDAY">HOLIDAY</option>
+                      <option value="RESULT">RESULT</option>
+                      <option value="GENERAL">GENERAL</option>
+                    </optgroup>
+                    <optgroup label="Legacy Formats">
+                      <option value="College Event">College Event</option>
+                      <option value="Academic Event">Academic Event</option>
+                      <option value="Exam">Exam</option>
+                      <option value="Holiday / Closure">Holiday / Closure</option>
+                      <option value="Other">Other</option>
+                    </optgroup>
                   </select>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                    When observed, full-day class suspension is automatically enforced on this date.
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={eventForm.priority || 'Normal'}
+                    onChange={(e) => setEventForm({ ...eventForm, priority: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-semibold outline-none cursor-pointer text-xs"
+                  >
+                    <option value="Normal">Normal</option>
+                    <option value="Important">● Important</option>
+                    <option value="Critical">! Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Timeline Order
+                  </label>
+                  <input
+                    type="number"
+                    value={eventForm.order || 0}
+                    onChange={(e) => setEventForm({ ...eventForm, order: parseInt(e.target.value, 10) || 0 })}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-semibold outline-none text-xs"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              {/* Scope & Semester */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Scope *
+                  </label>
+                  <select
+                    value={eventForm.scope}
+                    onChange={(e) => setEventForm({ ...eventForm, scope: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-semibold outline-none cursor-pointer"
+                  >
+                    <option value="GLOBAL">GLOBAL (College-wide / Holiday)</option>
+                    <option value="SEMESTER">SEMESTER (Official Semester Scoped)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Semester Picker (Conditional on SEMESTER scope) */}
+              {eventForm.scope === 'SEMESTER' && (
+                <div className="p-3 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40">
+                  <label className="block text-indigo-900 dark:text-indigo-200 font-semibold mb-1">
+                    Academic Semester *
+                  </label>
+                  {semesters.length === 0 ? (
+                    <div className="text-xs text-red-500">
+                      No official semesters available. Please create a semester first.
+                    </div>
+                  ) : (
+                    <select
+                      value={eventForm.academicSemesterId}
+                      onChange={(e) => setEventForm({ ...eventForm, academicSemesterId: e.target.value })}
+                      className="w-full px-2.5 py-1.5 rounded border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-medium outline-none cursor-pointer"
+                    >
+                      <option value="">Select official semester...</option>
+                      {semesters.map(s => (
+                        <option key={s._id} value={s._id}>
+                          {s.batch?.name ? `${s.batch.name} • ` : ''}{s.label || `Semester ${s.number}`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1">
+                    Semester-scoped events automatically inherit cohort batch timeline and curriculum rules.
                   </p>
                 </div>
               )}
 
-              {/* Scope & Branch (Only for Layer B: Institutional & Events) */}
-              {calendarModalKind !== 'GOVERNMENT_HOLIDAY' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Scope *</label>
-                    <select
-                      value={calendarForm.scope}
-                      onChange={(e) => setCalendarForm({
-                        ...calendarForm,
-                        scope: e.target.value,
-                        branchId: e.target.value === 'GLOBAL' ? '' : (calendarForm.branchId || (branches[0]?._id || ''))
-                      })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="GLOBAL">Global (All Branches in Semester)</option>
-                      <option value="BRANCH">Branch Specific</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">
-                      Branch {calendarForm.scope === 'BRANCH' && '*'}
-                    </label>
-                    <select
-                      disabled={calendarForm.scope === 'GLOBAL'}
-                      required={calendarForm.scope === 'BRANCH'}
-                      value={calendarForm.branchId}
-                      onChange={(e) => setCalendarForm({ ...calendarForm, branchId: e.target.value })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <option value="">{calendarForm.scope === 'GLOBAL' ? '— (Applies to all branches)' : 'Select Branch...'}</option>
-                      {branches.map((br) => (
-                        <option key={br._id} value={br._id}>{br.shortName} - {br.name}</option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Classes Suspension Section */}
+              <div className="p-3 rounded-lg bg-gray-50/80 dark:bg-zinc-900/70 border border-gray-200 dark:border-zinc-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-gray-800 dark:text-gray-200 font-semibold text-xs">
+                    Are classes suspended for this event? *
+                  </label>
+                  {eventForm.eventType === 'Holiday / Closure' && (
+                    <span className="text-[10.5px] text-amber-600 dark:text-amber-400 font-medium">
+                      (Holidays default to full day)
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {/* Class Impact & Suspension (Only for Layer B: Institutional & Events) */}
-              {calendarModalKind !== 'GOVERNMENT_HOLIDAY' && (
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Class Impact *</label>
-                    <select
-                      value={calendarForm.classImpact}
-                      onChange={(e) => setCalendarForm({ ...calendarForm, classImpact: e.target.value })}
-                      className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="NONE">No Suspension (Classes continue normally)</option>
-                      <option value="FULL_DAY">Full Day (All classes suspended)</option>
-                      <option value="TIME_RANGE">Specific Time Range (Partial suspension)</option>
-                    </select>
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label
+                    className={`flex items-center gap-2 p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                      eventForm.suspensionType === 'none'
+                        ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-500 text-blue-900 dark:text-blue-200 font-semibold'
+                        : 'border-gray-200 dark:border-zinc-700 hover:bg-gray-100/50 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="suspensionType"
+                      value="none"
+                      checked={eventForm.suspensionType === 'none'}
+                      onChange={() => setEventForm(prev => ({ ...prev, suspensionType: 'none', classesSuspended: false }))}
+                      className="text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span>Not Suspended</span>
+                  </label>
 
-                  {calendarForm.classImpact === 'TIME_RANGE' && (
-                    <div className="grid grid-cols-2 gap-3 p-2.5 rounded bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/40">
+                  <label
+                    className={`flex items-center gap-2 p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                      eventForm.suspensionType === 'full_day'
+                        ? 'bg-rose-50/70 dark:bg-rose-950/40 border-rose-500 text-rose-900 dark:text-rose-200 font-semibold'
+                        : 'border-gray-200 dark:border-zinc-700 hover:bg-gray-100/50 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="suspensionType"
+                      value="full_day"
+                      checked={eventForm.suspensionType === 'full_day'}
+                      onChange={() => setEventForm(prev => ({ ...prev, suspensionType: 'full_day', classesSuspended: true }))}
+                      className="text-rose-600 focus:ring-rose-500 cursor-pointer"
+                    />
+                    <span>Full Day</span>
+                  </label>
+
+                  <label
+                    className={`flex items-center gap-2 p-2 rounded-md border text-xs cursor-pointer transition-colors ${
+                      eventForm.suspensionType === 'time_range'
+                        ? 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-500 text-amber-900 dark:text-amber-200 font-semibold'
+                        : 'border-gray-200 dark:border-zinc-700 hover:bg-gray-100/50 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="suspensionType"
+                      value="time_range"
+                      checked={eventForm.suspensionType === 'time_range'}
+                      onChange={() => setEventForm(prev => ({ ...prev, suspensionType: 'time_range', classesSuspended: true }))}
+                      className="text-amber-600 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <span>Time Range</span>
+                  </label>
+                </div>
+
+                {/* Conditional Time Range Inputs */}
+                {eventForm.suspensionType === 'time_range' && (
+                  <div className="pt-2 border-t border-gray-200 dark:border-zinc-800 space-y-1.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[11px] text-orange-900 dark:text-orange-300 font-medium mb-0.5">
-                          Suspension Start Time
+                        <label className="block text-gray-600 dark:text-gray-400 font-medium mb-1 text-[11px]">
+                          Suspension Start Time (24h) *
                         </label>
                         <input
                           type="time"
-                          required
-                          value={calendarForm.startTime}
-                          onChange={(e) => setCalendarForm({ ...calendarForm, startTime: e.target.value })}
-                          className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
+                          required={eventForm.suspensionType === 'time_range'}
+                          value={eventForm.suspensionStartTime || '08:00'}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, suspensionStartTime: e.target.value }))}
+                          className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 font-mono font-bold outline-none cursor-pointer"
                         />
                       </div>
+
                       <div>
-                        <label className="block text-[11px] text-orange-900 dark:text-orange-300 font-medium mb-0.5">
-                          Suspension End Time
+                        <label className="block text-gray-600 dark:text-gray-400 font-medium mb-1 text-[11px]">
+                          Suspension End Time (24h) *
                         </label>
                         <input
                           type="time"
-                          required
-                          value={calendarForm.endTime}
-                          onChange={(e) => setCalendarForm({ ...calendarForm, endTime: e.target.value })}
-                          className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none"
+                          required={eventForm.suspensionType === 'time_range'}
+                          value={eventForm.suspensionEndTime || '13:00'}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, suspensionEndTime: e.target.value }))}
+                          className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 font-mono font-bold outline-none cursor-pointer"
                         />
                       </div>
                     </div>
-                  )}
+                    <p className="text-[10.5px] text-amber-600 dark:text-amber-400">
+                      Classes falling within this time window will be suspended; classes outside this window will run normally.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* All Day Toggle */}
+              <div className="flex items-center gap-2 pt-0.5">
+                <input
+                  type="checkbox"
+                  id="eventAllDayCheck"
+                  checked={eventForm.allDay}
+                  onChange={(e) => setEventForm({ ...eventForm, allDay: e.target.checked })}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
+                <label htmlFor="eventAllDayCheck" className="text-xs font-semibold text-gray-700 dark:text-gray-300 cursor-pointer">
+                  All Day Event (No specific bell time slots required)
+                </label>
+              </div>
+
+              {/* Start Date & End Date */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Start Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={eventForm.startDate}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setEventForm(prev => ({
+                        ...prev,
+                        startDate: newStart,
+                        endDate: prev.endDate && prev.endDate < newStart ? newStart : prev.endDate
+                      }));
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-mono font-semibold outline-none cursor-pointer"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    End Date *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={eventForm.endDate}
+                    onChange={(e) => setEventForm({ ...eventForm, endDate: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-mono font-semibold outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Start Time & End Time (When not All Day) */}
+              {!eventForm.allDay && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800">
+                  <div>
+                    <label className="block text-gray-600 dark:text-gray-400 font-medium mb-1">
+                      Start Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      value={eventForm.startTime}
+                      onChange={(e) => setEventForm({ ...eventForm, startTime: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 font-mono font-bold outline-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-gray-600 dark:text-gray-400 font-medium mb-1">
+                      End Time (24h)
+                    </label>
+                    <input
+                      type="time"
+                      value={eventForm.endTime}
+                      onChange={(e) => setEventForm({ ...eventForm, endTime: e.target.value })}
+                      className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 font-mono font-bold outline-none cursor-pointer"
+                    />
+                  </div>
                 </div>
               )}
 
               {/* Description & Status */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Description (Optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Optional notes or instructions..."
-                    value={calendarForm.description}
-                    onChange={(e) => setCalendarForm({ ...calendarForm, description: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Description / Notes (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Provide additional details or institutional remarks..."
+                    value={eventForm.description}
+                    onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 outline-none resize-none"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-gray-600 dark:text-gray-400 mb-1 font-medium">Status</label>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-1">
+                    Status
+                  </label>
                   <select
-                    value={calendarForm.status}
-                    onChange={(e) => setCalendarForm({ ...calendarForm, status: e.target.value })}
-                    className="w-full px-3 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-blue-500 outline-none"
+                    value={eventForm.status}
+                    onChange={(e) => setEventForm({ ...eventForm, status: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 font-semibold outline-none cursor-pointer"
                   >
-                    <option value="Published">Published</option>
-                    <option value="Draft">Draft</option>
-                    <option value="Archived">Archived</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="CANCELLED">CANCELLED</option>
+                    <option value="ARCHIVED">ARCHIVED</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Roadmap Explainer & Action Content (F-012) */}
+              <div className="p-3 rounded-lg bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold text-purple-900 dark:text-purple-200">
+                      Roadmap Explainer & Student Guide
+                    </h4>
+                    <p className="text-[11px] text-purple-700/80 dark:text-purple-300/70">
+                      Content displayed when students click this event in their Roadmap timeline.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Overview */}
+                <div>
+                  <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5 text-[11px]">
+                    Overview (What is this event?)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Explain the purpose of this milestone (e.g., The second Continuous Internal Evaluation conducted during the semester...)"
+                    value={eventForm.content?.overview || ''}
+                    onChange={(e) => setEventForm(prev => ({
+                      ...prev,
+                      content: { ...prev.content, overview: e.target.value }
+                    }))}
+                    className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs outline-none resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* What Happens */}
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5 text-[11px]">
+                      What Usually Happens?
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="• Internal examination&#10;• Subject-wise marks are recorded"
+                      value={eventForm.content?.whatHappens || ''}
+                      onChange={(e) => setEventForm(prev => ({
+                        ...prev,
+                        content: { ...prev.content, whatHappens: e.target.value }
+                      }))}
+                      className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs outline-none resize-none"
+                    />
+                  </div>
+
+                  {/* What To Do */}
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5 text-[11px]">
+                      What Should You Do? (Action items)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="• Check syllabus&#10;• Review question papers&#10;• Check seating timetable"
+                      value={eventForm.content?.whatToDo || ''}
+                      onChange={(e) => setEventForm(prev => ({
+                        ...prev,
+                        content: { ...prev.content, whatToDo: e.target.value }
+                      }))}
+                      className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs outline-none resize-none"
+                    />
+                  </div>
+
+                  {/* Preparation Tips */}
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5 text-[11px]">
+                      Preparation Tips (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="• Prioritize module 2 derivations&#10;• Focus on numerical problems"
+                      value={eventForm.content?.preparationTips || ''}
+                      onChange={(e) => setEventForm(prev => ({
+                        ...prev,
+                        content: { ...prev.content, preparationTips: e.target.value }
+                      }))}
+                      className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs outline-none resize-none"
+                    />
+                  </div>
+
+                  {/* Important Notes */}
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-0.5 text-[11px]">
+                      Important Notes / Rules (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="• 85% attendance required to write CIE&#10;• Calculators permitted for math courses"
+                      value={eventForm.content?.importantNotes || ''}
+                      onChange={(e) => setEventForm(prev => ({
+                        ...prev,
+                        content: { ...prev.content, importantNotes: e.target.value }
+                      }))}
+                      className="w-full px-2.5 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs outline-none resize-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Resources Manager */}
+                <div className="pt-2 border-t border-purple-200/50 dark:border-purple-900/40 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
+                      Useful Resources & Action Links
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEventForm(prev => ({
+                        ...prev,
+                        resources: [...(prev.resources || []), { title: '', url: '', type: 'link' }]
+                      }))}
+                      className="text-[10.5px] font-semibold text-purple-600 dark:text-purple-400 hover:underline cursor-pointer"
+                    >
+                      + Add Link / Resource
+                    </button>
+                  </div>
+
+                  {(!eventForm.resources || eventForm.resources.length === 0) ? (
+                    <p className="text-[10px] text-gray-400 italic">No resources added yet.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {eventForm.resources.map((resItem, rIdx) => (
+                        <div key={rIdx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Resource Label (e.g. Previous CIE Papers)"
+                            value={resItem.title || ''}
+                            onChange={(e) => {
+                              const newRes = [...eventForm.resources];
+                              newRes[rIdx].title = e.target.value;
+                              setEventForm(prev => ({ ...prev, resources: newRes }));
+                            }}
+                            className="flex-1 px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs"
+                          />
+                          <input
+                            type="text"
+                            placeholder="URL or Path (e.g. /materials or https://...)"
+                            value={resItem.url || ''}
+                            onChange={(e) => {
+                              const newRes = [...eventForm.resources];
+                              newRes[rIdx].url = e.target.value;
+                              setEventForm(prev => ({ ...prev, resources: newRes }));
+                            }}
+                            className="flex-1 px-2 py-1 rounded border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newRes = eventForm.resources.filter((_, idx) => idx !== rIdx);
+                              setEventForm(prev => ({ ...prev, resources: newRes }));
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded cursor-pointer"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -4766,25 +5963,27 @@ export default function AcademicStructurePage() {
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 dark:border-zinc-800">
                 <button
                   type="button"
-                  onClick={() => setCalendarModalOpen(false)}
-                  className="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded text-xs font-semibold"
+                  onClick={() => setEventModalOpen(false)}
+                  className="px-3.5 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={savingEdit}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                  disabled={eventSaving}
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-bold shadow-sm transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {savingEdit
-                    ? 'Saving...'
-                    : editingCalendarItem
-                    ? 'Save Changes'
-                    : calendarModalKind === 'GOVERNMENT_HOLIDAY'
-                    ? 'Add Government Holiday'
-                    : calendarModalKind === 'HOLIDAY'
-                    ? 'Add Holiday'
-                    : 'Add Event'}
+                  {eventSaving ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-3.5 h-3.5" />
+                      <span>{editingEvent ? 'Save Changes' : 'Create Event'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

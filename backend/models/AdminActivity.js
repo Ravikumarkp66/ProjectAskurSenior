@@ -47,7 +47,20 @@ const adminActivitySchema = new mongoose.Schema(
         'ANNOUNCEMENT',
         'REQUEST',
         'QUERY',
-        'ADMIN'
+        'ADMIN',
+        'COLLEGE',
+        'PROGRAM',
+        'BRANCH',
+        'SCHEME',
+        'BATCH',
+        'SEMESTER',
+        'SECTION',
+        'TIMETABLE',
+        'CALENDAR',
+        'FACULTY',
+        'FACULTY_REVIEW',
+        'EXPERIENCE',
+        'COMPANY'
       ],
       required: true
     },

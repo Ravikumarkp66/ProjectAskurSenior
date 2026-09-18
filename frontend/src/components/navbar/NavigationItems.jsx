@@ -82,32 +82,34 @@ const NavPill = ({ item, isActive, isDark }) => {
             aria-label={item.title}
             style={{
                 position: 'relative',
-                padding: '7px 16px',
-                borderRadius: 99,
+                padding: '6px 14px',
+                borderRadius: 8,
                 border: 'none',
                 outline: 'none',
                 cursor: 'pointer',
-                fontSize: 13.5,
-                fontWeight: isActive ? 700 : 600,
+                fontSize: 13,
+                fontWeight: isActive ? 650 : 500,
                 letterSpacing: '-0.01em',
                 fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
-                transition: 'background 0.2s, color 0.2s, box-shadow 0.2s',
+                transition: 'background 0.15s, color 0.15s, border-color 0.15s',
                 background: isActive
                     ? isDark
-                        ? 'linear-gradient(135deg, rgba(124,58,237,0.22), rgba(99,102,241,0.16))'
-                        : 'rgba(124, 58, 237, 0.1)'
+                        ? 'rgba(124, 58, 237, 0.15)'
+                        : 'rgba(124, 58, 237, 0.08)'
                     : 'transparent',
                 color: isActive
                     ? isDark ? '#c4b5fd' : '#7c3aed'
-                    : isDark ? 'rgba(226,232,240,0.9)' : '#374151',
-                boxShadow: isActive
+                    : isDark ? '#94a3b8' : '#475569',
+                borderWidth: 1,
+                borderStyle: 'solid',
+                borderColor: isActive
                     ? isDark
-                        ? '0 0 0 1px rgba(139,92,246,0.28), 0 2px 12px rgba(124,58,237,0.12)'
-                        : '0 0 0 1px rgba(124,58,237,0.25), 0 2px 8px rgba(124,58,237,0.12)'
-                    : 'none',
+                        ? 'rgba(139, 92, 246, 0.3)'
+                        : 'rgba(124, 58, 237, 0.2)'
+                    : 'transparent',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 7,
+                gap: 6.5,
                 whiteSpace: 'nowrap',
             }}
         >

@@ -9,12 +9,19 @@ const normalizeUser = (u) => {
   if (!u) return u;
   const pic = u.profilePicture || u.avatar || u.picture || u.photo || '';
   const sem = u.semester ? Number(u.semester) : 1;
+  const isAdmin = Boolean(u.isAdmin);
+  const isTestUser = Boolean(u.isTestUser);
+  const access = u.access || {
+    plan: (isAdmin || isTestUser) ? 'PLUS' : 'FREE',
+    source: isAdmin ? 'ADMIN' : (isTestUser ? 'TEST_USER' : 'NONE')
+  };
   return {
     ...u,
     semester: sem,
-    profilePicture: pic,
-    isAdmin: false,
-    role: 'user'
+    isAdmin,
+    isTestUser,
+    role: u.role || (isAdmin ? 'admin' : 'user'),
+    access
   };
 };
 
@@ -135,9 +142,23 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
+  const hasPlusAccess = user?.access?.plan === 'PLUS';
+  const access = user?.access || { plan: 'FREE', source: 'NONE' };
+
   const value = useMemo(
-    () => ({ user, token, loading, isAuthenticated: !!token, login, logout, updateUser, switchBranch }),
-    [user, token, loading, login, logout, updateUser, switchBranch]
+    () => ({
+      user,
+      token,
+      loading,
+      isAuthenticated: !!token,
+      hasPlusAccess,
+      access,
+      login,
+      logout,
+      updateUser,
+      switchBranch
+    }),
+    [user, token, loading, hasPlusAccess, access, login, logout, updateUser, switchBranch]
   );
 
   return (
@@ -148,3 +169,4 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const useAuthContext = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext);

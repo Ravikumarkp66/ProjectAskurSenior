@@ -61,10 +61,17 @@ const getStats = async (req, res) => {
 // GET /api/admin/subjects
 const getSubjects = async (req, res) => {
     try {
-        const { search, year, scheme, status, credits, branch, page = 1, limit = 50 } = req.query;
+        const { search, year, semester, scheme, status, credits, branch, page = 1, limit = 50 } = req.query;
 
         const filter = {};
         if (status) filter.status = status;
+
+        if (semester !== undefined && semester !== null && semester !== '') {
+            const parsedSem = parseInt(semester);
+            if (!isNaN(parsedSem) && parsedSem >= 1 && parsedSem <= 8) {
+                filter.semester = parsedSem;
+            }
+        }
 
         if (scheme) {
             if (mongoose.Types.ObjectId.isValid(scheme)) {
@@ -143,7 +150,7 @@ const getSubjectById = async (req, res) => {
 // POST /api/admin/subjects
 const createSubject = async (req, res) => {
     try {
-        const { name, code, credits, year, scheme, status, branch } = req.body;
+        const { name, code, credits, year, semester, scheme, status, branch } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ error: 'Subject name is required' });
@@ -151,7 +158,23 @@ const createSubject = async (req, res) => {
         if (!code || !code.trim()) {
             return res.status(400).json({ error: 'Course code is required' });
         }
-        if (!year) {
+
+        let semesterVal = null;
+        if (semester !== undefined && semester !== null && semester !== '') {
+            const parsedSem = parseInt(semester);
+            if (isNaN(parsedSem) || parsedSem < 1 || parsedSem > 8) {
+                return res.status(400).json({ error: 'Semester must be an integer between 1 and 8 or null' });
+            }
+            semesterVal = parsedSem;
+        }
+
+        let yearVal = year;
+        if (!yearVal && semesterVal) {
+            const yearMap = { 1: '1st Year', 2: '1st Year', 3: '2nd Year', 4: '2nd Year', 5: '3rd Year', 6: '3rd Year', 7: '4th Year', 8: '4th Year' };
+            yearVal = yearMap[semesterVal];
+        }
+
+        if (!yearVal) {
             return res.status(400).json({ error: 'Academic year is required' });
         }
         if (!scheme) {
@@ -185,7 +208,7 @@ const createSubject = async (req, res) => {
         // Resolve branch ObjectId
         let branchId = branch;
         if (!branchId || branchId === 'Common' || branchId === 'COMMON' || branchId === '-') {
-            const commonBranch = await Branch.findOne({ shortName: { $in: ['COMMON', 'Common'] } });
+            const commonBranch = await Branch.findOne({ $or: [{ shortName: { $in: ['COMMON', 'Common'] } }, { name: 'Common to All' }] });
             branchId = commonBranch ? commonBranch._id : null;
         } else if (!mongoose.Types.ObjectId.isValid(branchId)) {
             const foundBranch = await Branch.findOne({ shortName: branchId.toUpperCase() });
@@ -194,6 +217,15 @@ const createSubject = async (req, res) => {
 
         if (!branchId) {
             return res.status(400).json({ error: 'Valid branch selection is required' });
+        }
+
+        // Scoped RBAC protection for branch admin
+        if (req.departmentScope) {
+            const commonBranch = await Branch.findOne({ $or: [{ shortName: { $in: ['COMMON', 'Common'] } }, { name: 'Common to All' }] });
+            const isCommon = commonBranch && branchId.toString() === commonBranch._id.toString();
+            if (isCommon || branchId.toString() !== req.departmentScope.id.toString()) {
+                return res.status(403).json({ error: 'Access denied: You can only create subjects for your assigned department.' });
+            }
         }
 
         // Resolve scheme ObjectId
@@ -211,7 +243,8 @@ const createSubject = async (req, res) => {
         const subject = await AcademicSubject.create({
             name: name.trim(),
             code: targetCode,
-            year,
+            year: yearVal,
+            semester: semesterVal,
             scheme: schemeId,
             credits: creditsInt,
             branch: branchId,
@@ -244,10 +277,19 @@ const createSubject = async (req, res) => {
 // PUT /api/admin/subjects/:id
 const updateSubject = async (req, res) => {
     try {
-        const { name, code, credits, year, scheme, status, branch } = req.body;
+        const { name, code, credits, year, semester, scheme, status, branch } = req.body;
 
         const subject = await AcademicSubject.findById(req.params.id);
         if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+        // Scoped RBAC protection for branch admin
+        if (req.departmentScope) {
+            const commonBranch = await Branch.findOne({ $or: [{ shortName: { $in: ['COMMON', 'Common'] } }, { name: 'Common to All' }] });
+            const isTargetCommon = commonBranch && subject.branch?.toString() === commonBranch._id.toString();
+            if (isTargetCommon || subject.branch?.toString() !== req.departmentScope.id.toString()) {
+                return res.status(403).json({ error: 'Access denied: You cannot modify subjects outside your assigned department.' });
+            }
+        }
 
         const changes = {};
 
@@ -287,6 +329,31 @@ const updateSubject = async (req, res) => {
             }
         }
 
+        if (semester !== undefined) {
+            let semesterVal = null;
+            if (semester !== null && semester !== '') {
+                const parsedSem = parseInt(semester);
+                if (isNaN(parsedSem) || parsedSem < 1 || parsedSem > 8) {
+                    return res.status(400).json({ error: 'Semester must be an integer between 1 and 8 or null' });
+                }
+                semesterVal = parsedSem;
+            }
+            if (semesterVal !== subject.semester) {
+                changes.semester = { old: subject.semester, new: semesterVal };
+                subject.semester = semesterVal;
+
+                // Auto-align year if year wasn't explicitly changed
+                if (!year && semesterVal) {
+                    const yearMap = { 1: '1st Year', 2: '1st Year', 3: '2nd Year', 4: '2nd Year', 5: '3rd Year', 6: '3rd Year', 7: '4th Year', 8: '4th Year' };
+                    const targetYear = yearMap[semesterVal];
+                    if (targetYear && targetYear !== subject.year) {
+                        changes.year = { old: subject.year, new: targetYear };
+                        subject.year = targetYear;
+                    }
+                }
+            }
+        }
+
         if (year && year !== subject.year) {
             changes.year = { old: subject.year, new: year };
             subject.year = year;
@@ -312,12 +379,17 @@ const updateSubject = async (req, res) => {
         if (branch !== undefined) {
             let branchId = branch;
             if (!branchId || branchId === 'Common' || branchId === 'COMMON' || branchId === '-') {
-                const commonBranch = await Branch.findOne({ shortName: { $in: ['COMMON', 'Common'] } });
+                const commonBranch = await Branch.findOne({ $or: [{ shortName: { $in: ['COMMON', 'Common'] } }, { name: 'Common to All' }] });
                 branchId = commonBranch ? commonBranch._id : null;
             } else if (!mongoose.Types.ObjectId.isValid(branchId)) {
                 const foundBranch = await Branch.findOne({ shortName: branchId.toUpperCase() });
                 branchId = foundBranch ? foundBranch._id : null;
             }
+
+            if (req.departmentScope && String(branchId) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: 'Access denied: You cannot move a subject outside your assigned department.' });
+            }
+
             if (branchId && String(branchId) !== String(subject.branch)) {
                 changes.branch = { old: subject.branch, new: branchId };
                 subject.branch = branchId;
@@ -354,6 +426,15 @@ const deleteSubject = async (req, res) => {
     try {
         const subject = await AcademicSubject.findById(req.params.id);
         if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+        // Scoped RBAC protection for branch admin
+        if (req.departmentScope) {
+            const commonBranch = await Branch.findOne({ $or: [{ shortName: { $in: ['COMMON', 'Common'] } }, { name: 'Common to All' }] });
+            const isTargetCommon = commonBranch && subject.branch?.toString() === commonBranch._id.toString();
+            if (isTargetCommon || subject.branch?.toString() !== req.departmentScope.id.toString()) {
+                return res.status(403).json({ error: 'Access denied: You cannot delete subjects outside your assigned department.' });
+            }
+        }
 
         const { hard } = req.query;
 

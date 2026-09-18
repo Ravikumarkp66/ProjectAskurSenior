@@ -169,30 +169,27 @@ html.dark {
     --logo-border:                none;
     --logo-shadow:                none;
 
-    --announcement-bg:            rgba(255, 255, 255, 0.04);
-    --announcement-border:        rgba(168, 85, 247, 0.25);
-    --announcement-tag-bg:        rgba(168, 85, 247, 0.2);
-    --announcement-tag-text:      #d8b4fe;
-    --announcement-tag-border:    rgba(168, 85, 247, 0.35);
+    --announcement-bg:            rgba(124, 58, 237, 0.08);
+    --announcement-border:        rgba(139, 92, 246, 0.25);
+    --announcement-tag-bg:        rgba(124, 58, 237, 0.2);
+    --announcement-tag-text:      #c4b5fd;
+    --announcement-tag-border:    rgba(139, 92, 246, 0.35);
     --announcement-text:          #e2e8f0;
-    --announcement-icon:          #c084fc;
+    --announcement-icon:          #a78bfa;
 
-    --brand-pill-bg:              rgba(168, 85, 247, 0.12);
-    --brand-pill-border:          rgba(168, 85, 247, 0.25);
-    --brand-pill-text:            #e2e8f0;
-    --brand-pill-shadow:          none;
-    --brand-pill-highlight:       #c084fc;
+    --brand-statement-badge:      #a78bfa;
+    --brand-statement-text:       #f8fafc;
+    --brand-statement-accent:     #c4b5fd;
 
-    --hero-btn-sec-bg:            rgba(255, 255, 255, 0.05);
-    --hero-btn-sec-border:        rgba(255, 255, 255, 0.12);
-    --hero-btn-sec-text:          #f8fafc;
+    --hero-btn-sec-bg:            #0d111c;
+    --hero-btn-sec-border:        rgba(148, 163, 184, 0.18);
+    --hero-btn-sec-text:          #f1f5f9;
 
-    --stat-card-bg:               rgba(255, 255, 255, 0.03);
-    --stat-card-border:           rgba(255, 255, 255, 0.06);
-    --stat-card-shadow:           0 4px 16px rgba(0, 0, 0, 0.2);
+    --stat-strip-bg:              #0d111c;
+    --stat-strip-border:          rgba(148, 163, 184, 0.12);
     --stat-count-text:            #ffffff;
-    --stat-label-text:            #cbd5e1;
-    --stat-desc-text:             #94a3b8;
+    --stat-label-text:            #94a3b8;
+    --stat-divider:               rgba(148, 163, 184, 0.12);
 }
 
 /* Light mode */
@@ -312,10 +309,10 @@ html:not(.dark) {
     --material-row-border:        rgba(15, 23, 42, 0.08);
 
     /* Daily planner */
-    --planner-accent:             #0f766e;
+    --planner-accent:             #7c3aed;
     --planner-surface:            rgba(15, 23, 42, 0.04);
     --planner-surface-hover:      rgba(124, 58, 237, 0.08);
-    --planner-subtle-border:      rgba(15, 23, 42, 0.14);
+    --planner-subtle-border:      rgba(15, 23, 42, 0.12);
     --planner-priority-high:      #dc2626;
     --planner-priority-medium:    #d97706;
     --planner-priority-low:       #16a34a;
@@ -354,30 +351,27 @@ html:not(.dark) {
     --logo-border:                none;
     --logo-shadow:                none;
 
-    --announcement-bg:            #f3e8ff;
-    --announcement-border:        rgba(168, 85, 247, 0.4);
-    --announcement-tag-bg:        #7c3aed;
-    --announcement-tag-text:      #ffffff;
-    --announcement-tag-border:    #6d28d9;
-    --announcement-text:          #4c1d95;
+    --announcement-bg:            #f5f3ff;
+    --announcement-border:        #ddd6fe;
+    --announcement-tag-bg:        #ede9fe;
+    --announcement-tag-text:      #6d28d9;
+    --announcement-tag-border:    #c4b5fd;
+    --announcement-text:          #334155;
     --announcement-icon:          #7c3aed;
 
-    --brand-pill-bg:              #7c3aed;
-    --brand-pill-border:          rgba(124, 58, 237, 0.4);
-    --brand-pill-text:            #ffffff;
-    --brand-pill-shadow:          0 4px 14px rgba(124, 58, 237, 0.25);
-    --brand-pill-highlight:       #fde047;
+    --brand-statement-badge:      #7c3aed;
+    --brand-statement-text:       #0f172a;
+    --brand-statement-accent:     #6d28d9;
 
-    --hero-btn-sec-bg:            #f8fafc;
-    --hero-btn-sec-border:        #d1d5db;
-    --hero-btn-sec-text:          #374151;
+    --hero-btn-sec-bg:            #ffffff;
+    --hero-btn-sec-border:        #e2e8f0;
+    --hero-btn-sec-text:          #1e293b;
 
-    --stat-card-bg:               #ffffff;
-    --stat-card-border:           #e5e7eb;
-    --stat-card-shadow:           0 2px 10px rgba(0, 0, 0, 0.04);
-    --stat-count-text:            #111827;
-    --stat-label-text:            #374151;
-    --stat-desc-text:             #6b7280;
+    --stat-strip-bg:              #ffffff;
+    --stat-strip-border:          #e2e8f0;
+    --stat-count-text:            #0f172a;
+    --stat-label-text:            #64748b;
+    --stat-divider:               #e2e8f0;
 }
 
 html,
@@ -612,22 +606,19 @@ html:not(.dark) h6:not(button *) {
 html:not(.dark) button.bg-purple-600,
 html:not(.dark) button.bg-purple-700,
 html:not(.dark) button.bg-indigo-600,
-html:not(.dark) button[class*="bg-purple"],
-html:not(.dark) button[class*="bg-emerald"],
-html:not(.dark) button[class*="bg-indigo"],
-html:not(.dark) button[class*="bg-blue"],
-html:not(.dark) button[class*="bg-rose"],
+html:not(.dark) button.bg-indigo-700,
+html:not(.dark) button.bg-emerald-600,
+html:not(.dark) button.bg-blue-600,
+html:not(.dark) button.bg-rose-600,
 html:not(.dark) button[class*="bg-gradient"],
 html:not(.dark) .btn-primary,
 html:not(.dark) .btn-download,
 html:not(.dark) .badge-primary,
 html:not(.dark) .badge-success,
 html:not(.dark) .badge-danger,
-html:not(.dark) [class*="bg-purple-"] > span,
-html:not(.dark) [class*="bg-purple-"] > p,
-html:not(.dark) [class*="bg-purple-"] > svg,
-html:not(.dark) [class*="bg-indigo-"] > span,
-html:not(.dark) [class*="bg-indigo-"] > p,
+html:not(.dark) .bg-purple-600 > span,
+html:not(.dark) .bg-purple-700 > span,
+html:not(.dark) .bg-indigo-600 > span,
 html:not(.dark) [class*="bg-gradient-"] > span,
 html:not(.dark) [class*="bg-gradient-"] > p,
 html:not(.dark) [class*="bg-gradient-"] > h1,
@@ -1562,9 +1553,9 @@ html:not(.dark) [class*="border-neutral-800"] {
     width: min(100%, 390px);
     border-radius: 16px;
     border: 1px solid var(--dashboard-panel-border);
-    background: var(--dashboard-panel-bg);
-    box-shadow: var(--dashboard-panel-shadow);
-    padding: 16px;
+    background: var(--modal-bg, var(--theme-surface, #FFFFFF));
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+    padding: 20px;
 }
 
 .planner-modal-head {

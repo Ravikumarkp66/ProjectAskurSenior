@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { ADMIN_CSE, ADMIN_PORTAL_URL, STUDENT_CSE, STUDENT_ECE, TEST_SUBJECTS } from './helpers/test-accounts.js';
 import { adminLogin, injectAdminAuth, apiGet, apiPost } from './helpers/api-client.js';
 
-test.describe('TEST 3, 4 & 5: Normal Admin Access & Department Confinement', () => {
+test.describe('TEST 3, 4 & 5: Normal Admin Access & Department Confinement', { tag: ['@regression', '@security'] }, () => {
   let cseToken = null;
   let cseUser = null;
 

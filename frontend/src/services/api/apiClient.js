@@ -87,7 +87,7 @@ apiClient.interceptors.response.use(
             window.location.href = `/login${message}`;
         }
 
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env?.DEV) {
             console.error('API Error:', {
                 url: error.config?.url,
                 method: error.config?.method,

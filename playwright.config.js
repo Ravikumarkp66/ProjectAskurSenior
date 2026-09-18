@@ -39,7 +39,7 @@ export default defineConfig({
     },
     {
       name: 'public-chromium',
-      testMatch: /e2e\/(?!authenticated\/|auth\.setup\.js).*\.spec\.js/,
+      testMatch: /[\/\\]e2e\/(?!authenticated\/|auth\.setup\.js).*\.spec\.js/,
       use: { ...devices['Desktop Chrome'] },
     },
     {
@@ -54,7 +54,10 @@ export default defineConfig({
     {
       name: 'performance',
       testMatch: /performance\/.*\.spec\.js/,
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: authFile,
+      },
     },
     {
       name: 'admin-setup',

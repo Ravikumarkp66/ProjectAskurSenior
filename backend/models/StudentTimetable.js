@@ -67,6 +67,14 @@ const studentTimetableSchema = new mongoose.Schema({
         type: Boolean,
         required: true,
         default: true
+    },
+    effectiveDate: {
+        type: String,
+        default: null
+    },
+    isPersonalChange: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true,

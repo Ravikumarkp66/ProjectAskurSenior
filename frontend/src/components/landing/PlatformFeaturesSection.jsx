@@ -103,6 +103,9 @@ const RenderIcon = ({ name, className = "w-4 h-4" }) => {
 };
 
 const PlatformFeaturesSection = ({ data }) => {
+    // Default to the first category (Academics)
+    const [activeSlug, setActiveSlug] = useState('academics');
+
     if (data && data.isVisible === false) return null;
 
     const rawCategories = data?.featureCategories && data.featureCategories.length > 0
@@ -111,28 +114,22 @@ const PlatformFeaturesSection = ({ data }) => {
 
     const categories = [...rawCategories].sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    // Default to the first category (Academics)
-    const [activeSlug, setActiveSlug] = useState('academics');
-
     const activeCategory = categories.find(c => c.slug === activeSlug) || categories[0];
     const displayedCategories = activeCategory ? [activeCategory] : categories;
 
     return (
-        <section id="features" className="py-14 px-6 relative bg-[#030712] overflow-hidden">
-            {/* Ambient Glow */}
-            <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
-
+        <section id="features" className="py-16 px-6 relative bg-transparent overflow-hidden">
             <div className="max-w-6xl mx-auto relative z-10">
                 {/* Section Header */}
                 <div className="text-center max-w-3xl mx-auto mb-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-semibold uppercase tracking-wider mb-3">
                         <Sparkles className="w-3.5 h-3.5" />
                         <span>Platform Features</span>
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-outfit tracking-tight mb-2">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-outfit tracking-tight mb-2">
                         {data?.sectionTitle || 'Everything You Need in One Platform'}
                     </h2>
-                    <p className="text-slate-400 text-sm font-normal">
+                    <p className="text-slate-600 dark:text-slate-400 text-sm font-normal">
                         {data?.sectionSubtitle || 'Discover features built specifically for SIT academic curriculum and campus ecosystem.'}
                     </p>
                 </div>
@@ -145,10 +142,10 @@ const PlatformFeaturesSection = ({ data }) => {
                             <button
                                 key={cat.slug}
                                 onClick={() => setActiveSlug(cat.slug)}
-                                className={`snap-start min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 flex items-center gap-2 touch-manipulation ${
+                                className={`snap-start min-h-[42px] px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 flex items-center gap-2 touch-manipulation cursor-pointer ${
                                     isActive
-                                        ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20 scale-[1.02]'
-                                        : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] active:bg-white/[0.12] border border-white/5'
+                                        ? 'bg-purple-600 text-white shadow-sm'
+                                        : 'bg-white dark:bg-[#0D111C] text-slate-700 dark:text-slate-300 hover:text-purple-600 dark:hover:text-purple-400 border border-slate-200 dark:border-slate-800'
                                 }`}
                             >
                                 <RenderIcon name={cat.icon} className="w-4 h-4" />
@@ -165,11 +162,11 @@ const PlatformFeaturesSection = ({ data }) => {
 
                         return (
                             <div key={category.slug} className="space-y-4">
-                                <div className="flex items-center gap-2.5 pb-2 border-b border-white/10">
-                                    <div className="p-1.5 rounded-lg bg-purple-500/15 text-purple-300">
+                                <div className="flex items-center gap-2.5 pb-2 border-b border-slate-200 dark:border-slate-800">
+                                    <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400">
                                         <RenderIcon name={category.icon} className="w-4 h-4" />
                                     </div>
-                                    <h3 className="text-lg font-bold text-white font-outfit">{category.title}</h3>
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white font-outfit">{category.title}</h3>
                                     <span className="text-xs text-slate-500">({sortedFeatures.length} features)</span>
                                 </div>
 
@@ -178,24 +175,24 @@ const PlatformFeaturesSection = ({ data }) => {
                                     {sortedFeatures.map((feature) => (
                                         <div
                                             key={feature.slug || feature.title}
-                                            className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-purple-500/20 active:bg-white/[0.05] transition-all flex items-start gap-3.5"
+                                            className="p-4 rounded-xl bg-white dark:bg-[#0D111C] border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-500/30 transition-all flex items-start gap-3.5 shadow-sm dark:shadow-none"
                                         >
-                                            <div className="p-2.5 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/20 shrink-0 mt-0.5">
+                                            <div className="p-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-200/60 dark:border-purple-800/40 shrink-0 mt-0.5">
                                                 <RenderIcon name={feature.icon} className="w-4 h-4" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between gap-1.5 mb-1">
-                                                    <h4 className="text-sm font-semibold text-white tracking-tight truncate">
+                                                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight truncate">
                                                         {feature.title}
                                                     </h4>
                                                     {feature.badge && (
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shrink-0">
                                                             {feature.badge}
                                                         </span>
                                                     )}
                                                 </div>
                                                 {feature.shortDescription && (
-                                                    <p className="text-xs text-slate-400 font-normal leading-relaxed line-clamp-2">
+                                                    <p className="text-xs text-slate-600 dark:text-slate-400 font-normal leading-relaxed line-clamp-2">
                                                         {feature.shortDescription}
                                                     </p>
                                                 )}

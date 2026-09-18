@@ -11,189 +11,57 @@ import RightPanel, {
 } from '../../components/dashboard/RightPanel';
 import { subjectAPI } from '../../services/api';
 import { 
-    X, Check, Plus, Trash2, Award, Flame, Calendar, Clock, BookOpen, 
-    Calculator, Sparkles, ExternalLink, ShieldCheck, 
-    AlertTriangle, TrendingUp, Compass, Video, Users, CheckSquare, MessageSquare
+    X, Check, Award, Calendar, Clock, BookOpen, 
+    ExternalLink, ShieldCheck, 
+    AlertTriangle, TrendingUp, CheckCircle2
 } from 'lucide-react';
 import IllustrationCard from '../../components/common/IllustrationCard';
-import YearCardSVG from '../../components/common/YearCardSVG';
+import CIEEligibilityTool from '../../components/academic-tools/cie-eligibility/CIEEligibilityTool';
+import BranchChangeTool from '../../components/academic-tools/branch-change/BranchChangeTool';
+
+import { useTheme } from '../../context/ThemeContext';
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION HEADER
+   SECTION HEADER — THEME AWARE
 ═══════════════════════════════════════════════════════════════════ */
-const SectionHeader = ({ title, subtitle, badge, action }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div>
-            <h2 style={{ fontSize: 22, fontWeight: 600, color: '#E2E8F0', margin: 0, fontFamily: 'Outfit, sans-serif', letterSpacing: '-0.02em' }}>{title}</h2>
-            {subtitle && <p style={{ fontSize: 13, color: '#8B949E', margin: '4px 0 0 0' }}>{subtitle}</p>}
+const SectionHeader = ({ title }) => {
+    const { isDark } = useTheme();
+    return (
+        <div style={{ marginBottom: 14 }}>
+            <h2 style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: isDark ? '#F8FAFC' : '#0F172A',
+                margin: 0,
+                fontFamily: 'Outfit, sans-serif',
+                letterSpacing: '-0.02em'
+            }}>
+                {title}
+            </h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {badge && (
-                <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20, border: `0.5px solid ${badge.borderColor}`, color: badge.color, backgroundColor: badge.bgColor }}>
-                    {badge.text}
-                </span>
-            )}
-            {action && (
-                <button onClick={action.onClick} style={{ background: 'none', border: 'none', color: action.color || '#7C3AED', fontSize: 13, fontWeight: 500, cursor: 'pointer', padding: 0 }}>
-                    {action.label}
-                </button>
-            )}
-        </div>
+    );
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONTROLLED CARD ROW (SINGLE ROW, SCROLLABLE, NO VISIBLE SCROLLBAR)
+   Cards remain in one row only with a consistent ~270px width.
+   Scrollable horizontally without visible scrollbar lines.
+═══════════════════════════════════════════════════════════════════ */
+const CardGrid = ({ children }) => (
+    <div 
+        className="flex items-stretch gap-4 overflow-x-auto pt-2 pb-2 px-1 -mx-1 scroll-smooth no-scrollbar snap-x snap-mandatory"
+        style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+        }}
+    >
+        {React.Children.map(children, (child) => (
+            <div className="shrink-0 w-[270px] snap-start">
+                {child}
+            </div>
+        ))}
     </div>
 );
-
-/* ═══════════════════════════════════════════════════════════════════
-   YEAR CARD (Academics)
-═══════════════════════════════════════════════════════════════════ */
-const renderCardIcon = (iconName, color) => {
-    const style = { width: 22, height: 22, color, display: 'block' };
-    switch (iconName) {
-        case 'ti-atom':
-            return (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={style}>
-                    <circle cx="12" cy="12" r="2.5" />
-                    <ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(30 12 12)" />
-                    <ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(90 12 12)" />
-                    <ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(150 12 12)" />
-                </svg>
-            );
-        case 'ti-cpu':
-            return (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={style}>
-                    <rect x="4" y="4" width="16" height="16" rx="2" />
-                    <rect x="9" y="9" width="6" height="6" rx="1" />
-                    <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
-                </svg>
-            );
-        case 'ti-brain':
-            return (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={style}>
-                    <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1 0-3.12 3 3 0 0 1 0-4.88 2.5 2.5 0 0 1 0-3.12A2.5 2.5 0 0 1 9.5 2Z" />
-                    <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 0-3.12 3 3 0 0 0 0-4.88 2.5 2.5 0 0 0 0-3.12A2.5 2.5 0 0 0 14.5 2Z" />
-                </svg>
-            );
-        case 'ti-rocket':
-            return (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={style}>
-                    <path d="M4.5 16.5c-1.5 1.26-2 3.5-2 3.5s2.24-.5 3.5-2M9 15l-3-3L22 2L12 22L9 15Z" />
-                    <path d="M9 15l-3-3" />
-                    <path d="M15 9l-3-3" />
-                </svg>
-            );
-        default:
-            return <i className={iconName} style={{ fontSize: 20, color }}></i>;
-    }
-};
-
-const YearCard = ({ num, badgeLabel, icon, name, detail, subjects, colors, onClick }) => {
-    const [hovered, setHovered] = useState(false);
-    return (
-        <div
-            onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-            onClick={onClick}
-            style={{
-                display: 'flex', flexDirection: 'column', borderRadius: 14, overflow: 'hidden',
-                border: `0.5px solid ${hovered ? colors.hoverBorder : colors.border}`,
-                backgroundColor: colors.bg, cursor: 'pointer',
-                transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-                transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-                boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.45)' : 'none',
-                height: '100%',
-            }}
-        >
-            <div style={{ flex: 1, padding: '16px 14px 12px', position: 'relative', overflow: 'hidden' }}>
-                <div style={{ position: 'absolute', right: '-4px', bottom: '-10px', fontSize: 64, fontWeight: 800, opacity: 0.07, color: colors.accent, userSelect: 'none', lineHeight: 1 }}>{num}</div>
-                <div style={{ display: 'flex', marginBottom: 12 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, backgroundColor: colors.badgeBg, color: colors.badgeText, letterSpacing: '0.05em' }}>{badgeLabel}</span>
-                </div>
-                <div style={{ marginBottom: 10 }}>{renderCardIcon(icon, colors.accent)}</div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: colors.nameColor, margin: '0 0 4px 0', fontFamily: 'Outfit, sans-serif' }}>{name}</h3>
-                <p style={{ fontSize: 11, color: colors.detailColor, margin: 0, fontWeight: 500 }}>{detail}</p>
-            </div>
-            <div style={{ padding: '10px 14px', borderTop: `0.5px solid ${colors.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.15)' }}>
-                <div style={{ display: 'flex', gap: 4 }}>
-                    {subjects.map(s => (
-                        <span key={s} style={{ fontSize: 9, color: '#8B949E', backgroundColor: 'rgba(255,255,255,0.03)', padding: '1px 5px', borderRadius: 3, whiteSpace: 'nowrap' }}>{s}</span>
-                    ))}
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 500, color: colors.accent, whiteSpace: 'nowrap' }}>Explore →</span>
-            </div>
-        </div>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════════
-   GENERIC CARD
-═══════════════════════════════════════════════════════════════════ */
-const CustomCard = ({ title, badge, subtitle, icon: Icon, accent, visualContent, footerText, onClick }) => {
-    const [hovered, setHovered] = useState(false);
-    return (
-        <div
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onClick={onClick}
-            style={{
-                display: 'flex',
-                flexDirection: 'column',
-                borderRadius: 14,
-                border: `0.5px solid ${hovered ? accent : '#21262D'}`,
-                backgroundColor: '#161B22',
-                cursor: 'pointer',
-                transition: 'transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease',
-                transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-                overflow: 'hidden',
-                boxShadow: hovered ? '0 12px 28px rgba(0,0,0,0.4)' : 'none',
-                height: '100%',
-            }}
-        >
-            <div style={{ padding: '18px 16px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: `${accent}15`, border: `1px solid ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Icon size={18} style={{ color: accent }} />
-                    </div>
-                    {badge && (
-                        <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 4, backgroundColor: `${accent}20`, color: accent, letterSpacing: '0.04em' }}>
-                            {badge}
-                        </span>
-                    )}
-                </div>
-                <div>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: '#E2E8F0', margin: 0, fontFamily: 'Outfit, sans-serif' }}>{title}</h3>
-                    {subtitle && <p style={{ fontSize: 11, color: '#8B949E', margin: '4px 0 0', lineHeight: 1.45 }}>{subtitle}</p>}
-                </div>
-                {visualContent && (
-                    <div style={{ marginTop: 4 }}>
-                        {visualContent}
-                    </div>
-                )}
-            </div>
-            <div style={{ padding: '10px 16px', borderTop: '0.5px solid #21262D', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(0,0,0,0.18)' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: accent }}>{footerText || 'Open Tool →'}</span>
-                <span style={{ fontSize: 12, color: hovered ? accent : '#8B949E', transition: 'color 0.15s, transform 0.15s', transform: hovered ? 'translateX(3px)' : 'none' }}>→</span>
-            </div>
-        </div>
-    );
-};
-
-/* ═══════════════════════════════════════════════════════════════════
-   PREDICTORS & UTILITY MODALS
-═══════════════════════════════════════════════════════════════════ */
-const ToolModal = ({ title, isOpen, onClose, children }) => {
-    if (!isOpen) return null;
-    return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 999, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div style={{ backgroundColor: '#0F0B1E', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 16, width: '100%', maxWidth: 500, overflowY: 'auto', padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.6)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, color: '#F1F5F9', margin: 0, fontFamily: 'Outfit, sans-serif' }}>{title}</h3>
-                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#94A3B8', width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                        <X size={16} />
-                    </button>
-                </div>
-                {children}
-            </div>
-        </div>
-    );
-};
 
 /* ═══════════════════════════════════════════════════════════════════
    MAIN DASHBOARD PAGE
@@ -207,6 +75,36 @@ const DashboardPage = () => {
     const [rightSlot, setRightSlot] = useState(null);
 
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+    // ── Feature visit state (localStorage-based, no backend needed) ──
+    // Keys: asus_fv_{featureKey} → ISO timestamp of first visit
+    // Re-computed when the component mounts and when user navigates back via focus
+    const [featureVisitMap, setFeatureVisitMap] = useState({});
+
+    useEffect(() => {
+        const FEATURE_KEYS = [
+            'materials', 'attendance', 'sgpaGpa', 'academicSummary',
+            'cieAnalyzer', 'branchChange', 'eligibilityChecker',
+            'library', 'labPrograms', 'roadmaps', 'interviews',
+            'campusMap', 'faculty',
+        ];
+        const readVisits = () => {
+            const map = {};
+            FEATURE_KEYS.forEach(key => {
+                try {
+                    map[key] = !!localStorage.getItem(`asus_fv_${key}`);
+                } catch (_) {
+                    map[key] = false;
+                }
+            });
+            setFeatureVisitMap(map);
+        };
+        readVisits();
+        // Re-read when user tabs back (they may have visited and returned)
+        const handleFocus = () => readVisits();
+        window.addEventListener('focus', handleFocus);
+        return () => window.removeEventListener('focus', handleFocus);
+    }, []);
 
     // Registered Subjects state for Academic Journey dependency derivation
     const [registeredSubjects, setRegisteredSubjects] = useState([]);
@@ -226,6 +124,31 @@ const DashboardPage = () => {
             }
         };
         fetchRegistered();
+
+        // Background fetch from Attendance Section and keep in storage for instant availability
+        apiV2.getAttendanceDashboard()
+            .then(attRes => {
+                if (attRes?.data?.success && attRes.data.data?.subjects) {
+                    const subs = attRes.data.data.subjects;
+                    try {
+                        sessionStorage.setItem('aus_attendance_overview', JSON.stringify(subs));
+                        const map = {};
+                        subs.forEach(s => {
+                            const id = s.subjectId || s.registeredSubjectId || s._id;
+                            const code = s.code || s.subjectCode;
+                            const name = s.name || s.subjectName;
+                            const pct = s.attendancePercentage ?? s.analytics?.percentage;
+                            if (pct !== undefined && pct !== null && !isNaN(Number(pct))) {
+                                if (id) map[id.toString()] = Number(pct);
+                                if (code) map[code.toString().toLowerCase()] = Number(pct);
+                                if (name) map[name.toString().toLowerCase()] = Number(pct);
+                            }
+                        });
+                        localStorage.setItem('aus_attendance_cache', JSON.stringify(map));
+                    } catch (e) {}
+                }
+            })
+            .catch(() => {});
     }, []);
 
     const isSubjectRegistrationComplete = registeredSubjects.length > 0;
@@ -242,89 +165,38 @@ const DashboardPage = () => {
 
     const isDesktop = windowWidth >= 1024;
 
-    // Modal states
+    // Modal state for analytical tools
     const [activeModal, setActiveModal] = useState(null);
 
-    // Year stats state
-    const [firstYearStats,  setFirstYearStats]  = useState({ subjects: 6, materials: 0 });
-    const [secondYearStats, setSecondYearStats] = useState({ subjects: 0, materials: 0 });
-    const [thirdYearStats,  setThirdYearStats]  = useState({ subjects: 0, materials: 0 });
-    const [fourthYearStats, setFourthYearStats] = useState({ subjects: 0, materials: 0 });
-
-    // Interactive predictor state
-    const [cieMarks, setCieMarks] = useState(38);
-    const [attPct, setAttPct] = useState(82);
-    const [backlogs, setBacklogs] = useState(1);
-    const [sgpaVal, setSgpaVal] = useState(8.8);
-    const [targetBranch, setTargetBranch] = useState('CSE (Computer Science)');
-
-    // Interactive Todo list state
-    const [todos, setTodos] = useState([
-        { id: 1, text: 'Submit OS Assignment Module 3', done: false, tag: 'Urgent' },
-        { id: 2, text: 'Revise DBMS SQL Queries for CIE', done: true, tag: 'Academics' },
-        { id: 3, text: 'Solve 2 LeetCode Tree Problems', done: false, tag: 'Coding' },
-    ]);
-    const [newTodo, setNewTodo] = useState('');
-
+    // Deep link modal triggers
     useEffect(() => {
-        if (location.pathname.includes('/eligibility-checker')) setActiveModal('eligibility');
-        else if (location.pathname.includes('/year-back-predictor')) setActiveModal('yearback');
-        else if (location.pathname.includes('/branch-change-predictor')) setActiveModal('branch');
-        else if (location.pathname.includes('/sessions')) setActiveModal('sessions');
-        else if (location.pathname.includes('/todo')) setActiveModal('todo');
-        else if (location.pathname.includes('/leaderboard')) setActiveModal('leaderboard');
-        else if (location.pathname.includes('/whatsapp-community')) {
-            window.open('https://chat.whatsapp.com/demo-invite-link', '_blank');
+        if (location.pathname.includes('/branch-change-predictor')) {
+            setActiveModal('branch');
+        } else if (
+            location.pathname.includes('/cie-eligibility') ||
+            location.pathname.includes('/cie-analyzer') ||
+            location.pathname.includes('/eligibility-checker')
+        ) {
+            setActiveModal('cie-eligibility');
         }
-
-        const fetchStats = async () => {
-            try {
-                const [r1, r2, r3, r4] = await Promise.allSettled([
-                    subjectAPI.getFirstYearStats(),
-                    subjectAPI.getYearStats('2nd Year'),
-                    subjectAPI.getYearStats('3rd Year'),
-                    subjectAPI.getYearStats('4th Year'),
-                ]);
-                const mapYearData = (d) => ({
-                    subjects: d.subjectsCount ?? 0,
-                    materials: d.materialsCount ?? 0,
-                    topSubjects: d.topSubjects || [],
-                    breakdown: d.breakdown || { notes: 0, pyqs: 0, qbanks: 0, others: 0 }
-                });
-                if (r1.status === 'fulfilled' && r1.value.data) setFirstYearStats(mapYearData(r1.value.data));
-                if (r2.status === 'fulfilled' && r2.value.data) setSecondYearStats(mapYearData(r2.value.data));
-                if (r3.status === 'fulfilled' && r3.value.data) setThirdYearStats(mapYearData(r3.value.data));
-                if (r4.status === 'fulfilled' && r4.value.data) setFourthYearStats(mapYearData(r4.value.data));
-            } catch (err) {
-                console.error('Failed to fetch year stats', err);
-            }
-        };
-        fetchStats();
     }, [location.pathname]);
 
-    const buildDetail = ({ subjects, materials }) =>
-        subjects > 0 ? `${subjects} subjects${materials > 0 ? ` · ${materials} materials` : ''}` : 'Loading…';
-
-    const firstYearDetail  = buildDetail(firstYearStats);
-    const secondYearDetail = buildDetail(secondYearStats);
-    const thirdYearDetail  = buildDetail(thirdYearStats);
-    const fourthYearDetail = fourthYearStats.subjects > 0 ? buildDetail(fourthYearStats) : 'Sem 7–8 · Coming Soon';
-    const totalSubjects    = (firstYearStats.subjects || 0) + (secondYearStats.subjects || 0) + (thirdYearStats.subjects || 0) + (fourthYearStats.subjects || 0);
-
-    const academicCards = [
-        { year: 1, title: 'First Year', stats: firstYearStats, onClick: () => navigate('/plus/first-year') },
-        { year: 2, title: 'Second Year', stats: secondYearStats, onClick: () => navigate('/plus/second-year') },
-        { year: 3, title: 'Third Year', stats: thirdYearStats, onClick: () => navigate('/plus/third-year') },
-        { year: 4, title: 'Fourth Year', stats: fourthYearStats, onClick: () => navigate('/plus/fourth-year') },
-    ];
+    // ── Feature state helper ─────────────────────────────────────────
+    // fs(key, isActive?) → 'active' | 'visited' | 'new'
+    // 'active' only for live-data features when their data is available.
+    const fs = (key, isActive = false) => {
+        if (isActive) return 'active';
+        return featureVisitMap[key] ? 'visited' : 'new';
+    };
 
     return (
-        <div id="dashboard-main-sections" className="flex-1 min-w-0 overflow-y-auto px-4 md:px-6 py-5 flex flex-col gap-6 md:gap-10">
+        <div id="dashboard-main-sections" className="flex-1 min-w-0 overflow-y-auto px-4 md:px-8 py-6 flex flex-col gap-8 md:gap-12">
 
             {/* OVERVIEW TAB CONTENT (MOBILE ONLY) */}
             {!isDesktop && activeMobileTab === 'overview' && (
                 <div id="dashboard-overview-section" className="flex flex-col gap-4">
                     <SectionHeader
+                        tag="PROFILE"
                         title="Student Overview"
                         subtitle="Your profile info & study material statistics"
                         badge={{ text: 'Student Profile', color: '#3b82f6', borderColor: 'rgba(59,130,246,.3)', bgColor: 'rgba(59,130,246,.06)' }}
@@ -338,6 +210,7 @@ const DashboardPage = () => {
             {!isDesktop && activeMobileTab === 'planner' && (
                 <div id="dashboard-planner-section" className="flex flex-col gap-4">
                     <SectionHeader
+                        tag="HABITS"
                         title="Daily Planner & Streaks"
                         subtitle="Track your study habits, tasks and academic streak"
                         badge={{ text: 'Habits & Planner', color: '#f59e0b', borderColor: 'rgba(245,158,11,.3)', bgColor: 'rgba(245,158,11,.06)' }}
@@ -347,201 +220,219 @@ const DashboardPage = () => {
                 </div>
             )}
 
-            {/* HOME TAB CONTENT (DESKTOP OR MOBILE HOME TAB) */}
+            {/* MAIN DASHBOARD CONTENT (DESKTOP OR MOBILE HOME TAB) */}
             {(isDesktop || activeMobileTab === 'home') && (
-                <>
-                    {/* 1. ACADEMICS */}
-                    <div>
-                        <SectionHeader 
-                            title="Academics" 
-                            subtitle="Year-wise notes, PYQs and subject resources"
-                            badge={{ text: `4 years · ${totalSubjects} subjects`, color: '#a78bfa', borderColor: '#3b0764', bgColor: '#0f0520' }} 
-                        />
-                        <div className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5 pb-2 md:pb-0">
-                            {academicCards.map((c, i) => (
-                                <div key={i} className="snap-start shrink-0 w-[82vw] max-w-[280px] md:w-auto md:max-w-none md:shrink">
-                                    <YearCardSVG year={c.year} title={c.title} stats={c.stats} onClick={c.onClick} />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                <div className="flex flex-col w-full max-w-[1160px]">
 
-                    {/* 2. MY ACADEMICS (CORE ANALYTICAL & SUBJECT TOOLS) */}
-                    <div>
-                        <SectionHeader 
-                            title="My Academics" 
-                            subtitle="Access your registered subjects, track attendance, analyze CIE marks, and calculate semester results."
-                            badge={{ text: '5 tools', color: '#00f5b8', borderColor: 'rgba(0, 245, 184, 0.3)', bgColor: 'rgba(0, 245, 184, 0.08)' }} 
-                        />
-                        <div className="flex overflow-x-auto snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 gap-3.5 pb-2.5">
-                            {/* Card 1: My Subjects */}
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
+
+                    <div className="flex flex-col gap-8">
+                        {/* ═══════════════════════════════════════════════════════
+                            A. ACADEMICS (STRONGEST VISUAL WEIGHT - 4 CARDS)
+                        ═══════════════════════════════════════════════════════ */}
+                        <section id="section-academics" className="flex flex-col">
+                            <SectionHeader title="Academics" />
+                            <CardGrid>
+                                {/* Card 1: My Subjects */}
                                 <IllustrationCard
                                     presetKey="materials"
+                                    featureKey="materials"
+                                    featureState={fs('materials')}
                                     title="My Subjects"
                                     subtitle="Access editorials, PYQs, and module discussions for registered subjects."
                                     onClick={() => navigate('/plus/my-subjects')}
                                     isSubdued={false}
                                     ctaText="View subjects →"
                                 />
-                            </div>
 
-                            {/* Card 2: Attendance */}
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
+                                {/* Card 2: Attendance */}
                                 <IllustrationCard
                                     presetKey="attendance"
+                                    featureKey="attendance"
+                                    featureState={fs('attendance')}
                                     title="Attendance"
-                                    subtitle="Track your classes, daily sessions, and attendance history."
+                                    subtitle="Track your classes, daily sessions, and safe bunk margins."
                                     onClick={() => navigate('/home/attendance')}
-                                    isSubdued={!isSubjectRegistrationComplete}
-                                    dependencyText="Configure subjects in Student Academics first to track attendance."
-                                    onGoToRegistration={() => navigate('/student-academics/subjects')}
+                                    isSubdued={false}
                                     ctaText="View attendance →"
                                 />
-                            </div>
 
-                            {/* Card 3: CIE Analyzer */}
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
-                                <IllustrationCard
-                                    presetKey="cieAnalyzer"
-                                    title="CIE Analyzer"
-                                    subtitle="Analyze your internal marks, eligibility & CIE target forecast."
-                                    onClick={() => navigate('/home/cie')}
-                                    isSubdued={!isSubjectRegistrationComplete}
-                                    dependencyText="Configure subjects in Student Academics first to analyze CIE."
-                                    onGoToRegistration={() => navigate('/student-academics/subjects')}
-                                    ctaText="Analyze CIE →"
-                                />
-                            </div>
-
-                            {/* Card 4: SGPA Calculator */}
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
+                                {/* Card 3: SGPA Calculator */}
                                 <IllustrationCard
                                     presetKey="sgpaGpa"
+                                    featureKey="sgpaGpa"
+                                    featureState={fs('sgpaGpa')}
                                     title="SGPA Calculator"
                                     subtitle="Calculate semester results, SEE target marks & grade points."
-                                    onClick={() => navigate('/home/sgpa')}
-                                    isSubdued={!isSubjectRegistrationComplete}
-                                    dependencyText="Configure subjects in Student Academics first to calculate SGPA."
-                                    onGoToRegistration={() => navigate('/student-academics/subjects')}
+                                    onClick={() => navigate('/plus/sgpa')}
+                                    isSubdued={false}
                                     ctaText="Calculate SGPA →"
                                 />
-                            </div>
 
-                            {/* Card 5: Academic Summary */}
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[280px] sm:w-[275px] md:w-[280px]">
+                                {/* Card 4: Academic Overview */}
                                 <IllustrationCard
                                     presetKey="academicSummary"
-                                    title="Academic Summary"
-                                    subtitle="Review your complete degree journey, CGPA & academic streak."
+                                    featureKey="academicSummary"
+                                    featureState={fs('academicSummary')}
+                                    title="Academic Overview"
+                                    subtitle="Review your complete degree journey, CGPA & academic trajectory."
                                     onClick={() => navigate('/home/academic-summary')}
                                     isSubdued={false}
-                                    ctaText="View summary →"
+                                    ctaText="View overview →"
                                 />
-                            </div>
-                        </div>
-                    </div>
+                            </CardGrid>
+                        </section>
 
-                    {/* 3. PRACTICE */}
-                    <div>
-                        <SectionHeader 
-                            title="Practice" 
-                            subtitle="Hands-on college programming lab programs & code exercises"
-                            badge={{ text: '4 languages · Lab-wise', color: '#A855F7', borderColor: 'rgba(168,85,247,.3)', bgColor: 'rgba(168,85,247,.08)' }} 
-                        />
-                        <div className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 pb-2 md:pb-0">
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
+                        {/* ═══════════════════════════════════════════════════════
+                            B. ACADEMIC TOOLS (ANALYTICAL ENGINE - 2 CARDS)
+                        ═══════════════════════════════════════════════════════ */}
+                        <section id="section-academic-tools" className="flex flex-col">
+                            <SectionHeader title="Academic Tools" />
+                            <CardGrid>
+                                {/* Tool 1: CIE & Eligibility */}
+                                <IllustrationCard
+                                    presetKey="cieAnalyzer"
+                                    featureKey="cieAnalyzer"
+                                    featureState={fs('cieAnalyzer')}
+                                    title="CIE & Eligibility"
+                                    subtitle="Enter your marks, calculate CIE and check your academic eligibility."
+                                    onClick={() => setActiveModal('cie-eligibility')}
+                                    isSubdued={false}
+                                    ctaText="Check academics →"
+                                />
+
+                                {/* Tool 2: Branch Change Predictor */}
+                                <IllustrationCard
+                                    presetKey="branchChange"
+                                    featureKey="branchChange"
+                                    featureState={fs('branchChange')}
+                                    title="Branch Change Predictor"
+                                    subtitle="Data-driven historical analysis based on confirmed SIT 2025–26 merit and allocation records."
+                                    onClick={() => setActiveModal('branch')}
+                                    isSubdued={false}
+                                    ctaText="Analyze chances →"
+                                />
+                            </CardGrid>
+                        </section>
+
+                        {/* ═══════════════════════════════════════════════════════
+                            C. PRACTICE (COMPACT SKILL MODULES - 2 CARDS)
+                        ═══════════════════════════════════════════════════════ */}
+                        <section id="section-practice" className="flex flex-col">
+                            <SectionHeader title="Practice" />
+                            <CardGrid>
+                                {/* Practice 1: Library */}
+                                <IllustrationCard
+                                    presetKey="library"
+                                    featureKey="library"
+                                    featureState={fs('library')}
+                                    title="Library"
+                                    subtitle="Curated department curriculum, module notes, and reference syllabi."
+                                    onClick={() => navigate('/plus/subjects')}
+                                    isSubdued={false}
+                                    ctaText="Browse library →"
+                                />
+
+                                {/* Practice 2: Lab Programs */}
                                 <IllustrationCard
                                     presetKey="labPrograms"
+                                    featureKey="labPrograms"
+                                    featureState={fs('labPrograms')}
                                     title="Lab Programs"
-                                    subtitle="Practice and master your college lab programs."
+                                    subtitle="Practice college lab assignments with in-browser compilation across 4 languages."
                                     metadataText="4 Languages • Lab-wise Practice"
-                                    ctaText="Explore →"
                                     onClick={() => navigate('/plus/lab-programs')}
+                                    isSubdued={false}
+                                    ctaText="Open lab IDE →"
                                 />
-                            </div>
-                        </div>
-                    </div>
+                            </CardGrid>
+                        </section>
 
-                    {/* 4. CAREER GROWTH */}
-                    <div>
-                        <SectionHeader 
-                            title="Career Growth" 
-                            subtitle="Placement prep roadmaps & live senior mentorship sessions"
-                            badge={{ text: '2 programs', color: '#7C3AED', borderColor: 'rgba(124,58,237,.3)', bgColor: 'rgba(124,58,237,.06)' }} 
-                        />
-                        <div className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 grid-cols-1 md:grid-cols-2 gap-3 pb-2 md:pb-0">
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
+                        {/* ═══════════════════════════════════════════════════════
+                            D. CAREER (COMPACT GROWTH TRACKS - 2 CARDS)
+                        ═══════════════════════════════════════════════════════ */}
+                        <section id="section-career" className="flex flex-col">
+                            <SectionHeader title="Career" />
+                            <CardGrid>
+                                {/* Career 1: Roadmaps */}
                                 <IllustrationCard
                                     presetKey="roadmaps"
+                                    featureKey="roadmaps"
+                                    featureState={fs('roadmaps')}
                                     title="Roadmaps"
+                                    subtitle="Semester timeline, key milestones, exam schedules & senior guides."
                                     onClick={() => navigate('/plus/roadmaps')}
+                                    isSubdued={false}
+                                    ctaText="View roadmap →"
                                 />
-                            </div>
 
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
+                                {/* Career 2: Interview Experiences */}
                                 <IllustrationCard
-                                    presetKey="sessions"
-                                    title="Sessions"
-                                    onClick={() => navigate('/plus/sessions')}
+                                    presetKey="interviews"
+                                    featureKey="interviews"
+                                    featureState={fs('interviews')}
+                                    title="Interview Experiences"
+                                    subtitle="Verified interview questions, rounds, and preparation tips from placed seniors."
+                                    onClick={() => navigate('/home/interview')}
+                                    isSubdued={false}
+                                    ctaText="Read debriefs →"
                                 />
-                            </div>
-                        </div>
+                            </CardGrid>
+                        </section>
+
+                        {/* ═══════════════════════════════════════════════════════
+                            E. CAMPUS (COMPACT CAMPUS INTEL - 2 CARDS)
+                        ═══════════════════════════════════════════════════════ */}
+                        <section id="section-campus" className="flex flex-col">
+                            <SectionHeader title="Campus" />
+                            <CardGrid>
+                                {/* Campus 1: Campus Explorer */}
+                                <IllustrationCard
+                                    presetKey="campusMap"
+                                    featureKey="campusMap"
+                                    featureState={fs('campusMap')}
+                                    title="Campus Explorer"
+                                    subtitle="Interactive 3D campus navigation for blocks, canteens, libraries, and labs."
+                                    onClick={() => navigate('/campus-map')}
+                                    isSubdued={false}
+                                    ctaText="Explore campus →"
+                                />
+
+                                {/* Campus 2: Faculty Ratings */}
+                                <IllustrationCard
+                                    presetKey="faculty"
+                                    featureKey="faculty"
+                                    featureState={fs('faculty')}
+                                    title="Faculty Ratings"
+                                    subtitle="Anonymous insights on teaching styles, internal grading, and exam prep tips."
+                                    onClick={() => navigate('/home/faculty-ratings')}
+                                    isSubdued={false}
+                                    ctaText="View ratings →"
+                                />
+                            </CardGrid>
+                        </section>
                     </div>
-
-                    {/* 5. PRODUCTIVITY */}
-                    <div>
-                        <SectionHeader 
-                            title="Productivity" 
-                            subtitle="Daily streak tracker, study todo checklist & campus rankings"
-                            badge={{ text: '3 utilities', color: '#1D9E75', borderColor: 'rgba(29,158,117,.3)', bgColor: 'rgba(29,158,117,.06)' }} 
-                        />
-                        <div className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-2 md:pb-0">
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
-                                <IllustrationCard
-                                    presetKey="streaks"
-                                    title="Streaks"
-                                    onClick={() => navigate('/plus/streaks')}
-                                />
-                            </div>
-
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
-                                <IllustrationCard
-                                    presetKey="todo"
-                                    title="Todo"
-                                    onClick={() => navigate('/plus/todo')}
-                                />
-                            </div>
-
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
-                                <IllustrationCard
-                                    presetKey="leaderboard"
-                                    title="Leaderboard"
-                                    onClick={() => navigate('/plus/leaderboard')}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 6. PREMIUM COMMUNITY */}
-                    <div>
-                        <SectionHeader 
-                            title="Premium Community" 
-                            subtitle="Exclusive WhatsApp group for study notes & exam alerts"
-                            badge={{ text: 'WhatsApp Link', color: '#25D366', borderColor: 'rgba(37,211,102,.3)', bgColor: 'rgba(37,211,102,.08)' }} 
-                        />
-                        <div className="flex md:grid overflow-x-auto md:overflow-x-visible snap-x snap-mandatory touch-pan-x scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pb-2 md:pb-0">
-                            <div className="snap-start shrink-0 w-[82vw] max-w-[290px] md:w-auto md:max-w-none md:shrink">
-                                <IllustrationCard
-                                    presetKey="whatsapp"
-                                    title="WhatsApp Community"
-                                    onClick={() => navigate('/plus/whatsapp-community')}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </>
+                </div>
             )}
+
+
+            {/* ═══════════════════════════════════════════════════════
+                UNIFIED ACADEMIC TOOL 2: BRANCH CHANGE PREDICTOR
+            ═══════════════════════════════════════════════════════ */}
+            <BranchChangeTool
+                isOpen={activeModal === 'branch'}
+                onClose={() => setActiveModal(null)}
+                initialCgpa={user?.cgpa}
+                initialBranch={user?.branch || user?.department}
+            />
+
+            {/* ═══════════════════════════════════════════════════════
+                UNIFIED ACADEMIC TOOL: CIE & ELIGIBILITY
+            ═══════════════════════════════════════════════════════ */}
+            <CIEEligibilityTool
+                isOpen={activeModal === 'cie-eligibility'}
+                onClose={() => setActiveModal(null)}
+                initialSubjects={registeredSubjects}
+            />
 
         </div>
     );

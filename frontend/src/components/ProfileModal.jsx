@@ -146,7 +146,7 @@ const ProfileModal = ({ show, onClose, user, updateUser, subjects = [], overallP
                         </h2>
                         <div className="flex flex-col md:flex-row md:items-center gap-2 mt-0.5">
                             <p className={`text-sm ${isLightMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                {user?.email} • {user?.branch} Branch
+                                {user?.email} • {typeof user?.branch === 'object' ? (user.branch?.shortName || user.branch?.name || '') : (user?.branch || '')} Branch
                             </p>
                             {user?.name && user?.usn && (
                                 <span className={`hidden md:block text-gray-400`}>•</span>

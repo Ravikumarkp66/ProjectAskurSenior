@@ -1,6 +1,7 @@
 const rateLimit = require('express-rate-limit');
 const studentAccountRepository = require('../repositories/studentAccount.repository');
 const tokenUtil = require('../utils/token');
+const { resolvePlusAccess } = require('../../../services/plusAccessService');
 
 const authenticateStudent = async (req, res, next) => {
     try {
@@ -46,6 +47,7 @@ const authenticateStudent = async (req, res, next) => {
 
         req.student = student;
         req.userId = student._id.toString();
+        req.access = resolvePlusAccess(student);
         next();
     } catch (error) {
         return res.status(401).json({

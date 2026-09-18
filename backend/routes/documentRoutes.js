@@ -114,9 +114,11 @@ router.get('/subjects', async (req, res) => {
         const subjectsMap = new Map();
         rawSubjects.forEach(s => {
             const normalizedName = s.name.trim();
-            if (!subjectsMap.has(normalizedName)) {
-                subjectsMap.set(normalizedName, {
-                    code: s.code,
+            const codeKey = s.code ? s.code.trim().toUpperCase() : normalizedName.toLowerCase();
+            if (!subjectsMap.has(codeKey)) {
+                subjectsMap.set(codeKey, {
+                    name: normalizedName,
+                    code: s.code || '',
                     credits: s.credits,
                     branch: s.branch?.shortName || 'Common',
                     year: s.year || '3rd Year',
@@ -126,14 +128,7 @@ router.get('/subjects', async (req, res) => {
         });
 
         // Convert Map to array of objects
-        const formattedSubjects = Array.from(subjectsMap.entries()).map(([name, meta]) => ({
-            name,
-            code: meta.code,
-            credits: meta.credits,
-            branch: meta.branch,
-            semester: meta.semester,
-            year: meta.year
-        }));
+        const formattedSubjects = Array.from(subjectsMap.values());
 
         res.json(formattedSubjects);
     } catch (error) {
@@ -353,8 +348,9 @@ router.get('/search', async (req, res) => {
 
         const documents = rawMaterials.map(m => ({
             _id: m._id,
-            fileName: m.storedFileName || m.title,
-            originalName: m.originalFileName || m.title,
+            title: m.title || m.originalFileName || m.storedFileName,
+            fileName: m.title || m.originalFileName || m.storedFileName,
+            originalName: m.title || m.originalFileName || m.storedFileName,
             fileUrl: m.fileUrl,
             fileSize: m.fileSize || 0,
             mimeType: m.mimeType || 'application/pdf',
@@ -365,6 +361,7 @@ router.get('/search', async (req, res) => {
             yearLevel: m.subject?.year || 'N/A',
             branch: m.subject?.branch?.shortName || 'Common',
             documentType: docTypeMap[m.materialType] || 'others',
+            materialType: m.materialType || 'Others',
             paperType: m.description || 'regular',
             tags: m.tags || '',
             uploadedBy: m.uploadedBy,
@@ -545,7 +542,10 @@ router.get('/:documentId/download', async (req, res) => {
         }
 
         // Generate S3 presigned URL forcing attachment download with custom filename
-        const filename = document.originalFileName || document.title;
+        let filename = (document.title || document.originalFileName || 'document').trim();
+        if (document.mimeType === 'application/pdf' && !filename.toLowerCase().endsWith('.pdf')) {
+            filename += '.pdf';
+        }
         const safeFilename = filename.replace(/"/g, '\\"');
         const params = {
             Bucket: process.env.AWS_BUCKET_NAME,
@@ -626,8 +626,9 @@ router.get('/:documentId', authMiddleware, async (req, res) => {
         // Map AcademicMaterial shape to legacy document details format
         const responseData = {
             _id: document._id,
-            fileName: document.storedFileName || document.title,
-            originalName: document.originalFileName || document.title,
+            title: document.title || document.originalFileName || document.storedFileName,
+            fileName: document.title || document.originalFileName || document.storedFileName,
+            originalName: document.title || document.originalFileName || document.storedFileName,
             fileUrl: document.fileUrl,
             fileSize: document.fileSize || 0,
             mimeType: document.mimeType,
@@ -736,6 +737,40 @@ router.post('/:id/approve', authMiddleware, async (req, res) => {
         res.json({ success: true, message: 'Material approved successfully', document: material });
     } catch (error) {
         res.status(500).json({ error: 'Failed to approve material' });
+    }
+});
+
+// PATCH /api/documents/:id (Admin update title/filename)
+router.patch('/:id', authMiddleware, async (req, res) => {
+    try {
+        if (!req.isAdmin) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+        const { originalName, title, documentType } = req.body;
+        const updateData = {};
+        if (title || originalName) {
+            const newName = (title || originalName).trim();
+            updateData.title = newName;
+            updateData.originalFileName = newName;
+        }
+        if (documentType) {
+            const t = documentType.toLowerCase().trim();
+            updateData.materialType = t === 'notes' ? 'Notes' : t === 'see' ? 'SEE' : t === 'internals' ? 'Internals' : 'Others';
+        }
+        const material = await AcademicMaterial.findByIdAndUpdate(req.params.id, updateData, { new: true });
+        if (!material) return res.status(404).json({ error: 'Material not found' });
+        res.json({
+            success: true,
+            document: {
+                _id: material._id,
+                title: material.title,
+                fileName: material.title || material.originalFileName,
+                originalName: material.title || material.originalFileName
+            }
+        });
+    } catch (error) {
+        console.error('Failed to update document:', error);
+        res.status(500).json({ error: 'Failed to update document' });
     }
 });
 

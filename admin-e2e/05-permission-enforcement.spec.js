@@ -4,7 +4,7 @@ import path from 'path';
 import { ADMIN_CSE, ADMIN_ECE, ADMIN_ISE } from './helpers/test-accounts.js';
 import { adminLogin, apiGet, apiPost, apiPut, apiDelete } from './helpers/api-client.js';
 
-test.describe('TEST 11 & 12: Action-Level Permissions & Permission + Department Matrix', () => {
+test.describe('TEST 11 & 12: Action-Level Permissions & Permission + Department Matrix', { tag: ['@regression', '@critical', '@security'] }, () => {
   let cseToken = null;
   let eceToken = null;
   let iseToken = null;

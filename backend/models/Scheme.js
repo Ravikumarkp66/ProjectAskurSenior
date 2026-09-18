@@ -4,17 +4,29 @@ const schemeSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
-        unique: true,
         trim: true
+    },
+    code: {
+        type: String,
+        trim: true,
+        default: null
+    },
+    college: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'College',
+        default: null
     },
     status: {
         type: String,
-        enum: ['Published', 'Hidden'],
-        default: 'Published'
+        enum: ['Published', 'Hidden', 'Active', 'Inactive'],
+        default: 'Active'
     }
 }, {
     timestamps: true,
     collection: 'schemes'
 });
 
-module.exports = mongoose.model('Scheme', schemeSchema);
+// Index to support college-specific schemes while allowing legacy global schemes
+schemeSchema.index({ name: 1, college: 1 }, { unique: true });
+
+module.exports = mongoose.models.Scheme || mongoose.model('Scheme', schemeSchema);

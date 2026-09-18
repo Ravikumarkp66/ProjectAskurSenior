@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { SUPER1, ADMIN_PORTAL_URL, BACKEND_URL, STUDENT_CSE, STUDENT_ECE } from './helpers/test-accounts.js';
 import { adminLogin, injectAdminAuth, apiGet, apiPut } from './helpers/api-client.js';
 
-test.describe('TEST 1 & 2: Super Admin Login & Global Access', () => {
+test.describe('TEST 1 & 2: Super Admin Login & Global Access', { tag: '@regression' }, () => {
   let superToken = null;
   let superUser = null;
 

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Staging Public Navigation', () => {
+test.describe('Staging Public Navigation', { tag: '@regression' }, () => {
   test('navigates through public routes correctly', async ({ page }) => {
     // 1. Home
     await page.goto('/');

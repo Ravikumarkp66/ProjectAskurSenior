@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowRightLeft, Check, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTheme } from '../../../../../context/ThemeContext';
 
 const SubjectSwapModal = ({
     isOpen,
@@ -9,6 +10,22 @@ const SubjectSwapModal = ({
     registeredSubjects = [],
     onSwapConfirmed
 }) => {
+    const { isDark = true } = useTheme?.() || {};
+
+    const t = {
+        surface: isDark ? '#0D111C' : '#FFFFFF',
+        surfaceSubtle: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC',
+        surfaceElevated: isDark ? 'rgba(255, 255, 255, 0.06)' : '#F1F5F9',
+        border: isDark ? 'rgba(255, 255, 255, 0.1)' : '#E2E8F0',
+        borderSubtle: isDark ? 'rgba(255, 255, 255, 0.06)' : '#CBD5E1',
+        text: isDark ? '#F1F5F9' : '#0F172A',
+        textMuted: isDark ? '#94A3B8' : '#64748B',
+        textFaint: isDark ? '#64748B' : '#94A3B8',
+        inputBg: isDark ? '#141724' : '#FFFFFF',
+        accent: '#6D28D9',
+        accentLight: isDark ? '#C4B5FD' : '#6D28D9'
+    };
+
     const [selectedSubjectId, setSelectedSubjectId] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -106,7 +123,7 @@ const SubjectSwapModal = ({
             });
             onClose();
         } catch (err) {
-            console.error('Error swapping subject:', err);
+            console.error('Error in handleConfirmSwap:', err);
             toast.error('Failed to change subject. Please try again.');
         } finally {
             setIsSaving(false);
@@ -114,51 +131,42 @@ const SubjectSwapModal = ({
     };
 
     return (
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-        }}>
-            <div style={{
-                background: 'linear-gradient(145deg, #181524 0%, #120F1D 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '16px',
-                width: '100%',
-                maxWidth: '460px',
-                padding: '24px',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
-                color: '#fff',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '20px'
-            }}>
+        <div 
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn"
+            onClick={onClose}
+        >
+            <div 
+                className="w-full max-w-[460px] rounded-2xl shadow-2xl p-6 flex flex-col gap-5 font-sans transition-colors"
+                style={{
+                    backgroundColor: t.surface,
+                    borderColor: t.border,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    color: t.text
+                }}
+                onClick={e => e.stopPropagation()}
+            >
                 {/* Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
-                            background: 'rgba(124, 58, 237, 0.15)',
-                            border: '1px solid rgba(124, 58, 237, 0.3)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#c4b5fd'
-                        }}>
+                <div 
+                    className="flex items-center justify-between pb-3"
+                    style={{ borderBottom: `1px solid ${t.borderSubtle}` }}
+                >
+                    <div className="flex items-center gap-2.5">
+                        <div 
+                            className="w-9 h-9 rounded-xl flex items-center justify-center"
+                            style={{
+                                backgroundColor: isDark ? 'rgba(109, 40, 217, 0.2)' : '#EDE9FE',
+                                color: isDark ? '#DDD6FE' : '#6D28D9',
+                                border: `1px solid ${isDark ? 'rgba(109, 40, 217, 0.3)' : '#DDD6FE'}`
+                            }}
+                        >
                             <ArrowRightLeft size={18} />
                         </div>
                         <div>
-                            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+                            <h3 className="text-base font-bold leading-tight" style={{ color: t.text }}>
                                 Change Class Subject
                             </h3>
-                            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                            <div className="text-xs mt-0.5" style={{ color: t.textMuted }}>
                                 Single-occurrence swap for {classItem.timeSlot} ({currentLectureType})
                             </div>
                         </div>
@@ -166,76 +174,65 @@ const SubjectSwapModal = ({
                     <button
                         type="button"
                         onClick={onClose}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            padding: '4px'
-                        }}
+                        className="p-1 rounded transition-colors"
+                        style={{ color: t.textMuted }}
+                        onMouseEnter={e => { e.currentTarget.style.backgroundColor = t.surfaceElevated; e.currentTarget.style.color = t.text; }}
+                        onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = t.textMuted; }}
                     >
                         <X size={18} />
                     </button>
                 </div>
 
                 {/* Information Callout */}
-                <div style={{
-                    background: 'rgba(59, 130, 246, 0.08)',
-                    border: '1px solid rgba(59, 130, 246, 0.2)',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
-                    fontSize: '12px',
-                    color: '#93c5fd',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '10px'
-                }}>
-                    <AlertCircle size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
+                <div 
+                    className="p-3 rounded-xl text-xs flex items-start gap-2.5"
+                    style={{
+                        backgroundColor: isDark ? 'rgba(59, 130, 246, 0.08)' : '#EFF6FF',
+                        border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : '#BFDBFE'}`,
+                        color: isDark ? '#93C5FD' : '#1E40AF'
+                    }}
+                >
+                    <AlertCircle size={16} className="mt-0.5 shrink-0" />
                     <div>
                         Swapping is restricted to matching session types ({isLabOccurrence ? 'Lab ↔ Lab' : 'Theory ↔ Theory'}). Your recurring timetable remains unchanged.
                     </div>
                 </div>
 
                 {/* Scheduled Subject Info */}
-                <div style={{
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                }}>
-                    <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: 700 }}>
+                <div 
+                    className="p-3.5 rounded-xl flex flex-col gap-1"
+                    style={{
+                        backgroundColor: t.surfaceSubtle,
+                        border: `1px solid ${t.borderSubtle}`
+                    }}
+                >
+                    <span className="text-[10.5px] uppercase font-mono tracking-wider font-semibold" style={{ color: t.textMuted }}>
                         Originally Scheduled Subject
                     </span>
-                    <span style={{ fontSize: '14px', fontWeight: 600, color: '#e2e8f0' }}>
+                    <span className="text-sm font-semibold" style={{ color: t.text }}>
                         {currentScheduledSubjectName} ({currentLectureType})
                     </span>
                 </div>
 
                 {/* Target Subject Selector */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
+                <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold" style={{ color: t.text }}>
                         Actual Subject Taught ({isLabOccurrence ? 'Lab Sessions Only' : 'Theory Sessions Only'})
                     </label>
                     <select
                         value={selectedSubjectId}
                         onChange={(e) => setSelectedSubjectId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono focus:border-violet-500 focus:outline-none cursor-pointer"
                         style={{
-                            width: '100%',
-                            background: '#0f0d18',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            borderRadius: '10px',
-                            padding: '10px 14px',
-                            color: '#fff',
-                            fontSize: '13px',
-                            outline: 'none',
-                            cursor: 'pointer'
+                            backgroundColor: t.inputBg,
+                            border: `1px solid ${t.borderSubtle}`,
+                            color: t.text
                         }}
                     >
                         {availableSwapSubjects.length === 0 ? (
-                            <option value="" disabled>No matching registered {isLabOccurrence ? 'Lab' : 'Theory'} subjects found</option>
+                            <option value="" disabled className={isDark ? 'bg-[#141724] text-zinc-400' : 'bg-white text-slate-400'}>
+                                No matching registered {isLabOccurrence ? 'Lab' : 'Theory'} subjects found
+                            </option>
                         ) : (
                             availableSwapSubjects.map((reg) => {
                                 const subjObj = reg.subject && typeof reg.subject === 'object' ? reg.subject : (reg.subjectId && typeof reg.subjectId === 'object' ? reg.subjectId : null);
@@ -247,7 +244,11 @@ const SubjectSwapModal = ({
                                 const codeStr = subjObj?.code || reg.code ? ` (${subjObj?.code || reg.code})` : '';
                                 const categoryStr = isLabOccurrence ? ' [Lab]' : ' [Theory]';
                                 return (
-                                    <option key={sId?.toString()} value={sId?.toString()}>
+                                    <option 
+                                        key={sId?.toString()} 
+                                        value={sId?.toString()}
+                                        className={isDark ? 'bg-[#141724] text-white' : 'bg-white text-slate-900'}
+                                    >
                                         {name}{codeStr}{categoryStr}
                                     </option>
                                 );
@@ -257,20 +258,19 @@ const SubjectSwapModal = ({
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                <div 
+                    className="flex items-center justify-end gap-2.5 pt-2"
+                    style={{ borderTop: `1px solid ${t.borderSubtle}` }}
+                >
                     <button
                         type="button"
                         onClick={onClose}
                         disabled={isSaving}
+                        className="px-4 py-2 text-xs font-medium rounded-xl transition-all"
                         style={{
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            borderRadius: '10px',
-                            padding: '10px 16px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            color: '#94a3b8',
-                            cursor: 'pointer'
+                            backgroundColor: t.surfaceElevated,
+                            color: t.textMuted,
+                            border: `1px solid ${t.border}`
                         }}
                     >
                         Cancel
@@ -279,23 +279,10 @@ const SubjectSwapModal = ({
                         type="button"
                         onClick={handleConfirmSwap}
                         disabled={isSaving}
-                        style={{
-                            background: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)',
-                            border: 'none',
-                            borderRadius: '10px',
-                            padding: '10px 20px',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            color: '#fff',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            opacity: isSaving ? 0.7 : 1
-                        }}
+                        className="px-5 py-2 text-xs font-semibold rounded-xl text-white bg-violet-600 hover:bg-violet-500 transition-all flex items-center gap-1.5 shadow-sm shadow-violet-600/30 disabled:opacity-50"
                     >
                         <Check size={16} />
-                        {isSaving ? 'Saving...' : 'Apply Subject Change'}
+                        <span>{isSaving ? 'Saving...' : 'Apply Subject Change'}</span>
                     </button>
                 </div>
             </div>

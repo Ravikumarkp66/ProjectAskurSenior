@@ -185,6 +185,30 @@ const SIT_CIE_CONFIG = {
                     ]
                 }
             }
+        },
+
+        NCMC: {
+            id: 'NCMC',
+            userFacingName: 'NCMC Non-Credit',
+            description: 'Non-Credit Mandatory Course (100% CIE, No SEE)',
+            maxCie: 100,
+            hasTheory: true,
+            hasPractical: false,
+            hasSee: false,
+            overallMinimumThreshold: 40,
+            components: {
+                continuousAssessment: {
+                    id: 'continuousAssessment',
+                    name: 'Continuous Internal Evaluation (CIE)',
+                    maxRaw: 100,
+                    scaledContribution: 100,
+                    minRawRequired: 40,
+                    subComponents: [
+                        { id: 'assessment1', name: 'Assessment 01', maxRaw: 50 },
+                        { id: 'assessment2', name: 'Assessment 02', maxRaw: 50 }
+                    ]
+                }
+            }
         }
     }
 };
@@ -202,6 +226,13 @@ function determineEvaluationType(registeredSubject) {
 
     const category = registeredSubject.category || 'Theory';
     const credits = Number(registeredSubject.registeredCredits || 0);
+    const nameLC = (registeredSubject.customName || registeredSubject.subject?.name || '').toLowerCase();
+    const codeLC = (registeredSubject.customCode || registeredSubject.subject?.code || '').toLowerCase();
+    const catLC = (registeredSubject.category || '').toLowerCase();
+
+    if (catLC.includes('ncmc') || nameLC.includes('ncmc') || codeLC.includes('ncmc') || nameLC.includes('non-credit')) {
+        return 'NCMC';
+    }
 
     if (category === 'Theory + Lab') {
         return 'IPCC';
@@ -300,18 +331,24 @@ function calculateSubjectCie({ registeredSubject, rawMarks = {}, evaluationTypeO
     } else if (evalType === 'LOW_THEORY') {
         totalCie = Number(((contributions.tests || 0) + (contributions.internalAssessment || 0)).toFixed(2));
         contributions.theoryTotal = totalCie;
+    } else if (evalType === 'NCMC') {
+        totalCie = Number((contributions.continuousAssessment || 0).toFixed(2));
+        contributions.theoryTotal = totalCie;
     }
 
-    // Overall CIE Minimum Check (20 / 50)
-    if (totalEnteredCount > 0 && totalCie < SIT_CIE_CONFIG.overallMinimumThreshold) {
+    const minThreshold = config.overallMinimumThreshold || SIT_CIE_CONFIG.overallMinimumThreshold;
+    const maxScore = config.maxCie || SIT_CIE_CONFIG.maxCieScore;
+
+    // Overall CIE Minimum Check
+    if (totalEnteredCount > 0 && totalCie < minThreshold) {
         failedRequirements.push(
-            `Overall CIE requirement not satisfied. Required: ${SIT_CIE_CONFIG.overallMinimumThreshold} / ${SIT_CIE_CONFIG.maxCieScore}, Current: ${totalCie} / ${SIT_CIE_CONFIG.maxCieScore}`
+            `Overall CIE requirement not satisfied. Required: ${minThreshold} / ${maxScore}, Current: ${totalCie} / ${maxScore}`
         );
     }
 
     // Determine status
-    let status = 'NOT_STARTED';
-    let isEligible = false;
+    let status;
+    let isEligible;
 
     if (totalEnteredCount === 0) {
         status = 'NOT_STARTED';
@@ -333,7 +370,7 @@ function calculateSubjectCie({ registeredSubject, rawMarks = {}, evaluationTypeO
         rawTotals,
         contributions,
         totalCie,
-        maxCie: SIT_CIE_CONFIG.maxCieScore,
+        maxCie: maxScore,
         isEligible,
         status,
         failedRequirements,

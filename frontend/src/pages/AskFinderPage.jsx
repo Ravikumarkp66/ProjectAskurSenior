@@ -11,7 +11,7 @@ import LoginRequiredModal from '../components/LoginRequiredModal';
 import {
     Search, Download, FileText, Upload, Filter, X, ArrowLeft, Eye, ExternalLink,
     Trash2, Edit, Check, Bookmark, Trophy, Info, ChevronDown, ChevronLeft, ChevronRight,
-    SlidersHorizontal, RotateCcw, CheckCircle2, AlertCircle, ArrowUpDown
+    SlidersHorizontal, RotateCcw, CheckCircle2, AlertCircle, ArrowUpDown, UserCheck
 } from 'lucide-react';
 import { logAcademicActivity } from '../utils/academicStreak';
 

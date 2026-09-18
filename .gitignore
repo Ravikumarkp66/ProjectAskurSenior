@@ -19,3 +19,4 @@ performance/reports/
 scratch/
 coverage/
 .c8_output/
+backend/backups/

@@ -16,6 +16,13 @@ const facultySchema = new mongoose.Schema(
       index: true,
     },
 
+    department: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      index: true,
+    },
+
     name: {
       type: String,
       required: true,
@@ -26,17 +33,6 @@ const facultySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      enum: [
-        'Professor',
-        'Associate Professor',
-        'Assistant Professor',
-        'Professor & Head',
-        'Head of Department',
-        'Lecturer',
-        'Instructor',
-        'Adjunct Professor',
-        'Visiting Faculty',
-      ],
     },
 
     specialization: {
@@ -54,6 +50,40 @@ const facultySchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+
+    officeLocation: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+
+    experienceYears: {
+      type: Number,
+      default: 0
+    },
+
+    subjects: [{
+      type: String,
+      trim: true
+    }],
+
+    isLabFaculty: {
+      type: Boolean,
+      default: false
+    },
+
+    status: {
+      type: String,
+      enum: ['Active', 'Inactive'],
+      default: 'Active',
+      index: true
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true
+    }
   },
   {
     timestamps: true, // createdAt & updatedAt

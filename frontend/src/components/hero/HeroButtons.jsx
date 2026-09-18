@@ -11,71 +11,54 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../utils/hooks';
 
-const HeroButtons = ({ primaryCTA, secondaryCTA }) => {
+
+const HeroButtons = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
 
     const handlePrimaryClick = () => {
         if (user) {
-            navigate('/dashboard');
+            navigate('/home');
         } else {
-            navigate(primaryCTA?.href || '/signup');
+            navigate('/login');
         }
     };
 
     const handleSecondaryClick = () => {
-        navigate(secondaryCTA?.href || '/plus');
+        navigate('/plus');
     };
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3.5 sm:gap-4 mb-8 sm:mb-10 w-full max-w-md sm:max-w-none"
+            transition={{ duration: 0.45, delay: 0.26, ease: "easeOut" }}
+            className="flex flex-col sm:flex-row items-stretch sm:items-center justify-start gap-3 mb-8 w-full max-w-md sm:max-w-none"
         >
-            {/* Primary Button: Start For Free */}
-            <div className="relative group w-full sm:w-auto">
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-fuchsia-600 to-indigo-600 rounded-2xl blur-md opacity-50 group-hover:opacity-100 transition duration-300 pointer-events-none" />
-                
-                <motion.button
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.96 }}
-                    onClick={handlePrimaryClick}
-                    aria-label={user ? 'Go to Student Dashboard' : 'Start For Free'}
-                    className="relative flex items-center justify-center gap-2.5 w-full sm:w-auto min-h-[48px] px-7 py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-extrabold text-base shadow-[0_4px_24px_rgba(124,58,237,0.38)] transition-all duration-300 border border-white/20 outline-none cursor-pointer overflow-hidden active:bg-purple-700"
-                >
-                    {/* Shimmer line */}
-                    <span
-                        aria-hidden="true"
-                        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none"
-                    />
-
-                    <span>{user ? 'Go to Dashboard' : (primaryCTA?.label || 'Start For Free')}</span>
-                    
-                    <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                    </svg>
-                </motion.button>
-            </div>
-
-            {/* Secondary Button: Explore AskUrSenior Plus */}
+            {/* Primary Button: Go to Dashboard → */}
             <motion.button
-                whileHover={{ scale: 1.02, y: -1 }}
-                whileTap={{ scale: 0.96 }}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handlePrimaryClick}
+                aria-label="Go to Dashboard"
+                className="h-11 px-5 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white font-semibold text-sm shadow-sm transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-[#080B14]"
+            >
+                <span>Go to Dashboard</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+            </motion.button>
+
+            {/* Secondary Button: ✦ Explore AskUrSenior Plus */}
+            <motion.button
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={handleSecondaryClick}
                 aria-label="Explore AskUrSenior Plus"
-                className="flex items-center justify-center gap-2 w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-xl font-bold text-base transition-all duration-300 backdrop-blur-xl outline-none cursor-pointer"
-                style={{
-                    backgroundColor: 'var(--hero-btn-sec-bg, #F8FAFC)',
-                    borderColor: 'var(--hero-btn-sec-border, #D1D5DB)',
-                    color: 'var(--hero-btn-sec-text, #374151)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid'
-                }}
+                className="h-11 px-5 rounded-xl border border-slate-300 dark:border-slate-800/90 bg-white dark:bg-[#0D111C] hover:bg-slate-50 dark:hover:bg-[#111624] active:bg-slate-100 dark:active:bg-[#151B2C] text-slate-800 dark:text-slate-200 font-semibold text-sm transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-[#080B14]"
             >
-                <span className="text-amber-500 font-extrabold">✨</span>
-                <span>{secondaryCTA?.label || 'Explore AskUrSenior Plus'}</span>
+                <span className="text-purple-600 dark:text-purple-400 text-xs">✦</span>
+                <span>Explore AskUrSenior Plus</span>
             </motion.button>
         </motion.div>
     );

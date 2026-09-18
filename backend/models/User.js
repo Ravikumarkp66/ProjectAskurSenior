@@ -82,6 +82,11 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
+        isTestUser: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
         registrationComplete: {
             type: Boolean,
             default: true
@@ -141,6 +146,27 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: '',
             trim: true
+        },
+        section: {
+            type: String,
+            default: null
+        },
+        academicSection: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'AcademicSection',
+            default: null
+        },
+        sectionLocked: {
+            type: Boolean,
+            default: false
+        },
+        labBatch: {
+            type: String,
+            default: null
+        },
+        labBatchLocked: {
+            type: Boolean,
+            default: false
         },
         whatsappEnabled: {
             type: Boolean,

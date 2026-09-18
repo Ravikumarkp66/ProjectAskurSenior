@@ -44,6 +44,8 @@ export const ADMIN_CSE = {
     materials: { view: true,  create: true,  update: true,  delete: true, publish: true, archive: true },
     queries:   { view: true,  respond: true, resolve: true, delete: false },
     requests:  { view: true,  approve: true, reject: true },
+    interviews:{ view: true,  publish: true, archive: true, delete: true },
+    companies: { view: true,  create: true,  update: true,  delete: true },
   },
 };
 
@@ -51,7 +53,7 @@ export const ADMIN_CSE = {
  * ECE Admin — PARTIAL permissions.
  * Has materials view+create but NOT update/delete.
  * Has NO requests permission at all.
- * This tests the "permission gaps" scenario.
+ * Has interviews/companies view-only (no publish/create/delete).
  */
 export const ADMIN_ECE = {
   email: 'e2e-admin-ece@test.askursenior.org',
@@ -64,12 +66,15 @@ export const ADMIN_ECE = {
     materials: { view: true,  create: true,  update: false, delete: false, publish: false, archive: false },
     queries:   { view: true,  respond: false, resolve: false, delete: false },
     requests:  { view: false, approve: false, reject: false },
+    interviews:{ view: true,  publish: false, archive: false, delete: false },
+    companies: { view: true,  create: false, update: false, delete: false },
   },
 };
 
 /**
- * ISE Admin — MINIMAL permissions (view-only across most modules).
- * Tests the "read-only admin" scenario.
+ * ISE Admin — RESTRICTED admin.
+ * Minimal permissions, and explicitly NO interview or company access.
+ * Tests negative UI visibility and redirect fallback.
  */
 export const ADMIN_ISE = {
   email: 'e2e-admin-ise@test.askursenior.org',
@@ -82,6 +87,8 @@ export const ADMIN_ISE = {
     materials: { view: true,  create: false, update: false, delete: false, publish: false, archive: false },
     queries:   { view: false, respond: false, resolve: false, delete: false },
     requests:  { view: false, approve: false, reject: false },
+    interviews:{ view: false, publish: false, archive: false, delete: false },
+    companies: { view: false, create: false, update: false, delete: false },
   },
 };
 

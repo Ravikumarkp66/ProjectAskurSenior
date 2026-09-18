@@ -7,7 +7,9 @@ class StudentAccountRepository {
         console.log(`[V2 Repository][${traceId}] Querying StudentAccount collection by email: "${email}"`);
         const student = await StudentAccount.findOne({ email: email.toLowerCase().trim(), isDeleted: false })
             .populate('branch')
-            .populate('scheme');
+            .populate('scheme')
+            .populate('academicSection')
+            .populate('academicSemester');
         if (student) {
             console.log(`[V2 Repository][${traceId}] MATCH FOUND in student_accounts, _id: ${student._id}, Email: "${student.email}"`);
             student.academicProfile = await AcademicProfile.findOne({ student: student._id });
@@ -22,7 +24,9 @@ class StudentAccountRepository {
         console.log(`[V2 Repository][${traceId}] Querying StudentAccount collection by USN: "${usn}"`);
         const student = await StudentAccount.findOne({ usn: usn.toUpperCase().trim(), isDeleted: false })
             .populate('branch')
-            .populate('scheme');
+            .populate('scheme')
+            .populate('academicSection')
+            .populate('academicSemester');
         if (student) {
             console.log(`[V2 Repository][${traceId}] MATCH FOUND in student_accounts, _id: ${student._id}, USN: "${student.usn}"`);
             student.academicProfile = await AcademicProfile.findOne({ student: student._id });
@@ -37,7 +41,9 @@ class StudentAccountRepository {
         console.log(`[V2 Repository][${traceId}] Querying StudentAccount collection by ID: "${id}"`);
         const student = await StudentAccount.findById(id)
             .populate('branch')
-            .populate('scheme');
+            .populate('scheme')
+            .populate('academicSection')
+            .populate('academicSemester');
         if (student) {
             console.log(`[V2 Repository][${traceId}] MATCH FOUND in student_accounts, _id: ${student._id}, Name: "${student.name}"`);
             student.academicProfile = await AcademicProfile.findOne({ student: student._id });
@@ -57,7 +63,9 @@ class StudentAccountRepository {
         console.log(`[V2 Repository][${traceId}] Updating StudentAccount ID: "${id}"`);
         const student = await StudentAccount.findByIdAndUpdate(id, data, { new: true })
             .populate('branch')
-            .populate('scheme');
+            .populate('scheme')
+            .populate('academicSection')
+            .populate('academicSemester');
         if (student) {
             student.academicProfile = await AcademicProfile.findOne({ student: student._id });
         }

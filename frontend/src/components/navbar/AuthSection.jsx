@@ -44,58 +44,16 @@ const AuthSection = ({ user, isDark, onLogout }) => {
         return <ProfileDropdown user={user} onLogout={onLogout} />;
     }
 
-    /* ── Get Started CTA ──────────────────────────────────── */
+    /* ── Understated Sign In CTA (equal visual weight to ThemeToggle) ── */
     return (
         <motion.button
             onClick={() => navigate('/login')}
-            whileHover={{ scale: 1.03, y: -1 }}
-            whileTap={{ scale: 0.97 }}
-            aria-label="Get started with AskUrSenior"
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '9px 20px',
-                borderRadius: 99,
-                border: 'none',
-                outline: 'none',
-                cursor: 'pointer',
-                fontSize: 13.5,
-                fontWeight: 650,
-                letterSpacing: '-0.01em',
-                fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
-                background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 60%, #818cf8 100%)',
-                color: '#ffffff',
-                boxShadow: '0 4px 20px rgba(124,58,237,0.38), 0 0 0 1px rgba(124,58,237,0.22)',
-                transition: 'box-shadow 0.2s, transform 0.2s',
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                position: 'relative',
-                overflow: 'hidden',
-            }}
-            onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow =
-                    '0 8px 32px rgba(124,58,237,0.48), 0 0 0 1px rgba(124,58,237,0.32)';
-            }}
-            onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow =
-                    '0 4px 20px rgba(124,58,237,0.38), 0 0 0 1px rgba(124,58,237,0.22)';
-            }}
+            whileHover={{ scale: 1.02, y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            aria-label="Sign in to AskUrSenior"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight transition-all duration-200 border cursor-pointer select-none bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800 dark:bg-[#111624] dark:hover:bg-[#171F32] dark:border-slate-800 dark:text-slate-200 dark:hover:border-purple-500/40"
         >
-            {/* Shimmer overlay */}
-            <span
-                aria-hidden="true"
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background:
-                        'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)',
-                    backgroundSize: '200% 100%',
-                    animation: 'navShimmer 2.4s ease-in-out infinite',
-                    borderRadius: 99,
-                }}
-            />
-            Get Started
+            <span>Sign In</span>
             <ArrowIcon />
         </motion.button>
     );

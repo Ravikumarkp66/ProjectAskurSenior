@@ -846,24 +846,19 @@ class AuthV2Service {
                 throw new Error('Invalid USN format (e.g. 1SI23IS080)');
             }
             if (cleanUsn !== student.usn) {
+                if (student.usnLocked) {
+                    throw new Error('Your USN is permanently verified and locked. Contact administrator for corrections.');
+                }
                 const StudentAccount = require('../../../models/StudentAccount');
-                const existingUsn = await StudentAccount.findOne({ usn: cleanUsn, isDeleted: false });
+                const existingUsn = await StudentAccount.findOne({ usn: cleanUsn, _id: { $ne: student._id }, isDeleted: false });
                 if (existingUsn) {
-                    throw new Error('This USN is already linked to another account');
+                    throw new Error('This USN is already associated with another account. Please verify that you entered the correct USN.');
                 }
                 accountUpdates.usn = cleanUsn;
             }
         }
 
-        if (data.branch !== undefined) accountUpdates.branch = data.branch;
-        if (data.scheme !== undefined) accountUpdates.scheme = data.scheme;
-        if (data.graduationYear !== undefined) accountUpdates.graduationYear = parseInt(data.graduationYear, 10);
-        if (data.semester !== undefined) {
-            const semVal = parseInt(data.semester, 10);
-            if (!isNaN(semVal) && semVal >= 1 && semVal <= 8) {
-                accountUpdates.semester = semVal;
-            }
-        }
+        // Note: branch, scheme, graduationYear, semester are locked academic fields and cannot be altered via updateProfile
 
         if (data.socialLinks !== undefined) {
             const links = student.socialLinks || {};
@@ -937,8 +932,9 @@ class AuthV2Service {
     }
 
     /**
-     * Request OTP for changing USN
-     * Dispatches OTP to target college domain email: [new_usn]@[college_domain]
+     * Request OTP for verifying / locking permanent USN
+     * Dispatches OTP to target institutional email derived from College.emailDomain: [clean_usn]@[emailDomain]
+     * Enforces hard daily limit of 3 requests per day per student account
      */
     async requestUsnChangeOtp(userId, rawNewUsn) {
         const student = await studentAccountRepository.findById(userId);
@@ -946,41 +942,67 @@ class AuthV2Service {
             throw new Error('Student account not found');
         }
 
+        if (student.usnLocked) {
+            throw new Error('Your USN is permanently verified and locked. Contact administrator for corrections.');
+        }
+
         const cleanUsn = normalizeUsn(rawNewUsn);
         if (!validateUsn(cleanUsn)) {
             throw new Error('Invalid USN format (e.g. 1SI23IS080)');
         }
 
-        if (cleanUsn === student.usn) {
-            throw new Error('The new USN is identical to your current USN');
+        if (cleanUsn === student.usn && student.usnVerified) {
+            throw new Error('This USN is already verified for your account');
         }
 
-        // Check 60-day cooldown
-        const COOLDOWN_DAYS = 60;
-        if (student.usnLastChangedAt) {
-            const diffDays = Math.floor((Date.now() - new Date(student.usnLastChangedAt).getTime()) / (1000 * 60 * 60 * 24));
-            if (diffDays < COOLDOWN_DAYS) {
-                const remaining = COOLDOWN_DAYS - diffDays;
-                throw new Error(`You recently updated your USN. You can change it again in ${remaining} days.`);
-            }
+        // Check conflicts against other accounts
+        const StudentAccount = require('../../../models/StudentAccount');
+        const existingAccount = await StudentAccount.findOne({
+            usn: cleanUsn,
+            _id: { $ne: student._id },
+            isDeleted: false
+        });
+        if (existingAccount) {
+            throw new Error('This USN is already associated with another account. Please contact your college administrator if this is incorrect.');
         }
 
-        // Check uniqueness across other active student accounts
-        const existingUsn = await StudentAccount.findOne({ usn: cleanUsn, isDeleted: false });
-        if (existingUsn && existingUsn._id.toString() !== student._id.toString()) {
-            throw new Error('This USN is already linked to another registered account.');
+        // Enforce hard limit of 3 OTP requests per day
+        const todayStr = new Date().toISOString().slice(0, 10);
+        let dailyReqs = student.usnOtpDailyRequests || { date: '', count: 0 };
+        if (dailyReqs.date !== todayStr) {
+            dailyReqs = { date: todayStr, count: 0 };
+        }
+        if (dailyReqs.count >= 3) {
+            throw new Error('Daily OTP limit reached. You can try again tomorrow.');
         }
 
-        const targetEmail = usnParser.getCollegeEmailForUsn ? usnParser.getCollegeEmailForUsn(cleanUsn) : `${cleanUsn.toLowerCase()}@sit.ac.in`;
-        if (!targetEmail) {
-            throw new Error('Unable to resolve college domain email for the provided USN.');
+        // Resolve College Email Domain from College configuration
+        const College = require('../../../models/College');
+        let emailDomain = null;
+        if (student.college) {
+            const colDoc = await College.findById(student.college).lean();
+            if (colDoc && colDoc.emailDomain) emailDomain = colDoc.emailDomain;
+        } else {
+            const colDoc = await College.findOne({ code: 'SIT' }).lean() || await College.findOne().lean();
+            if (colDoc && colDoc.emailDomain) emailDomain = colDoc.emailDomain;
         }
 
-        // Generate 6-digit OTP
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        if (!emailDomain) {
+            throw new Error('Institutional email domain is not configured for your college. Please contact your college administrator.');
+        }
+
+        const targetEmail = `${cleanUsn.toLowerCase()}@${emailDomain}`;
+
+        // Increment daily count and save in StudentAccount
+        dailyReqs.count += 1;
+        await StudentAccount.findByIdAndUpdate(student._id, { usnOtpDailyRequests: dailyReqs });
+
+        // Generate 6-digit cryptographically secure OTP
+        const crypto = require('crypto');
+        const otp = crypto.randomInt(100000, 999999).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        const otpKey = `usn_change_${student._id}_${cleanUsn}`;
+        const otpKey = `usn_verify_${student._id}_${cleanUsn}`;
         await otpRepository.deleteOtp(otpKey);
         await otpRepository.create(otpKey, otp, expiresAt);
 
@@ -992,7 +1014,7 @@ class AuthV2Service {
                 html: `
                     <div style="background-color: #0b0a0f; color: #ffffff; padding: 40px; font-family: 'Inter', sans-serif; border-radius: 16px; max-width: 500px; margin: auto; border: 1px solid #1f1d2b;">
                         <h2 style="color: #8b5cf6; font-size: 24px; text-align: center; margin-bottom: 24px;">USN Verification Code</h2>
-                        <p style="font-size: 16px; line-height: 1.6; color: #9ca3af;">A request was made to link USN <strong>${cleanUsn}</strong> to your AskUrSenior profile. Please use the 6-digit code below to verify ownership:</p>
+                        <p style="font-size: 16px; line-height: 1.6; color: #9ca3af;">A request was made to link and verify permanent USN <strong>${cleanUsn}</strong> on your AskUrSenior profile. Please use the 6-digit code below to complete verification:</p>
                         <div style="background-color: #13121a; border: 1px solid #2c293e; border-radius: 12px; padding: 20px; font-size: 32px; font-weight: bold; text-align: center; letter-spacing: 6px; color: #ffffff; margin: 30px 0;">
                             ${otp}
                         </div>
@@ -1006,14 +1028,16 @@ class AuthV2Service {
 
         return {
             success: true,
-            message: `Verification code sent to ${targetEmail}`,
+            message: `Verification code sent to your institutional email: ${targetEmail}`,
             targetEmail,
-            newUsn: cleanUsn
+            newUsn: cleanUsn,
+            remainingDailyRequests: Math.max(0, 3 - dailyReqs.count),
+            dailyLimitReached: dailyReqs.count >= 3
         };
     }
 
     /**
-     * Verify OTP and apply USN change with history tracking and cooldown
+     * Verify OTP and lock permanent USN
      */
     async verifyUsnChangeOtp(userId, rawNewUsn, otp) {
         const student = await studentAccountRepository.findById(userId);
@@ -1021,12 +1045,26 @@ class AuthV2Service {
             throw new Error('Student account not found');
         }
 
+        if (student.usnLocked) {
+            throw new Error('Your USN is permanently verified and locked');
+        }
+
         const cleanUsn = normalizeUsn(rawNewUsn);
         if (!validateUsn(cleanUsn)) {
             throw new Error('Invalid USN format (e.g. 1SI23IS080)');
         }
 
-        const otpKey = `usn_change_${student._id}_${cleanUsn}`;
+        // Concurrency check before finalizing
+        const existingAccount = await StudentAccount.findOne({
+            usn: cleanUsn,
+            _id: { $ne: student._id },
+            isDeleted: false
+        });
+        if (existingAccount) {
+            throw new Error('This permanent USN is already associated with an existing account. Please contact your college administrator if this is incorrect.');
+        }
+
+        const otpKey = `usn_verify_${student._id}_${cleanUsn}`;
         const otpRecord = await otpRepository.findValidOtp(otpKey, otp);
         if (!otpRecord) {
             throw new Error('Invalid or expired OTP verification code');
@@ -1034,9 +1072,17 @@ class AuthV2Service {
 
         await otpRepository.deleteOtp(otpKey);
 
-        const targetEmail = usnParser.getCollegeEmailForUsn ? usnParser.getCollegeEmailForUsn(cleanUsn) : `${cleanUsn.toLowerCase()}@sit.ac.in`;
+        const College = require('../../../models/College');
+        let emailDomain = 'sit.ac.in';
+        if (student.college) {
+            const colDoc = await College.findById(student.college).lean();
+            if (colDoc && colDoc.emailDomain) emailDomain = colDoc.emailDomain;
+        } else {
+            const colDoc = await College.findOne({ code: 'SIT' }).lean() || await College.findOne().lean();
+            if (colDoc && colDoc.emailDomain) emailDomain = colDoc.emailDomain;
+        }
+        const targetEmail = `${cleanUsn.toLowerCase()}@${emailDomain}`;
 
-        // Archive previous USN into usnHistory array
         const historyEntry = {
             usn: student.usn || '',
             changedAt: new Date(),
@@ -1046,6 +1092,10 @@ class AuthV2Service {
 
         const updates = {
             usn: cleanUsn,
+            usnType: 'PERMANENT',
+            usnVerified: true,
+            usnVerifiedAt: new Date(),
+            usnLocked: true,
             usnLastChangedAt: new Date(),
             $push: { usnHistory: historyEntry }
         };
@@ -1060,11 +1110,64 @@ class AuthV2Service {
             if (parsed.admissionYear) updates.admissionYear = parsed.admissionYear;
         }
 
-        await StudentAccount.findByIdAndUpdate(student._id, updates);
-        const updatedStudent = await studentAccountRepository.findById(student._id);
+        // Atomic update
+        const updated = await StudentAccount.findByIdAndUpdate(student._id, updates, { new: true });
+        return updated;
+    }
 
-        return updatedStudent;
+    /**
+     * Set temporary USN (no OTP required, unverified, unlocked)
+     */
+    async setTemporaryUsn(userId, rawUsn) {
+        const student = await studentAccountRepository.findById(userId);
+        if (!student) {
+            throw new Error('Student account not found');
+        }
+
+        if (student.usnLocked) {
+            throw new Error('Your USN is permanently verified and locked. Contact administrator for corrections.');
+        }
+
+        const cleanUsn = normalizeUsn(rawUsn);
+        if (!validateUsn(cleanUsn)) {
+            throw new Error('Invalid USN format (e.g. 1SI23IS080)');
+        }
+
+        // Check conflicts against other accounts
+        const existingAccount = await StudentAccount.findOne({
+            usn: cleanUsn,
+            _id: { $ne: student._id },
+            isDeleted: false
+        });
+        if (existingAccount) {
+            if (existingAccount.usnVerified || existingAccount.usnLocked) {
+                throw new Error('This permanent USN is already associated with an existing account. Please contact your college administrator if this is incorrect.');
+            } else {
+                throw new Error('This USN is already associated with another account. Please verify that you entered the correct USN.');
+            }
+        }
+
+        const updates = {
+            usn: cleanUsn,
+            usnType: 'TEMPORARY',
+            usnVerified: false,
+            usnLocked: false,
+            usnLastChangedAt: new Date()
+        };
+
+        const parsed = await usnParser.parseUsn(cleanUsn);
+        if (parsed) {
+            if (parsed.collegeName) updates.collegeName = parsed.collegeName;
+            if (parsed.branchId) updates.branch = parsed.branchId;
+            if (parsed.schemeId) updates.scheme = parsed.schemeId;
+            if (parsed.graduationYear) updates.graduationYear = parsed.graduationYear;
+            if (parsed.admissionYear) updates.admissionYear = parsed.admissionYear;
+        }
+
+        const updated = await StudentAccount.findByIdAndUpdate(student._id, updates, { new: true });
+        return updated;
     }
 }
 
 module.exports = new AuthV2Service();
+

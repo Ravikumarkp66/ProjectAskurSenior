@@ -1,238 +1,236 @@
 /**
  * HeroPreview.jsx
  * ─────────────────────────────────────────────────────────
- * Reusable Hero Showcase component featuring a 5-second auto-rotating
- * showcase between Ask+, Study Materials, Interview Experiences,
- * Campus Explorer, and CGPA Calculator.
+ * Premium AskUrSenior Product Showcase.
+ * Replaces fake browser mockups with real, polished UI previews:
+ *   1. Ask+ AI
+ *   2. Study Materials & PYQs
+ *   3. Interview Experiences
+ *   4. Campus Explorer
  * ─────────────────────────────────────────────────────────
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { SHOWCASE_TABS } from './heroConfig';
+
+const TABS = [
+    { id: 'ask_plus', label: 'Ask+ AI', badge: 'Trained on SIT' },
+    { id: 'materials', label: 'Study Materials & PYQs', badge: '360+ Verified' },
+    { id: 'interviews', label: 'Interview Experiences', badge: 'Real Placements' },
+    { id: 'campus_map', label: 'Campus Explorer', badge: '3D Campus' }
+];
 
 const HeroPreview = () => {
-    const [activeIdx, setActiveIdx] = useState(0);
+    const [activeTab, setActiveTab] = useState('ask_plus');
     const navigate = useNavigate();
-    const intervalRef = useRef(null);
-
-    const resetTimer = () => {
-        if (intervalRef.current) clearInterval(intervalRef.current);
-        intervalRef.current = setInterval(() => {
-            setActiveIdx((prev) => (prev + 1) % SHOWCASE_TABS.length);
-        }, 5000);
-    };
-
-    useEffect(() => {
-        resetTimer();
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
-    }, []);
-
-    const handleTabClick = (idx) => {
-        setActiveIdx(idx);
-        resetTimer();
-    };
-
-    const currentTab = SHOWCASE_TABS[activeIdx];
 
     return (
-        <div className="w-full max-w-xl lg:max-w-2xl mx-auto flex flex-col gap-4">
-            {/* Top Showcase Navigation Pills */}
-            <div className="flex items-center justify-center gap-1.5 p-1.5 rounded-2xl bg-white/[0.03] border border-white/10 backdrop-blur-xl overflow-x-auto no-scrollbar">
-                {SHOWCASE_TABS.map((tab, idx) => {
-                    const isActive = idx === activeIdx;
+        <div className="w-full max-w-lg lg:max-w-xl mx-auto flex flex-col gap-3">
+            {/* Top Product Navigation Bar */}
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#0D111C] border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
+                {TABS.map((tab) => {
+                    const isActive = activeTab === tab.id;
                     return (
                         <button
                             key={tab.id}
-                            onClick={() => handleTabClick(idx)}
-                            aria-label={`View ${tab.title}`}
-                            className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 outline-none cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                            type="button"
+                            onClick={() => setActiveTab(tab.id)}
+                            aria-label={`View ${tab.label}`}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
                                 isActive
-                                    ? 'text-white bg-purple-600/30 border border-purple-500/40 shadow-[0_2px_12px_rgba(139,92,246,0.25)]'
-                                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+                                    ? 'bg-white dark:bg-[#151B2C] text-purple-700 dark:text-purple-300 shadow-sm border border-slate-200/80 dark:border-slate-700/60'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-white/5 border border-transparent'
                             }`}
                         >
-                            <span>{tab.title}</span>
-                            {isActive && (
-                                <motion.span
-                                    layoutId="activeTabDot"
-                                    className="w-1.5 h-1.5 rounded-full bg-purple-400"
-                                />
-                            )}
+                            <span>{tab.label}</span>
                         </button>
                     );
                 })}
             </div>
 
-            {/* Main Interactive Product Preview Screen */}
-            <div className="relative rounded-2xl border border-white/10 bg-[#0c0919]/90 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.65)] overflow-hidden min-h-[380px] sm:min-h-[420px] flex flex-col">
-                {/* Header Window Bar */}
-                <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
+            {/* Product Showcase Card */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0D111C] shadow-sm overflow-hidden flex flex-col min-h-[360px]">
+                {/* Header Bar */}
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-[#111624]/60">
                     <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-rose-500/80" />
-                        <div className="w-3 h-3 rounded-full bg-amber-500/80" />
-                        <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                        <span className="text-[11px] font-mono text-slate-500 ml-2">askursenior.com/{currentTab.id}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black tracking-wider uppercase text-white bg-gradient-to-r ${currentTab.badgeColor}`}>
-                            {currentTab.tag}
-                        </span>
-                        <span className="text-[11px] font-semibold text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-md">
-                            {currentTab.metrics}
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                            {TABS.find(t => t.id === activeTab)?.label}
                         </span>
                     </div>
+                    <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 px-2 py-0.5 rounded-md">
+                        {TABS.find(t => t.id === activeTab)?.badge}
+                    </span>
                 </div>
 
-                {/* Dynamic Screen Viewport with Smooth Fade */}
-                <div className="relative flex-1 p-5 overflow-hidden flex flex-col justify-center">
+                {/* Viewport */}
+                <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
                     <AnimatePresence mode="wait">
                         <motion.div
-                            key={currentTab.id}
-                            initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -12, scale: 0.98 }}
-                            transition={{ duration: 0.35, ease: "easeOut" }}
-                            className="w-full flex flex-col h-full justify-between"
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.2 }}
+                            className="flex-1 flex flex-col justify-between"
                         >
                             {/* 1. Ask+ AI Assistant View */}
-                            {currentTab.id === 'ask_plus' && (
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-3 bg-purple-500/10 border border-purple-500/20 p-3.5 rounded-2xl">
-                                        <div className="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
-                                            🤖
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-xs font-bold text-purple-300 mb-1">Ask+ AI (SIT Edition)</p>
-                                            <p className="text-slate-200 text-xs sm:text-sm leading-relaxed">
-                                                "SIT CIE rules require a minimum of 40% aggregate in CIE 1, 2, 3 to be eligible for SEE exams. Here is your target score."
+                            {activeTab === 'ask_plus' && (
+                                <div className="space-y-3.5 flex-1 flex flex-col justify-between">
+                                    <div className="space-y-3">
+                                        {/* User prompt preview */}
+                                        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#111624] border border-slate-200/70 dark:border-slate-800">
+                                            <span className="text-xs font-bold text-slate-500 uppercase shrink-0 mt-0.5">Q:</span>
+                                            <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                                                What is the minimum CIE required for SEE 2026?
                                             </p>
                                         </div>
+
+                                        {/* AI response preview */}
+                                        <div className="p-3.5 rounded-xl bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-500/20 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
+                                                    Ask+ Assistant
+                                                </span>
+                                                <span className="text-[10px] text-slate-500 dark:text-slate-400">• Official Syllabus</span>
+                                            </div>
+                                            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                                                Under SIT regulations, you must score at least <strong>40% in aggregate CIE</strong> (minimum 20/50) to be eligible for SEE. Scoring below 40% leads to a Not Eligible (NE) status.
+                                            </p>
+                                            <div className="flex items-center gap-2 pt-1">
+                                                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#111624] border border-slate-200 dark:border-slate-800 px-2 py-0.5 rounded">
+                                                    Ref: Academic Policy §4.1
+                                                </span>
+                                                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded">
+                                                    Verified Rule
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-colors">
-                                            <span className="text-purple-400 font-bold block mb-1">💡 Ask Question</span>
-                                            <span className="text-slate-400 text-[11px]">"What happens if I get NE in Math III?"</span>
-                                        </div>
-                                        <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-indigo-500/30 transition-colors">
-                                            <span className="text-indigo-400 font-bold block mb-1">📝 Summarize</span>
-                                            <span className="text-slate-400 text-[11px]">"Explain Fast Fourier Transform in 3 points"</span>
-                                        </div>
-                                    </div>
-
+                                    {/* Action button */}
                                     <button
+                                        type="button"
                                         onClick={() => navigate('/ask-finder')}
-                                        className="w-full py-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        Try Ask+ Assistant Now →
+                                        <span>Ask Ask+ a Question</span>
+                                        <span>→</span>
                                     </button>
                                 </div>
                             )}
 
                             {/* 2. Study Materials View */}
-                            {currentTab.id === 'materials' && (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-                                        <span className="font-bold text-white">SIT Computer Science & Engineering</span>
-                                        <span className="text-purple-400">Semester 5 • 2026</span>
-                                    </div>
-
+                            {activeTab === 'materials' && (
+                                <div className="space-y-3 flex-1 flex flex-col justify-between">
                                     <div className="space-y-2">
                                         {[
-                                            { title: 'DBMS Module 3 - Normalization Notes', author: 'Senior Top Scorer', downloads: '412', tag: 'NOTES' },
-                                            { title: 'Engineering Physics SEE 2025 Solved PYQ', author: 'Verified Senior', downloads: '890', tag: 'PYQ' },
-                                            { title: 'DSA Question Bank - Trees & Graphs', author: 'Faculty Approved', downloads: '654', tag: 'BANK' }
+                                            { title: 'DBMS Module 3 — Normalization Notes', branch: 'CSE', sem: 'Sem 5', downloads: '412', type: 'Notes' },
+                                            { title: 'Engineering Physics — 2025 Solved Papers', branch: '1st Year', sem: 'Sem 1-2', downloads: '890', type: 'PYQ' },
+                                            { title: 'Operating Systems — Question Bank', branch: 'ISE/CSE', sem: 'Sem 4', downloads: '654', type: 'Bank' }
                                         ].map((item, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-purple-500/30 transition-colors">
+                                            <div
+                                                key={i}
+                                                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#111624]/60 flex items-center justify-between"
+                                            >
                                                 <div className="min-w-0 pr-2">
-                                                    <p className="text-xs font-bold text-slate-100 truncate">{item.title}</p>
-                                                    <p className="text-[10px] text-slate-500">By {item.author} • {item.downloads} downloads</p>
+                                                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                                        {item.title}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                                                        {item.branch} • {item.sem} • {item.downloads} downloads
+                                                    </p>
                                                 </div>
-                                                <span className="px-2 py-0.5 rounded text-[9px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                                    {item.tag}
+                                                <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 px-2 py-0.5 rounded shrink-0">
+                                                    {item.type}
                                                 </span>
                                             </div>
                                         ))}
                                     </div>
 
                                     <button
+                                        type="button"
                                         onClick={() => navigate('/ask-finder')}
-                                        className="w-full py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        Explore All Study Resources →
+                                        <span>Browse Study Materials</span>
+                                        <span>→</span>
                                     </button>
                                 </div>
                             )}
 
                             {/* 3. Interview Experiences View */}
-                            {currentTab.id === 'interviews' && (
-                                <div className="space-y-3">
-                                    <div className="grid grid-cols-2 gap-2">
+                            {activeTab === 'interviews' && (
+                                <div className="space-y-3 flex-1 flex flex-col justify-between">
+                                    <div className="space-y-2">
                                         {[
-                                            { company: 'Amazon', role: 'SDE-1', ctc: '28 LPA', difficulty: 'Hard', batch: '2026 Batch' },
-                                            { company: 'Morgan Stanley', role: 'Tech Analyst', ctc: '19 LPA', difficulty: 'Medium', batch: '2026 Batch' },
-                                            { company: 'TCS', role: 'Ninja/Digital', ctc: '7.5 LPA', difficulty: 'Easy', batch: '2025 Batch' },
-                                            { company: 'Infosys', role: 'Specialist Programmer', ctc: '9.5 LPA', difficulty: 'Medium', batch: '2025 Batch' }
-                                        ].map((c, i) => (
-                                            <div key={i} className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:border-fuchsia-500/30 transition-colors">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="font-bold text-xs text-white">{c.company}</span>
-                                                    <span className="text-[10px] text-emerald-400 font-bold">{c.ctc}</span>
+                                            { company: 'Amazon', role: 'SDE-1', ctc: '28 LPA', summary: 'OA: Trees & DP. Technical R1: Graph traversal & system design.' },
+                                            { company: 'Morgan Stanley', role: 'Technology Analyst', ctc: '19 LPA', summary: 'R1: Core Java, DBMS indexing. R2: Scenario architecture.' }
+                                        ].map((exp, i) => (
+                                            <div
+                                                key={i}
+                                                className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#111624]/60 space-y-1"
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                                        {exp.company}
+                                                    </span>
+                                                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                                        {exp.ctc}
+                                                    </span>
                                                 </div>
-                                                <p className="text-[11px] text-slate-400">{c.role} • {c.batch}</p>
+                                                <p className="text-[11px] font-medium text-purple-600 dark:text-purple-400">
+                                                    {exp.role}
+                                                </p>
+                                                <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2">
+                                                    {exp.summary}
+                                                </p>
                                             </div>
                                         ))}
                                     </div>
 
                                     <button
+                                        type="button"
                                         onClick={() => navigate('/interview')}
-                                        className="w-full py-2.5 rounded-xl bg-fuchsia-600/20 hover:bg-fuchsia-600/30 border border-fuchsia-500/30 text-fuchsia-300 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        Read Senior Interview Transcripts →
+                                        <span>Read Placement Transcripts</span>
+                                        <span>→</span>
                                     </button>
                                 </div>
                             )}
 
                             {/* 4. Campus Explorer View */}
-                            {currentTab.id === 'campus_map' && (
-                                <div className="space-y-3">
-                                    <div className="relative rounded-xl overflow-hidden h-36 bg-[#090f1e] border border-white/10 flex items-center justify-center">
-                                        <div className="absolute inset-0 bg-grid-pattern opacity-30" />
-                                        <div className="relative text-center p-4">
-                                            <span className="text-2xl mb-1 block">🗺️</span>
-                                            <p className="text-xs font-bold text-emerald-300">Interactive 3D SIT Campus Map</p>
-                                            <p className="text-[10px] text-slate-400">Search CSE Block, Library, Mechanical Hall & Canteens</p>
+                            {activeTab === 'campus_map' && (
+                                <div className="space-y-3 flex-1 flex flex-col justify-between">
+                                    <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#111624]/60 space-y-2.5">
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                            <span>🗺️</span>
+                                            <span>SIT Campus Locations</span>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            {[
+                                                'Academic Block 2 (CSE & ISE)',
+                                                'Central Library & Digital Reading Hall',
+                                                'Mechanical Labs & Robotics Wing',
+                                                'Food Court & South Canteen'
+                                            ].map((loc, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" aria-hidden="true" />
+                                                    <span>{loc}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
 
                                     <button
+                                        type="button"
                                         onClick={() => navigate('/campus-map')}
-                                        className="w-full py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        Open 3D Campus Explorer →
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* 5. CGPA Calculator View */}
-                            {currentTab.id === 'calculator' && (
-                                <div className="space-y-3">
-                                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                                        <p className="text-xs font-bold text-amber-300 mb-1">Target CGPA Predictor</p>
-                                        <p className="text-2xl font-black text-white">8.94 SGPA Needed</p>
-                                        <p className="text-[11px] text-slate-400 mt-1">To achieve overall 9.0 CGPA target in Semester 6</p>
-                                    </div>
-
-                                    <button
-                                        onClick={() => navigate('/calculator')}
-                                        className="w-full py-2.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                                    >
-                                        Calculate Your SGPA / CGPA Now →
+                                        <span>Open Campus Explorer</span>
+                                        <span>→</span>
                                     </button>
                                 </div>
                             )}

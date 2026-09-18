@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { resolvePlusAccess } = require('../services/plusAccessService');
 
 const authMiddleware = async (req, res, next) => {
     try {
@@ -160,6 +161,9 @@ const authMiddleware = async (req, res, next) => {
         } else if (user._id && !adminRecord) {
             User.findByIdAndUpdate(decoded.userId, { lastActiveAt: new Date() }).catch(() => {});
         }
+
+        // Attach centralized Plus access resolution
+        req.access = resolvePlusAccess(req.user || req.admin);
 
         next();
     } catch (error) {

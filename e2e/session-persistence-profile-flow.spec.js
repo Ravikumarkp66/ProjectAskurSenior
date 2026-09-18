@@ -13,7 +13,7 @@ try {
 const JWT_SECRET = process.env.JWT_SECRET || envJwtSecret || 'c4f98f4a8b1f7e21f8f54f8d3d81d42c9f8c0f6f9e1c7a1e4d3f7b9c8a6d5e2f';
 const BACKEND_BASE = (process.env.E2E_BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
 
-test.describe('Session Persistence & Profile Lifecycle Flow', () => {
+test.describe('Session Persistence & Profile Lifecycle Flow', { tag: ['@regression', '@critical', '@security'] }, () => {
   const timestamp = Date.now().toString().slice(-4);
   const testEmail = `e2e.sessiontest.${timestamp}@askursenior.org`.toLowerCase().trim();
   const canonicalName = 'kiran kumar';

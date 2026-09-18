@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { STUDENT_CSE, STUDENT_ECE, TEST_SUBJECTS } from './helpers/test-accounts.js';
 import { studentLogin, apiGet } from './helpers/api-client.js';
 
-test.describe('TEST 9 & 10: Student-Side Department Isolation (Subjects & Materials)', () => {
+test.describe('TEST 9 & 10: Student-Side Department Isolation (Subjects & Materials)', { tag: ['@regression', '@critical', '@security'] }, () => {
   let cseStudentToken = null;
   let eceStudentToken = null;
 

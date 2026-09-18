@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Home, User, Sun, Moon, LogOut, X } from 'lucide-react';
+import { Home, User, Sun, Moon, LogOut, X, Megaphone } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../utils/hooks';
 import NavLogo from './navbar/NavLogo';
@@ -76,6 +76,9 @@ const UniversalMobileDrawer = ({ isOpen, onClose }) => {
         navigate('/login');
     };
 
+    const isAnnouncements = location.pathname.startsWith('/plus/announcements');
+    const isPlus = location.pathname.startsWith('/plus') && !isAnnouncements;
+
     const navItems = [
         {
             id: 'home',
@@ -89,7 +92,14 @@ const UniversalMobileDrawer = ({ isOpen, onClose }) => {
             label: 'Plus',
             path: '/plus',
             icon: PlusDashboardIcon,
-            isActive: location.pathname.startsWith('/plus'),
+            isActive: isPlus,
+        },
+        {
+            id: 'announcements',
+            label: 'Announcements',
+            path: '/plus/announcements',
+            icon: Megaphone,
+            isActive: isAnnouncements,
         },
         {
             id: 'profile',

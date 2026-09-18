@@ -1,16 +1,42 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Check } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { useTheme } from '../../../../../context/ThemeContext';
 
 const CalendarDateNavigator = ({
     selectedDate,
     onSelectDate,
     timetableConfig,
     groupedTimeline = [],
-    selectedDayClasses = []
+    selectedDayClasses = [],
+    events = []
 }) => {
+    const { isDark } = useTheme();
+
+    const t = useMemo(() => ({
+        surface: isDark ? '#0D111C' : '#FFFFFF',
+        surfaceSubtle: isDark ? 'rgba(255, 255, 255, 0.02)' : '#F8FAFC',
+        surfaceElevated: isDark ? '#13151D' : '#F1F5F9',
+        border: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+        gridGap: isDark ? 'rgba(255, 255, 255, 0.06)' : '#E2E8F0',
+        text: isDark ? '#F8FAFC' : '#0F172A',
+        textMuted: isDark ? '#94A3B8' : '#64748B',
+        textFaint: isDark ? '#64748B' : '#94A3B8',
+        accent: isDark ? '#C4B5FD' : '#6D28D9',
+        accentBg: isDark ? 'rgba(124, 58, 237, 0.16)' : '#F5F3FF',
+        accentBorder: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(124, 58, 237, 0.25)',
+        cellBg: isDark ? '#12141D' : '#FFFFFF',
+        cellBgOtherMonth: isDark ? '#0E1017' : '#F8FAFC',
+        cellBgToday: isDark ? '#181B26' : '#F5F3FF',
+        cellBgMarked: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+        cellTextMarked: isDark ? '#6ee7b7' : '#047857',
+        cellBgHoliday: isDark ? 'rgba(225, 29, 72, 0.15)' : '#FFF1F2',
+        cellTextHoliday: isDark ? '#fda4af' : '#BE123C',
+        cellBgExam: isDark ? 'rgba(124, 58, 237, 0.15)' : '#FAF5FF',
+        cellTextExam: isDark ? '#d8b4fe' : '#6D28D9',
+    }), [isDark]);
     // Current viewed month date state
     const [viewDate, setViewDate] = useState(() => {
-        const d = selectedDate ? new Date(selectedDate) : new Date();
+        const d = selectedDate ? new Date(selectedDate + 'T12:00:00') : new Date();
         return isNaN(d.getTime()) ? new Date() : d;
     });
 
@@ -27,9 +53,11 @@ const CalendarDateNavigator = ({
 
     const todayStr = formatDateStr(new Date());
 
-    // Timeline boundaries
-    const startDateStr = timetableConfig?.semesterStartDate ? formatDateStr(new Date(timetableConfig.semesterStartDate)) : null;
-    const endDateStr = timetableConfig?.lastWorkingDate ? formatDateStr(new Date(timetableConfig.lastWorkingDate)) : null;
+    // Timeline boundaries (prioritize canonical commencementDate / lastWorkingDayDate)
+    const rawStart = timetableConfig?.commencementDate || timetableConfig?.semesterStartDate;
+    const rawEnd = timetableConfig?.lastWorkingDayDate || timetableConfig?.lastWorkingDate;
+    const startDateStr = rawStart ? formatDateStr(new Date(rawStart)) : null;
+    const endDateStr = rawEnd ? formatDateStr(new Date(rawEnd)) : null;
 
     // Month Navigation
     const handlePrevMonth = () => {
@@ -40,11 +68,29 @@ const CalendarDateNavigator = ({
         setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
     };
 
-    const handleTodayClick = () => {
-        const today = new Date();
-        setViewDate(today);
-        onSelectDate(todayStr);
-    };
+    // Pre-index events by date (YYYY-MM-DD)
+    const eventsByDate = useMemo(() => {
+        const map = new Map();
+        for (const ev of events) {
+            if (!ev.startDate) continue;
+            const s = new Date(ev.startDate);
+            const e = new Date(ev.endDate || ev.startDate);
+            let cur = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+            const last = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+            while (cur <= last) {
+                const y = cur.getFullYear();
+                const m = String(cur.getMonth() + 1).padStart(2, '0');
+                const d = String(cur.getDate()).padStart(2, '0');
+                const key = `${y}-${m}-${d}`;
+                if (!map.has(key)) {
+                    map.set(key, []);
+                }
+                map.get(key).push(ev);
+                cur.setDate(cur.getDate() + 1);
+            }
+        }
+        return map;
+    }, [events]);
 
     // Build days matrix for the month (Mon - Sun)
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
@@ -77,7 +123,7 @@ const CalendarDateNavigator = ({
         dateStatusMap.set(dateKey, { hasClasses, allMarked });
     }
 
-    // Overlay live state for the currently selected date only if dayClasses is active for selectedDate
+    // Overlay live state for selectedDate
     if (selectedDate && selectedDayClasses && selectedDayClasses.length > 0) {
         const dateKey = String(selectedDate).split('T')[0];
         const hasClasses = selectedDayClasses.length > 0;
@@ -110,235 +156,229 @@ const CalendarDateNavigator = ({
 
     const weekDayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    // Hovered date state for date-number reveal
-    const [hoveredDate, setHoveredDate] = useState(null);
+    // Selected date events
+    const selectedEvents = eventsByDate.get(selectedDate) || [];
 
     return (
-        <div style={{
-            background: 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.07)',
-            borderRadius: '14px',
-            padding: '12px 14px',
-            color: '#fff',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-            height: 'fit-content',
-            width: '100%',
-            boxSizing: 'border-box'
-        }}>
-            {/* Calendar Month Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+        <div 
+            className="w-full flex flex-col gap-3 p-3.5 sm:p-4 rounded-xl border select-none font-mono"
+            style={{ backgroundColor: t.surface, borderColor: t.border, color: t.text }}
+        >
+            {/* Header: Month / Year & Compact Nav */}
+            <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold tracking-wider uppercase" style={{ color: t.text }}>
                     {monthNames[currentMonth]} {currentYear}
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+
+                <div className="flex items-center gap-1">
                     <button
                         type="button"
                         onClick={handlePrevMonth}
                         title="Previous Month"
-                        style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '6px',
-                            color: '#94a3b8',
-                            padding: '5px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                        className="p-1 rounded transition-colors border hover:opacity-80"
+                        style={{ borderColor: t.border, color: t.textMuted }}
                     >
-                        <ChevronLeft size={13} />
+                        <ChevronLeft size={14} />
                     </button>
                     <button
                         type="button"
                         onClick={handleNextMonth}
                         title="Next Month"
-                        style={{
-                            background: 'rgba(255, 255, 255, 0.04)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '6px',
-                            color: '#94a3b8',
-                            padding: '5px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.15s'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                        className="p-1 rounded transition-colors border hover:opacity-80"
+                        style={{ borderColor: t.border, color: t.textMuted }}
                     >
-                        <ChevronRight size={13} />
+                        <ChevronRight size={14} />
                     </button>
                 </div>
             </div>
 
-            {/* Days of Week Header */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                textAlign: 'center',
-                fontSize: '10.5px',
-                fontWeight: 600,
-                color: '#64748b'
-            }}>
-                {weekDayLabels.map(day => (
-                    <div key={day} style={{ padding: '2px 0' }}>{day}</div>
-                ))}
-            </div>
-
-            {/* Monthly Days Grid */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: '3px'
-            }}>
-                {calendarDays.map((item, idx) => {
-                    const isSelected = item.dateStr === selectedDate;
-                    const isToday = item.dateStr === todayStr;
-                    const isHovered = hoveredDate === item.dateStr;
-                    
-                    const dateStatus = dateStatusMap.get(item.dateStr) || { hasClasses: false, allMarked: false };
-                    const hasClasses = dateStatus.hasClasses;
-                    const allMarked = dateStatus.allMarked;
-
-                    // Check bounds if timetableConfig has semester bounds
-                    const isOutOfTimeline = (startDateStr && item.dateStr < startDateStr) || (endDateStr && item.dateStr > endDateStr);
-
-                    let bg = 'transparent';
-                    let color = item.isCurrentMonth ? '#cbd5e1' : 'rgba(255, 255, 255, 0.2)';
-                    let border = '1px solid transparent';
-                    let boxShadow = 'none';
-
-                    if (isSelected) {
-                        bg = allMarked
-                            ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                            : '#7c3aed';
-                        color = '#ffffff';
-                        border = allMarked ? '1.5px solid #34d399' : '1px solid #a78bfa';
-                        boxShadow = allMarked ? '0 0 10px rgba(16, 185, 129, 0.55)' : '0 0 10px rgba(124, 58, 237, 0.45)';
-                    } else if (allMarked) {
-                        bg = isHovered
-                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.32) 0%, rgba(5, 150, 105, 0.42) 100%)'
-                            : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(5, 150, 105, 0.26) 100%)';
-                        border = isHovered ? '1px solid #10b981' : '1px solid rgba(16, 185, 129, 0.45)';
-                        color = '#6ee7b7';
-                        boxShadow = '0 0 6px rgba(16, 185, 129, 0.25)';
-                    } else if (isToday) {
-                        bg = 'rgba(124, 58, 237, 0.15)';
-                        color = '#c4b5fd';
-                        border = '1px solid rgba(167, 139, 250, 0.4)';
-                    }
-
-                    if (isOutOfTimeline && !isSelected) {
-                        color = 'rgba(255, 255, 255, 0.15)';
-                    }
-
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            disabled={isOutOfTimeline}
-                            onClick={() => onSelectDate(item.dateStr)}
-                            onMouseEnter={() => setHoveredDate(item.dateStr)}
-                            onMouseLeave={() => setHoveredDate(null)}
-                            style={{
-                                background: bg,
-                                border: border,
-                                borderRadius: '7px',
-                                color: color,
-                                fontSize: '11.5px',
-                                fontWeight: isSelected || isToday || allMarked ? 700 : 500,
-                                height: '33px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: isOutOfTimeline ? 'not-allowed' : 'pointer',
-                                position: 'relative',
-                                transition: 'all 0.15s ease-in-out',
-                                opacity: isOutOfTimeline ? 0.35 : 1,
-                                boxShadow: boxShadow
-                            }}
-                        >
-                            {allMarked ? (
-                                isHovered ? (
-                                    <span style={{
-                                        fontSize: '11.5px',
-                                        fontWeight: 800,
-                                        color: isSelected ? '#ffffff' : '#6ee7b7'
-                                    }}>
-                                        {item.date.getDate()}
-                                    </span>
-                                ) : (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        width: '100%',
-                                        height: '100%'
-                                    }}>
-                                        <Check
-                                            size={14}
-                                            strokeWidth={3.5}
-                                            color={isSelected ? '#ffffff' : '#34d399'}
-                                            style={{
-                                                filter: isSelected ? 'drop-shadow(0 0 3px rgba(255,255,255,0.8))' : 'drop-shadow(0 0 3px rgba(52, 211, 153, 0.6))'
-                                            }}
-                                        />
-                                    </div>
-                                )
-                            ) : (
-                                <>
-                                    <span style={{ lineHeight: 1 }}>{item.date.getDate()}</span>
-                                    {hasClasses && !isOutOfTimeline && !isSelected && (
-                                        <span style={{
-                                            width: '3.5px',
-                                            height: '3.5px',
-                                            borderRadius: '50%',
-                                            background: isToday ? '#a78bfa' : '#38bdf8',
-                                            marginTop: '2px'
-                                        }} />
-                                    )}
-                                </>
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* Today Shortcut Button */}
-            <button
-                type="button"
-                onClick={handleTodayClick}
-                style={{
-                    background: 'rgba(124, 58, 237, 0.08)',
-                    border: '1px solid rgba(124, 58, 237, 0.2)',
-                    color: '#c4b5fd',
-                    borderRadius: '7px',
-                    padding: '6px 10px',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '5px',
-                    marginTop: '2px',
-                    transition: 'all 0.15s'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(124, 58, 237, 0.15)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(124, 58, 237, 0.08)'; }}
+            {/* CSES Sheet Matrix Grid */}
+            <div 
+                className="w-full border rounded-lg overflow-hidden"
+                style={{ borderColor: t.border, backgroundColor: t.surfaceElevated }}
             >
-                <Clock size={12} />
-                Jump to Today
-            </button>
+                {/* Weekday Header Row */}
+                <div 
+                    className="grid grid-cols-7 border-b text-center"
+                    style={{ borderBottomColor: t.border, backgroundColor: t.surfaceSubtle }}
+                >
+                    {weekDayLabels.map(day => (
+                        <div key={day} className="py-2 text-[11px] font-semibold tracking-wider" style={{ color: t.textMuted }}>
+                            {day}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Days Grid (Matrix Cells) */}
+                <div className="grid grid-cols-7 gap-[1px]" style={{ backgroundColor: t.gridGap }}>
+                    {calendarDays.map((item, idx) => {
+                        const isSelected = item.dateStr === selectedDate;
+                        const isToday = item.dateStr === todayStr;
+                        const dateStatus = dateStatusMap.get(item.dateStr) || { hasClasses: false, allMarked: false };
+                        const hasClasses = dateStatus.hasClasses;
+                        const allMarked = dateStatus.allMarked;
+
+                        // Check semester bounds
+                        const isOutOfTimeline = (startDateStr && item.dateStr < startDateStr) || (endDateStr && item.dateStr > endDateStr);
+
+                        // Event detection for this date
+                        const dayEvs = eventsByDate.get(item.dateStr) || [];
+                        const isHoliday = dayEvs.some(e => 
+                            e.eventType === 'Holiday / Closure' || 
+                            e.type === 'HOLIDAY' || 
+                            e.suspensionType === 'full_day' || 
+                            (e.classesSuspended && (!e.suspensionType || e.suspensionType === 'none' || e.suspensionType === 'full_day')) || 
+                            /holiday|vacation/i.test(e.title)
+                        );
+                        const isTimeRangeSuspended = !isHoliday && dayEvs.some(e => e.suspensionType === 'time_range');
+                        const isExam = !isHoliday && dayEvs.some(e => e.eventType === 'Exam' || e.type === 'EXAM');
+                        const isOtherEvent = !isHoliday && !isExam && dayEvs.length > 0;
+
+                        return (
+                            <button
+                                key={idx}
+                                type="button"
+                                onClick={() => onSelectDate(item.dateStr)}
+                                className={`h-10 sm:h-11 flex flex-col items-center justify-center relative transition-all text-xs font-mono ${
+                                    isSelected
+                                        ? 'bg-violet-600 text-white font-bold z-10 shadow-sm'
+                                        : 'hover:opacity-90'
+                                } ${isOutOfTimeline && !isHoliday && !isOtherEvent ? 'opacity-40' : ''} cursor-pointer`}
+                                style={!isSelected ? (
+                                    isHoliday
+                                        ? { backgroundColor: t.cellBgHoliday, color: t.cellTextHoliday, fontWeight: 600 }
+                                        : isExam
+                                            ? { backgroundColor: t.cellBgExam, color: t.cellTextExam, fontWeight: 600 }
+                                            : allMarked
+                                                ? { backgroundColor: t.cellBgMarked, color: t.cellTextMarked, fontWeight: 600 }
+                                                : item.isCurrentMonth
+                                                    ? isToday
+                                                        ? { backgroundColor: t.cellBgToday, color: t.accent, fontWeight: 700 }
+                                                        : { backgroundColor: t.cellBg, color: t.text }
+                                                    : { backgroundColor: t.cellBgOtherMonth, color: t.textFaint }
+                                ) : undefined}
+                            >
+                                <span className={`leading-none ${isToday && !isSelected ? 'underline decoration-violet-500 decoration-2 underline-offset-2 font-bold' : ''}`}>
+                                    {item.date.getDate()}
+                                </span>
+
+                                {/* Micro Indicator Dots Row */}
+                                <div className="flex items-center gap-1 mt-1">
+                                    {isHoliday ? (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" title="Holiday / Classes Suspended" />
+                                    ) : isTimeRangeSuspended ? (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Partial Suspension (Time Range)" />
+                                    ) : isExam ? (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500" title="Exam / Test" />
+                                    ) : isOtherEvent ? (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500" title="College Event" />
+                                    ) : null}
+
+                                    {hasClasses && !isSelected && !isHoliday && (
+                                        <span 
+                                            className={`w-1 h-1 rounded-full ${
+                                                allMarked ? 'bg-emerald-500' : 'bg-sky-500'
+                                            }`}
+                                        />
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Selected Date Events Strip */}
+            {selectedEvents.length > 0 && (
+                <div className="flex flex-col gap-1.5 pt-0.5">
+                    {selectedEvents.map((ev, idx) => {
+                        const isFullDay = ev.eventType === 'Holiday / Closure' || 
+                            ev.suspensionType === 'full_day' || 
+                            (ev.classesSuspended && (!ev.suspensionType || ev.suspensionType === 'none' || ev.suspensionType === 'full_day')) || 
+                            /holiday|vacation/i.test(ev.title);
+                        const isTimeRange = !isFullDay && ev.suspensionType === 'time_range' && ev.suspensionStartTime && ev.suspensionEndTime;
+
+                        return (
+                            <div 
+                                key={idx} 
+                                className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs ${
+                                    isFullDay 
+                                        ? (isDark ? 'bg-rose-950/20 border-rose-500/25 text-rose-200' : 'bg-rose-50 border-rose-200 text-rose-900')
+                                        : isTimeRange
+                                            ? (isDark ? 'bg-amber-950/20 border-amber-500/25 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900')
+                                            : ''
+                                }`}
+                                style={!isFullDay && !isTimeRange ? {
+                                    backgroundColor: t.surfaceSubtle,
+                                    borderColor: t.border,
+                                    color: t.text
+                                } : undefined}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${
+                                        isFullDay 
+                                            ? 'bg-rose-500' 
+                                            : isTimeRange
+                                                ? 'bg-amber-500'
+                                                : ev.eventType === 'Exam' 
+                                                    ? 'bg-violet-500' 
+                                                    : 'bg-sky-500'
+                                    }`} />
+                                    <span className="font-semibold" style={{ color: t.text }}>{ev.title}</span>
+                                    <span 
+                                        className="text-[10px] px-1.5 py-0.5 rounded border"
+                                        style={{ backgroundColor: t.surface, borderColor: t.border, color: t.textMuted }}
+                                    >
+                                        {ev.eventType || ev.type || 'Event'}
+                                    </span>
+                                </div>
+                                {isFullDay ? (
+                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                                        isDark ? 'text-rose-400 bg-rose-500/15 border-rose-500/30' : 'text-rose-700 bg-rose-100 border-rose-200'
+                                    }`}>
+                                        Classes Suspended
+                                    </span>
+                                ) : isTimeRange ? (
+                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                                        isDark ? 'text-amber-400 bg-amber-500/15 border-amber-500/30' : 'text-amber-700 bg-amber-100 border-amber-200'
+                                    }`}>
+                                        Suspended {ev.suspensionStartTime}–{ev.suspensionEndTime}
+                                    </span>
+                                ) : null}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Micro Legend Bar */}
+            <div className="flex flex-wrap items-center justify-between px-1 text-[11px] pt-0.5 gap-2" style={{ color: t.textMuted }}>
+                <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" />
+                        <span>Today</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                        <span>Marked</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                        <span>Holiday</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                        <span>Partial</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block" />
+                        <span>Event</span>
+                    </span>
+                </div>
+                <span style={{ color: t.textFaint }}>
+                    {timetableConfig?.commencementDate ? `Term: ${timetableConfig.commencementDate.slice(5)} to ${timetableConfig.lastWorkingDayDate?.slice(5) || 'End'}` : ''}
+                </span>
+            </div>
         </div>
     );
 };

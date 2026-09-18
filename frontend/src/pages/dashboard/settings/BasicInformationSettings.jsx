@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import ProfilePhotoCard from './components/ProfilePhotoCard';
 import PersonalInformationCard from './components/PersonalInformationCard';
 import AcademicInformationCard from './components/AcademicInformationCard';
+import AcademicIdentityCard from './components/AcademicIdentityCard';
 import SocialLinksCard from './components/SocialLinksCard';
 import { useEditProfile } from '../../../contexts/EditProfileContext';
 
@@ -68,21 +69,16 @@ const BasicInformationSettings = () => {
     // Check if changes have been made
     const isChanged = useMemo(() => {
         if (!user) return false;
-        const branchId = user.branch?.id || user.branch?._id || user.branch || '';
-        const schemeId = user.scheme?.id || user.scheme?._id || user.scheme || '';
 
         return (
             formData.name.trim() !== (user.name || '').trim() ||
             formData.username.trim() !== (user.username || '').trim() ||
             formData.phone.trim() !== (user.phone || '').trim() ||
-            formData.usn.trim().toUpperCase() !== (user.usn || '').trim().toUpperCase() ||
-            String(formData.branch) !== String(branchId) ||
-            String(formData.scheme) !== String(schemeId) ||
-            Number(formData.semester) !== Number(user.semester || 1) ||
-            Number(formData.graduationYear) !== Number(user.graduationYear || 0) ||
             formData.socialLinks.github.trim() !== (user.socialLinks?.github || '').trim() ||
             formData.socialLinks.linkedin.trim() !== (user.socialLinks?.linkedin || '').trim() ||
             formData.socialLinks.portfolio.trim() !== (user.socialLinks?.portfolio || '').trim() ||
+            formData.socialLinks.instagram.trim() !== (user.socialLinks?.instagram || '').trim() ||
+            formData.socialLinks.leetcode.trim() !== (user.socialLinks?.leetcode || '').trim() ||
             formData.socialLinks.x.trim() !== (user.socialLinks?.x || '').trim()
         );
     }, [formData, user]);
@@ -121,11 +117,6 @@ const BasicInformationSettings = () => {
                 name: formData.name,
                 username: formData.username,
                 phone: formData.phone,
-                usn: formData.usn,
-                branch: formData.branch,
-                scheme: formData.scheme,
-                semester: formData.semester,
-                graduationYear: formData.graduationYear,
                 socialLinks: formData.socialLinks
             });
             if (res.data?.success && res.data?.data?.student) {
@@ -181,8 +172,10 @@ const BasicInformationSettings = () => {
             {/* Academic Information Card */}
             <AcademicInformationCard
                 formData={formData}
-                onChange={handleTextChange}
             />
+
+            {/* Academic Identity Card */}
+            <AcademicIdentityCard />
 
             {/* Social Links Card */}
             <SocialLinksCard

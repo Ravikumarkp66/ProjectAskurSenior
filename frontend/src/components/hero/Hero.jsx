@@ -25,40 +25,34 @@ import HeroDescription from './HeroDescription';
 import HeroButtons from './HeroButtons';
 import HeroStatistics from './HeroStatistics';
 import HeroPreview from './HeroPreview';
-import FloatingActivity from './FloatingActivity';
 
 import {
     fetchHeroContent,
-    fetchHeroStats,
-    fetchHeroActivities
+    fetchHeroStats
 } from './heroAPI';
 
 import {
     DEFAULT_HERO_CONTENT,
-    DEFAULT_HERO_STATS,
-    DEFAULT_LIVE_ACTIVITIES
+    DEFAULT_HERO_STATS
 } from './heroConfig';
 
 export default function Hero() {
     const [content, setContent] = useState(DEFAULT_HERO_CONTENT);
     const [stats, setStats] = useState(DEFAULT_HERO_STATS);
-    const [activities, setActivities] = useState(DEFAULT_LIVE_ACTIVITIES);
 
     useEffect(() => {
         let isMounted = true;
 
         async function loadData() {
             try {
-                const [cData, sData, aData] = await Promise.all([
+                const [cData, sData] = await Promise.all([
                     fetchHeroContent(),
-                    fetchHeroStats(),
-                    fetchHeroActivities()
+                    fetchHeroStats()
                 ]);
 
                 if (isMounted) {
                     if (cData) setContent(cData);
                     if (sData && sData.length > 0) setStats(sData);
-                    if (aData && aData.length > 0) setActivities(aData);
                 }
             } catch (e) {
                 // Fail silently and keep defaults
@@ -73,54 +67,42 @@ export default function Hero() {
     }, []);
 
     return (
-        <div className="relative min-h-dvh w-full bg-[#030712] font-outfit overflow-hidden pt-24 pb-12 sm:pt-28 sm:pb-16 lg:pt-32 lg:pb-24 px-4 sm:px-6 lg:px-12">
-            {/* Ambient Glow & Grid Layers */}
-            <div className="absolute inset-0 bg-radial-glow pointer-events-none z-0 opacity-40 dark:opacity-100" />
-            <div className="absolute inset-0 bg-grid-pattern opacity-15 dark:opacity-30 pointer-events-none z-0" />
-
-            {/* Glowing Orbs — Softened in light mode to prevent text wash-out */}
-            <div className="absolute top-10 left-1/4 w-[280px] sm:w-[500px] h-[280px] sm:h-[500px] bg-purple-600/10 dark:bg-purple-600/15 rounded-full blur-[100px] sm:blur-[140px] pointer-events-none opacity-40 dark:opacity-100" />
-            <div className="absolute top-20 right-5 sm:right-10 w-[280px] sm:w-[500px] h-[280px] sm:h-[500px] bg-indigo-600/10 dark:bg-indigo-600/15 rounded-full blur-[100px] sm:blur-[140px] pointer-events-none opacity-40 dark:opacity-100" />
+        <section className="relative w-full bg-[#F8FAFC] dark:bg-[#080B14] font-outfit overflow-hidden pt-24 pb-14 sm:pt-28 sm:pb-20 lg:pt-32 lg:pb-24 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
+            {/* Subtle Hero Background Accent (No giant neon glow) */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-purple-100/40 via-transparent to-transparent dark:from-purple-950/20 dark:via-transparent dark:to-transparent pointer-events-none -z-0" />
 
             {/* Main Container */}
             <div className="relative z-10 max-w-7xl mx-auto w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-start">
                     
-                    {/* LEFT SIDE: Hero Information & CTAs (7 cols) */}
-                    <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left">
-                        {/* Announcement Badge */}
+                    {/* LEFT SIDE: Hero Information & CTAs (7 cols on desktop) */}
+                    <div className="lg:col-span-7 flex flex-col items-start text-left">
+                        {/* 1. Announcement Badge */}
                         <AnnouncementBadge announcement={content.announcement} />
 
-                        {/* Main Heading */}
-                        <HeroHeading heading={content.heading} />
+                        {/* 2. Main Heading */}
+                        <HeroHeading />
 
-                        {/* Brand Philosophy Statement */}
-                        <BrandStatement brandStatement={content.brandStatement} />
+                        {/* 3. Brand Philosophy Statement */}
+                        <BrandStatement />
 
-                        {/* Short Description */}
+                        {/* 4. Short Description */}
                         <HeroDescription description={content.description} />
 
-                        {/* CTAs: Start For Free & Explore Plus */}
-                        <HeroButtons
-                            primaryCTA={content.primaryCTA}
-                            secondaryCTA={content.secondaryCTA}
-                        />
+                        {/* 5. CTAs: Go to Dashboard & Explore Plus */}
+                        <HeroButtons />
 
-                        {/* Dynamic Live Platform Statistics */}
+                        {/* 6. Dynamic Live Platform Statistics Strip */}
                         <HeroStatistics stats={stats} />
                     </div>
 
-                    {/* RIGHT SIDE: Interactive Product Showcase & Live Floating Cards (5 cols) */}
-                    <div className="lg:col-span-5 relative w-full flex items-center justify-center">
-                        {/* Floating Live Activity Cards */}
-                        <FloatingActivity activities={activities} />
-
-                        {/* 5-Second Rotating Showcase Preview */}
+                    {/* RIGHT SIDE: AskUrSenior Product Showcase (5 cols on desktop) */}
+                    <div className="lg:col-span-5 w-full pt-2 lg:pt-4">
                         <HeroPreview />
                     </div>
 
                 </div>
             </div>
-        </div>
+        </section>
     );
 }

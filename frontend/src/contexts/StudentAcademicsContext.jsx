@@ -21,114 +21,74 @@ export const StudentAcademicsProvider = ({ children }) => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
-    // ── Student Academic Profile ────────────────────────────
-    const [profile, setProfile] = useState(null);
-
-    // ── Semesters State ─────────────────────────────────────
+    // ── Authoritative Academic Context ──────────────────────
+    const [academicOverview, setAcademicOverview] = useState(null);
     const [currentSemester, setCurrentSemester] = useState(1);
     const [selectedSemester, setSelectedSemester] = useState(1);
     const [semestersData, setSemestersData] = useState([]);
-    const [semesterCreditsMap, setSemesterCreditsMap] = useState({});
+    const [availableSections, setAvailableSections] = useState([]);
+    const [academicSettings, setAcademicSettings] = useState(null);
 
-    // ── Active/Selected Semester Data ───────────────────────
+    // ── Selected Semester Data ──────────────────────────────
+    const [timetableData, setTimetableData] = useState(null);
     const [curriculumSubjects, setCurriculumSubjects] = useState([]);
     const [registeredSubjects, setRegisteredSubjects] = useState([]);
-    const [timetableConfig, setTimetableConfig] = useState(null);
-    const [timetableSlots, setTimetableSlots] = useState([]);
-    const [officialTimetableSlots, setOfficialTimetableSlots] = useState([]);
-    const [isCustomizedTimetable, setIsCustomizedTimetable] = useState(false);
 
-    // Helper: Determine if selected semester is historical/finalized (Read-only)
-    const isFinalized = useMemo(() => {
-        const sem = semestersData.find(s => s.semester === selectedSemester);
-        if (sem && sem.status === 'completed') return true;
+    // Derived flags: past semesters are historical and read-only
+    const isHistorical = useMemo(() => {
         return selectedSemester < currentSemester;
-    }, [semestersData, selectedSemester, currentSemester]);
+    }, [selectedSemester, currentSemester]);
 
-    const isActiveSemester = useMemo(() => {
-        return selectedSemester === currentSemester && !isFinalized;
-    }, [selectedSemester, currentSemester, isFinalized]);
+    const isFinalized = isHistorical; // backwards compatibility alias
 
-    // ── Initial Fetch: Profile, Semesters, All Semester Credits ─
+    // ── Initial Fetch: Overview, Semesters, Sections, Settings ─
     const fetchInitialData = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
-            // Fetch profile and semester list in parallel
-            const [profileRes, semRes] = await Promise.allSettled([
-                apiV2.getMe(),
-                apiV2.getSemesters()
+            const [overviewRes, semRes, sectionsRes, settingsRes] = await Promise.allSettled([
+                apiV2.getStudentAcademicsOverview(),
+                apiV2.getStudentAcademicsSemesters(),
+                apiV2.getStudentAcademicsSections(),
+                apiV2.getStudentAcademicsSettings()
             ]);
 
             let activeSem = 1;
-            if (profileRes.status === 'fulfilled' && profileRes.value?.data?.data) {
-                const p = profileRes.value.data.data.student || profileRes.value.data.data;
-                setProfile(p);
-                activeSem = Number(p.semester) || 1;
+
+            if (overviewRes.status === 'fulfilled' && overviewRes.value?.data?.data) {
+                const ov = overviewRes.value.data.data;
+                setAcademicOverview(ov);
+                activeSem = Number(ov.student?.currentSemester) || 1;
                 setCurrentSemester(activeSem);
                 setSelectedSemester(activeSem);
             } else if (user) {
-                setProfile(user);
                 activeSem = Number(user.semester) || 1;
                 setCurrentSemester(activeSem);
                 setSelectedSemester(activeSem);
             }
 
-            // Handle semesters list from DB
-            let sList = [];
-            if (semRes.status === 'fulfilled' && semRes.value?.data) {
-                const resData = semRes.value.data;
-                sList = Array.isArray(resData.data) 
-                    ? resData.data 
-                    : (resData.data?.semesters || (Array.isArray(resData) ? resData : []));
+            // Visible Semesters (strictly past + current official semesters from Admin)
+            if (semRes.status === 'fulfilled' && semRes.value?.data?.data) {
+                const sems = semRes.value.data.data;
+                setSemestersData(Array.isArray(sems) ? sems : []);
+            } else if (overviewRes.status === 'fulfilled' && overviewRes.value?.data?.data?.visibleSemesters) {
+                setSemestersData(overviewRes.value.data.data.visibleSemesters);
             }
 
-            // Determine starting semester:
-            // If the student started using AskUrSenior from 5th sem (3rd year) or 3rd sem (2nd year),
-            // show from their starting semester onwards (e.g., 5 to 8).
-            // Any semester already in the database is preserved so finalized semesters NEVER disappear!
-            const dbSemNumbers = sList.map(s => Number(s.semester)).filter(n => !isNaN(n) && n >= 1);
-            const lowestDbSem = dbSemNumbers.length > 0 ? Math.min(...dbSemNumbers) : activeSem;
-            const startSem = Math.max(1, Math.min(activeSem, lowestDbSem));
-
-            // Generate semesters from startSem up to 8
-            const fullSemList = [];
-            for (let semNum = startSem; semNum <= 8; semNum++) {
-                const existing = sList.find(s => s.semester === semNum);
-                let status = 'upcoming';
-                if (semNum < activeSem) status = 'completed';
-                else if (semNum === activeSem) status = existing?.status || 'current';
-
-                fullSemList.push({
-                    semester: semNum,
-                    status: existing?.status || status,
-                    sgpa: existing?.sgpa ?? null,
-                    credits: existing?.credits ?? 20,
-                    academicYear: existing?.academicYear || '',
-                    startDate: existing?.startDate || null,
-                    endDate: existing?.endDate || null,
-                });
+            // Available Sections (within student's branch & batch)
+            if (sectionsRes.status === 'fulfilled' && sectionsRes.value?.data?.data) {
+                setAvailableSections(sectionsRes.value.data.data.sections || []);
             }
-            setSemestersData(fullSemList);
 
-            // Fetch registered credits for all applicable semesters
-            const creditPromises = fullSemList.map(s => apiV2.getRegisteredSubjects(s.semester));
-            const creditResults = await Promise.allSettled(creditPromises);
-            const cMap = {};
-            creditResults.forEach((r, idx) => {
-                const sNum = fullSemList[idx]?.semester;
-                if (r.status === 'fulfilled' && r.value?.data?.data) {
-                    const list = r.value.data.data;
-                    const totCredits = list.reduce((sum, item) => sum + (item.registeredCredits ?? item.subject?.credits ?? 0), 0);
-                    cMap[sNum] = totCredits;
-                }
-            });
-            setSemesterCreditsMap(cMap);
+            // Academic Settings (Admin Baseline + Student Target)
+            if (settingsRes.status === 'fulfilled' && settingsRes.value?.data?.data) {
+                setAcademicSettings(settingsRes.value.data.data);
+            }
 
         } catch (err) {
             console.error('[StudentAcademicsContext] Initial load error:', err);
-            setError('Failed to load academic profile data.');
+            setError('Failed to load authoritative academic profile data.');
         } finally {
             setLoading(false);
         }
@@ -138,51 +98,28 @@ export const StudentAcademicsProvider = ({ children }) => {
         fetchInitialData();
     }, [fetchInitialData]);
 
-    // ── Load Semester-Specific Data When selectedSemester Changes ─
+    // ── Load Semester-Specific Data (Timetable & Subjects) ─
     const fetchSemesterData = useCallback(async (semNum) => {
         try {
-            const [currRes, regRes, configRes, slotsRes] = await Promise.allSettled([
-                apiV2.getAcademicSubjects(semNum),
-                apiV2.getRegisteredSubjects(semNum),
-                apiV2.getTimetableConfig(semNum),
-                apiV2.getTimetableSlots(semNum)
+            const [ttRes, subRes] = await Promise.allSettled([
+                apiV2.getStudentAcademicsTimetable(semNum),
+                apiV2.getStudentAcademicsSubjects(semNum)
             ]);
 
-            // Curriculum catalogue
-            if (currRes.status === 'fulfilled' && currRes.value?.data?.data) {
-                setCurriculumSubjects(currRes.value.data.data);
+            if (ttRes.status === 'fulfilled' && ttRes.value?.data?.data) {
+                setTimetableData(ttRes.value.data.data);
+            } else {
+                setTimetableData(null);
+            }
+
+            if (subRes.status === 'fulfilled' && subRes.value?.data?.data) {
+                const data = subRes.value.data.data;
+                setCurriculumSubjects(data.curriculumSubjects || []);
+                setRegisteredSubjects(data.registeredSubjects || []);
             } else {
                 setCurriculumSubjects([]);
-            }
-
-            // Registered subjects
-            let regList = [];
-            if (regRes.status === 'fulfilled' && regRes.value?.data?.data) {
-                regList = regRes.value.data.data;
-                setRegisteredSubjects(regList);
-                const semCredits = regList.reduce((sum, item) => sum + (item.registeredCredits ?? item.subject?.credits ?? 0), 0);
-                setSemesterCreditsMap(prev => ({ ...prev, [semNum]: semCredits }));
-            } else {
                 setRegisteredSubjects([]);
             }
-
-            // Timetable config
-            if (configRes.status === 'fulfilled' && configRes.value?.data?.data) {
-                const cfg = configRes.value.data.data?.config || configRes.value.data.data;
-                setTimetableConfig(cfg);
-            }
-
-            // Timetable slots
-            if (slotsRes.status === 'fulfilled' && slotsRes.value?.data?.data) {
-                const allSlots = slotsRes.value.data.data;
-                const filteredSlots = Array.isArray(allSlots) ? allSlots.filter(s => !s.semester || s.semester === semNum) : [];
-                setTimetableSlots(filteredSlots);
-                setOfficialTimetableSlots(filteredSlots);
-            } else {
-                setTimetableSlots([]);
-                setOfficialTimetableSlots([]);
-            }
-
         } catch (err) {
             console.error(`[StudentAcademicsContext] Error loading sem ${semNum}:`, err);
         }
@@ -196,221 +133,150 @@ export const StudentAcademicsProvider = ({ children }) => {
 
     // ── Actions ─────────────────────────────────────────────
 
-    // Select active/historical semester
+    // Select semester: only permits visible past + current semesters (never future)
     const selectSemester = (semNum) => {
-        setSelectedSemester(semNum);
+        const target = Number(semNum);
+        if (target > currentSemester) {
+            toast.error(`Future semester ${target} is not accessible. Current semester is ${currentSemester}.`);
+            return;
+        }
+        setSelectedSemester(target);
     };
 
-    // Save registered subjects
-    const saveSubjects = async (subjectIds, customSubjects = []) => {
-        if (isFinalized) {
-            toast.error('This semester is finalized and read-only.');
-            return false;
-        }
+    // Update section (within verified batch & branch)
+    const updateSection = async (sectionId) => {
         try {
             setSaving(true);
-            const payload = {
-                semester: selectedSemester,
-                subjectIds,
-                customSubjects
-            };
-            const res = await apiV2.saveRegisteredSubjects(payload);
+            const res = await apiV2.updateStudentAcademicsSection(sectionId);
             if (res.data?.success) {
-                toast.success('Registered subjects updated successfully.');
+                toast.success('Academic section updated successfully.');
+                await fetchInitialData();
                 await fetchSemesterData(selectedSemester);
                 return true;
             } else {
-                throw new Error(res.data?.message || 'Failed to save subjects.');
+                throw new Error(res.data?.message || 'Failed to update section.');
             }
         } catch (err) {
-            console.error('[StudentAcademicsContext] saveSubjects error:', err);
-            toast.error(err.response?.data?.message || err.message || 'Error saving subjects.');
+            console.error('[StudentAcademicsContext] updateSection error:', err);
+            toast.error(err.response?.data?.message || err.message || 'Error updating section.');
             return false;
         } finally {
             setSaving(false);
         }
     };
 
-    // Save timetable config
-    const saveConfig = async (newConfig) => {
-        if (isFinalized) {
-            toast.error('This semester is finalized and read-only.');
-            return false;
-        }
+    // Update personal attendance target (does NOT alter college minimum 85%)
+    const updatePersonalTarget = async (target) => {
         try {
             setSaving(true);
-            const payload = {
-                ...newConfig,
-                semester: selectedSemester
-            };
-            const res = await apiV2.saveTimetableConfig(payload);
-            if (res.data?.success) {
-                toast.success('Academic configuration saved.');
-                const savedConfig = res.data.data?.config || res.data.data;
-                const savedSlots = res.data.data?.slots;
-                if (savedConfig) {
-                    setTimetableConfig(savedConfig);
-                }
-                if (savedSlots && Array.isArray(savedSlots)) {
-                    setTimetableSlots(savedSlots);
-                    setOfficialTimetableSlots(savedSlots);
-                }
-                return true;
-            } else {
-                throw new Error(res.data?.message || 'Failed to save configuration.');
+            const targetNum = Number(target);
+            if (isNaN(targetNum) || targetNum < 1 || targetNum > 100) {
+                toast.error('Target attendance must be between 1% and 100%.');
+                return false;
             }
-        } catch (err) {
-            console.error('[StudentAcademicsContext] saveConfig error:', err);
-            toast.error(err.response?.data?.message || err.message || 'Error saving configuration.');
-            return false;
-        } finally {
-            setSaving(false);
-        }
-    };
 
-    // Save timetable slots
-    const saveSlots = async (newSlots) => {
-        if (isFinalized) {
-            toast.error('This semester is finalized and read-only.');
-            return false;
-        }
-        try {
-            setSaving(true);
-            const payload = {
-                semester: selectedSemester,
-                slots: newSlots
-            };
-            const res = await apiV2.updateTimetableSlots(payload);
+            const res = await apiV2.updateStudentAcademicsSettings({
+                personalAttendanceTarget: targetNum
+            });
+
             if (res.data?.success) {
-                toast.success('Timetable slots updated.');
-                setTimetableSlots(newSlots);
-                setIsCustomizedTimetable(true);
-                return true;
-            } else {
-                throw new Error(res.data?.message || 'Failed to save timetable slots.');
-            }
-        } catch (err) {
-            console.error('[StudentAcademicsContext] saveSlots error:', err);
-            toast.error(err.response?.data?.message || err.message || 'Error saving timetable slots.');
-            return false;
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Reset to official timetable
-    const useOfficialTimetable = () => {
-        setTimetableSlots(officialTimetableSlots);
-        setIsCustomizedTimetable(false);
-        toast.success('Reset to official college timetable.');
-    };
-
-    // Update profile
-    const updateAcademicProfile = async (profileData) => {
-        try {
-            setSaving(true);
-            const res = await apiV2.updateProfile(profileData);
-            if (res.data?.success) {
-                toast.success('Academic profile updated.');
-                if (updateUser) updateUser(res.data.data);
-                setProfile(prev => ({ ...prev, ...res.data.data }));
-                return true;
-            }
-            throw new Error(res.data?.message || 'Failed to update profile.');
-        } catch (err) {
-            console.error('[StudentAcademicsContext] updateAcademicProfile error:', err);
-            toast.error(err.response?.data?.message || err.message || 'Error updating profile.');
-            return false;
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Finalize semester (freeze historical record)
-    const finalizeSemester = async (semNum) => {
-        try {
-            setSaving(true);
-            const updated = semestersData.map(s => s.semester === semNum ? { ...s, status: 'completed' } : s);
-            const res = await apiV2.updateSemesters({ semesters: updated });
-            if (res.data?.success) {
-                toast.success(`Semester ${semNum} finalized as read-only.`);
-                setSemestersData(updated);
-                return true;
-            }
-            throw new Error(res.data?.message || 'Failed to finalize semester.');
-        } catch (err) {
-            console.error('[StudentAcademicsContext] finalizeSemester error:', err);
-            toast.error(err.response?.data?.message || err.message || 'Error finalizing semester.');
-            return false;
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // Update individual semester details (dates, SGPA, status)
-    const updateSemester = async (semNum, updatedFields) => {
-        try {
-            setSaving(true);
-            const updated = semestersData.map(s => s.semester === semNum ? { ...s, ...updatedFields } : s);
-            const res = await apiV2.updateSemesters({ semesters: updated });
-            if (res.data?.success) {
-                toast.success(`Semester ${semNum} updated successfully.`);
-                setSemestersData(updated);
-
-                // If updating current active semester dates, sync with timetableConfig
-                if (semNum === currentSemester && (updatedFields.startDate || updatedFields.endDate)) {
-                    if (timetableConfig) {
-                        const newConfig = {
-                            ...timetableConfig,
-                            semesterStartDate: updatedFields.startDate || timetableConfig.semesterStartDate,
-                            lastWorkingDate: updatedFields.endDate || timetableConfig.lastWorkingDate
-                        };
-                        setTimetableConfig(newConfig);
-                        await apiV2.saveTimetableConfig(newConfig).catch(console.error);
+                toast.success(`Personal attendance target updated to ${targetNum}%.`);
+                setAcademicSettings(prev => prev ? {
+                    ...prev,
+                    personalSettings: {
+                        ...prev.personalSettings,
+                        personalAttendanceTarget: targetNum
                     }
-                }
+                } : null);
                 return true;
+            } else {
+                throw new Error(res.data?.message || 'Failed to update target attendance.');
             }
-            throw new Error(res.data?.message || 'Failed to update semester.');
         } catch (err) {
-            console.error('[StudentAcademicsContext] updateSemester error:', err);
-            toast.error(err.response?.data?.message || err.message || 'Error updating semester.');
+            console.error('[StudentAcademicsContext] updatePersonalTarget error:', err);
+            toast.error(err.response?.data?.message || err.message || 'Error updating target.');
             return false;
         } finally {
             setSaving(false);
         }
     };
 
+    // Save registered subjects from authoritative curriculum
+    const saveRegisteredSubjects = async (subjectIds) => {
+        if (isHistorical) {
+            toast.error('Historical semesters cannot be modified.');
+            return false;
+        }
+
+        try {
+            setSaving(true);
+            const res = await apiV2.saveStudentAcademicsRegisteredSubjects({
+                semester: selectedSemester,
+                subjectIds
+            });
+
+            if (res.data?.success) {
+                toast.success('Subject registrations updated successfully.');
+                await fetchSemesterData(selectedSemester);
+                return true;
+            } else {
+                throw new Error(res.data?.message || 'Failed to update registered subjects.');
+            }
+        } catch (err) {
+            console.error('[StudentAcademicsContext] saveRegisteredSubjects error:', err);
+            toast.error(err.response?.data?.message || err.message || 'Error updating subjects.');
+            return false;
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Total registered credits
     const totalRegisteredCredits = useMemo(() => {
-        return registeredSubjects.reduce((sum, item) => sum + (item.registeredCredits ?? item.subject?.credits ?? 0), 0);
+        return registeredSubjects.reduce((sum, item) => {
+            const credits = item.credits ?? item.subject?.credits ?? 0;
+            return sum + credits;
+        }, 0);
     }, [registeredSubjects]);
+
+    // Format timetable slots for timetable grid compatibility
+    const timetableSlots = useMemo(() => {
+        if (!timetableData?.slots) return [];
+        return timetableData.slots.map(s => ({
+            ...s,
+            dayOfWeek: s.dayOfWeek,
+            startMinute: s.startMinute,
+            endMinute: s.endMinute,
+            subject: s.subject,
+            room: s.room,
+            faculty: s.faculty,
+            lectureType: s.lectureType,
+            status: s.status,
+            periodName: s.periodName
+        }));
+    }, [timetableData]);
 
     const value = {
         loading,
         saving,
         error,
-        profile,
+        academicOverview,
         currentSemester,
         selectedSemester,
         semestersData,
-        semesterCreditsMap,
+        availableSections,
+        academicSettings,
         curriculumSubjects,
         registeredSubjects,
         totalRegisteredCredits,
-        timetableConfig,
+        timetableData,
         timetableSlots,
-        officialTimetableSlots,
-        isCustomizedTimetable,
+        isHistorical,
         isFinalized,
-        isActiveSemester,
         selectSemester,
-        saveSubjects,
-        saveConfig,
-        saveSlots,
-        useOfficialTimetable,
-        updateAcademicProfile,
-        finalizeSemester,
-        updateSemester,
+        updateSection,
+        updatePersonalTarget,
+        saveRegisteredSubjects,
         refreshData: fetchInitialData,
         refreshSemester: () => fetchSemesterData(selectedSemester)
     };

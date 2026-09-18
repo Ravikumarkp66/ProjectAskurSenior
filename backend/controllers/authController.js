@@ -1,9 +1,11 @@
 const authService = require('../services/authService');
 const User = require('../models/User');
 const StudentAccount = require('../models/StudentAccount');
+const { getAccessPayload, resolvePlusAccess } = require('../services/plusAccessService');
 const OTP = require('../models/OTP');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
+const { isValidObjectId } = mongoose;
 const studentDto = require('../modules/auth/dtos/authV2.dto');
 const authV2Service = require('../modules/auth/services/authV2.service');
 const axios = require('axios');
@@ -31,6 +33,7 @@ const registerUser = async (req, res) => {
         const { usn, email, password, branch } = req.body;
         const { user, token } = await authService.registerStudent({ usn, email, password, branch });
 
+        const accessPayload = getAccessPayload(user);
         res.status(201).json({
             message: 'User registered successfully',
             token,
@@ -40,7 +43,13 @@ const registerUser = async (req, res) => {
                 email: user.email,
                 branch: user.branch,
                 currentBranch: user.currentBranch,
-                isAdmin: !!user.isAdmin
+                isAdmin: !!user.isAdmin,
+                isTestUser: !!user.isTestUser,
+                access: {
+                    plan: accessPayload.plan,
+                    source: accessPayload.source
+                },
+                subscription: accessPayload.plan === 'PLUS' ? 'plus' : 'free'
             }
         });
     } catch (error) {
@@ -52,6 +61,7 @@ const loginUser = async (req, res) => {
     try {
         const { usn, password, branch } = req.body;
         const { user, student, token } = await authService.loginStudent({ usn, password, branch, req });
+        const accessPayload = getAccessPayload(student || user);
 
         res.json({
             message: 'Login successful',
@@ -63,6 +73,12 @@ const loginUser = async (req, res) => {
                 branch: user.branch,
                 currentBranch: user.currentBranch,
                 isAdmin: !!user.isAdmin,
+                isTestUser: !!(student?.isTestUser || user?.isTestUser),
+                access: {
+                    plan: accessPayload.plan,
+                    source: accessPayload.source
+                },
+                subscription: accessPayload.plan === 'PLUS' ? 'plus' : 'free',
                 registrationComplete: true,
                 onboardingCompleted: student ? !!student.onboardingCompleted : true,
                 registrationStatus: student ? student.registrationStatus : 'completed'
@@ -157,6 +173,7 @@ const adminLogin = async (req, res) => {
             { expiresIn: '7d' }
         );
 
+        const accessPayload = getAccessPayload(adminDoc);
         res.json({
             message: 'Admin login successful',
             token,
@@ -169,7 +186,12 @@ const adminLogin = async (req, res) => {
                 permissions: adminDoc.permissions,
                 isAdmin: true,
                 isSuperAdmin: adminDoc.role === 'SUPER_ADMIN',
-                status: adminDoc.status
+                status: adminDoc.status,
+                access: {
+                    plan: accessPayload.plan,
+                    source: accessPayload.source
+                },
+                subscription: 'plus'
             }
         });
     } catch (error) {
@@ -189,6 +211,7 @@ const getUserProfile = async (req, res) => {
         }
 
         if (!isFrontendPlatform && adminRecord) {
+            const accessPayload = getAccessPayload(adminRecord);
             return res.json({
                 _id: adminRecord._id,
                 id: adminRecord._id,
@@ -200,35 +223,81 @@ const getUserProfile = async (req, res) => {
                 status: adminRecord.status,
                 isAdmin: true,
                 isSuperAdmin: adminRecord.role === 'SUPER_ADMIN',
-                registrationComplete: true
+                registrationComplete: true,
+                access: {
+                    plan: accessPayload.plan,
+                    source: accessPayload.source
+                },
+                subscription: 'plus'
             });
         }
 
         let user = await User.findById(req.userId).select('-password');
-        if (!user) {
-            const StudentAccount = require('../models/StudentAccount');
-            const student = await StudentAccount.findById(req.userId).populate('branch').populate('scheme');
-            if (student) {
-                user = {
-                    _id: student._id,
-                    id: student._id,
-                    name: student.name,
-                    usn: student.usn,
-                    email: student.email,
-                    studentId: student.studentId,
-                    college: student.collegeName || 'Siddaganga Institute of Technology, Tumkur',
-                    collegeName: student.collegeName || 'Siddaganga Institute of Technology, Tumkur',
-                    branch: student.branch?.shortName || student.branch?.name || (typeof student.branch === 'string' ? student.branch : 'CS'),
-                    currentBranch: student.branch?.shortName || student.branch?.name || (typeof student.branch === 'string' ? student.branch : 'CS'),
-                    role: student.role || 'student',
-                    isAdmin: student.role === 'admin',
-                    profilePicture: student.profilePicture,
-                    avatar: student.profilePicture,
-                    registrationComplete: student.registrationStatus === 'completed' || student.registrationStatus === 'identity_completed' || student.registrationStatus === 'academic_completed',
-                    subscription: 'free'
-                };
+        const StudentAccount = require('../models/StudentAccount');
+        let student = await StudentAccount.findById(req.userId)
+            .populate('branch')
+            .populate('scheme')
+            .populate('academicSection')
+            .populate('academicSemester');
+
+        if (!student && user?.email) {
+            student = await StudentAccount.findOne({ email: user.email.toLowerCase().trim() })
+                .populate('branch')
+                .populate('scheme')
+                .populate('academicSection')
+                .populate('academicSemester');
+        }
+
+        if (student) {
+            const rawUser = user ? (typeof user.toObject === 'function' ? user.toObject() : user) : {};
+            const resolvedSectionName = typeof student.academicSection === 'object' && student.academicSection?.name
+                ? student.academicSection.name
+                : (student.section || '');
+
+            user = {
+                ...rawUser,
+                ...student.toObject(),
+                _id: student._id || rawUser._id,
+                id: student._id || rawUser._id,
+                name: student.name || rawUser.name,
+                usn: student.usn || rawUser.usn,
+                usnVerified: !!student.usnVerified,
+                usnType: student.usnType || 'TEMPORARY',
+                usnLocked: !!student.usnLocked,
+                email: student.email || rawUser.email,
+                studentId: student.studentId || rawUser.studentId,
+                college: student.collegeName || rawUser.collegeName || 'Siddaganga Institute of Technology, Tumkur',
+                collegeName: student.collegeName || rawUser.collegeName || 'Siddaganga Institute of Technology, Tumkur',
+                branch: student.branch?.shortName || student.branch?.name || (typeof student.branch === 'string' ? student.branch : (rawUser.branch || 'CS')),
+                currentBranch: student.branch?.shortName || student.branch?.name || (typeof student.branch === 'string' ? student.branch : (rawUser.currentBranch || 'CS')),
+                semester: student.semester || rawUser.semester || 1,
+                section: resolvedSectionName,
+                academicSection: student.academicSection,
+                academicSemester: student.academicSemester,
+                sectionLocked: !!student.sectionLocked,
+                labBatch: student.labBatch || null,
+                labBatchLocked: !!student.labBatchLocked,
+                academicProfileComplete: !!student.academicProfileComplete,
+                academicProfileCompletion: student.academicProfileCompletion || 0,
+                role: rawUser.role || student.role || 'student',
+                isAdmin: rawUser.isAdmin || student.role === 'admin',
+                profilePicture: student.profilePicture || rawUser.profilePicture,
+                avatar: student.profilePicture || rawUser.avatar,
+                registrationComplete: student.registrationStatus === 'completed' || student.registrationStatus === 'identity_completed' || student.registrationStatus === 'academic_completed',
+                subscription: 'free'
+            };
+
+            if (rawUser && rawUser._id) {
+                User.findByIdAndUpdate(rawUser._id, {
+                    section: resolvedSectionName,
+                    academicSection: student.academicSection?._id || student.academicSection,
+                    sectionLocked: !!student.sectionLocked,
+                    labBatch: student.labBatch || null,
+                    labBatchLocked: !!student.labBatchLocked
+                }).catch(() => {});
             }
         }
+
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
@@ -254,6 +323,17 @@ const getUserProfile = async (req, res) => {
                 user.role = 'student';
             }
         }
+
+        const accessPayload = getAccessPayload(student || user);
+        if (typeof user.toObject === 'function') {
+            user = user.toObject();
+        }
+        user.isTestUser = !!(student?.isTestUser || user?.isTestUser);
+        user.access = {
+            plan: accessPayload.plan,
+            source: accessPayload.source
+        };
+        user.subscription = accessPayload.plan === 'PLUS' ? 'plus' : 'free';
 
         res.json(user);
     } catch (error) {
@@ -625,7 +705,9 @@ const completeGoogleRegistration = async (req, res) => {
         if (cleanUsn) {
             try {
                 parsed = await usnParser.parseUsn(cleanUsn);
-            } catch (pErr) {}
+            } catch (pErr) {
+                // Ignore USN parse error if format differs
+            }
         }
 
         const Branch = require('../models/Branch');

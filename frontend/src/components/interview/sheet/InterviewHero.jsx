@@ -1,116 +1,197 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { 
-    Sparkles, 
-    Building2, 
-    Layers, 
-    GraduationCap, 
-    PlusCircle, 
-    AlertTriangle, 
-    ChevronDown 
-} from 'lucide-react';
+import { X, Info } from 'lucide-react';
 
-const InterviewHero = ({ totalCompanies = 0, totalStories = 0, batches = [] }) => {
-    const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+// Smooth, subtle count-up hook using requestAnimationFrame
+const useCountUp = (endValue, duration = 850) => {
+    const [count, setCount] = useState(0);
+
+    useEffect(() => {
+        const target = Number(endValue) || 0;
+        if (target <= 0) {
+            setCount(0);
+            return;
+        }
+
+        let startTime = null;
+        let animationFrameId;
+
+        // Quadratic ease-out for a smooth finish
+        const easeOutQuad = (t) => t * (2 - t);
+
+        const step = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const current = Math.floor(easeOutQuad(progress) * target);
+            setCount(current);
+
+            if (progress < 1) {
+                animationFrameId = window.requestAnimationFrame(step);
+            } else {
+                setCount(target);
+            }
+        };
+
+        animationFrameId = window.requestAnimationFrame(step);
+
+        return () => {
+            if (animationFrameId) window.cancelAnimationFrame(animationFrameId);
+        };
+    }, [endValue, duration]);
+
+    return count;
+};
+
+const InterviewHero = ({ totalCompanies = 0, totalStories = 0 }) => {
+    const [notesModalOpen, setNotesModalOpen] = useState(false);
+
+    // Fall back to actual counts if available or sensible defaults (13, 238)
+    const targetCompanies = totalCompanies > 0 ? totalCompanies : 13;
+    const targetStories = totalStories > 0 ? totalStories : 238;
+
+    const animatedCompanies = useCountUp(targetCompanies, 850);
+    const animatedStories = useCountUp(targetStories, 950);
 
     return (
-        <div className="w-full pt-8 pb-6 relative">
-            {/* Subtle Ambient Glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[180px] bg-purple-600/10 blur-[100px] pointer-events-none rounded-full" aria-hidden="true" />
+        <div className="w-full pt-6 pb-4 relative">
+            {/* 1. TOP-LEFT "i" (INFORMATION) BUTTON FOR RECRUITMENT NOTES */}
+            <div className="absolute top-2 left-0 z-20">
+                <button
+                    type="button"
+                    onClick={() => setNotesModalOpen(true)}
+                    aria-label="View Recruitment Notes"
+                    className="group flex items-center justify-center w-7 h-7 rounded-full border border-zinc-300 dark:border-zinc-700 bg-white/80 dark:bg-zinc-900/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-500 transition-all shadow-sm"
+                    title="Recruitment Notes & Guidelines"
+                >
+                    <span className="font-serif italic font-bold text-xs">i</span>
+                </button>
+            </div>
 
-            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/[0.08]">
-                {/* Title & Brand Intro */}
-                <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 mb-3">
-                        <Sparkles size={13} className="text-purple-400" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-purple-300">
-                            Placement Intelligence
+            {/* 2. CENTERED HERO SECTION */}
+            <div className="max-w-2xl mx-auto text-center px-4">
+                {/* Subtle Placement Intelligence Label */}
+                <div className="mb-2">
+                    <span className="text-[10px] sm:text-[11px] font-mono font-medium tracking-[0.24em] text-zinc-500 dark:text-zinc-400 uppercase">
+                        Placement Intelligence
+                    </span>
+                </div>
+
+                {/* Main Centered Heading */}
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white uppercase leading-tight mb-2.5">
+                    ASK+ <span className="text-purple-600 dark:text-purple-400 font-black">EXPERIENCES</span>
+                </h1>
+
+                {/* Centered Description */}
+                <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 font-normal max-w-lg mx-auto leading-relaxed">
+                    Verified interview rounds, actual coding questions, and recruitment insights directly from senior peers.
+                </p>
+
+                {/* 3. ANIMATED COUNTERS (Directly under description) */}
+                <div className="flex items-center justify-center gap-10 sm:gap-16 mt-6 pt-5 max-w-xs sm:max-w-sm mx-auto">
+                    {/* Companies Counter */}
+                    <div className="flex flex-col items-center text-center">
+                        <span className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-zinc-900 dark:text-white">
+                            {animatedCompanies}+
+                        </span>
+                        <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mt-1">
+                            Companies
                         </span>
                     </div>
 
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-tight leading-none mb-2">
-                        ASK+ <span className="text-purple-400 font-extrabold">EXPERIENCES</span>
-                    </h1>
-                    <p className="text-slate-400 text-xs sm:text-sm font-medium max-w-xl">
-                        Verified interview rounds, actual coding questions, and recruitment insights directly from senior peers.
-                    </p>
+                    {/* Subtle Vertical Divider */}
+                    <div className="w-px h-8 bg-zinc-200 dark:bg-white/[0.1]" aria-hidden="true" />
 
-                    {/* Live Stats Pills */}
-                    <div className="flex flex-wrap items-center gap-2.5 mt-4">
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 text-[11px] font-semibold">
-                            <Building2 size={13} className="text-purple-400" />
-                            <span><strong className="text-white font-bold">{totalCompanies}</strong> Companies</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 text-[11px] font-semibold">
-                            <Layers size={13} className="text-emerald-400" />
-                            <span><strong className="text-white font-bold">{totalStories}</strong> Senior Stories</span>
-                        </div>
-                        {batches.length > 0 && (
-                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 text-[11px] font-semibold">
-                                <GraduationCap size={13} className="text-indigo-400" />
-                                <span>Batches <strong className="text-white font-bold">{batches.join(', ')}</strong></span>
-                            </div>
-                        )}
+                    {/* Experiences Counter */}
+                    <div className="flex flex-col items-center text-center">
+                        <span className="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-zinc-900 dark:text-white">
+                            {animatedStories}+
+                        </span>
+                        <span className="text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mt-1">
+                            Experiences
+                        </span>
                     </div>
-                </div>
-
-                {/* Share Experience Action & Secondary Disclaimer Button */}
-                <div className="flex flex-wrap items-center gap-3 shrink-0">
-                    <button
-                        onClick={() => setDisclaimerOpen(prev => !prev)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/[0.06] border border-amber-500/20 text-amber-400 text-xs font-semibold hover:bg-amber-500/10 transition-colors"
-                        title="Placement disclaimer & senior guidelines"
-                    >
-                        <AlertTriangle size={14} className="text-amber-400" />
-                        <span>Recruitment Notes</span>
-                        <ChevronDown 
-                            size={14} 
-                            className={`transition-transform duration-200 ${disclaimerOpen ? 'rotate-180' : ''}`} 
-                        />
-                    </button>
-
-                    <Link
-                        to="/home/interview/share"
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-purple-600/25 transition-all active:scale-[0.98]"
-                    >
-                        <PlusCircle size={15} />
-                        <span>Share Experience</span>
-                    </Link>
                 </div>
             </div>
 
-            {/* Collapsible Recruitment Disclaimer Accordion */}
+            {/* 4. RECRUITMENT NOTES MODAL (Preserving exact original text) */}
             <AnimatePresence>
-                {disclaimerOpen && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="mt-4 p-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.03] backdrop-blur-sm text-xs text-slate-400 leading-relaxed">
-                            <p className="font-bold text-amber-400 text-xs uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <AlertTriangle size={13} />
-                                Senior Peer Submission Guidelines:
-                            </p>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px]">
-                                <div className="p-2.5 rounded-lg bg-black/20 border border-white/5">
-                                    <span className="font-bold text-slate-200 block mb-1">Authentic Experiences</span>
-                                    Experiences are submitted directly by seniors and vetted for clarity. Interview questions and rounds may vary across hiring seasons.
+                {notesModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setNotesModalOpen(false)}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+
+                        {/* Modal Box */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                            transition={{ duration: 0.15 }}
+                            className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-[#0f1117] border border-zinc-200 dark:border-white/[0.1] shadow-2xl p-5 sm:p-6 z-10"
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-white/[0.08] mb-4">
+                                <div className="flex items-center gap-2">
+                                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-serif italic text-xs font-bold">
+                                        i
+                                    </span>
+                                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white tracking-wide uppercase">
+                                        Recruitment Notes
+                                    </h3>
                                 </div>
-                                <div className="p-2.5 rounded-lg bg-black/20 border border-white/5">
-                                    <span className="font-bold text-slate-200 block mb-1">CTC Disclosures</span>
-                                    Package figures typically represent full-time conversion CTC. Internship stipends may differ.
-                                </div>
-                                <div className="p-2.5 rounded-lg bg-black/20 border border-white/5">
-                                    <span className="font-bold text-slate-200 block mb-1">Eligibility Criteria</span>
-                                    Cutoffs represent minimum CGPA thresholds specified by companies during campus recruitment drives.
+                                <button
+                                    onClick={() => setNotesModalOpen(false)}
+                                    className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors"
+                                    aria-label="Close"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            {/* Preserved Exact Recruitment Notes Text */}
+                            <div className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed space-y-3">
+                                <p className="font-semibold text-zinc-800 dark:text-zinc-200 text-xs uppercase tracking-wider">
+                                    Senior Peer Submission Guidelines:
+                                </p>
+                                <div className="space-y-2.5">
+                                    <div className="p-3 rounded-xl bg-zinc-50 dark:bg-black/30 border border-zinc-200/80 dark:border-white/5">
+                                        <span className="font-bold text-zinc-900 dark:text-zinc-200 block mb-1">
+                                            Authentic Experiences
+                                        </span>
+                                        Experiences are submitted directly by seniors and vetted for clarity. Interview questions and rounds may vary across hiring seasons.
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-zinc-50 dark:bg-black/30 border border-zinc-200/80 dark:border-white/5">
+                                        <span className="font-bold text-zinc-900 dark:text-zinc-200 block mb-1">
+                                            CTC Disclosures
+                                        </span>
+                                        Package figures typically represent full-time conversion CTC. Internship stipends may differ.
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-zinc-50 dark:bg-black/30 border border-zinc-200/80 dark:border-white/5">
+                                        <span className="font-bold text-zinc-900 dark:text-zinc-200 block mb-1">
+                                            Eligibility Criteria
+                                        </span>
+                                        Cutoffs represent minimum CGPA thresholds specified by companies during campus recruitment drives.
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </motion.div>
+
+                            {/* Footer */}
+                            <div className="mt-5 pt-3 border-t border-zinc-200 dark:border-white/[0.08] flex justify-end">
+                                <button
+                                    onClick={() => setNotesModalOpen(false)}
+                                    className="px-3.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-white/[0.06] hover:bg-zinc-200 dark:hover:bg-white/[0.1] text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-colors"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>

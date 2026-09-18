@@ -14,7 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || envJwtSecret || 'c4f98f4a8b1f7e21f8
 const BACKEND_BASE = (process.env.E2E_BACKEND_URL || 'http://localhost:5000').replace(/\/+$/, '');
 const ADMIN_BASE_URL = process.env.E2E_ADMIN_URL || 'http://localhost:5174';
 
-test.describe('E2E User Registration & Admin Data Integrity Flow', () => {
+test.describe('E2E User Registration & Admin Data Integrity Flow', { tag: ['@regression', '@security'] }, () => {
   const randNum = Math.floor(100 + Math.random() * 899);
   const testEmail = `e2e.testuser.${Date.now()}.${randNum}@askursenior.org`.toLowerCase().trim();
   const canonicalName = 'test user';

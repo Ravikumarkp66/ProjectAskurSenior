@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('API Routing Verification', () => {
+test.describe('API Routing Verification', { tag: ['@regression', '@security'] }, () => {
   test('staging frontend never sends requests to production backend', async ({ page }) => {
     const interceptedUrls = [];
     const forbiddenHost = 'askursenior.onrender.com';

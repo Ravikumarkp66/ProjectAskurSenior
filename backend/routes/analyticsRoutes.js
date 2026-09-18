@@ -9,6 +9,7 @@ const {
     getUploadByMonthAnalytics,
     getNotificationStats,
     getUserListAnalytics,
+    updateTestUserAccess,
     suspendUser,
     getAdminLogs
 } = require("../controllers/analyticsController");
@@ -40,6 +41,7 @@ router.get("/notification-stats", getNotificationStats);
 
 // User management
 router.get("/users", requirePermission("users.view"), enforceDepartmentScope, getUserListAnalytics);
+router.patch("/users/:userId/test-access", requirePermission("users.update"), enforceDepartmentScope, updateTestUserAccess);
 router.patch("/users/:userId/suspend", requirePermission("users.update"), enforceDepartmentScope, suspendUser);
 router.get("/users/:userId/logs", requirePermission("users.view"), enforceDepartmentScope, getAdminLogs);
 

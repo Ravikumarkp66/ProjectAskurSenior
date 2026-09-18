@@ -18,7 +18,7 @@ const ChatMessage = ({ messageId, message, senderType, seen, isDeleted, onDelete
         return lines.map((line, i) => {
             if (!line.trim()) return <div key={`empty-${i}`} className="h-1.5"></div>;
             
-            const isHeading = line.trim().match(/^[📖⚠✅💼🎓🚀💡📚]/);
+            const isHeading = line.trim().match(/^[📖⚠✅💼🎓🚀💡📚]/u);
             
             const parts = line.split(/(\*\*.*?\*\*)/g);
             return (

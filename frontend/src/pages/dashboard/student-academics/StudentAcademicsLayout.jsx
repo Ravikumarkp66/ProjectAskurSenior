@@ -2,21 +2,25 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Layers, BookOpen, Clock, 
+    LayoutDashboard, Layers, BookOpen, Clock, 
     Settings, ChevronRight, ArrowLeft, Loader2, 
-    AlertCircle, ChevronDown, CheckCircle2, Lock 
+    AlertCircle, ChevronDown, CheckCircle2, Lock, Award 
 } from 'lucide-react';
 import { StudentAcademicsProvider, useStudentAcademics } from '../../../contexts/StudentAcademicsContext';
+import AcademicOverviewSection from './sections/AcademicOverviewSection';
 import SemestersSection from './sections/SemestersSection';
 import SubjectsSection from './sections/SubjectsSection';
-import TimetableSettings from '../settings/TimetableSettings';
+import TimetableSection from './sections/TimetableSection';
 import AcademicSettingsSection from './sections/AcademicSettingsSection';
+import SemesterResultSheet from '../../../components/SemesterResultSheet';
 
 const NAV_TABS = [
-    { id: 'semesters', label: '1. Semesters', path: 'semesters', icon: Layers, emoji: '📚' },
-    { id: 'subjects', label: '2. Subjects', path: 'subjects', icon: BookOpen, emoji: '📖' },
-    { id: 'settings', label: '3. Academic Settings', path: 'settings', icon: Settings, emoji: '⚙' },
-    { id: 'timetable', label: '4. Timetable', path: 'timetable', icon: Clock, emoji: '🗓' },
+    { id: 'overview', label: '1. Academic Overview', path: 'overview', icon: LayoutDashboard, emoji: '📊' },
+    { id: 'semesters', label: '2. Semesters', path: 'semesters', icon: Layers, emoji: '📚' },
+    { id: 'subjects', label: '3. Subjects', path: 'subjects', icon: BookOpen, emoji: '📖' },
+    { id: 'results', label: '4. Semester Results', path: 'results', icon: Award, emoji: '📋' },
+    { id: 'settings', label: '5. Academic Settings', path: 'settings', icon: Settings, emoji: '⚙' },
+    { id: 'timetable', label: '6. Timetable', path: 'timetable', icon: Clock, emoji: '🗓' },
 ];
 
 const InnerLayout = () => {
@@ -33,7 +37,7 @@ const InnerLayout = () => {
     } = useStudentAcademics();
 
     // Determine current active tab from pathname
-    const activeTab = NAV_TABS.find(tab => location.pathname.includes(`/student-academics/${tab.path}`))?.id || 'semesters';
+    const activeTab = NAV_TABS.find(tab => location.pathname.includes(`/student-academics/${tab.path}`))?.id || 'overview';
     const activeTabObj = NAV_TABS.find(t => t.id === activeTab) || NAV_TABS[0];
 
     const handleNavigateTab = (tabPath) => {
@@ -93,15 +97,20 @@ const InnerLayout = () => {
 
     const renderActiveSection = () => {
         switch (activeTab) {
+            case 'overview':
+                return <AcademicOverviewSection onNavigateTab={handleNavigateTab} />;
             case 'subjects':
                 return <SubjectsSection />;
+            case 'results':
+                return <SemesterResultSheet initialSemester={selectedSemester || currentSemester || 1} />;
             case 'timetable':
-                return <TimetableSettings isEmbedded={true} semester={selectedSemester} />;
+                return <TimetableSection />;
             case 'settings':
                 return <AcademicSettingsSection />;
             case 'semesters':
-            default:
                 return <SemestersSection onNavigateTab={handleNavigateTab} />;
+            default:
+                return <AcademicOverviewSection onNavigateTab={handleNavigateTab} />;
         }
     };
 

@@ -1,4 +1,5 @@
 const { getCloudFrontUrl } = require('../../../utils/s3');
+const { getAccessPayload } = require('../../../services/plusAccessService');
 
 class AuthV2Dto {
     toStudentResponseDto(student) {
@@ -22,6 +23,7 @@ class AuthV2Dto {
 
         const studentIdStr = student._id ? student._id.toString() : (student.id ? student.id.toString() : '');
         const isRegComplete = student.registrationStatus === 'completed' || student.registrationStatus === 'identity_completed' || student.registrationStatus === 'academic_completed';
+        const accessPayload = getAccessPayload(student);
 
         return {
             _id: studentIdStr,
@@ -31,10 +33,17 @@ class AuthV2Dto {
             username: student.username || '',
             usn: student.usn || '',
             email: student.email,
-            role: student.role || 'student',
-            isAdmin: student.role === 'admin',
+            role: (student.email && student.email.toLowerCase() === 'mreducator4566@gmail.com') || student.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : (student.role || 'student'),
+            isAdmin: (student.email && student.email.toLowerCase() === 'mreducator4566@gmail.com') || student.role === 'SUPER_ADMIN' || student.role === 'admin',
+            isSuperAdmin: (student.email && student.email.toLowerCase() === 'mreducator4566@gmail.com') || student.role === 'SUPER_ADMIN',
+            canEditAnytime: (student.email && student.email.toLowerCase() === 'mreducator4566@gmail.com') || student.role === 'SUPER_ADMIN',
+            isTestUser: !!student.isTestUser,
+            access: {
+                plan: accessPayload.plan,
+                source: accessPayload.source
+            },
             registrationComplete: isRegComplete,
-            subscription: 'free',
+            subscription: accessPayload.plan === 'PLUS' ? 'plus' : 'free',
             profilePicture: student.profilePicture ? getCloudFrontUrl(student.profilePicture) : '',
             phone: student.phone || '',
             bio: student.bio || '',
@@ -71,8 +80,26 @@ class AuthV2Dto {
             admissionYear: student.admissionYear,
             graduationYear: student.graduationYear,
             dob: student.dob || null,
+            usnType: student.usnType || 'TEMPORARY',
+            usnVerified: !!student.usnVerified,
+            usnVerifiedAt: student.usnVerifiedAt || null,
+            usnLocked: !!student.usnLocked,
+            academicSemester: student.academicSemester ? (student.academicSemester._id ? { id: student.academicSemester._id, semesterNumber: student.academicSemester.semesterNumber, name: student.academicSemester.name } : student.academicSemester) : null,
+            section: (typeof student.academicSection === 'object' && student.academicSection?.name)
+                ? student.academicSection.name
+                : (student.section || ''),
+            academicSection: student.academicSection ? (student.academicSection._id ? { id: student.academicSection._id, name: student.academicSection.name } : (student.academicSection.name ? { id: student.academicSection, name: student.academicSection.name } : student.academicSection)) : null,
+            sectionLocked: !!student.sectionLocked,
+            labBatch: student.labBatch || null,
+            labBatchLocked: !!student.labBatchLocked,
+            academicProfileComplete: !!student.academicProfileComplete,
+            academicProfileCompletion: student.academicProfileCompletion || 0,
             usnHistory: student.usnHistory || [],
             usnLastChangedAt: student.usnLastChangedAt || null,
+            usnOtpDailyRequests: student.usnOtpDailyRequests || { date: '', count: 0 },
+            remainingDailyOtpRequests: (student.usnOtpDailyRequests?.date === new Date().toISOString().slice(0, 10))
+                ? Math.max(0, 3 - (student.usnOtpDailyRequests?.count || 0))
+                : 3,
             createdAt: student.createdAt,
             updatedAt: student.updatedAt
         };

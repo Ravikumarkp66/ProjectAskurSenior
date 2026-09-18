@@ -12,27 +12,28 @@ import { TrendingUp, Award, Building2, ClipboardEdit } from 'lucide-react';
 import { companiesConfig } from '../config/companies';
 import { apiV2 } from '../../../services/authService';
 import { useAuth } from '../../../utils/hooks';
+import { useTheme } from '../../../context/ThemeContext';
 
 // ─── Custom Tooltip ───────────────────────────────────────────────────────────
-const CustomTooltip = ({ active, payload }) => {
+const CustomTooltip = ({ active, payload, isDark }) => {
     if (active && payload && payload.length) {
         return (
             <div style={{
-                background: 'rgba(15, 10, 30, 0.95)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
+                background: isDark ? 'rgba(13, 17, 28, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+                border: isDark ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(124, 58, 237, 0.2)',
                 padding: '8px 12px',
                 borderRadius: '8px',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.65)',
+                boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.65)' : '0 8px 24px rgba(15,23,42,0.12)',
                 fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
             }}>
-                <p style={{ margin: 0, fontSize: '11px', color: '#a78bfa', fontWeight: 600 }}>
+                <p style={{ margin: 0, fontSize: '11px', color: isDark ? '#a78bfa' : '#7c3aed', fontWeight: 600 }}>
                     {payload[0].payload.semester}
                 </p>
-                <p style={{ margin: '4px 0 0', fontSize: '14px', color: '#fff', fontWeight: 700 }}>
+                <p style={{ margin: '4px 0 0', fontSize: '14px', color: isDark ? '#fff' : '#0f172a', fontWeight: 700 }}>
                     CGPA: {payload[0].value.toFixed(2)}
                 </p>
                 {payload[0].payload.sgpa != null && (
-                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: 'rgba(148,163,184,0.55)', fontWeight: 500 }}>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}>
                         SGPA: {payload[0].payload.sgpa.toFixed(2)}
                     </p>
                 )}
@@ -43,16 +44,23 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 // ─── Tab Button ───────────────────────────────────────────────────────────────
-const TabButton = ({ label, active, onClick }) => (
+const TabButton = ({ label, active, onClick, isDark }) => (
     <button
         onClick={onClick}
         style={{
-            border: active ? '1px solid rgba(139,92,246,0.25)' : '1px solid transparent',
+            border: active
+                ? (isDark ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(124,58,237,0.25)')
+                : '1px solid transparent',
             outline: 'none',
-            background: active ? 'rgba(139,92,246,0.16)' : 'transparent',
-            color: active ? '#c4b5fd' : 'rgba(148,163,184,0.4)',
-            padding: '4px 10px',
-            borderRadius: '18px',
+            background: active
+                ? (isDark ? 'rgba(139,92,246,0.18)' : '#FFFFFF')
+                : 'transparent',
+            color: active
+                ? (isDark ? '#c4b5fd' : '#7c3aed')
+                : (isDark ? '#94a3b8' : '#64748b'),
+            boxShadow: (active && !isDark) ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+            padding: '4px 12px',
+            borderRadius: '16px',
             fontSize: '11px',
             fontWeight: 700,
             cursor: 'pointer',
@@ -65,7 +73,7 @@ const TabButton = ({ label, active, onClick }) => (
 );
 
 // ─── Empty Chart State ────────────────────────────────────────────────────────
-const ChartEmptyState = () => (
+const ChartEmptyState = ({ isDark }) => (
     <div style={{
         height: '175px',
         display: 'flex',
@@ -73,16 +81,16 @@ const ChartEmptyState = () => (
         alignItems: 'center',
         justifyContent: 'center',
         gap: '8px',
-        border: '1px dashed rgba(139, 92, 246, 0.15)',
-        borderRadius: '8px',
-        background: 'rgba(139, 92, 246, 0.02)'
+        border: isDark ? '1px dashed rgba(139, 92, 246, 0.2)' : '1px dashed rgba(124, 58, 237, 0.25)',
+        borderRadius: '10px',
+        background: isDark ? 'rgba(139, 92, 246, 0.03)' : 'rgba(124, 58, 237, 0.02)'
     }}>
-        <ClipboardEdit size={22} color="rgba(139, 92, 246, 0.35)" />
+        <ClipboardEdit size={22} color={isDark ? 'rgba(139, 92, 246, 0.45)' : 'rgba(124, 58, 237, 0.5)'} />
         <p style={{
             margin: 0,
             fontSize: '12.5px',
             fontWeight: 600,
-            color: 'rgba(148, 163, 184, 0.5)',
+            color: isDark ? '#94a3b8' : '#334155',
             textAlign: 'center'
         }}>
             No semester records yet
@@ -90,7 +98,7 @@ const ChartEmptyState = () => (
         <p style={{
             margin: 0,
             fontSize: '11px',
-            color: 'rgba(148, 163, 184, 0.3)',
+            color: isDark ? '#64748b' : '#64748b',
             textAlign: 'center',
             maxWidth: '220px',
             lineHeight: 1.4
@@ -101,6 +109,7 @@ const ChartEmptyState = () => (
 );
 
 const CgpaProgressCard = () => {
+    const { isDark } = useTheme();
     const [activeTab, setActiveTab] = useState('CGPA');
     const { user } = useAuth();
 
@@ -221,12 +230,15 @@ const CgpaProgressCard = () => {
         fetchCompanies();
     }, []);
 
+    const dividerColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.06)';
+
     return (
         <div style={{
-            background: 'rgba(19,18,26,0.45)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: '12px',
+            background: isDark ? 'rgba(13, 17, 28, 0.85)' : '#FFFFFF',
+            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
+            borderRadius: '16px',
             padding: '16px',
+            boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
@@ -251,7 +263,7 @@ const CgpaProgressCard = () => {
                 <h2 style={{
                     fontSize: '15px',
                     fontWeight: 700,
-                    color: '#f8fafc',
+                    color: isDark ? '#F8FAFC' : '#0F172A',
                     margin: 0,
                     letterSpacing: '-0.01em'
                 }}>
@@ -260,18 +272,18 @@ const CgpaProgressCard = () => {
 
                 <div style={{
                     display: 'flex',
-                    background: 'rgba(15,10,30,0.6)',
-                    border: '1px solid rgba(255,255,255,0.04)',
+                    background: isDark ? 'rgba(15,10,30,0.6)' : '#F1F5F9',
+                    border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,23,42,0.06)',
                     borderRadius: '20px',
                     padding: '2px'
                 }}>
-                    <TabButton label="CGPA" active={activeTab === 'CGPA'} onClick={() => setActiveTab('CGPA')} />
-                    <TabButton label="Companies" active={activeTab === 'Companies'} onClick={() => setActiveTab('Companies')} />
+                    <TabButton label="CGPA" active={activeTab === 'CGPA'} onClick={() => setActiveTab('CGPA')} isDark={isDark} />
+                    <TabButton label="Companies" active={activeTab === 'Companies'} onClick={() => setActiveTab('Companies')} isDark={isDark} />
                 </div>
             </div>
 
             {/* ── Divider ─────────────────────────────────────────────────── */}
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+            <div style={{ height: '1px', background: dividerColor, flexShrink: 0 }} />
 
             {/* ── Body ────────────────────────────────────────────────────── */}
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -284,29 +296,29 @@ const CgpaProgressCard = () => {
                                 <AreaChart data={semesterData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                                     <defs>
                                         <linearGradient id="cgpaGlow" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
-                                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
+                                            <stop offset="5%" stopColor={isDark ? '#8b5cf6' : '#7c3aed'} stopOpacity={isDark ? 0.25 : 0.16} />
+                                            <stop offset="95%" stopColor={isDark ? '#8b5cf6' : '#7c3aed'} stopOpacity={0.0} />
                                         </linearGradient>
                                     </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                                    <XAxis dataKey="semester" stroke="rgba(148,163,184,0.3)" fontSize={10} tickLine={false} axisLine={false} dy={4} />
-                                    <YAxis stroke="rgba(148,163,184,0.3)" fontSize={10} tickLine={false} axisLine={false} domain={[6.0, 10.0]} dx={-4} />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'rgba(139,92,246,0.15)', strokeWidth: 1 }} />
+                                    <CartesianGrid strokeDasharray="3 3" stroke={isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.05)'} vertical={false} />
+                                    <XAxis dataKey="semester" stroke={isDark ? 'rgba(148,163,184,0.4)' : 'rgba(100,116,139,0.6)'} fontSize={10} tickLine={false} axisLine={false} dy={4} />
+                                    <YAxis stroke={isDark ? 'rgba(148,163,184,0.4)' : 'rgba(100,116,139,0.6)'} fontSize={10} tickLine={false} axisLine={false} domain={[6.0, 10.0]} dx={-4} />
+                                    <Tooltip content={<CustomTooltip isDark={isDark} />} cursor={{ stroke: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(124,58,237,0.15)', strokeWidth: 1 }} />
                                     <Area
                                         type="monotone"
                                         dataKey="cgpa"
-                                        stroke="#a78bfa"
+                                        stroke={isDark ? '#a78bfa' : '#7c3aed'}
                                         strokeWidth={2.5}
                                         fillOpacity={1}
                                         fill="url(#cgpaGlow)"
-                                        activeDot={{ r: 4, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 1.5 }}
+                                        activeDot={{ r: 4, fill: isDark ? '#8b5cf6' : '#7c3aed', stroke: isDark ? '#0d111c' : '#ffffff', strokeWidth: 1.5 }}
                                     />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
                     ) : (
                         /* No semester data in DB — show empty state */
-                        <ChartEmptyState />
+                        <ChartEmptyState isDark={isDark} />
                     )
                 ) : (
                     /* Companies Tab */
@@ -315,20 +327,20 @@ const CgpaProgressCard = () => {
                         overflowY: 'auto',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '4px',
+                        gap: '5px',
                         paddingRight: '4px'
                     }}>
                         {companiesLoading ? (
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                height: '100%', color: 'rgba(148,163,184,0.4)', fontSize: '12px'
+                                height: '100%', color: isDark ? 'rgba(148,163,184,0.4)' : 'rgba(100,116,139,0.6)', fontSize: '12px'
                             }}>
                                 Loading companies…
                             </div>
                         ) : companies.length === 0 ? (
                             <div style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                height: '100%', color: 'rgba(148,163,184,0.3)', fontSize: '12px'
+                                height: '100%', color: isDark ? 'rgba(148,163,184,0.3)' : 'rgba(100,116,139,0.5)', fontSize: '12px'
                             }}>
                                 No company data available
                             </div>
@@ -341,32 +353,32 @@ const CgpaProgressCard = () => {
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
                                         padding: '7px 10px',
-                                        borderRadius: '7px',
-                                        background: 'rgba(255,255,255,0.02)',
-                                        border: '1px solid rgba(255,255,255,0.05)',
+                                        borderRadius: '8px',
+                                        background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(15,23,42,0.02)',
+                                        border: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(15,23,42,0.06)',
                                         flexShrink: 0
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                                         <div style={{
                                             width: '26px', height: '26px', borderRadius: '6px',
-                                            background: 'rgba(139,92,246,0.08)',
-                                            border: '1px solid rgba(139,92,246,0.15)',
+                                            background: isDark ? 'rgba(139,92,246,0.1)' : 'rgba(124,58,237,0.08)',
+                                            border: isDark ? '1px solid rgba(139,92,246,0.2)' : '1px solid rgba(124,58,237,0.15)',
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             flexShrink: 0
                                         }}>
-                                            <Building2 size={12} color="#a78bfa" />
+                                            <Building2 size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
                                         </div>
                                         <div style={{ minWidth: 0 }}>
                                             <div style={{
-                                                fontSize: '12.5px', fontWeight: 600, color: '#e2e8f0',
+                                                fontSize: '12.5px', fontWeight: 600, color: isDark ? '#f1f5f9' : '#0f172a',
                                                 whiteSpace: 'nowrap', overflow: 'hidden',
                                                 textOverflow: 'ellipsis', maxWidth: '160px'
                                             }}>
                                                 {company.name}
                                             </div>
                                             <div style={{
-                                                fontSize: '10.5px', color: 'rgba(148,163,184,0.45)',
+                                                fontSize: '10.5px', color: isDark ? 'rgba(148,163,184,0.6)' : '#64748b',
                                                 fontWeight: 400, marginTop: '1px'
                                             }}>
                                                 {company.type}
@@ -376,12 +388,12 @@ const CgpaProgressCard = () => {
 
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', flexShrink: 0 }}>
                                         <div style={{
-                                            fontSize: '10px', color: 'rgba(148,163,184,0.4)',
-                                            fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em'
+                                            fontSize: '10px', color: isDark ? 'rgba(148,163,184,0.5)' : '#64748b',
+                                            fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em'
                                         }}>
                                             CGPA Cutoff
                                         </div>
-                                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc', lineHeight: 1.2 }}>
+                                        <div style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#f8fafc' : '#0f172a', lineHeight: 1.2 }}>
                                             {company.cutoff.toFixed(2)}
                                         </div>
                                     </div>
@@ -393,7 +405,7 @@ const CgpaProgressCard = () => {
             </div>
 
             {/* ── Divider ─────────────────────────────────────────────────── */}
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} />
+            <div style={{ height: '1px', background: dividerColor, flexShrink: 0 }} />
 
             {/* ── Footer ──────────────────────────────────────────────────── */}
             <div style={{
@@ -407,19 +419,20 @@ const CgpaProgressCard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '2px 0' }}>
                     <div style={{
                         width: '28px', height: '28px', borderRadius: '6px',
-                        background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)',
+                        background: isDark ? 'rgba(139,92,246,0.1)' : 'rgba(124,58,237,0.08)',
+                        border: isDark ? '1px solid rgba(139,92,246,0.25)' : '1px solid rgba(124,58,237,0.2)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#c4b5fd', flexShrink: 0
+                        color: isDark ? '#c4b5fd' : '#7c3aed', flexShrink: 0
                     }}>
                         <TrendingUp size={13} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
-                        <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: isDark ? 'rgba(148,163,184,0.6)' : '#64748b', textTransform: 'uppercase' }}>
                             Current CGPA
                         </span>
                         <span style={{
                             fontSize: '13px', fontWeight: 700, lineHeight: 1.1,
-                            color: currentCgpa !== null ? '#f8fafc' : 'rgba(148,163,184,0.35)'
+                            color: currentCgpa !== null ? (isDark ? '#f8fafc' : '#0f172a') : (isDark ? 'rgba(148,163,184,0.35)' : 'rgba(100,116,139,0.4)')
                         }}>
                             {currentCgpa !== null ? currentCgpa.toFixed(2) : '—'}
                         </span>
@@ -430,19 +443,20 @@ const CgpaProgressCard = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '2px 0' }}>
                     <div style={{
                         width: '28px', height: '28px', borderRadius: '6px',
-                        background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+                        background: isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.08)',
+                        border: isDark ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(16,185,129,0.2)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#a7f3d0', flexShrink: 0
+                        color: isDark ? '#a7f3d0' : '#059669', flexShrink: 0
                     }}>
                         <Award size={13} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', minWidth: 0 }}>
-                        <span style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(148,163,184,0.5)', textTransform: 'uppercase' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: isDark ? 'rgba(148,163,184,0.6)' : '#64748b', textTransform: 'uppercase' }}>
                             Highest CGPA
                         </span>
                         <span style={{
                             fontSize: '13px', fontWeight: 700, lineHeight: 1.1,
-                            color: highestCgpa !== null ? '#f8fafc' : 'rgba(148,163,184,0.35)'
+                            color: highestCgpa !== null ? (isDark ? '#f8fafc' : '#0f172a') : (isDark ? 'rgba(148,163,184,0.35)' : 'rgba(100,116,139,0.4)')
                         }}>
                             {highestCgpa !== null ? highestCgpa.toFixed(2) : '—'}
                         </span>
@@ -454,3 +468,4 @@ const CgpaProgressCard = () => {
 };
 
 export default CgpaProgressCard;
+

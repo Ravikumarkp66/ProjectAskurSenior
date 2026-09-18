@@ -76,7 +76,6 @@ const WorkingDaysCard = ({ workingDays, onChange }) => {
                                             type="button"
                                             onClick={() => handleDayStatusChange(day.key, opt)}
                                             style={{
-                                                border: 'none',
                                                 outline: 'none',
                                                 borderRadius: '6px',
                                                 padding: '6px 12px',

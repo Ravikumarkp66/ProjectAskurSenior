@@ -60,6 +60,27 @@ const studentAccountSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    usnType: {
+        type: String,
+        enum: ['TEMPORARY', 'PERMANENT', null],
+        default: null
+    },
+    usnVerified: {
+        type: Boolean,
+        default: false
+    },
+    usnVerifiedAt: {
+        type: Date,
+        default: null
+    },
+    usnLocked: {
+        type: Boolean,
+        default: false
+    },
+    usnOtpDailyRequests: {
+        date: { type: String, default: '' },
+        count: { type: Number, default: 0 }
+    },
 
 
     // Academic Identity
@@ -70,6 +91,16 @@ const studentAccountSchema = new mongoose.Schema({
     collegeName: {
         type: String,
         default: ''
+    },
+    program: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AcademicProgram',
+        default: null
+    },
+    batch: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AcademicBatch',
+        default: null
     },
     branch: {
         type: mongoose.Schema.Types.ObjectId,
@@ -103,6 +134,39 @@ const studentAccountSchema = new mongoose.Schema({
         uppercase: true,
         trim: true
     },
+    academicSection: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AcademicSection',
+        default: null
+    },
+    academicSemester: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Semester',
+        default: null
+    },
+    sectionLocked: {
+        type: Boolean,
+        default: false
+    },
+    labBatch: {
+        type: String,
+        enum: ['B1', 'B2', null],
+        default: null
+    },
+    labBatchLocked: {
+        type: Boolean,
+        default: false
+    },
+    academicProfileComplete: {
+        type: Boolean,
+        default: false
+    },
+    academicProfileCompletion: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100
+    },
 
     // Profile
     profilePicture: {
@@ -133,6 +197,11 @@ const studentAccountSchema = new mongoose.Schema({
     role: {
         type: String,
         default: 'student'
+    },
+    isTestUser: {
+        type: Boolean,
+        default: false,
+        index: true
     },
     accountStatus: {
         type: String,

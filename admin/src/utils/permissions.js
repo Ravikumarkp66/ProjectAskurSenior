@@ -96,7 +96,16 @@ export const canManageInterviews = (admin) => {
     canViewCompanies: hasPermission(admin, 'companies', 'view'),
     canCreateCompany: hasPermission(admin, 'companies', 'create'),
     canUpdateCompany: hasPermission(admin, 'companies', 'update'),
-    canDeleteCompany: hasPermission(admin, 'companies', 'delete')
   };
 };
 
+export const canManageAnnouncements = (admin) => {
+  return {
+    canView: hasPermission(admin, 'announcements', 'view'),
+    canCreate: hasPermission(admin, 'announcements', 'create'),
+    canUpdate: hasPermission(admin, 'announcements', 'update'),
+    canDelete: hasPermission(admin, 'announcements', 'delete'),
+    canPublish: hasPermission(admin, 'announcements', 'publish'),
+    canArchive: hasPermission(admin, 'announcements', 'archive')
+  };
+};

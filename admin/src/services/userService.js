@@ -60,6 +60,19 @@ export const userService = {
       }
       throw err;
     }
+  },
+
+  setTestUserAccess: async (userId, isTestUser) => {
+    try {
+      const response = await apiClient.patch(`/admin/users/${userId}/test-access`, { isTestUser });
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 404) {
+        const fallbackRes = await apiClient.patch(`/admin/analytics/users/${userId}/test-access`, { isTestUser });
+        return fallbackRes.data;
+      }
+      throw err;
+    }
   }
 };
 

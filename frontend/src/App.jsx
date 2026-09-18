@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
+import { BugReportModalProvider, useBugReportModal } from './context/BugReportModalContext.jsx';
 import { useAuth } from './utils/hooks';
 import { authAPI, apiClient } from './services/api';
 import socket from './services/socket';
@@ -24,10 +25,8 @@ const TimetableSettings = lazy(() => import('./pages/dashboard/settings/Timetabl
 const CieSettings = lazy(() => import('./pages/dashboard/settings/CieSettings'));
 const SgpaSettings = lazy(() => import('./pages/dashboard/settings/SgpaSettings'));
 const AcademicSummaryPage = lazy(() => import('./pages/dashboard/settings/AcademicSummaryPage'));
-const AcademicRegisterPage = lazy(() => import('./pages/dashboard/settings/AcademicRegisterPage'));
 const EventsSettings = lazy(() => import('./pages/dashboard/settings/EventsSettings'));
-const AcademicSettings = lazy(() => import('./pages/dashboard/settings/AcademicSettings'));
-const ProgressSettings = lazy(() => import('./pages/dashboard/settings/ProgressSettings'));
+
 const HomePage = lazy(() => import('./pages/HomePage'));
 const CGPACalculatorPage = lazy(() => import('./pages/CGPACalculatorPage'));
 const SubjectContentPage = lazy(() => import('./pages/SubjectContentPage'));
@@ -40,7 +39,9 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AskFinderPage = lazy(() => import('./pages/AskFinderPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
-// const RoadmapPage = lazy(() => import('./pages/RoadmapPage'));
+const AccountPage = lazy(() => import('./pages/account/AccountPage'));
+const HelpSupportPage = lazy(() => import('./pages/support/HelpSupportPage'));
+const RoadmapsPage = lazy(() => import('./pages/dashboard/RoadmapsPage'));
 
 // Academic Dashboard Pages
 const DashboardPage        = lazy(() => import('./pages/dashboard/DashboardPage'));
@@ -49,7 +50,6 @@ const AcademicCalendarPage = lazy(() => import('./pages/dashboard/AcademicCalend
 const SubjectsPage         = lazy(() => import('./pages/dashboard/SubjectsPage'));
 const AcademicSetupPage    = lazy(() => import('./pages/AcademicSetup'));
 const SubjectRegistrationPage = lazy(() => import('./pages/SubjectRegistrationPage'));
-const StudentAcademicsLayout  = lazy(() => import('./pages/dashboard/student-academics/StudentAcademicsLayout'));
 
 // Interview Experiences Module
 const InterviewExperiencesPage = lazy(() => import('./pages/interviews/InterviewPage'));
@@ -65,6 +65,9 @@ const CampusMap = lazy(() => import('./pages/CampusMap'));
 
 // Coding Playground Module
 const CodingPlaygroundPage = lazy(() => import('./features/coding-playground/pages/CodingPlaygroundPage'));
+
+// F-011: Faculty Insights Module
+const FacultyInsightsPage = lazy(() => import('./pages/faculty/FacultyInsightsPage'));
 
 import Logo from './components/Logo';
 
@@ -109,6 +112,14 @@ const CompleteProfileRoute = ({ children }) => {
 const InterviewRedirect = () => {
     const { id } = useParams();
     return <Navigate to={`/home/interview/${id}`} replace />;
+};
+
+const BugReportRedirect = () => {
+    const { openBugReport } = useBugReportModal();
+    React.useEffect(() => {
+        openBugReport('UI / Design');
+    }, [openBugReport]);
+    return <Navigate to="/account" replace />;
 };
 
 function AppContent() {
@@ -206,33 +217,61 @@ function AppContent() {
                         <Route path="edit" element={<ProfileSettingsLayout />}>
                             <Route index element={<Navigate to="basic" replace />} />
                             <Route path="basic" element={<BasicInformationSettings />} />
-                            <Route path="cgpa" element={<CgpaSettings />} />
-                            <Route path="attendance" element={<AttendanceSettings />} />
-                            <Route path="timetable" element={<TimetableSettings />} />
-                            <Route path="cie" element={<CieSettings />} />
-                            <Route path="sgpa" element={<SgpaSettings />} />
-                            <Route path="events" element={<EventsSettings />} />
-                            {/* Mobile-only tabs */}
-                            <Route path="academic" element={<AcademicSettings />} />
-                            <Route path="progress" element={<ProgressSettings />} />
+                            <Route path="*" element={<Navigate to="basic" replace />} />
                         </Route>
                     </Route>
-                    <Route path="/settings" element={<Navigate to="/profile/edit" replace />} />
+                    <Route path="/settings" element={<Navigate to="/account" replace />} />
                     <Route path="/subscription" element={<Navigate to="/pricing" replace />} />
 
+                    {/* Account & Product Completeness Routes (Inside Authenticated Shell) */}
+                    <Route
+                        path="/account"
+                        element={
+                            <ProtectedRoute>
+                                <DashboardLayout />
+                            </ProtectedRoute>
+                        }
+                    >
+                        <Route index element={<AccountPage />} />
+                        <Route path=":tab" element={<AccountPage />} />
+                    </Route>
 
-                    {/* Student Academics Dedicated 3-Column Workspace */}
+                    <Route
+                        path="/support"
+                        element={
+                            <ProtectedRoute>
+                                <DashboardLayout />
+                            </ProtectedRoute>
+                        }
+                    >
+                        <Route index element={<HelpSupportPage />} />
+                    </Route>
+                    <Route path="/help" element={<Navigate to="/support" replace />} />
+                    <Route path="/bug-report" element={<BugReportRedirect />} />
+
+
+                    {/* F-08: Academic Overview */}
                     <Route path="/student-academics" element={
                         <ProtectedRoute>
                             <DashboardLayout />
                         </ProtectedRoute>
                     }>
-                        <Route index element={<StudentAcademicsLayout />} />
-                        <Route path=":tab" element={<StudentAcademicsLayout />} />
-                        <Route path="*" element={<StudentAcademicsLayout />} />
+                        <Route index element={<AcademicSummaryPage />} />
+                        <Route path="*" element={<Navigate to="/student-academics" replace />} />
                     </Route>
                     <Route path="/academic" element={<Navigate to="/student-academics" replace />} />
-                    <Route path="/academic-setup" element={<Navigate to="/student-academics/subjects" replace />} />
+                    <Route path="/academic-overview" element={<Navigate to="/student-academics" replace />} />
+                    <Route path="/academic-setup" element={<Navigate to="/student-academics" replace />} />
+
+                    {/* F-011: Faculty Insights */}
+                    <Route path="/faculty-insights" element={
+                        <ProtectedRoute>
+                            <DashboardLayout />
+                        </ProtectedRoute>
+                    }>
+                        <Route index element={<FacultyInsightsPage />} />
+                        <Route path=":facultyId/:subjectCode" element={<FacultyInsightsPage />} />
+                    </Route>
 
                     {/* My Subjects Dedicated Workspace */}
                     <Route path="/my-subjects" element={
@@ -244,6 +283,8 @@ function AppContent() {
                         <Route path=":subjectSlug" element={<MySubjectsPage />} />
                         <Route path=":subjectSlug/:moduleSlug" element={<MySubjectsPage />} />
                         <Route path=":subjectSlug/:moduleSlug/:section" element={<MySubjectsPage />} />
+                        <Route path=":subjectSlug/:moduleSlug/:section/:topicSlug" element={<MySubjectsPage />} />
+                        <Route path="*" element={<MySubjectsPage />} />
                     </Route>
 
                     {/* Academic Dashboard Layout Group */}
@@ -259,16 +300,17 @@ function AppContent() {
                         <Route path="interview/:id" element={<CompanyRolePage />} />
                         <Route path="interview/add" element={<ShareExperience />} />
                         <Route path="interview/share" element={<ShareExperience />} />
-                        <Route path="faculty-ratings" element={<UserHomePage />} />
-                        <Route path="faculty-ratings/:facultyId" element={<UserHomePage />} />
-                        <Route path="faculty-directory" element={<UserHomePage />} />
-                        <Route path="faculty-directory/:facultyId" element={<UserHomePage />} />
+                        <Route path="faculty-insights" element={<Navigate to="/faculty-insights" replace />} />
+                        <Route path="faculty-ratings" element={<Navigate to="/faculty-insights" replace />} />
+                        <Route path="faculty-ratings/:facultyId" element={<Navigate to="/faculty-insights" replace />} />
+                        <Route path="faculty-directory" element={<Navigate to="/faculty-insights" replace />} />
+                        <Route path="faculty-directory/:facultyId" element={<Navigate to="/faculty-insights" replace />} />
                         <Route path="campus-explorer" element={<UserHomePage />} />
                         <Route path="lost-and-found" element={<UserHomePage />} />
                         <Route path="marketplace" element={<UserHomePage />} />
-                        <Route path="cgpa-calculator" element={<SgpaSettings />} />
-                        <Route path="sgpa-calculator" element={<SgpaSettings />} />
-                        <Route path="sgpa" element={<SgpaSettings />} />
+                        <Route path="cgpa-calculator" element={<Navigate to="/plus/sgpa" replace />} />
+                        <Route path="sgpa-calculator" element={<Navigate to="/plus/sgpa" replace />} />
+                        <Route path="sgpa" element={<Navigate to="/plus/sgpa" replace />} />
                         <Route path="academic-summary" element={<AcademicSummaryPage />} />
                         <Route path="blogs" element={<UserHomePage />} />
                         <Route path="attendance" element={<AttendanceSettings />} />
@@ -285,6 +327,7 @@ function AppContent() {
                         </ProtectedRoute>
                     }>
                         <Route index element={<DashboardPage />} />
+                        <Route path="announcements" element={<DashboardPage />} />
                         <Route path="home" element={<UserHomePage />} />
                         <Route path="materials" element={<AskFinderPage />} />
                         <Route path="subject/:subjectId/content" element={<SubjectContentPage />} />
@@ -308,11 +351,20 @@ function AppContent() {
                         <Route path="my-subjects/:subjectSlug" element={<MySubjectsPage />} />
                         <Route path="my-subjects/:subjectSlug/:moduleSlug" element={<MySubjectsPage />} />
                         <Route path="my-subjects/:subjectSlug/:moduleSlug/:section" element={<MySubjectsPage />} />
+                        <Route path="my-subjects/:subjectSlug/:moduleSlug/:section/:topicSlug" element={<MySubjectsPage />} />
+                        <Route path="my-subjects/*" element={<MySubjectsPage />} />
                         <Route path="subject-registration" element={<Navigate to="/student-academics/subjects" replace />} />
                         <Route path="cie-analyzer" element={<CieSettings />} />
                         <Route path="cie" element={<CieSettings />} />
                         <Route path="eligibility-checker" element={<AcademicSummaryPage />} />
                         <Route path="academic-summary" element={<AcademicSummaryPage />} />
+                        <Route path="academic-overview" element={<AcademicSummaryPage />} />
+                        <Route path="library" element={<SubjectsPage />} />
+                        <Route path="campus-explorer" element={<Navigate to="/campus-map" replace />} />
+                        <Route path="faculty-ratings" element={<Navigate to="/faculty-insights" replace />} />
+                        <Route path="faculty-insights" element={<Navigate to="/faculty-insights" replace />} />
+                        <Route path="interview" element={<Navigate to="/home/interview" replace />} />
+                        <Route path="interview-experiences" element={<Navigate to="/home/interview" replace />} />
                         <Route path="year-back-predictor" element={<DashboardPage />} />
                         <Route path="branch-change-predictor" element={<DashboardPage />} />
                         <Route path="attendance" element={<AttendanceSettings />} />
@@ -320,7 +372,9 @@ function AppContent() {
                         <Route path="timetable" element={<TimetableSettings />} />
                         <Route path="cgpa" element={<SgpaSettings />} />
                         <Route path="sgpa" element={<SgpaSettings />} />
-                        <Route path="roadmaps" element={<InterviewExperiencesPage />} />
+                        <Route path="cgpa-calculator" element={<SgpaSettings />} />
+                        <Route path="sgpa-calculator" element={<SgpaSettings />} />
+                        <Route path="roadmaps" element={<RoadmapsPage />} />
                         <Route path="sessions" element={<DashboardPage />} />
                         <Route path="streaks" element={<DashboardPage />} />
                         <Route path="todo" element={<DashboardPage />} />
@@ -343,6 +397,9 @@ function AppContent() {
                     <Route path="/admin/*" element={<Navigate to="/" replace />} />
                     <Route path="/admin" element={<Navigate to="/" replace />} />
 
+                    {/* Roadmaps - Route smoothly to /plus/roadmaps */}
+                    <Route path="/roadmaps" element={<Navigate to="/plus/roadmaps" replace />} />
+
                     {/* Interview Experiences - Route smoothly to /home/interview */}
                     <Route path="/interview" element={<Navigate to="/home/interview" replace />} />
                     <Route path="/interview/:id" element={<InterviewRedirect />} />
@@ -363,7 +420,9 @@ function App() {
         <ThemeProvider>
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                 <AuthProvider>
-                    <AppContent />
+                    <BugReportModalProvider>
+                        <AppContent />
+                    </BugReportModalProvider>
                 </AuthProvider>
             </Router>
         </ThemeProvider>

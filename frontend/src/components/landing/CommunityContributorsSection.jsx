@@ -79,51 +79,46 @@ const ContributorCard = ({ contributor, index }) => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: index * 0.08 }}
-            className={`p-6 rounded-[22px] bg-white/[0.03] border transition-all duration-300 backdrop-blur-md shadow-xl flex flex-col items-center text-center group relative overflow-hidden hover:-translate-y-1.5 hover:shadow-[0_0_30px_rgba(124,58,237,0.15)] ${
+            transition={{ duration: 0.35, delay: index * 0.05 }}
+            className={`p-6 rounded-2xl border transition-all duration-200 flex flex-col items-center text-center group relative overflow-hidden ${
                 isFounder 
-                    ? 'border-purple-500/30 bg-purple-500/[0.03]' 
-                    : 'border-white/5 hover:border-purple-500/30 hover:bg-white/[0.05]'
+                    ? 'border-purple-300 dark:border-purple-500/30 bg-purple-50/50 dark:bg-purple-500/[0.04]' 
+                    : 'bg-white dark:bg-[#0D111C] border-slate-200 dark:border-slate-800/80 hover:border-purple-300 dark:hover:border-purple-500/30 shadow-sm dark:shadow-none'
             }`}
         >
-            {/* Ambient hover glow */}
-            <div className="absolute inset-0 bg-gradient-to-b from-purple-600/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-
             {/* Circular Avatar: Photo if available, else Gradient Initials */}
             <div className="relative mb-4">
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full blur-md opacity-30 group-hover:opacity-75 transition duration-300" />
-                
                 {contributor.avatar ? (
                     <img 
                         src={contributor.avatar} 
                         alt={contributor.name}
-                        className="relative w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-md group-hover:scale-105 transition-transform duration-300"
+                        className="relative w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-700 shadow-sm group-hover:scale-105 transition-transform duration-200"
                     />
                 ) : (
-                    <div className={`relative w-16 h-16 rounded-full bg-gradient-to-br ${avatarGradient} text-white font-black text-lg font-outfit flex items-center justify-center border-2 border-white/20 shadow-md group-hover:scale-105 transition-transform duration-300 tracking-wider`}>
+                    <div className={`relative w-16 h-16 rounded-full bg-gradient-to-br ${avatarGradient} text-white font-bold text-lg font-outfit flex items-center justify-center border-2 border-slate-200 dark:border-slate-700 shadow-sm group-hover:scale-105 transition-transform duration-200 tracking-wider`}>
                         {initials}
                     </div>
                 )}
             </div>
 
             {/* Contributor Name */}
-            <h3 className="text-base font-bold text-white font-outfit tracking-tight group-hover:text-purple-300 transition-colors">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white font-outfit tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
                 {contributor.name}
             </h3>
 
             {/* USN */}
             {contributor.usn && (
-                <p className="text-[11px] font-semibold text-slate-400 font-mono tracking-wider uppercase mt-1">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono tracking-wider uppercase mt-1">
                     {contributor.usn}
                 </p>
             )}
 
             {/* Branch */}
             {contributor.branch && (
-                <p className="text-xs text-slate-400 font-normal leading-relaxed mt-2 line-clamp-1 max-w-[220px]">
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-normal leading-relaxed mt-2 line-clamp-1 max-w-[220px]">
                     {contributor.branch}
                 </p>
             )}
@@ -131,10 +126,10 @@ const ContributorCard = ({ contributor, index }) => {
             {/* Role Badge */}
             <div className={`mt-5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
                 isFounder 
-                    ? 'bg-purple-600 text-white border border-purple-400/50 shadow-md shadow-purple-500/20' 
-                    : 'bg-purple-500/10 border border-purple-500/20 text-purple-300'
+                    ? 'bg-purple-600 text-white border border-purple-500 shadow-sm' 
+                    : 'bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-300'
             }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isFounder ? 'bg-white' : 'bg-purple-400 animate-pulse'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${isFounder ? 'bg-white' : 'bg-purple-500 dark:bg-purple-400'}`} />
                 <span>{contributor.role || 'Community Contributor'}</span>
             </div>
         </motion.div>
@@ -142,8 +137,6 @@ const ContributorCard = ({ contributor, index }) => {
 };
 
 const CommunityContributorsSection = ({ data }) => {
-    if (data && data.isVisible === false) return null;
-
     const [contributors, setContributors] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -170,28 +163,27 @@ const CommunityContributorsSection = ({ data }) => {
         };
     }, []);
 
+    if (data && data.isVisible === false) return null;
+
     // Ensure contributors are sorted by order field
     const sortedContributors = [...contributors].sort((a, b) => (a.order || 0) - (b.order || 0));
 
     return (
-        <section id="contributors" className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-purple-600/10 rounded-full blur-[150px] pointer-events-none" />
-
+        <section id="contributors" className="py-20 px-6 relative bg-transparent overflow-hidden">
             <div className="max-w-6xl mx-auto relative z-10 space-y-12">
                 
                 {/* Section Header */}
                 <div className="text-center max-w-3xl mx-auto space-y-3">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
                         <UserCheck className="w-3.5 h-3.5" />
                         <span>Community Champions</span>
                     </div>
 
-                    <h2 className="text-3xl sm:text-4xl font-extrabold text-white font-outfit tracking-tight">
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white font-outfit tracking-tight">
                         {data?.sectionTitle || 'Community Contributors'}
                     </h2>
 
-                    <p className="text-slate-400 text-sm sm:text-base font-normal max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base font-normal max-w-2xl mx-auto leading-relaxed">
                         {data?.subtitle || 'The students who helped strengthen the AskUrSenior community by supporting juniors, sharing resources, and contributing valuable information.'}
                     </p>
                 </div>
@@ -212,14 +204,14 @@ const CommunityContributorsSection = ({ data }) => {
                     initial={{ opacity: 0, y: 15 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.6 }}
-                    className="p-6 sm:p-8 rounded-2xl bg-white/[0.02] border border-white/5 text-center max-w-3xl mx-auto backdrop-blur-sm"
+                    transition={{ duration: 0.5 }}
+                    className="p-6 sm:p-8 rounded-2xl bg-slate-100/70 dark:bg-[#0D111C]/60 border border-slate-200 dark:border-slate-800 text-center max-w-3xl mx-auto"
                 >
-                    <p className="text-slate-300 text-xs sm:text-sm leading-relaxed font-normal mb-2">
+                    <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-normal mb-2">
                         Every contribution, whether sharing resources, guiding juniors, or helping the community, has played an important role in making AskUrSenior better for everyone.
                     </p>
-                    <p className="text-purple-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5">
-                        <Heart className="w-3.5 h-3.5 text-purple-400 fill-purple-400" />
+                    <p className="text-purple-700 dark:text-purple-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5">
+                        <Heart className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 fill-purple-600 dark:fill-purple-400" />
                         <span>Thank you to every student who contributed.</span>
                     </p>
                 </motion.div>

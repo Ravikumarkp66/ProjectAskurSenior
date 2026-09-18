@@ -92,7 +92,19 @@ teardown('cleanup admin e2e test data', async () => {
     });
     console.log(`[cleanup] Deleted ${announcementResult.deletedCount} announcement records`);
 
-    // ─── 9. Clean up .auth directory ──────────────────────────────
+    // ─── 9. Delete test Experience records ────────────────────────
+    const experienceResult = await db.collection('experiences').deleteMany({
+      role: { $regex: /^\[E2E\]/ },
+    });
+    console.log(`[cleanup] Deleted ${experienceResult.deletedCount} experience records`);
+
+    // ─── 10. Delete test Company records ──────────────────────────
+    const companyResult = await db.collection('companies').deleteMany({
+      name: { $regex: /^\[E2E\]/ },
+    });
+    console.log(`[cleanup] Deleted ${companyResult.deletedCount} company records`);
+
+    // ─── 11. Clean up .auth directory ─────────────────────────────
     const authDir = path.resolve('admin-e2e/.auth');
     const testDataFile = path.join(authDir, 'test-data.json');
     if (fs.existsSync(testDataFile)) {

@@ -11,6 +11,7 @@ import {
     X,
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { documentsAPI, authAPI } from '../../services/api';
 import AcademicStreakWidget from './AcademicStreakWidget';
 
@@ -256,6 +257,7 @@ const MaterialsLegendRow = ({ item, index, isActive, onEnter, onLeave }) => {
 };
 
 const MaterialsOverviewWidget = () => {
+    const { isDark } = useTheme();
     const [stats, setStats] = useState({ notes: 0, pyqs: 0, others: 0 });
     const [activeIndex, setActiveIndex] = useState(null);
 
@@ -295,58 +297,59 @@ const MaterialsOverviewWidget = () => {
         percent: total > 0 ? Math.round((item.value / total) * 100) : 0,
     })), [stats, total]);
 
-    const chartData = total > 0 ? data : [{ key: 'empty', name: 'Empty', value: 1, color: 'rgba(255,255,255,0.08)' }];
+    // Theme tokens
+    const bg = isDark ? '#0D111C' : '#FFFFFF';
+    const border = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.09)';
+    const labelColor = isDark ? '#64748B' : '#94A3B8';
+    const titleColor = isDark ? '#F1F5F9' : '#0F172A';
+    const numColor = isDark ? '#FFFFFF' : '#0F172A';
+    const nameColor = isDark ? '#CBD5E1' : '#334155';
+    const dividerColor = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(15, 23, 42, 0.15)';
+    const emptyChartColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
+
+    const chartData = total > 0 ? data : [{ key: 'empty', name: 'Empty', value: 1, color: emptyChartColor }];
 
     return (
         <div style={{
             margin: '16px 14px',
-            padding: '20px 18px',
-            borderRadius: '22px',
-            background: '#121622',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+            padding: '18px 16px 16px',
+            borderRadius: 14,
+            background: bg,
+            border: `1px solid ${border}`,
+            boxShadow: isDark
+                ? '0 2px 8px rgba(0,0,0,0.35)'
+                : '0 1px 4px rgba(15,23,42,0.06)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '18px',
+            gap: 14,
             position: 'relative',
         }}>
-            {/* Top Capsule Header with Info Icon */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                width: '100%',
-            }}>
-                <div style={{
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.12)',
-                    borderRadius: '999px',
-                    padding: '5px 18px',
-                    color: '#F8FAFC',
-                    fontSize: '13px',
+            {/* ── SECTION LABEL ─────────────────────────────────────── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{
+                    fontSize: 10,
                     fontWeight: 700,
-                    letterSpacing: '-0.01em',
-                    boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.1)',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: labelColor,
+                    fontFamily: 'Outfit, sans-serif',
                 }}>
                     Materials Overview
-                </div>
+                </span>
 
                 <div 
                     title="All approved materials in library"
                     style={{
-                        position: 'absolute',
-                        right: 0,
-                        width: '26px',
-                        height: '26px',
+                        width: 20,
+                        height: 20,
                         borderRadius: '50%',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        color: '#94A3B8',
+                        border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.12)'}`,
+                        background: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(15, 23, 42, 0.04)',
+                        color: labelColor,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '12px',
+                        fontSize: 11,
                         fontStyle: 'italic',
                         fontFamily: 'serif',
                         cursor: 'pointer',
@@ -359,13 +362,12 @@ const MaterialsOverviewWidget = () => {
             {/* Donut & Legend Container */}
             <div style={{
                 display: 'grid',
-                gridTemplateColumns: '120px 1fr',
+                gridTemplateColumns: '110px 1fr',
                 alignItems: 'center',
-                gap: '16px',
-                paddingTop: '4px',
+                gap: '14px',
             }}>
-                {/* Left Glowing Donut Ring */}
-                <div style={{ position: 'relative', width: '120px', height: '120px' }}>
+                {/* Donut Ring */}
+                <div style={{ position: 'relative', width: '110px', height: '110px' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
@@ -373,12 +375,12 @@ const MaterialsOverviewWidget = () => {
                                 dataKey="value"
                                 cx="50%"
                                 cy="50%"
-                                innerRadius="72%"
-                                outerRadius="90%"
+                                innerRadius="70%"
+                                outerRadius="88%"
                                 startAngle={90}
                                 endAngle={-270}
-                                paddingAngle={total > 0 ? 5 : 0}
-                                cornerRadius={6}
+                                paddingAngle={total > 0 ? 4 : 0}
+                                cornerRadius={5}
                                 activeIndex={activeIndex}
                                 isAnimationActive
                                 animationDuration={800}
@@ -388,14 +390,14 @@ const MaterialsOverviewWidget = () => {
                                     <Cell
                                         key={entry.key}
                                         fill={entry.color}
-                                        opacity={activeIndex === null || activeIndex === index ? 1 : 0.4}
+                                        opacity={activeIndex === null || activeIndex === index ? 1 : 0.35}
                                     />
                                 ))}
                             </Pie>
                         </PieChart>
                     </ResponsiveContainer>
 
-                    {/* Center Text (355 / Line / Materials) */}
+                    {/* Center Text */}
                     <div style={{
                         position: 'absolute',
                         inset: 0,
@@ -406,26 +408,28 @@ const MaterialsOverviewWidget = () => {
                         pointerEvents: 'none',
                     }}>
                         <span style={{
-                            fontSize: '22px',
+                            fontSize: '20px',
                             fontWeight: 800,
-                            color: '#FFFFFF',
+                            color: numColor,
                             lineHeight: 1.1,
                             letterSpacing: '-0.02em',
+                            fontFamily: 'Outfit, sans-serif',
                         }}>
                             {animatedTotal.toLocaleString()}
                         </span>
                         <div style={{
-                            width: '28px',
+                            width: '24px',
                             height: '1px',
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            margin: '4px 0 3px 0',
+                            background: dividerColor,
+                            margin: '3px 0 2px 0',
                         }} />
                         <span style={{
                             fontSize: '9px',
                             fontWeight: 600,
-                            color: '#94A3B8',
+                            color: labelColor,
                             textTransform: 'uppercase',
                             letterSpacing: '0.04em',
+                            fontFamily: 'Outfit, sans-serif',
                         }}>
                             Materials
                         </span>
@@ -433,7 +437,7 @@ const MaterialsOverviewWidget = () => {
                 </div>
 
                 {/* Right Legend List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {data.map((item, index) => (
                         <div
                             key={item.key}
@@ -450,28 +454,28 @@ const MaterialsOverviewWidget = () => {
                         >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{
-                                    width: '8px',
-                                    height: '8px',
+                                    width: '7px',
+                                    height: '7px',
                                     borderRadius: '50%',
                                     background: item.color,
-                                    boxShadow: `0 0 8px ${item.color}80`,
                                 }} />
                                 <span style={{
-                                    fontSize: '13px',
+                                    fontSize: '12px',
                                     fontWeight: 600,
-                                    color: '#CBD5E1',
+                                    color: nameColor,
+                                    fontFamily: 'Outfit, sans-serif',
                                 }}>
                                     {item.name}
                                 </span>
                             </div>
 
                             <span style={{
-                                fontSize: '13px',
+                                fontSize: '12px',
                                 fontWeight: 700,
-                                color: '#F8FAFC',
-                                fontFamily: 'monospace',
+                                color: titleColor,
+                                fontFamily: 'Outfit, monospace',
                             }}>
-                                {item.value} <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>({item.percent}%)</span>
+                                {item.value} <span style={{ fontSize: '10px', color: labelColor, fontWeight: 500 }}>({item.percent}%)</span>
                             </span>
                         </div>
                     ))}
@@ -841,6 +845,7 @@ const DailyPlannerWidget = () => {
 
 const RightPanel = () => {
     const { user } = useContext(AuthContext);
+    const { isDark } = useTheme();
 
     return (
         <div style={{
@@ -856,7 +861,7 @@ const RightPanel = () => {
                 borderTop: 'none',
                 borderBottom: 'none',
                 borderRight: 'none',
-                borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+                borderLeft: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
                 minHeight: '100vh',
                 height: '100vh',
                 overflowY: 'auto',

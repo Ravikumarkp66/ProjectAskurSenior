@@ -1002,7 +1002,7 @@ const LabSidebar = ({
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis'
                             }}>
-                                {user?.branch || user?.usn || user?.email || 'AskUrSenior Plus'}
+                                {(typeof user?.branch === 'object' ? (user.branch?.shortName || user.branch?.name) : user?.branch) || user?.usn || user?.email || 'AskUrSenior Plus'}
                             </span>
                         </div>
                     </div>

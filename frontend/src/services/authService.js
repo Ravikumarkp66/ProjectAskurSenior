@@ -3,6 +3,8 @@ import { getBaseApiUrl } from './api/apiClient';
 
 const API_BASE_URL = getBaseApiUrl('/auth');
 const EXPERIENCES_BASE_URL = getBaseApiUrl('/experiences');
+const STUDENT_ACADEMICS_BASE_URL = getBaseApiUrl('/student/academics');
+const STUDENT_RESULTS_BASE_URL = getBaseApiUrl('/student/results');
 
 export const experiencesClient = axios.create({
     baseURL: EXPERIENCES_BASE_URL,
@@ -14,10 +16,33 @@ export const apiV2Client = axios.create({
     withCredentials: true // Crucial for receiving and sending refresh token cookies!
 });
 
+export const studentAcademicsClient = axios.create({
+    baseURL: STUDENT_ACADEMICS_BASE_URL,
+    withCredentials: true
+});
+
+export const studentResultsClient = axios.create({
+    baseURL: STUDENT_RESULTS_BASE_URL,
+    withCredentials: true
+});
+
+const attachToken = (config) => {
+    config.headers['x-client-portal'] = 'frontend_3000';
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    config.timeout = 30000;
+    return config;
+};
+
+studentAcademicsClient.interceptors.request.use(attachToken);
+studentResultsClient.interceptors.request.use(attachToken);
+
 // Request Interceptor: Attach access token
 apiV2Client.interceptors.request.use((config) => {
     config.headers['x-client-portal'] = 'frontend_3000';
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -69,6 +94,9 @@ export const authService = {
     getProfile: () => apiV2Client.get('/me'),
     getCompanies: () => experiencesClient.get('/companies'),
     updateProfile: (data) => apiV2Client.put('/profile', data),
+    requestUsnChangeOtp: (usn) => apiV2Client.post('/profile/usn/request-otp', { usn }),
+    verifyUsnChangeOtp: (usn, otp) => apiV2Client.post('/profile/usn/verify-otp', { usn, otp }),
+    setTemporaryUsn: (usn) => apiV2Client.post('/profile/usn/temporary', { usn }),
     uploadProfilePicture: (formData) => apiV2Client.post('/profile/picture', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     removeProfilePicture: () => apiV2Client.delete('/profile/picture'),
     getSemesters: () => apiV2Client.get('/profile/semesters'),
@@ -79,6 +107,9 @@ export const authService = {
     generateTimetablePreview: (data) => apiV2Client.post('/profile/timetable/generate-preview', data),
     getTimetableSlots: (semester) => apiV2Client.get('/profile/timetable/slots', { params: semester ? { semester } : {} }),
     updateTimetableSlots: (data) => apiV2Client.put('/profile/timetable/slots', data),
+    getMySubjects: (semester) => apiV2Client.get('/profile/subjects', { params: semester ? { semester } : {} }),
+    getEditorialProgress: (subjectSlug) => apiV2Client.get(`/profile/editorial-progress/${subjectSlug}`),
+    toggleTopicCompletion: (data) => apiV2Client.post('/profile/editorial-progress/toggle', data),
     getAcademicSubjects: (semester) => apiV2Client.get('/profile/timetable/subjects', { params: semester ? { semester } : {} }),
     getRegisteredSubjects: (semester) => apiV2Client.get('/profile/timetable/registered-subjects', { params: semester ? { semester } : {} }),
     saveRegisteredSubjects: (data) => apiV2Client.put('/profile/timetable/registered-subjects', data),
@@ -100,7 +131,7 @@ export const authService = {
     updateAttendanceTarget: (data) => apiV2Client.put('/profile/attendance/target', data),
     addExtraClassV2: (data) => apiV2Client.post('/profile/attendance/extra-class', data),
     deleteExtraClassV2: (historyId) => apiV2Client.delete(`/profile/attendance/extra-class/${historyId}`),
-    resetTimetable: () => apiV2Client.post('/profile/timetable/reset'),
+    resetTimetable: (data) => apiV2Client.post('/profile/timetable/reset', data),
     undoResetTimetable: () => apiV2Client.post('/profile/timetable/undo-reset'),
     promoteSemester: () => apiV2Client.post('/profile/attendance/promote'),
     recalculateAttendance: () => apiV2Client.post('/profile/attendance/recalculate'),
@@ -124,7 +155,23 @@ export const authService = {
     saveSgpaRecord: (data) => apiV2Client.put('/profile/sgpa', data),
 
     // Academic Summary API
-    getAcademicSummary: (semester) => apiV2Client.get('/profile/academic-summary', { params: { semester } })
+    getAcademicSummary: (semester) => apiV2Client.get('/profile/academic-summary', { params: { semester } }),
+
+    // Student Academics (Authoritative Admin-driven Data Consumer)
+    getStudentAcademicsOverview: () => studentAcademicsClient.get('/overview'),
+    getStudentAcademicsSemesters: () => studentAcademicsClient.get('/semesters'),
+    getStudentAcademicsSemesterDetail: (sem) => studentAcademicsClient.get(`/semesters/${sem}`),
+    getStudentAcademicsSections: () => studentAcademicsClient.get('/sections'),
+    updateStudentAcademicsSection: (sectionId) => studentAcademicsClient.put('/section', { sectionId }),
+    getStudentAcademicsTimetable: (semester) => studentAcademicsClient.get('/timetable', { params: semester ? { semester } : {} }),
+    getStudentAcademicsSubjects: (semester) => studentAcademicsClient.get('/subjects', { params: semester ? { semester } : {} }),
+    saveStudentAcademicsRegisteredSubjects: (data) => studentAcademicsClient.put('/registered-subjects', data),
+    getStudentAcademicsSettings: () => studentAcademicsClient.get('/settings'),
+    updateStudentAcademicsSettings: (data) => studentAcademicsClient.put('/settings', data),
+    getStudentAcademicsCalendar: (params) => studentAcademicsClient.get('/calendar', { params }),
+
+    // Student Result API (F-10 Phase 1)
+    getStudentSemesterResults: (semester) => studentResultsClient.get(`/${semester || 1}`)
 };
 
 export const apiV2 = authService;

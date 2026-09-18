@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Staging Calculators', () => {
+test.describe('Staging Calculators', { tag: '@regression' }, () => {
   test('SGPA and CGPA calculators load and compute results', async ({ page }) => {
     await page.goto('/calculator');
     await page.waitForLoadState('domcontentloaded');
@@ -28,8 +28,12 @@ test.describe('Staging Calculators', () => {
       await expect(resultsText).toBeVisible({ timeout: 10000 });
     }
 
-    // 2. Switch to CGPA Tab
-    await cgpaTab.click();
+    // 2. Dismiss any modal/overlay (subscription prompt, onboarding, etc.) before switching tab
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+
+    // 3. Switch to CGPA Tab — use force:true in case a lightweight backdrop lingers
+    await cgpaTab.click({ force: true });
 
     // Verify CGPA tab content is active
     const cgpaInputs = page.locator('input[placeholder="SGPA"], input[type="number"]');

@@ -42,8 +42,8 @@ const HomePage = () => {
     }, []);
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#030712] font-outfit">
-            {/* V3 Global Navbar */}
+        <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#080B14] text-slate-900 dark:text-slate-100 font-outfit transition-colors duration-200">
+            {/* Global Navbar */}
             <Navbar />
             <main className="flex-1 relative z-10">
                 {/* Hero Section */}

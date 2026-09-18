@@ -6,16 +6,20 @@ const CieRawInputWorkspace = ({
     onMarksChange,
     isSaving
 }) => {
-    if (!subject) return null;
-
-    const { evalConfig, rawMarks = {}, evaluationType, subjectName, subjectCode, credits } = subject;
+    const rawMarks = subject?.rawMarks || {};
     const [localMarks, setLocalMarks] = useState({ ...rawMarks });
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
-        setLocalMarks({ ...(subject.rawMarks || {}) });
-        setErrors({});
-    }, [subject.registeredSubjectId, subject.rawMarks]);
+        if (subject) {
+            setLocalMarks({ ...(subject.rawMarks || {}) });
+            setErrors({});
+        }
+    }, [subject?.registeredSubjectId, subject?.rawMarks]);
+
+    if (!subject) return null;
+
+    const { evalConfig, evaluationType, subjectName, subjectCode, credits } = subject;
 
     const handleInputChange = (fieldId, valueStr, maxRaw) => {
         let val = valueStr === '' ? null : Number(valueStr);

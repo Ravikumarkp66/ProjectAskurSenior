@@ -65,6 +65,7 @@ router.get('/me', authenticateStudent, requireActiveAccount, authV2Controller.ge
 router.put('/profile', authenticateStudent, requireActiveAccount, authV2Controller.updateProfile);
 router.post('/profile/usn/request-otp', authenticateStudent, requireActiveAccount, authV2Controller.requestUsnChangeOtp);
 router.post('/profile/usn/verify-otp', authenticateStudent, requireActiveAccount, authV2Controller.verifyUsnChangeOtp);
+router.post('/profile/usn/temporary', authenticateStudent, requireActiveAccount, authV2Controller.setTemporaryUsn);
 router.post('/profile/picture', authenticateStudent, requireActiveAccount, upload.single('profilePicture'), authV2Controller.uploadProfilePicture);
 router.delete('/profile/picture', authenticateStudent, requireActiveAccount, authV2Controller.removeProfilePicture);
 router.get('/profile/semesters', authenticateStudent, requireActiveAccount, authV2Controller.getSemesters);
@@ -76,6 +77,9 @@ router.get('/profile/timetable/slots', authenticateStudent, requireActiveAccount
 router.put('/profile/timetable/slots', authenticateStudent, requireActiveAccount, authV2Controller.updateTimetableSlots);
 router.post('/profile/timetable/reset', authenticateStudent, requireActiveAccount, authV2Controller.resetTimetable);
 router.post('/profile/timetable/undo-reset', authenticateStudent, requireActiveAccount, authV2Controller.undoResetTimetable);
+router.get('/profile/subjects', authenticateStudent, requireActiveAccount, authV2Controller.getMySubjects);
+router.get('/profile/editorial-progress/:subjectSlug', authenticateStudent, requireActiveAccount, authV2Controller.getEditorialProgress);
+router.post('/profile/editorial-progress/toggle', authenticateStudent, requireActiveAccount, authV2Controller.toggleTopicCompletion);
 router.get('/profile/timetable/subjects', authenticateStudent, requireActiveAccount, authV2Controller.getAcademicSubjects);
 router.get('/profile/timetable/registered-subjects', authenticateStudent, requireActiveAccount, authV2Controller.getRegisteredSubjects);
 router.put('/profile/timetable/registered-subjects', authenticateStudent, requireActiveAccount, authV2Controller.saveRegisteredSubjects);

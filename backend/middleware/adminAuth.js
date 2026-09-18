@@ -116,8 +116,22 @@ const enforceDepartmentScope = (req, res, next) => {
   req.query.branch = deptCode;
   req.query.department = deptCode;
 
-  // Force department scope on creation/mutation requests
+  // Validate and force department scope on creation/mutation requests
   if (req.body && typeof req.body === 'object') {
+    const requestedDept = req.body.department || req.body.branch;
+    if (requestedDept && typeof requestedDept === 'string' && requestedDept.trim().toUpperCase() !== deptCode.toUpperCase()) {
+      return res.status(403).json({
+        error: `Forbidden: You do not have permission to manage resources outside your assigned department (${deptCode}).`
+      });
+    }
+
+    const requestedDeptId = req.body.departmentId || req.body.branchId;
+    if (requestedDeptId && deptId && requestedDeptId.toString() !== deptId.toString()) {
+      return res.status(403).json({
+        error: `Forbidden: You do not have permission to manage resources outside your assigned department (${deptCode}).`
+      });
+    }
+
     req.body.branch = deptCode;
     req.body.department = deptCode;
     if (deptId) {

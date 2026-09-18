@@ -16,6 +16,7 @@ import NavLogo from '../components/navbar/NavLogo';
 import SubjectContext from '../contexts/SubjectContext';
 import RightPanel from '../components/dashboard/RightPanel';
 import UniversalMobileDrawer from '../components/UniversalMobileDrawer';
+import AnnouncementsModal from '../components/announcements/AnnouncementsModal';
 
 const YEAR_SEMESTERS = {
     first:   { sem: 'Semester 1 & 2', label: '1st Year' },
@@ -33,8 +34,7 @@ const MAIN_NAV_ITEMS = [
 
 const ACCOUNT_NAV_ITEMS = [
     { id: 'profile', label: 'My Profile', path: '/profile', icon: User },
-    { id: 'settings', label: 'Settings', path: '/settings', icon: Settings },
-    { id: 'notifications', label: 'Notifications', path: '/settings', icon: Bell },
+    { id: 'account', label: 'Account', path: '/account', icon: Settings },
     { id: 'support', label: 'Help & Support', path: '/support', icon: HelpCircle },
 ];
 
@@ -54,12 +54,25 @@ const DashboardLayout = () => {
     const isMainDashboardRoute = location.pathname === '/home' || location.pathname === '/plus' || location.pathname === '/home/' || location.pathname === '/plus/';
     const isHomeOrPlusRoute = location.pathname.startsWith('/home') || location.pathname.startsWith('/plus');
     const isAttendanceRoute = location.pathname.includes('attendance') || location.pathname.includes('timetable') || location.pathname.includes('cie') || location.pathname.includes('sgpa');
+    const isSgpaRoute = location.pathname.includes('sgpa') || location.pathname.includes('cgpa');
     const isInterviewRoute = location.pathname.includes('interview-experiences') || location.pathname.includes('/interview');
-    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute && !isInterviewRoute;
+    const isAcademicSummaryRoute = location.pathname.includes('academic-summary') || location.pathname.includes('academic-overview');
+    const isRoadmapsRoute = location.pathname.includes('roadmaps');
+    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute && !isInterviewRoute && !isAcademicSummaryRoute && !isRoadmapsRoute;
     
     // Active navigation states
     const isHomeActive = location.pathname === '/plus' || location.pathname === '/home';
     const isTrackActive = isSubjectRoute;
+
+    // Announcements modal state (Plus only)
+    const isAnnouncementsModalOpen = location.pathname.startsWith('/plus/announcements');
+    const handleCloseAnnouncements = () => {
+        if (window.history.state && window.history.state.idx > 0) {
+            navigate(-1);
+        } else {
+            navigate('/plus');
+        }
+    };
 
     // Sidebar Collapse state (Desktop only, persistent in localStorage)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -99,7 +112,7 @@ const DashboardLayout = () => {
         });
     };
 
-    const sidebarWidth = isSubjectRoute ? (sidebarCollapsed ? 80 : 300) : 80;
+    const sidebarWidth = isMySubjectsRoute ? 0 : (isSubjectRoute ? (sidebarCollapsed ? 80 : 300) : 80);
 
     // Responsiveness & Single Authoritative Mobile Sidebar Drawer State
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -263,7 +276,7 @@ const DashboardLayout = () => {
             position: 'relative'
         }}>
             {/* Desktop Sidebar Container (≥ 1024px) */}
-            {isDesktop && (
+            {isDesktop && !isMySubjectsRoute && (
                 <div style={{
                     position: 'fixed',
                     top: 0,
@@ -303,7 +316,7 @@ const DashboardLayout = () => {
             <div
                 style={{
                     flex: 1,
-                    marginLeft: isDesktop ? sidebarWidth : 0,
+                    marginLeft: (isDesktop && !isMySubjectsRoute) ? sidebarWidth : 0,
                     height: '100vh',
                     display: (isLargeDesktop && showRightPanel) ? 'grid' : 'block',
                     gridTemplateColumns: (isLargeDesktop && showRightPanel) ? `minmax(0, 1fr) ${RIGHT_PANEL_WIDTH}px` : 'none',
@@ -312,11 +325,11 @@ const DashboardLayout = () => {
                     overflow: 'hidden',
                     transition: 'margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                     position: 'relative',
-                    paddingTop: (isMobile && isMainDashboardRoute) ? '96px' : (isMobile ? '56px' : 0),
+                    paddingTop: (isMobile && isMainDashboardRoute) ? '96px' : ((isMobile && !isMySubjectsRoute) ? '56px' : 0),
                 }}
             >
                 {/* Dedicated Mobile Header Bar (< 768px) */}
-                {isMobile && (
+                {isMobile && !isMySubjectsRoute && (
                     <header
                         className="fixed top-0 left-0 right-0 z-30 backdrop-blur-md px-4 h-14"
                         style={{
@@ -422,17 +435,17 @@ const DashboardLayout = () => {
                 {/* Main Scrollable View */}
                 <main
                     style={{
-                        height: (isMobile && isMainDashboardRoute) ? 'calc(100vh - 96px)' : (isMobile ? 'calc(100vh - 56px)' : (!isDesktop ? 'calc(100vh - 56px)' : '100vh')),
+                        height: isMySubjectsRoute ? '100vh' : isSgpaRoute ? (isMobile ? 'calc(100vh - 56px)' : '100vh') : ((isMobile && isMainDashboardRoute) ? 'calc(100vh - 96px)' : (isMobile ? 'calc(100vh - 56px)' : (!isDesktop ? 'calc(100vh - 56px)' : '100vh'))),
                         minWidth: 0,
-                        padding: (isSubjectRoute || isMySubjectsRoute) ? '0' : (isDesktop ? '16px 0 16px 16px' : '12px 16px 24px'),
-                        overflowY: 'auto',
+                        padding: (isSubjectRoute || isMySubjectsRoute || isSgpaRoute) ? '0' : (isDesktop ? '16px 0 16px 16px' : '12px 16px 24px'),
+                        overflowY: (isMySubjectsRoute || isSgpaRoute) ? 'hidden' : 'auto',
                         overscrollBehavior: 'contain',
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none',
                         display: 'flex',
                         flexDirection: 'column',
                     }}
-                    className="dashboard-scroll-region"
+                    className={(isMySubjectsRoute || isSgpaRoute) ? '' : 'dashboard-scroll-region'}
                 >
                     {/* ── Year Header with Scheme + Branch Switchers (2nd/3rd/4th year only) ── */}
                     {isSubjectRoute && currentYearStr !== 'first' && (
@@ -586,7 +599,7 @@ const DashboardLayout = () => {
                         </div>
                     )}
 
-                    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', scrollbarWidth: 'none' }} className="dashboard-scroll-region">
+                    <div style={{ flex: 1, minHeight: 0, height: '100%', overflowY: (isMySubjectsRoute || isSgpaRoute) ? 'hidden' : 'auto', overscrollBehavior: 'contain', scrollbarWidth: 'none' }} className={(isMySubjectsRoute || isSgpaRoute) ? '' : 'dashboard-scroll-region'}>
                         <SubjectContext.Provider value={{
                             subjects,
                             filteredSubjects,
@@ -627,8 +640,14 @@ const DashboardLayout = () => {
 
             {/* Universal Mobile Sidebar Drawer (< 768px) */}
             <UniversalMobileDrawer
-                isOpen={isMobileMenuOpen}
+                isOpen={!isMySubjectsRoute && isMobileMenuOpen}
                 onClose={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* Centered Announcements Modal (Plus Only Overlay) */}
+            <AnnouncementsModal
+                isOpen={isAnnouncementsModalOpen}
+                onClose={handleCloseAnnouncements}
             />
         </div>
     );

@@ -1,0 +1,14 @@
+{
+  "reporter": ["text", "html", "json-summary"],
+  "reports-dir": "./coverage",
+  "exclude": [
+    "tests/**",
+    "**/__tests__/**",
+    "node_modules/**",
+    "coverage/**",
+    "uploads/**",
+    "logs/**",
+    "scratch/**",
+    "tmp/**"
+  ]
+}

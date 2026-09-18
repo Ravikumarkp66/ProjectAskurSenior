@@ -11,6 +11,7 @@ const PDFDocument = require("pdfkit");
 const reportService = require("../services/reportService");
 const csvExportService = require("../services/csvExportService");
 const pdfExportService = require("../services/pdfExportService");
+const { resolvePlusAccess, setTestUserStatus } = require("../services/plusAccessService");
 
 /**
  * GET /admin/analytics/overview
@@ -308,6 +309,42 @@ exports.getUserListAnalytics = async (req, res) => {
             ]
         };
 
+        const CANONICAL_ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'mreducator4566@gmail.com').toLowerCase().trim();
+
+        const adminCondition = {
+            $or: [
+                { role: { $in: ['admin', 'SUPER_ADMIN', 'ADMIN', 'super_admin'] } },
+                { accountType: 'admin' },
+                { isAdmin: true },
+                { email: CANONICAL_ADMIN_EMAIL }
+            ]
+        };
+
+        const testUserCondition = {
+            $or: [
+                { isTestUser: true },
+                { isTestAccount: true }
+            ]
+        };
+
+        const plusCondition = {
+            $or: [
+                ...adminCondition.$or,
+                ...testUserCondition.$or
+            ]
+        };
+
+        const freeCondition = {
+            $and: [
+                { role: { $nin: ['admin', 'SUPER_ADMIN', 'ADMIN', 'super_admin'] } },
+                { accountType: { $ne: 'admin' } },
+                { isAdmin: { $ne: true } },
+                { email: { $ne: CANONICAL_ADMIN_EMAIL } },
+                { isTestUser: { $ne: true } },
+                { isTestAccount: { $ne: true } }
+            ]
+        };
+
         if (filter === "incomplete" || filter === "incompleteProfiles" || req.query.incomplete === "true") {
             if (query.$or) {
                 query = {
@@ -329,6 +366,39 @@ exports.getUserListAnalytics = async (req, res) => {
                 };
             } else {
                 Object.assign(query, neverActiveCondition);
+            }
+        } else if (filter === "plus") {
+            if (query.$or) {
+                query = {
+                    $and: [
+                        { $or: query.$or },
+                        plusCondition
+                    ]
+                };
+            } else {
+                Object.assign(query, plusCondition);
+            }
+        } else if (filter === "free") {
+            if (query.$or) {
+                query = {
+                    $and: [
+                        { $or: query.$or },
+                        freeCondition
+                    ]
+                };
+            } else {
+                Object.assign(query, freeCondition);
+            }
+        } else if (filter === "testUsers" || filter === "testUser") {
+            if (query.$or) {
+                query = {
+                    $and: [
+                        { $or: query.$or },
+                        testUserCondition
+                    ]
+                };
+            } else {
+                Object.assign(query, testUserCondition);
             }
         }
 
@@ -389,25 +459,51 @@ exports.getUserListAnalytics = async (req, res) => {
             ? { branch: req.departmentScope.id }
             : {};
 
-        const [users, totalResult, liveUsers, recentlyActiveCount, incompleteProfileCount, neverActiveCount] = await Promise.all([
+        const [
+            users,
+            totalResult,
+            liveUsers,
+            recentlyActiveCount,
+            incompleteProfileCount,
+            neverActiveCount,
+            plusCount,
+            freeCount,
+            testUserCount
+        ] = await Promise.all([
             StudentAccount.aggregate(pipeline),
             StudentAccount.aggregate([...countPipeline, { $count: "count" }]),
             StudentAccount.countDocuments({ ...baseScope, lastActive: { $gte: new Date(Date.now() - 300000) } }),
             StudentAccount.countDocuments({ ...baseScope, lastActive: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }),
             StudentAccount.countDocuments({ ...baseScope, ...incompleteProfileCondition }),
-            StudentAccount.countDocuments({ ...baseScope, ...neverActiveCondition })
+            StudentAccount.countDocuments({ ...baseScope, ...neverActiveCondition }),
+            StudentAccount.countDocuments({ ...baseScope, ...plusCondition }),
+            StudentAccount.countDocuments({ ...baseScope, ...freeCondition }),
+            StudentAccount.countDocuments({ ...baseScope, ...testUserCondition })
         ]);
 
         const total = totalResult.length > 0 ? totalResult[0].count : 0;
         const totalUsersCount = await StudentAccount.countDocuments(baseScope);
 
+        // Enrich all returned users with single-source-of-truth Plus access resolution
+        const enrichedUsers = users.map((u) => {
+            const access = resolvePlusAccess(u);
+            return {
+                ...u,
+                access,
+                isTestUser: Boolean(u.isTestUser || u.isTestAccount)
+            };
+        });
+
         res.json({
-            users,
+            users: enrichedUsers,
             total,
             page: parseInt(page),
             pages: Math.ceil(total / limit),
             summary: {
                 totalUsers: totalUsersCount,
+                plusCount,
+                freeCount,
+                testUserCount,
                 liveUsers,
                 recentlyActiveCount,
                 incompleteProfileCount,
@@ -418,6 +514,90 @@ exports.getUserListAnalytics = async (req, res) => {
     } catch (err) {
         console.error("Error fetching users:", err);
         res.status(500).json({ error: "Failed to fetch users" });
+    }
+};
+
+/**
+ * PATCH /admin/users/:userId/test-access
+ * Designate or revoke test-user Plus access
+ */
+exports.updateTestUserAccess = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { isTestUser } = req.body;
+
+        if (typeof isTestUser !== "boolean") {
+            return res.status(400).json({ error: "isTestUser must be a boolean" });
+        }
+
+        const mongoose = require("mongoose");
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: "Invalid user ID format" });
+        }
+
+        // Department security check for scoped department admins
+        if (req.departmentScope && req.departmentScope.id) {
+            const targetStudent = await StudentAccount.findById(userId);
+            if (!targetStudent) return res.status(404).json({ error: "User not found" });
+            if (String(targetStudent.branch) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: "You cannot manage users outside your assigned department." });
+            }
+        }
+
+        // Find user to record previous state
+        const targetStudent = await StudentAccount.findById(userId) || await User.findById(userId);
+        if (!targetStudent) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const previousAccess = resolvePlusAccess(targetStudent);
+
+        // Update test user status
+        const updateResult = await setTestUserStatus(userId, isTestUser);
+        if (!updateResult.updated) {
+            return res.status(404).json({ error: "Failed to update user test access" });
+        }
+
+        // Resolve new access state from updated user document
+        const updatedUser = updateResult.user || await StudentAccount.findById(userId) || await User.findById(userId);
+        const newAccess = resolvePlusAccess(updatedUser);
+
+        // Audit log
+        try {
+            await AdminLog.create({
+                adminId: req.admin?._id || req.userId,
+                action: isTestUser ? "TEST_USER_ENABLED" : "TEST_USER_DISABLED",
+                targetUserId: targetStudent._id,
+                details: {
+                    targetUserName: targetStudent.name,
+                    targetUserEmail: targetStudent.email,
+                    targetUserUsn: targetStudent.usn,
+                    adminName: req.admin?.name || req.user?.name || "Administrator",
+                    adminEmail: req.admin?.email || req.user?.email,
+                    adminRole: req.admin?.role || (req.isSuperAdmin ? "SUPER_ADMIN" : "ADMIN"),
+                    previousState: previousAccess,
+                    newState: newAccess
+                }
+            });
+        } catch (logErr) {
+            console.error("Failed to write AdminLog for test access:", logErr.message);
+        }
+
+        res.json({
+            success: true,
+            message: `Test access ${isTestUser ? "enabled" : "disabled"} successfully`,
+            user: {
+                _id: targetStudent._id,
+                name: targetStudent.name,
+                email: targetStudent.email,
+                usn: targetStudent.usn,
+                isTestUser: Boolean(updatedUser.isTestUser || updatedUser.isTestAccount),
+                access: newAccess
+            }
+        });
+    } catch (err) {
+        console.error("Error updating user test access:", err);
+        res.status(500).json({ error: "Failed to update test user status" });
     }
 };
 

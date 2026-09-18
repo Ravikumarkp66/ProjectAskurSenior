@@ -31,6 +31,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 const MONTH_LABEL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -128,6 +129,8 @@ const HeatmapGrid = ({
     getCellTitle  = (d) => d.toLocaleDateString(),
     onCellClick   = null,
 }) => {
+    const { isDark } = useTheme();
+
     // Build month blocks — recomputed only when date range changes
     const blocks = useMemo(
         () => buildMonthBlocks(startDate, endDate),
@@ -136,7 +139,8 @@ const HeatmapGrid = ({
     );
 
     const fallback = palette[defaultStatus] ?? {
-        bg: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)'
+        bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15, 23, 42, 0.04)',
+        border: isDark ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(15, 23, 42, 0.08)'
     };
 
     return (
@@ -163,7 +167,7 @@ const HeatmapGrid = ({
                         <div style={{
                             fontSize:   '13px',
                             fontWeight: 700,
-                            color:      '#c4b5fd',
+                            color:      isDark ? '#c4b5fd' : '#7c3aed',
                             lineHeight: 1.2,
                             whiteSpace: 'nowrap',
                             userSelect: 'none',
@@ -209,18 +213,27 @@ const HeatmapGrid = ({
                                         const hasSemStart = overlays.includes('semesterStart');
                                         const hasSemEnd = overlays.includes('semesterEnd');
                                         const hasToday = overlays.includes('today');
+                                        const hasExam = overlays.includes('exam');
+                                        const hasHoliday = overlays.includes('holiday');
+                                        const hasEventDot = overlays.includes('eventDot');
 
                                         let borderStyle = p.border || 'none';
                                         let shadowStyle = p.shadow || 'none';
 
-                                        if (hasSemStart) {
+                                        if (hasExam) {
+                                            borderStyle = '1.5px solid #ef4444';
+                                        } else if (hasHoliday) {
+                                            borderStyle = '1.5px solid #eab308';
+                                        } else if (hasSemStart) {
                                             borderStyle = '1.5px solid #a855f7';
-                                        }
-                                        if (hasSemEnd) {
+                                        } else if (hasSemEnd) {
                                             borderStyle = '1.5px solid #ec4899';
                                         }
+
                                         if (hasToday) {
-                                            borderStyle = '1.5px solid #06b6d4';
+                                            if (!hasExam && !hasHoliday && !hasSemStart && !hasSemEnd) {
+                                                borderStyle = '1.5px solid #06b6d4';
+                                            }
                                             shadowStyle = '0 0 8px #06b6d4';
                                         }
 
@@ -252,7 +265,12 @@ const HeatmapGrid = ({
                                                     e.currentTarget.style.transform = 'scale(1)';
                                                     e.currentTarget.style.zIndex    = '0';
                                                 }}
-                                            />
+                                            >
+                                                {/* Generic event dot ONLY for normal events when no dedicated holiday or exam indicator exists */}
+                                                {hasEventDot && !hasExam && !hasHoliday && (
+                                                    <span style={{ position: 'absolute', bottom: '2px', right: '2px', width: '3.5px', height: '3.5px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.85)', boxShadow: '0 0 2px rgba(255, 255, 255, 0.5)' }} />
+                                                )}
+                                            </div>
                                         );
                                     })}
                                 </div>

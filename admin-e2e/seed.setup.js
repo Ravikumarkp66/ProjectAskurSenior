@@ -328,7 +328,129 @@ setup('seed admin e2e test data', async () => {
       }
     }
 
-    // ─── 8. Save test metadata for other tests ────────────────────
+    // ─── 8. Create Test Companies ─────────────────────────────────
+    console.log('[seed] Creating test companies...');
+    const companiesCol = db.collection('companies');
+
+    const companyDefs = [
+      {
+        name: '[E2E] Test Company Alpha',
+        logo: 'https://placehold.co/100x100?text=Alpha',
+        type: 'Product',
+        cutoff: 8.0,
+        industry: 'Software & Cloud',
+        website: 'https://e2e-alpha.test.askursenior.org',
+        description: '[E2E] Test Company Alpha for interview moderation tests',
+        status: 'Active',
+        isActive: true,
+      },
+      {
+        name: '[E2E] Test Company Beta',
+        logo: 'https://placehold.co/100x100?text=Beta',
+        type: 'Service',
+        cutoff: 7.0,
+        industry: 'Consulting & IT',
+        website: 'https://e2e-beta.test.askursenior.org',
+        description: '[E2E] Test Company Beta for clean company deletion tests',
+        status: 'Active',
+        isActive: true,
+      },
+    ];
+
+    const seededCompanies = {};
+    for (const def of companyDefs) {
+      const existing = await companiesCol.findOne({ name: def.name });
+      if (existing) {
+        console.log(`[seed]   Company "${def.name}" already exists, ensuring Active status`);
+        await companiesCol.updateOne(
+          { _id: existing._id },
+          { $set: { ...def, updatedAt: new Date() } }
+        );
+        seededCompanies[def.name] = { _id: existing._id, ...def };
+      } else {
+        console.log(`[seed]   Creating company: ${def.name}`);
+        const result = await companiesCol.insertOne({
+          ...def,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        seededCompanies[def.name] = { _id: result.insertedId, ...def };
+      }
+    }
+
+    // ─── 9. Create Test Interview Experiences ─────────────────────
+    console.log('[seed] Creating test interview experiences...');
+    const experiencesCol = db.collection('experiences');
+
+    const alphaCompany = seededCompanies['[E2E] Test Company Alpha'];
+
+    const experienceDefs = [
+      {
+        role: '[E2E] Pending Software Engineer',
+        companyId: alphaCompany._id,
+        ctc: '14 LPA',
+        batch: '2026',
+        difficulty: 'Medium',
+        selected: true,
+        status: 'Pending',
+        upvotes: 2,
+        rounds: [
+          {
+            roundNumber: 1,
+            type: 'Technical',
+            notes: ['DSA questions on arrays, recursion, and system basics'],
+            questions: [{ text: 'Reverse Linked List', solveLink: 'https://leetcode.com/problems/reverse-linked-list' }]
+          }
+        ],
+      },
+      {
+        role: '[E2E] Published Software Engineer',
+        companyId: alphaCompany._id,
+        ctc: '18 LPA',
+        batch: '2025',
+        difficulty: 'Hard',
+        selected: true,
+        status: 'Published',
+        upvotes: 12,
+        rounds: [
+          {
+            roundNumber: 1,
+            type: 'Technical',
+            notes: ['Online Assessment and Live Coding round'],
+            questions: [{ text: 'LRU Cache Design', solveLink: 'https://leetcode.com/problems/lru-cache' }]
+          },
+          {
+            roundNumber: 2,
+            type: 'Managerial',
+            notes: ['Behavioral questions and cultural alignment'],
+            questions: [{ text: 'Tell me about a challenging engineering conflict' }]
+          }
+        ],
+      }
+    ];
+
+    const seededExperiences = {};
+    for (const def of experienceDefs) {
+      const existing = await experiencesCol.findOne({ role: def.role });
+      if (existing) {
+        console.log(`[seed]   Experience "${def.role}" already exists, resetting to seeded state`);
+        await experiencesCol.updateOne(
+          { _id: existing._id },
+          { $set: { ...def, updatedAt: new Date() } }
+        );
+        seededExperiences[def.role] = { _id: existing._id, ...def };
+      } else {
+        console.log(`[seed]   Creating experience: ${def.role} (${def.status})`);
+        const result = await experiencesCol.insertOne({
+          ...def,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+        seededExperiences[def.role] = { _id: result.insertedId, ...def };
+      }
+    }
+
+    // ─── 10. Save test metadata for other tests ───────────────────
     const authDir = path.resolve('admin-e2e/.auth');
     if (!fs.existsSync(authDir)) {
       fs.mkdirSync(authDir, { recursive: true });
@@ -343,6 +465,14 @@ setup('seed admin e2e test data', async () => {
       },
       subjects: {},
       materials: {},
+      companies: {
+        alpha: { _id: alphaCompany._id.toString(), name: alphaCompany.name },
+        beta: { _id: seededCompanies['[E2E] Test Company Beta']._id.toString(), name: '[E2E] Test Company Beta' }
+      },
+      experiences: {
+        pending: { _id: seededExperiences['[E2E] Pending Software Engineer']._id.toString(), role: '[E2E] Pending Software Engineer' },
+        published: { _id: seededExperiences['[E2E] Published Software Engineer']._id.toString(), role: '[E2E] Published Software Engineer' }
+      }
     };
 
     for (const [key, sub] of Object.entries(createdSubjects)) {

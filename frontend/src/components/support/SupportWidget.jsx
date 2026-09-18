@@ -95,6 +95,14 @@ const SupportWidget = () => {
         sessionStorage.setItem('askPlusPopupSeen', 'true');
     };
 
+    useEffect(() => {
+        const handleOpenExternal = () => {
+            handleOpenChat();
+        };
+        window.addEventListener('open-ask-plus-chat', handleOpenExternal);
+        return () => window.removeEventListener('open-ask-plus-chat', handleOpenExternal);
+    }, []);
+
     const toggleChat = () => {
         if (!isChatOpen) {
             handleOpenChat();

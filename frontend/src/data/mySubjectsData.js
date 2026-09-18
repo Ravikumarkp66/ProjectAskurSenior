@@ -4,7 +4,7 @@
  */
 
 export const MY_SUBJECTS_TABS = [
-    { id: 'editorial', label: 'Editorial', color: '#A855F7' },
-    { id: 'pyqs', label: 'PYQs', color: '#F59E0B' },
-    { id: 'discussion', label: 'Discussion', color: '#EC4899' },
+    { id: 'editorial', label: 'Editorial', color: '#34D399' },
+    { id: 'pyqs', label: 'PYQs', color: '#FBBF24' },
+    { id: 'discussion', label: 'Discussion', color: '#C084FC' },
 ];

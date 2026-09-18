@@ -1,4 +1,4 @@
-﻿import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
@@ -13,8 +13,45 @@ const getTier = (ms) => {
   return '🔴 Needs work (>2s)';
 };
 
-test.describe('⚡ User-Perceived Journey Performance Benchmarks', () => {
+let authSession = null;
+
+test.describe('⚡ User-Perceived Journey Performance Benchmarks @performance', () => {
+  test.beforeAll(async ({ request }) => {
+    const backendBase = process.env.E2E_BACKEND_URL || 'http://localhost:5000';
+    const loginEndpoint = `${backendBase.replace(/\/+$/, '')}/api/auth/login`;
+
+    try {
+      const res = await request.post(loginEndpoint, {
+        data: {
+          usn: process.env.E2E_TEST_USN || 'STAGING01',
+          password: process.env.E2E_TEST_PASSWORD || 'StagingE2EPass2026!',
+          branch: 'CS'
+        },
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (res.ok()) {
+        const data = await res.json();
+        authSession = {
+          token: data.token,
+          user: { ...data.user, semester: 1 }
+        };
+      }
+    } catch (e) {
+      console.warn('Local authentication setup in benchmark failed:', e.message);
+    }
+  });
+
   test.beforeEach(async ({ page }) => {
+    if (authSession) {
+      await page.addInitScript(({ token, user }) => {
+        localStorage.setItem('token', token);
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('uiTheme', 'dark');
+      }, { token: authSession.token, user: authSession.user });
+    }
+
     // Mock S3 fallback for preview/download stability while measuring full UI render & DOM times
     await page.route('**/api/documents/*/preview-url', async (route) => {
       const json = { previewUrl: 'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf', title: 'Sample Preview Document' };
@@ -36,7 +73,7 @@ test.describe('⚡ User-Perceived Journey Performance Benchmarks', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // 2. Year Cards Visible & Stats Loaded
-    const firstYearCard = page.locator('text=FIRST YEAR').or(page.locator('text=First Year')).first();
+    const firstYearCard = page.getByRole('button', { name: /Subjects.*Resources/i }).first();
     await expect(firstYearCard).toBeVisible({ timeout: 15000 });
     const dashboardVisibleTime = performance.now() - navStart;
 
@@ -50,12 +87,12 @@ test.describe('⚡ User-Perceived Journey Performance Benchmarks', () => {
     // 4. Search Subject & Select
     const searchStart = performance.now();
     await searchInput.fill('Python');
-    const pythonBtn = page.locator('button').filter({ hasText: /Python Programming/i }).first();
+    const pythonBtn = page.getByRole('button', { name: /Python Programming/i }).first();
     await expect(pythonBtn).toBeVisible({ timeout: 10000 });
     await pythonBtn.click();
 
     // 5. Materials Grid Visible
-    const previewBtn = page.locator('button').filter({ hasText: /Preview/i }).first();
+    const previewBtn = page.getByRole('button', { name: /Preview/i }).first();
     await expect(previewBtn).toBeVisible({ timeout: 15000 });
     const materialsRenderTime = performance.now() - searchStart;
 
@@ -92,7 +129,7 @@ test.describe('⚡ User-Perceived Journey Performance Benchmarks', () => {
     const searchInput = page.locator('input[placeholder*="Search subjects"]').first();
     await expect(searchInput).toBeVisible({ timeout: 15000 });
 
-    const anySubject = page.locator('button').filter({ hasText: /Engineering|Mathematics|Circuits|Data|Biology|Algorithms/i }).first();
+    const anySubject = page.getByRole('button', { name: /Engineering|Mathematics|Circuits|Data|Biology|Algorithms/i }).first();
     await expect(anySubject).toBeVisible({ timeout: 15000 });
 
     const totalTime = performance.now() - start;
@@ -115,7 +152,7 @@ test.describe('⚡ User-Perceived Journey Performance Benchmarks', () => {
     const searchInput = page.locator('input[placeholder*="Search subjects"]').first();
     await expect(searchInput).toBeVisible({ timeout: 15000 });
 
-    const subjectBtn = page.locator('button').filter({ hasText: /Software|Artificial|Database|Design|Communication/i }).first();
+    const subjectBtn = page.getByRole('button', { name: /Software|Artificial|Database|Design|Communication/i }).first();
     await expect(subjectBtn).toBeVisible({ timeout: 15000 });
 
     const totalTime = performance.now() - start;

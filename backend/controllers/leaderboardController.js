@@ -48,7 +48,7 @@ exports.getLeaderboard = async (req, res) => {
             },
             {
                 $match: {
-                    displayName: { $ne: null, $ne: "", $exists: true },
+                    displayName: { $nin: [null, ""], $exists: true },
                     $expr: {
                         $and: [
                             { $ne: ["$displayName", null] },
@@ -64,7 +64,7 @@ exports.getLeaderboard = async (req, res) => {
                     score: { $sum: 10 }
                 }
             },
-            { $match: { _id: { $ne: null, $ne: "" } } },
+            { $match: { _id: { $nin: [null, ""] } } },
             {
                 $project: {
                     _id: 0,

@@ -18,29 +18,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import HeatmapGrid from '../../../components/HeatmapGrid';
 import { useAuth } from '../../../utils/hooks';
-import academicAPI from '../../../services/academicService';
 import { apiV2 } from '../../../services/authService';
-
-// ─── Academic palette (injected into HeatmapGrid) ────────────────────────────
-const ACADEMIC_PALETTE = {
-    'none':                 { bg: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' },
-    'attendance-100':       { bg: 'rgba(22, 163, 74, 0.95)',  border: 'none' },
-    'attendance-75':        { bg: 'rgba(34, 197, 94, 0.80)',  border: 'none' },
-    'attendance-50':        { bg: 'rgba(74, 222, 128, 0.65)',  border: 'none' },
-    'attendance-1':         { bg: 'rgba(134, 239, 172, 0.45)',  border: 'none' },
-    'attendance-absent':    { bg: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' },
-    'holiday':              { bg: 'rgba(234,179,8,0.75)',    border: 'none' },
-    'exam':                 { bg: 'rgba(239,68,68,0.80)',    border: 'none' },
-};
-
-const LEGEND_CONFIG = [
-    { label: 'Attendance',     bg: 'rgba(34, 197, 94, 0.80)',  border: 'none' },
-    { label: 'Holiday',        bg: 'rgba(234, 179, 8, 0.75)',   border: 'none' },
-    { label: 'Exam / CIE',     bg: 'rgba(239, 68, 68, 0.80)',   border: 'none' },
-    { label: 'Semester Start', bg: 'rgba(255, 255, 255, 0.05)', border: '1.5px solid #a855f7' },
-    { label: 'Semester End',   bg: 'rgba(255, 255, 255, 0.05)', border: '1.5px solid #ec4899' },
-    { label: 'Today',          bg: 'rgba(255, 255, 255, 0.05)', border: '1.5px solid #06b6d4', shadow: '0 0 6px #06b6d4' }
-];
+import { useTheme } from '../../../context/ThemeContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function isoKey(date) {
@@ -70,15 +49,15 @@ const getSemestersForYear = (year, joiningYear) => {
 };
 
 // ─── Nav Button ───────────────────────────────────────────────────────────────
-const NavBtn = ({ onClick, disabled, children }) => (
+const NavBtn = ({ onClick, disabled, isDark, children }) => (
     <button
         onClick={onClick}
         disabled={disabled}
         style={{
-            background:     disabled ? 'transparent' : 'rgba(255,255,255,0.04)',
-            border:         '1px solid rgba(255,255,255,0.08)',
+            background:     disabled ? 'transparent' : (isDark ? 'rgba(255,255,255,0.04)' : '#F1F5F9'),
+            border:         isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
             borderRadius:   '6px',
-            color:          disabled ? 'rgba(148,163,184,0.2)' : 'rgba(148,163,184,0.65)',
+            color:          disabled ? (isDark ? 'rgba(148,163,184,0.2)' : '#CBD5E1') : (isDark ? 'rgba(148,163,184,0.65)' : '#475569'),
             cursor:         disabled ? 'not-allowed' : 'pointer',
             display:        'flex',
             alignItems:     'center',
@@ -89,8 +68,12 @@ const NavBtn = ({ onClick, disabled, children }) => (
             outline:        'none',
             transition:     'background 0.15s, color 0.15s',
         }}
-        onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-        onMouseLeave={e => { if (!disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+        onMouseEnter={e => {
+            if (!disabled) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0';
+        }}
+        onMouseLeave={e => {
+            if (!disabled) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : '#F1F5F9';
+        }}
     >
         {children}
     </button>
@@ -98,7 +81,29 @@ const NavBtn = ({ onClick, disabled, children }) => (
 
 // ─── Main Card ────────────────────────────────────────────────────────────────
 const AcademicJourneyCard = ({ onSelectDate }) => {
+    const { isDark } = useTheme();
     const { user } = useAuth();
+
+    const academicPalette = useMemo(() => ({
+        'none':                 { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15, 23, 42, 0.05)', border: isDark ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(15, 23, 42, 0.08)' },
+        'attendance-100':       { bg: isDark ? 'rgba(22, 163, 74, 0.95)' : '#16a34a',  border: 'none' },
+        'attendance-75':        { bg: isDark ? 'rgba(34, 197, 94, 0.80)' : '#22c55e',  border: 'none' },
+        'attendance-50':        { bg: isDark ? 'rgba(74, 222, 128, 0.65)' : '#4ade80',  border: 'none' },
+        'attendance-1':         { bg: isDark ? 'rgba(134, 239, 172, 0.45)' : '#86efac',  border: 'none' },
+        'attendance-absent':    { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15, 23, 42, 0.05)', border: isDark ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(15, 23, 42, 0.08)' },
+        'holiday':              { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(234, 179, 8, 0.08)',  border: isDark ? '1.5px solid #eab308' : '1.5px solid #d97706' },
+        'exam':                 { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(239, 68, 68, 0.08)',  border: '1.5px solid #ef4444' },
+    }), [isDark]);
+
+    const legendConfig = useMemo(() => [
+        { label: 'Attendance',     bg: isDark ? 'rgba(34, 197, 94, 0.80)' : '#22c55e',  border: 'none' },
+        { label: 'Holiday',        bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: isDark ? '1.5px solid #eab308' : '1.5px solid #d97706' },
+        { label: 'Exam / CIE',     bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #ef4444' },
+        { label: 'Event',          bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(15, 23, 42, 0.15)', dot: true },
+        { label: 'Semester Start', bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #a855f7' },
+        { label: 'Semester End',   bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #ec4899' },
+        { label: 'Today',          bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #06b6d4', shadow: '0 0 6px #06b6d4' }
+    ], [isDark]);
 
     // Derive joining year from USN (e.g. 1SI23IS080 → 2023)
     const joiningYear = useMemo(() => (
@@ -132,8 +137,8 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
     const endDate   = useMemo(() => new Date(activeYear, 11, 31), [activeYear]);
 
     // Calendar events loaded from the DB single source of truth
-    // Calendar events, manual events, timetable config & attendance initialized with instant session cache
-    const cacheKey = `aus_heatmap_${activeYear}_${user?.usn || 'user'}`;
+    // Calendar events loaded from canonical CollegeEvent API
+    const cacheKey = `aus_heatmap_v2_${activeYear}_${user?.usn || user?.username || 'user'}`;
     const cachedData = useMemo(() => {
         try {
             const raw = sessionStorage.getItem(cacheKey);
@@ -144,10 +149,8 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
     }, [cacheKey]);
 
     const [calendarEvents, setCalendarEvents] = useState(cachedData?.calendarEvents || []);
-    const [manualEvents, setManualEvents] = useState(cachedData?.manualEvents || []);
-    const [timetableConfig, setTimetableConfig] = useState(cachedData?.timetableConfig || null);
+    const [officialSemester, setOfficialSemester] = useState(cachedData?.officialSemester || null);
     const [attendanceTimeline, setAttendanceTimeline] = useState(cachedData?.attendanceTimeline || []);
-    const [subjectsList, setSubjectsList] = useState(cachedData?.subjectsList || []);
 
     useEffect(() => {
         let active = true;
@@ -163,11 +166,13 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                     activeSemesters.push(currentSem);
                 }
 
-                // Parallelize all static metadata, calendar events, AND attendance calls simultaneously
-                const [calendarRes, manualRes, configRes, ...attendanceResList] = await Promise.all([
-                    academicAPI.getCalendarEvents({ startDate: startStr, endDate: endStr }),
-                    apiV2.getAcademicEvents(),
-                    apiV2.getTimetableConfig(),
+                // Canonical: Single unified calendar query + student attendance
+                const [calendarRes, ...attendanceResList] = await Promise.all([
+                    apiV2.getStudentAcademicsCalendar({ startDate: startStr, endDate: endStr })
+                        .catch(err => {
+                            console.error('Failed to fetch canonical calendar:', err);
+                            return null;
+                        }),
                     ...activeSemesters.map(sem =>
                         apiV2.getAttendanceDashboard(sem)
                             .then(res => res.data?.success ? res.data.data : null)
@@ -179,43 +184,36 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 ]);
 
                 if (active) {
-                    const newCalendar = calendarRes.data?.events || [];
-                    const newManual = manualRes.data?.success && Array.isArray(manualRes.data.data) ? manualRes.data.data : [];
-                    const newConfig = configRes.data?.success && configRes.data.data ? configRes.data.data : null;
+                    const newCalendar = calendarRes?.data?.success && Array.isArray(calendarRes.data.data) 
+                        ? calendarRes.data.data 
+                        : [];
+                    const newOfficialSem = calendarRes?.data?.officialSemester || null;
 
                     // Process attendance responses
                     const mergedTimeline = [];
-                    const mergedSubjects = [];
                     attendanceResList.forEach(data => {
                         if (data?.groupedTimeline) {
                             mergedTimeline.push(...data.groupedTimeline);
                         }
-                        if (data?.subjects) {
-                            mergedSubjects.push(...data.subjects);
-                        }
                     });
 
                     setCalendarEvents(newCalendar);
-                    setManualEvents(newManual);
-                    setTimetableConfig(newConfig);
+                    setOfficialSemester(newOfficialSem);
                     setAttendanceTimeline(mergedTimeline);
-                    setSubjectsList(mergedSubjects);
 
                     // Cache results for instant rendering on subsequent refreshes
                     try {
                         sessionStorage.setItem(cacheKey, JSON.stringify({
                             calendarEvents: newCalendar,
-                            manualEvents: newManual,
-                            timetableConfig: newConfig,
-                            attendanceTimeline: mergedTimeline,
-                            subjectsList: mergedSubjects
+                            officialSemester: newOfficialSem,
+                            attendanceTimeline: mergedTimeline
                         }));
                     } catch (e) {
                         // Safe storage fallback
                     }
                 }
             } catch (err) {
-                console.error('Failed to fetch academic events:', err);
+                console.error('Failed to fetch academic journey data:', err);
             }
         };
         fetchEvents();
@@ -228,8 +226,10 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
         const cur = new Date(startDate);
         const todayObj = new Date();
         const todayKey = isoKey(todayObj);
-        const semStartKey = timetableConfig?.semesterStartDate ? isoKey(new Date(timetableConfig.semesterStartDate)) : null;
-        const semEndKey = timetableConfig?.lastWorkingDate ? isoKey(new Date(timetableConfig.lastWorkingDate)) : null;
+
+        // Authoritative semester start & end from OfficialSemester
+        const semStartKey = officialSemester?.startDate ? isoKey(new Date(officialSemester.startDate)) : null;
+        const semEndKey = officialSemester?.endDate ? isoKey(new Date(officialSemester.endDate)) : null;
 
         while (cur <= endDate) {
             const dKey = isoKey(cur);
@@ -239,88 +239,25 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
             let overlays = [];
             let metadata = {};
 
-            // 1. Overlays (Optional)
+            // 1. Overlays: Today, Semester Start, Semester End
             if (dKey === todayKey) {
                 overlays.push('today');
             }
             if (semStartKey && dKey === semStartKey) {
                 overlays.push('semesterStart');
-                metadata.semesterStartLabel = `Semester ${timetableConfig.semester || 1} Started`;
+                metadata.semesterStartLabel = `Semester ${officialSemester.number || ''} Started`;
             }
             if (semEndKey && dKey === semEndKey) {
                 overlays.push('semesterEnd');
-                metadata.semesterEndLabel = `Semester ${timetableConfig.semester || 1} Ended`;
+                metadata.semesterEndLabel = `Semester ${officialSemester.number || ''} Ended`;
             }
 
-            // 2. Base States (Mutually Exclusive - Exam -> Holiday -> Attendance -> None)
-
-            // A. Check Exam (Priority 1)
-            const manualExam = manualEvents.find(e => {
-                if (!e.startDate || !e.endDate) return false;
-                const startKey = isoKey(new Date(e.startDate));
-                const endKey = isoKey(new Date(e.endDate));
-                return dKey >= startKey && dKey <= endKey && e.eventType === 'Exam';
-            });
-
-            const calExam = calendarEvents.find(
-                e => e.date === dKey && e.category === 'exam'
-            );
-
-            if (manualExam) {
-                baseState = 'exam';
-                metadata.examTitle = manualExam.title || 'Exam';
-                metadata.description = manualExam.description || '';
-                
-                // Match affectedSubjects IDs with subject names
-                if (manualExam.affectedSubjects && manualExam.affectedSubjects.length > 0) {
-                    metadata.examSubjects = manualExam.affectedSubjects.map(subId => {
-                        const subIdStr = subId._id ? subId._id.toString() : subId.toString();
-                        const subObj = subjectsList.find(s => {
-                            const registeredIdStr = s.subjectId?._id 
-                                ? s.subjectId._id.toString() 
-                                : (s.subjectId ? s.subjectId.toString() : '');
-                            return registeredIdStr === subIdStr;
-                        });
-                        return subObj ? subObj.name : null;
-                    }).filter(Boolean);
-                }
-            } else if (calExam) {
-                baseState = 'exam';
-                metadata.examTitle = calExam.title || 'SEE Exam';
-                metadata.description = calExam.metadata?.description || '';
-            }
-
-            // B. Check Holiday (Priority 2)
-            if (baseState === 'none') {
-                const manualHoliday = manualEvents.find(e => {
-                    if (!e.startDate || !e.endDate) return false;
-                    const startKey = isoKey(new Date(e.startDate));
-                    const endKey = isoKey(new Date(e.endDate));
-                    return dKey >= startKey && dKey <= endKey && (e.eventType === 'Government Holiday' || e.eventType === 'College Fest');
-                });
-
-                const calHoliday = calendarEvents.find(
-                    e => e.date === dKey && e.category === 'holiday'
-                );
-
-                if (manualHoliday) {
-                    baseState = 'holiday';
-                    metadata.holidayName = manualHoliday.title || 'Holiday';
-                    metadata.holidayType = manualHoliday.eventType === 'Government Holiday' ? 'Government Holiday' : 'College Fest';
-                    metadata.description = manualHoliday.description || '';
-                } else if (calHoliday) {
-                    baseState = 'holiday';
-                    metadata.holidayName = calHoliday.title || 'Holiday';
-                    metadata.holidayType = calHoliday.scope === 'college' ? 'College Holiday' : 'Holiday';
-                    metadata.description = calHoliday.metadata?.description || '';
-                }
-            }
-
-            // C. Check Attendance (Priority 3)
-            if (baseState === 'none' && dKey <= todayKey) {
+            // 2. Attendance Layer (Never overwritten by events)
+            let hasAttendance = false;
+            if (dKey <= todayKey) {
                 const attEntry = attendanceTimeline.find(entry => entry.date === dKey);
                 if (attEntry && attEntry.expectedClasses > 0) {
-                    baseState = 'attendance';
+                    hasAttendance = true;
                     const expected = attEntry.expectedClasses;
                     const present = attEntry.present;
                     const absent = attEntry.absent;
@@ -334,9 +271,53 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 }
             }
 
-            // Map baseState + percentage to palette status string
-            let status = baseState;
-            if (baseState === 'attendance') {
+            // 3. Canonical Events Layer (CollegeEvent)
+            const dayEvents = calendarEvents.filter(e => {
+                if (!e.startDate) return false;
+                const startKey = isoKey(new Date(e.startDate));
+                const endKey = e.endDate ? isoKey(new Date(e.endDate)) : startKey;
+                return dKey >= startKey && dKey <= endKey;
+            });
+
+            // Store all events (including cancelled) in metadata for rich tooltips
+            metadata.events = dayEvents.map(e => ({
+                title: e.title,
+                eventType: e.eventType,
+                scope: e.scope,
+                description: e.description || '',
+                allDay: e.allDay,
+                startTime: e.startTime,
+                endTime: e.endTime,
+                isCancelled: e.status === 'CANCELLED'
+            }));
+
+            // Active events (non-cancelled) drive visual indicators
+            const activeEvents = dayEvents.filter(e => e.status !== 'CANCELLED');
+            const hasExam = activeEvents.some(e => e.eventType === 'Exam');
+            const hasHoliday = activeEvents.some(e => e.eventType === 'Holiday / Closure');
+            const hasNormalEvent = activeEvents.some(e => ['College Event', 'Academic Event', 'Other'].includes(e.eventType));
+
+            if (hasExam) {
+                overlays.push('exam');
+                const examEv = activeEvents.find(e => e.eventType === 'Exam');
+                metadata.examTitle = examEv?.title || 'Exam';
+            }
+            if (hasHoliday) {
+                overlays.push('holiday');
+                const holEv = activeEvents.find(e => e.eventType === 'Holiday / Closure');
+                metadata.holidayName = holEv?.title || 'Holiday';
+                metadata.holidayType = 'Holiday';
+            }
+            if (hasNormalEvent && !hasExam && !hasHoliday) {
+                overlays.push('eventDot');
+            }
+
+            // 4. Determine Cell Fill Status:
+            // Attendance percentage dictates the green intensity.
+            // Events NEVER overwrite the attendance color fill!
+            let status = 'none';
+            if (hasAttendance) {
+                baseState = 'attendance';
                 if (metadata.attendedClasses === 0 && metadata.expectedClasses > 0) {
                     status = 'attendance-absent';
                 } else if (attendanceValue === 100) {
@@ -348,6 +329,15 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 } else {
                     status = 'attendance-1';
                 }
+            } else if (hasExam) {
+                baseState = 'exam';
+                status = 'exam';
+            } else if (hasHoliday) {
+                baseState = 'holiday';
+                status = 'holiday';
+            } else {
+                baseState = 'none';
+                status = 'none';
             }
 
             map[dKey] = {
@@ -362,9 +352,9 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
             cur.setDate(cur.getDate() + 1);
         }
         return map;
-    }, [startDate, endDate, calendarEvents, manualEvents, timetableConfig, attendanceTimeline, subjectsList]);
+    }, [startDate, endDate, calendarEvents, officialSemester, attendanceTimeline]);
 
-    // Upgraded multi-line future-ready tooltips
+    // Layered Tooltip Builder
     const getCellTitle = useCallback((date, activity) => {
         const dateStr = date.toLocaleDateString('en-IN', {
             day: 'numeric', month: 'long', year: 'numeric'
@@ -374,36 +364,35 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
 
         const lines = [dateStr];
 
-        // 1. Process overlays in order
-        if (activity.overlays && activity.overlays.includes('semesterStart')) {
-            const semLabel = activity.metadata?.semesterStartLabel || 'Semester Started';
-            lines.push(semLabel);
-            lines.push(''); // blank separator line
+        // 1. Semester Milestones
+        if (activity.overlays?.includes('semesterStart')) {
+            lines.push(activity.metadata?.semesterStartLabel || 'Semester Started');
+            lines.push('');
         }
-        if (activity.overlays && activity.overlays.includes('semesterEnd')) {
-            const semLabel = activity.metadata?.semesterEndLabel || 'Semester Ended';
-            lines.push(semLabel);
-            lines.push(''); // blank separator line
+        if (activity.overlays?.includes('semesterEnd')) {
+            lines.push(activity.metadata?.semesterEndLabel || 'Semester Ended');
+            lines.push('');
         }
 
-        // 2. Process baseState
-        if (activity.baseState === 'exam') {
-            lines.push(`Exam: ${activity.metadata?.examTitle || 'Examination'}`);
-            if (activity.metadata?.examSubjects && activity.metadata.examSubjects.length > 0) {
-                lines.push(`Subjects: ${activity.metadata.examSubjects.join(', ')}`);
-            }
-            if (activity.metadata?.description && activity.metadata.description !== activity.metadata.examTitle) {
-                lines.push(activity.metadata.description);
-            }
-        } else if (activity.baseState === 'holiday') {
-            lines.push(activity.metadata?.holidayName || 'Holiday');
-            lines.push(activity.metadata?.holidayType || 'College Holiday');
-            if (activity.metadata?.description && activity.metadata.description !== activity.metadata.holidayName) {
-                lines.push(activity.metadata.description);
-            }
-        } else if (activity.baseState === 'attendance') {
-            lines.push(`Attendance: ${activity.attendance}%`);
-        } else {
+        // 2. Canonical Events Layer (CollegeEvent)
+        if (activity.metadata?.events?.length > 0) {
+            activity.metadata.events.forEach(ev => {
+                const timeStr = !ev.allDay && ev.startTime ? ` (${ev.startTime}${ev.endTime ? ` - ${ev.endTime}` : ''})` : '';
+                const cancelledStr = ev.isCancelled ? ' [Cancelled]' : '';
+                lines.push(`${ev.eventType}: ${ev.title}${timeStr}${cancelledStr}`);
+                if (ev.description && ev.description !== ev.title) {
+                    lines.push(`  ${ev.description}`);
+                }
+            });
+        }
+
+        // 3. Attendance Layer
+        if (activity.metadata?.attendancePercentage !== undefined) {
+            lines.push(`Attendance: ${activity.metadata.attendancePercentage}% (${activity.metadata.attendedClasses}/${activity.metadata.expectedClasses} classes attended)`);
+        }
+
+        // Empty tile indicator
+        if ((!activity.metadata?.events || activity.metadata.events.length === 0) && activity.metadata?.attendancePercentage === undefined) {
             lines.push('No Academic Activity');
         }
 
@@ -414,10 +403,11 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
 
     return (
         <div style={{
-            background:           'rgba(19, 18, 26, 0.55)',
-            border:               '1px solid rgba(255, 255, 255, 0.15)',
-            borderRadius:         '20px',
-            padding:              '10px 12px',
+            background:           isDark ? 'rgba(13, 17, 28, 0.85)' : '#FFFFFF',
+            border:               isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
+            borderRadius:         '16px',
+            padding:              '12px 14px',
+            boxShadow:            isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
             backdropFilter:       'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             width:                '100%',
@@ -436,28 +426,28 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 flexShrink:     0,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <BookOpen size={13} color="#a78bfa" />
-                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#f8fafc', letterSpacing: '-0.01em' }}>
+                    <BookOpen size={13} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: isDark ? '#f8fafc' : '#0f172a', letterSpacing: '-0.01em' }}>
                         Academic Journey
                     </span>
                 </div>
 
                 {/* Compact Year Navigator */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <NavBtn onClick={prev} disabled={activeYear <= minYear}>
+                    <NavBtn onClick={prev} disabled={activeYear <= minYear} isDark={isDark}>
                         <ChevronLeft size={12} />
                     </NavBtn>
                     <span style={{
                         fontSize:      '11px',
                         fontWeight:    700,
-                        color:         '#c4b5fd',
+                        color:         isDark ? '#c4b5fd' : '#7c3aed',
                         minWidth:      '44px',
                         textAlign:     'center',
                         letterSpacing: '0.02em',
                     }}>
                         {yearLabel}
                     </span>
-                    <NavBtn onClick={next} disabled={activeYear >= maxYear}>
+                    <NavBtn onClick={next} disabled={activeYear >= maxYear} isDark={isDark}>
                         <ChevronRight size={12} />
                     </NavBtn>
                 </div>
@@ -481,7 +471,7 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                         startDate={startDate}
                         endDate={endDate}
                         activities={activities}
-                        palette={ACADEMIC_PALETTE}
+                        palette={academicPalette}
                         defaultStatus="none"
                         cellGap={4}
                         monthGap={12}
@@ -492,8 +482,8 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
             </div>
 
             {/* ── Micro Bottom Legend (Minimal Vertical Space) ───────────── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0, marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                {LEGEND_CONFIG.map(({ label, bg, border, shadow }) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0, marginTop: '4px', paddingTop: '6px', borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(15, 23, 42, 0.06)' }}>
+                {legendConfig.map(({ label, bg, border, shadow, dot }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <div style={{
                             width:        '8px',
@@ -503,8 +493,22 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                             border:       border || 'none',
                             boxShadow:    shadow || 'none',
                             flexShrink:   0,
-                        }} />
-                        <span style={{ fontSize: '9.5px', fontWeight: 500, color: 'rgba(148, 163, 184, 0.65)' }}>
+                            position:     'relative',
+                            display:      'flex',
+                            alignItems:   'center',
+                            justifyContent: 'center',
+                        }}>
+                            {dot && (
+                                <span style={{
+                                    width:        '2.5px',
+                                    height:       '2.5px',
+                                    borderRadius: '50%',
+                                    background:   isDark ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.8)',
+                                    boxShadow:    isDark ? '0 0 2px rgba(255, 255, 255, 0.6)' : 'none',
+                                }} />
+                            )}
+                        </div>
+                        <span style={{ fontSize: '9.5px', fontWeight: 500, color: isDark ? 'rgba(148, 163, 184, 0.65)' : '#64748b' }}>
                             {label}
                         </span>
                     </div>

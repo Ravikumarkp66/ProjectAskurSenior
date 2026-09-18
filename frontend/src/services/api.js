@@ -22,3 +22,5 @@ export {
     subscriptionAPI 
 } from './api/miscApi';
 export { facultyAPI } from './api/facultyApi';
+export { accountAPI, feedbackAPI, bugAPI } from './api/accountApi';
+

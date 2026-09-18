@@ -25,6 +25,11 @@ const bugReportSchema = new mongoose.Schema(
             trim: true,
             maxlength: 2000
         },
+        problemType: {
+            type: String,
+            enum: ['UI / Design', 'Feature not working', 'Performance', 'Login / Account', 'Academic data', 'Other'],
+            default: 'Other'
+        },
         status: {
             type: String,
             enum: ['open', 'resolved'],

@@ -2,31 +2,54 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
+import { useTheme } from '../../../context/ThemeContext';
 import { apiV2 } from '../../../services/authService';
 import { 
-    CalendarDays, BookOpen, BarChart2, Settings, 
-    ArrowLeft, ChevronRight, ChevronDown, CheckCircle2, 
-    AlertCircle, Loader2, Sparkles
+    CalendarDays, CalendarRange, BookOpen, BarChart2, Settings, 
+    ArrowLeft, ChevronRight, ChevronLeft, ChevronDown, CheckCircle2, 
+    AlertCircle, Loader2, Sparkles, Lock, Edit3, Eye, Check, RotateCcw
 } from 'lucide-react';
 
 import CalendarDateNavigator from './components/attendance/CalendarDateNavigator';
 import DailyAttendanceWorkspace from './components/attendance/DailyAttendanceWorkspace';
+import WeeklyTimetableGrid from './components/WeeklyTimetableGrid';
 import AttendanceRightPanel from './components/attendance/AttendanceRightPanel';
 import AttendanceSummaryView from './components/attendance/AttendanceSummaryView';
-import SubjectSummaryTab from './components/attendance/SubjectSummaryTab';
 import BaselineSetupModal from './components/attendance/BaselineSetupModal';
 import SubjectSwapModal from './components/attendance/SubjectSwapModal';
+import TimetableSlotCustomizeModal from './components/attendance/TimetableSlotCustomizeModal';
+import PastWeekChangeWarningModal from './components/attendance/PastWeekChangeWarningModal';
+import OfficialTimetableModal from './components/attendance/OfficialTimetableModal';
 
-const NAV_TABS = [
-    { id: 'today', label: '1. Today\'s Classes', path: 'today', icon: CalendarDays, emoji: '🗓' },
-    { id: 'subjects', label: '2. Subject Breakdown', path: 'subjects', icon: BookOpen, emoji: '📖' },
-    { id: 'overview', label: '3. Semester Overview', path: 'overview', icon: BarChart2, emoji: '📊' },
+const NAV_GROUPS = [
+    {
+        title: 'DAILY',
+        items: [
+            { id: 'today', label: "Today's Classes", path: 'today', icon: CalendarDays }
+        ]
+    },
+    {
+        title: 'TIMETABLE',
+        items: [
+            { id: 'timetable', label: 'My Timetable', path: 'timetable', icon: CalendarRange }
+        ]
+    },
+    {
+        title: 'ANALYTICS',
+        items: [
+            { id: 'overview', label: 'Semester Overview', path: 'overview', icon: BarChart2 }
+        ]
+    }
 ];
+
+const ALL_NAV_TABS = NAV_GROUPS.flatMap(g => g.items);
 
 const normalizeTabName = (tab) => {
     if (!tab) return 'today';
     const t = String(tab).toLowerCase();
-    if (t === 'today' || t === 'daily' || t === 'schedule' || t === 'timetable') return 'today';
+    if (t === 'today' || t === 'daily' || t === 'schedule') return 'today';
+    if (t === 'timetable' || t === 'my-timetable' || t === 'weekly') return 'timetable';
     if (t === 'subjects' || t === 'subject-summary') return 'subjects';
     if (t === 'overview' || t === 'summary') return 'overview';
     return 'today';
@@ -62,11 +85,42 @@ const AttendanceSettings = () => {
     // Date state (YYYY-MM-DD in user's local timezone)
     const [selectedDate, setSelectedDate] = useState(() => getLocalDateString(new Date()));
 
+    const { user } = useAuth();
+    const { isDark } = useTheme();
+
+    const t = useMemo(() => ({
+        bgPage: isDark ? '#0A0D16' : '#F8FAFC',
+        surface: isDark ? '#0D111C' : '#FFFFFF',
+        surfaceMuted: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F1F5F9',
+        border: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
+        borderSubtle: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.06)',
+        divider: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.06)',
+        text: isDark ? '#F8FAFC' : '#0F172A',
+        textMuted: isDark ? '#94A3B8' : '#64748B',
+        textFaint: isDark ? '#64748B' : '#94A3B8',
+        accentText: isDark ? '#C4B5FD' : '#6D28D9',
+        accentBg: isDark ? 'rgba(124, 58, 237, 0.16)' : '#F5F3FF',
+        accentBorder: isDark ? 'rgba(139, 92, 246, 0.28)' : 'rgba(124, 58, 237, 0.25)',
+        cardShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.4)' : '0 1px 3px rgba(15, 23, 42, 0.06)',
+        selectBg: isDark ? '#0F0A1E' : '#FFFFFF',
+        selectText: isDark ? '#F8FAFC' : '#0F172A',
+    }), [isDark]);
+
+    const initialSemester = Number(user?.semester) || 1;
+
     // Student & Semester state
-    const [currentStudentSemester, setCurrentStudentSemester] = useState(1);
-    const [selectedSemester, setSelectedSemester] = useState(1);
+    const [currentStudentSemester, setCurrentStudentSemester] = useState(initialSemester);
+    const [selectedSemester, setSelectedSemester] = useState(initialSemester);
     const [semestersList, setSemestersList] = useState([]);
-    const [userProfile, setUserProfile] = useState(null);
+    const [userProfile, setUserProfile] = useState(user || null);
+
+    const isSuperAdmin = useMemo(() => {
+        const email = (user?.email || userProfile?.email || '').toLowerCase().trim();
+        const role = user?.role || userProfile?.role;
+        return email === 'mreducator4566@gmail.com' ||
+            role === 'SUPER_ADMIN' ||
+            Boolean(user?.isSuperAdmin || userProfile?.isSuperAdmin || user?.canEditAnytime || userProfile?.canEditAnytime);
+    }, [user, userProfile]);
 
     // Analytics & Subject states
     const [overallMetrics, setOverallMetrics] = useState(null);
@@ -77,9 +131,27 @@ const AttendanceSettings = () => {
     // Timetable states
     const [timetableConfig, setTimetableConfig] = useState(null);
     const [timetableSlots, setTimetableSlots] = useState([]);
+    const [initialTimetableSlots, setInitialTimetableSlots] = useState([]);
+    const [allottedTimetable, setAllottedTimetable] = useState(null);
+    const [isTimetableLoading, setIsTimetableLoading] = useState(false);
+    const [officialTimetableSlots, setOfficialTimetableSlots] = useState([]);
+    const [isCustomizingTimetable, setIsCustomizingTimetable] = useState(false);
+    const [isViewingOfficial, setIsViewingOfficial] = useState(false);
+    const [editingTimetableSlot, setEditingTimetableSlot] = useState(null);
+    const [pendingPastChange, setPendingPastChange] = useState(null);
+    const [isSavingTimetable, setIsSavingTimetable] = useState(false);
+    const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+    const [isResettingTimetable, setIsResettingTimetable] = useState(false);
 
     // Day classes state
     const [dayClasses, setDayClasses] = useState([]);
+    const [eventsList, setEventsList] = useState([]);
+    const [dayEventInfo, setDayEventInfo] = useState({
+        classesSuspended: false,
+        dayEvents: [],
+        activeEvent: null,
+        message: ''
+    });
 
     // Archive / Lock state
     const [isArchived, setIsArchived] = useState(false);
@@ -129,19 +201,15 @@ const AttendanceSettings = () => {
         return 1;
     };
 
-    // 2. Fetch semester metrics and config (Optimized parallel fetching)
+    // 2. Fetch semester metrics and config (Optimized single dashboard call)
     const fetchSemesterData = async (sem, showLoading = false) => {
         if (showLoading) setLoading(true);
         setError(null);
         try {
-            const [dashboardRes, regRes, configRes] = await Promise.all([
-                apiV2.getAttendanceDashboard(sem).catch(err => {
-                    console.error('getAttendanceDashboard error:', err);
-                    return { data: { success: false, data: {} } };
-                }),
-                apiV2.getRegisteredSubjects(sem).catch(() => ({ data: { success: false, data: [] } })),
-                apiV2.getTimetableConfig(sem).catch(() => ({ data: { success: false, data: null } }))
-            ]);
+            const dashboardRes = await apiV2.getAttendanceDashboard(sem).catch(err => {
+                console.error('getAttendanceDashboard error:', err);
+                return { data: { success: false, data: {} } };
+            });
 
             if (dashboardRes?.data?.success) {
                 const data = dashboardRes.data.data || {};
@@ -150,14 +218,18 @@ const AttendanceSettings = () => {
                 setGroupedTimeline(data.groupedTimeline || []);
                 setIsArchived(data.isArchived || false);
                 setReadOnly(data.readOnly || false);
-            }
-
-            if (regRes?.data?.success) {
-                setRegisteredSubjectsList(regRes.data.data || []);
-            }
-
-            if (configRes?.data?.success) {
-                setTimetableConfig(configRes.data.data);
+                if (data.events && Array.isArray(data.events)) {
+                    setEventsList(data.events);
+                }
+                if (data.commencementDate || data.lastWorkingDayDate) {
+                    setTimetableConfig(prev => ({
+                        ...prev,
+                        commencementDate: data.commencementDate,
+                        lastWorkingDayDate: data.lastWorkingDayDate,
+                        semesterStartDate: data.commencementDate || prev?.semesterStartDate,
+                        lastWorkingDate: data.lastWorkingDayDate || prev?.lastWorkingDate
+                    }));
+                }
             }
         } catch (err) {
             console.error('Error fetching attendance metrics:', err);
@@ -167,6 +239,83 @@ const AttendanceSettings = () => {
         }
     };
 
+    // Fetch full timetable slots and configuration when timetable tab is opened or semester changes
+    const fetchTimetableData = async (sem) => {
+        setIsTimetableLoading(true);
+        try {
+            const [slotsRes, configRes] = await Promise.allSettled([
+                apiV2.getTimetableSlots(sem),
+                apiV2.getTimetableConfig(sem)
+            ]);
+
+            if (slotsRes.status === 'fulfilled' && slotsRes.value?.data?.success) {
+                const raw = slotsRes.value.data;
+                const slots = Array.isArray(raw.data) ? raw.data : (raw.data?.slots || []);
+                setTimetableSlots(slots);
+                setInitialTimetableSlots(slots);
+                setOfficialTimetableSlots(prev => prev.length === 0 ? slots : prev);
+                if (raw.allottedTimetable) {
+                    setAllottedTimetable(raw.allottedTimetable);
+                } else if (raw.data?.allottedTimetable) {
+                    setAllottedTimetable(raw.data.allottedTimetable);
+                }
+            }
+
+            if (configRes.status === 'fulfilled' && configRes.value?.data?.success) {
+                const cfg = configRes.value.data.data?.config || configRes.value.data.data || {};
+                const defaultWorkingDays = {
+                    '1': 'Full Day',
+                    '2': 'Full Day',
+                    '3': 'Full Day',
+                    '4': 'Full Day',
+                    '5': 'Full Day',
+                    '6': 'Half Day',
+                    '7': 'Holiday'
+                };
+                const workingDays = (cfg.workingDays && Object.keys(cfg.workingDays).length > 0)
+                    ? cfg.workingDays
+                    : defaultWorkingDays;
+
+                setTimetableConfig(prev => ({
+                    ...prev,
+                    ...cfg,
+                    workingDays,
+                    collegeStartMinute: cfg.collegeStartMinute ?? 480,
+                    collegeEndMinute: cfg.collegeEndMinute ?? 1020,
+                    classDuration: cfg.classDuration ?? 50,
+                    labDuration: cfg.labDuration ?? 100,
+                    semesterStartDate: cfg.semesterStartDate || prev?.semesterStartDate,
+                    lastWorkingDate: cfg.lastWorkingDate || prev?.lastWorkingDate
+                }));
+
+                if (configRes.value.data.allottedTimetable) {
+                    setAllottedTimetable(prev => prev || configRes.value.data.allottedTimetable);
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching timetable data:', err);
+        } finally {
+            setIsTimetableLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'timetable' || activeTab === 'my-timetable') {
+            fetchTimetableData(selectedSemester);
+        }
+    }, [activeTab, selectedSemester]);
+
+    // Lazy load registered subjects in background for baseline setup and class overrides
+    useEffect(() => {
+        if (registeredSubjectsList.length === 0) {
+            apiV2.getRegisteredSubjects(selectedSemester).then(res => {
+                if (res?.data?.success) {
+                    setRegisteredSubjectsList(res.data.data || []);
+                }
+            }).catch(() => {});
+        }
+    }, [selectedSemester, registeredSubjectsList.length]);
+
     // 3. Fetch day classes for selected date
     const fetchDayAttendance = async (dateStr, sem, showLoading = false) => {
         if (showLoading) setIsDayLoading(true);
@@ -174,6 +323,14 @@ const AttendanceSettings = () => {
             const res = await apiV2.getAttendanceDay(dateStr, sem).catch(() => ({ data: { success: false, data: [] } }));
             if (res?.data?.success) {
                 setDayClasses(res.data.data || []);
+                setDayEventInfo({
+                    classesSuspended: Boolean(res.data.classesSuspended),
+                    suspensionType: res.data.suspensionType || (res.data.classesSuspended ? 'full_day' : 'none'),
+                    timeRangeSuspension: res.data.timeRangeSuspension || null,
+                    dayEvents: res.data.dayEvents || [],
+                    activeEvent: res.data.activeEvent || null,
+                    message: res.data.message || ''
+                });
             }
         } catch (err) {
             console.error('Error fetching day attendance:', err);
@@ -182,7 +339,7 @@ const AttendanceSettings = () => {
         }
     };
 
-    // Initial load (Concurrently loads profile, semester metrics, and today's classes in < 200ms)
+    // Initial load: Concurrently and non-blockingly loads today's classes and semester metrics
     useEffect(() => {
         let isMounted = true;
         const init = async () => {
@@ -190,14 +347,24 @@ const AttendanceSettings = () => {
                 const today = getLocalDateString(new Date());
                 setSelectedDate(today);
 
-                const currentSem = await fetchStudentProfile();
-                if (!isMounted) return;
+                const currentSem = Number(user?.semester) || 1;
                 setSelectedSemester(currentSem);
 
-                await Promise.all([
-                    fetchSemesterData(currentSem, true),
-                    fetchDayAttendance(today, currentSem, false)
-                ]);
+                // Fetch day attendance & student profile in parallel
+                const dayPromise = fetchDayAttendance(today, currentSem, false);
+                const profilePromise = fetchStudentProfile();
+
+                // Release full-screen spinner as soon as today's classes are ready (usually < 300ms)
+                dayPromise.then(() => {
+                    if (isMounted) setLoading(false);
+                }).catch(() => {
+                    if (isMounted) setLoading(false);
+                });
+
+                // Load semester metrics in parallel in the background
+                const semPromise = fetchSemesterData(currentSem, false);
+
+                await Promise.all([dayPromise, profilePromise, semPromise]);
             } catch (err) {
                 console.error('Error initializing attendance:', err);
             } finally {
@@ -211,13 +378,16 @@ const AttendanceSettings = () => {
     // Change semester
     const handleSemesterChange = async (sem) => {
         setSelectedSemester(sem);
+        setTimetableSlots([]);
         await Promise.all([
-            fetchSemesterData(sem, true),
+            fetchSemesterData(sem, false),
             fetchDayAttendance(selectedDate, sem, true)
         ]);
     };
 
     // Change date
+    const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
     const handleSelectDate = async (dateStr) => {
         if (dateStr === selectedDate) return;
         setSelectedDate(dateStr);
@@ -225,9 +395,25 @@ const AttendanceSettings = () => {
         await fetchDayAttendance(dateStr, selectedSemester, true);
     };
 
+    const handlePrevDay = () => {
+        const d = new Date(selectedDate + 'T12:00:00');
+        d.setDate(d.getDate() - 1);
+        handleSelectDate(getLocalDateString(d));
+    };
+
+    const handleNextDay = () => {
+        const d = new Date(selectedDate + 'T12:00:00');
+        d.setDate(d.getDate() + 1);
+        handleSelectDate(getLocalDateString(d));
+    };
+
+    const handleTodayClick = () => {
+        handleSelectDate(getLocalDateString(new Date()));
+    };
+
     // Mark / Edit attendance for a specific class slot
     const handleMarkAttendance = async (classItem, status) => {
-        if (readOnly) {
+        if (readOnly && !isSuperAdmin) {
             toast.error('Attendance is read-only for archived semesters.');
             return;
         }
@@ -275,11 +461,11 @@ const AttendanceSettings = () => {
                 date: selectedDate,
                 timeSlot: classItem.timeSlot,
                 constituentSlots,
-                status
+                status,
+                allowFutureOverride: isSuperAdmin
             });
 
             if (res.data?.success) {
-                toast.success(`Marked ${classItem.subjectName} as ${status}`);
                 // Refresh overall metrics in background silently (NO re-fetching dayClasses to prevent flicker / overwrites)
                 fetchSemesterData(selectedSemester, false);
                 window.dispatchEvent(new Event('attendance-updated'));
@@ -319,7 +505,7 @@ const AttendanceSettings = () => {
 
     // One-Tap Mark All Present Today
     const handleMarkAllPresentToday = async () => {
-        if (readOnly) {
+        if (readOnly && !isSuperAdmin) {
             toast.error('Attendance is read-only for archived semesters.');
             return;
         }
@@ -356,7 +542,8 @@ const AttendanceSettings = () => {
                     date: selectedDate,
                     timeSlot: item.timeSlot,
                     constituentSlots,
-                    status: 'Present'
+                    status: 'Present',
+                    allowFutureOverride: isSuperAdmin
                 });
             }
             toast.success(`Marked all ${unrecorded.length} classes as Present!`);
@@ -435,7 +622,7 @@ const AttendanceSettings = () => {
 
     // Reset Day Attendance to Original Timetable State
     const handleResetDayAttendance = async () => {
-        if (readOnly) {
+        if (readOnly && !isSuperAdmin) {
             toast.error('Attendance is read-only for archived semesters.');
             return;
         }
@@ -525,7 +712,8 @@ const AttendanceSettings = () => {
                 subjectId: newSubjectId,
                 date: selectedDate,
                 timeSlot: classItem.timeSlot,
-                status: status || 'Present'
+                status: status || 'Present',
+                allowFutureOverride: isSuperAdmin
             });
 
             if (res.data?.success) {
@@ -602,7 +790,8 @@ const AttendanceSettings = () => {
                 date: item.date,
                 timeSlot: item.timeSlot,
                 status,
-                remarks
+                remarks,
+                allowFutureOverride: isSuperAdmin
             });
             if (res.data?.success) {
                 await fetchSemesterData(selectedSemester);
@@ -671,19 +860,580 @@ const AttendanceSettings = () => {
         }
     };
 
-    const activeTabObj = NAV_TABS.find(t => t.id === activeTab) || NAV_TABS[0];
+    // Compute number of personalized slot overrides against official baseline
+    const personalChangesCount = useMemo(() => {
+        if (!officialTimetableSlots || officialTimetableSlots.length === 0) return 0;
+        return timetableSlots.filter(s => {
+            if (s.isPersonalChange) return true;
+            const off = officialTimetableSlots.find(os => 
+                os.dayOfWeek === s.dayOfWeek && 
+                Number(os.startMinute) === Number(s.startMinute)
+            );
+            if (!off) return false;
+            const offSubj = String(off.subject?._id || off.subject || '');
+            const curSubj = String(s.subject?._id || s.subject || '');
+            return offSubj !== curSubj || (off.lectureType && off.lectureType !== s.lectureType);
+        }).length;
+    }, [timetableSlots, officialTimetableSlots]);
+
+    // Track number of unsaved changes in current editing session
+    const unsavedChangesCount = useMemo(() => {
+        if (!initialTimetableSlots || initialTimetableSlots.length === 0) return 0;
+        let count = 0;
+        for (const cur of timetableSlots) {
+            const init = initialTimetableSlots.find(s => 
+                s.dayOfWeek === cur.dayOfWeek && 
+                Number(s.startMinute) === Number(cur.startMinute)
+            );
+            if (!init) {
+                count++;
+                continue;
+            }
+            const initSubj = String(init.subject?._id || init.subject || '');
+            const curSubj = String(cur.subject?._id || cur.subject || '');
+            if (
+                initSubj !== curSubj || 
+                init.lectureType !== cur.lectureType || 
+                init.sessionGroupId !== cur.sessionGroupId ||
+                Boolean(init.isPersonalChange) !== Boolean(cur.isPersonalChange)
+            ) {
+                count++;
+            }
+        }
+        return count;
+    }, [timetableSlots, initialTimetableSlots]);
+
+    // Handle slot click from grid when in customization mode
+    const handleSlotClick = (slot) => {
+        if (!isCustomizingTimetable) return;
+        setEditingTimetableSlot(slot);
+    };
+
+    // Apply slot customization with scope & atomic multi-period lab handling
+    const handleApplySlotCustomization = ({
+        slot,
+        linkedSlot,
+        isMultiPeriod,
+        isConvertingToTheory,
+        isConvertingToLab,
+        isClearSlot,
+        newSubject,
+        newSubjectId,
+        lectureType,
+        scopeType,
+        effectiveDate,
+        appliesToPast
+    }) => {
+        if (appliesToPast) {
+            setPendingPastChange({
+                slot,
+                linkedSlot,
+                isMultiPeriod,
+                isConvertingToTheory,
+                isClearSlot,
+                newSubject,
+                newSubjectId,
+                lectureType,
+                effectiveDate
+            });
+            setEditingTimetableSlot(null);
+            return;
+        }
+
+        // Resolve subject with both _id and id so UI components can display it immediately
+        const resolvedSubject = newSubject
+            ? {
+                ...newSubject,
+                _id: newSubject._id || newSubject.id || newSubjectId,
+                id: newSubject.id || newSubject._id || newSubjectId
+              }
+            : (newSubjectId || null);
+
+        setTimetableSlots(prevSlots => {
+            const next = [...prevSlots];
+
+            // Case A: Clear slot (or both consecutive slots if multi-period lab)
+            if (isClearSlot) {
+                return next.map(s => {
+                    const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                    const isLinked = linkedSlot && s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(linkedSlot.startMinute);
+                    if (isTarget || isLinked) {
+                        return {
+                            ...s,
+                            subject: null,
+                            lectureType: 'Free Period',
+                            sessionGroupId: null,
+                            effectiveDate,
+                            isPersonalChange: true
+                        };
+                    }
+                    return s;
+                });
+            }
+
+            // Case B: Converting 2-period lab to 1-period theory
+            if (isConvertingToTheory) {
+                return next.map(s => {
+                    const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                    const isLinked = linkedSlot && s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(linkedSlot.startMinute);
+                    if (isTarget) {
+                        return {
+                            ...s,
+                            subject: resolvedSubject,
+                            lectureType: 'Lecture',
+                            sessionGroupId: null,
+                            effectiveDate,
+                            isPersonalChange: true
+                        };
+                    }
+                    if (isLinked) {
+                        return {
+                            ...s,
+                            subject: null,
+                            lectureType: 'Free Period',
+                            sessionGroupId: null,
+                            effectiveDate,
+                            isPersonalChange: true
+                        };
+                    }
+                    return s;
+                });
+            }
+
+            // Case C: Multi-period Lab (either converted to lab or editing existing 2-period lab)
+            if (isMultiPeriod && linkedSlot) {
+                const groupId = slot.sessionGroupId || linkedSlot.sessionGroupId || `lab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                return next.map(s => {
+                    const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                    const isLinked = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(linkedSlot.startMinute);
+                    if (isTarget || isLinked) {
+                        return {
+                            ...s,
+                            subject: resolvedSubject,
+                            lectureType: 'Lab',
+                            sessionGroupId: groupId,
+                            effectiveDate,
+                            isPersonalChange: true
+                        };
+                    }
+                    return s;
+                });
+            }
+
+            // Case D: Single period class (Theory/Lecture)
+            return next.map(s => {
+                const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                if (!isTarget) return s;
+                return {
+                    ...s,
+                    subject: resolvedSubject,
+                    lectureType: lectureType || s.lectureType || 'Lecture',
+                    sessionGroupId: null,
+                    effectiveDate,
+                    isPersonalChange: true
+                };
+            });
+        });
+
+        setEditingTimetableSlot(null);
+    };
+
+    // Reset an individual slot back to official baseline
+    const handleResetSlotToOfficial = (slot) => {
+        if (!slot) return;
+        const offPrimary = officialTimetableSlots.find(os =>
+            os.dayOfWeek === slot.dayOfWeek &&
+            Number(os.startMinute) === Number(slot.startMinute)
+        );
+
+        const offLinked = slot.linkedSlot ? officialTimetableSlots.find(os =>
+            os.dayOfWeek === slot.dayOfWeek &&
+            Number(os.startMinute) === Number(slot.linkedSlot.startMinute)
+        ) : null;
+
+        setTimetableSlots(prevSlots => {
+            return prevSlots.map(s => {
+                if (s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute)) {
+                    return offPrimary ? { ...offPrimary, isPersonalChange: false } : s;
+                }
+                if (slot.linkedSlot && s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.linkedSlot.startMinute)) {
+                    return offLinked ? { ...offLinked, isPersonalChange: false } : s;
+                }
+                return s;
+            });
+        });
+
+        setEditingTimetableSlot(null);
+        toast.success('Reset slot to official college baseline');
+    };
+
+    // Discard unsaved changes in current editing session
+    const handleDiscardTimetableChanges = () => {
+        setTimetableSlots(initialTimetableSlots);
+        toast('Changes discarded.', { icon: '↩️' });
+    };
+
+    // Save personal timetable overrides to backend
+    const handleSavePersonalTimetable = async () => {
+        setIsSavingTimetable(true);
+        try {
+            // Filter out breaks before submitting (breaks are immutable) and normalize subject to string ID
+            const payloadSlots = timetableSlots
+                .filter(s => s.lectureType !== 'Break')
+                .map(s => {
+                    const rawSubj = s.subject?._id || s.subject?.id || s.subject;
+                    const subjectId = (rawSubj && typeof rawSubj === 'object')
+                        ? (rawSubj._id || rawSubj.id || null)
+                        : (rawSubj || null);
+                    return {
+                        ...s,
+                        subject: subjectId
+                    };
+                });
+            const res = await apiV2.updateTimetableSlots({
+                semester: selectedSemester,
+                slots: payloadSlots
+            });
+
+            if (res.data?.success) {
+                toast.success('Personal timetable saved successfully!');
+                const updated = Array.isArray(res.data.data) 
+                    ? res.data.data 
+                    : (res.data.data?.slots || res.data.slots || timetableSlots);
+                setTimetableSlots(updated);
+                setInitialTimetableSlots(updated);
+                await fetchSemesterData(selectedSemester, false);
+                await fetchDayAttendance(selectedDate, selectedSemester, false);
+                window.dispatchEvent(new Event('attendance-updated'));
+            } else {
+                toast.error(res.data?.message || 'Failed to save timetable changes.');
+            }
+        } catch (err) {
+            console.error('Error saving timetable changes:', err);
+            toast.error(err.response?.data?.message || 'Failed to save timetable changes.');
+        } finally {
+            setIsSavingTimetable(false);
+        }
+    };
+
+    // Confirm full reset of personal timetable back to official baseline
+    const handleConfirmResetToOfficial = async () => {
+        setIsResettingTimetable(true);
+        try {
+            const res = await apiV2.resetTimetable({ preserveAttendance: true });
+            if (res.data?.success) {
+                toast.success('Restored official college timetable. Past attendance preserved.');
+                setIsResetConfirmOpen(false);
+                setIsCustomizingTimetable(false);
+                await fetchTimetableData(selectedSemester);
+                await fetchSemesterData(selectedSemester, false);
+                await fetchDayAttendance(selectedDate, selectedSemester, false);
+                window.dispatchEvent(new Event('attendance-updated'));
+            } else {
+                toast.error(res.data?.message || 'Failed to reset timetable');
+            }
+        } catch (err) {
+            console.error('Error resetting timetable:', err);
+            toast.error(err.response?.data?.message || 'Failed to reset timetable');
+        } finally {
+            setIsResettingTimetable(false);
+        }
+    };
+
+    const handleConfirmKeepPast = () => {
+        if (!pendingPastChange) return;
+        const { slot, linkedSlot, isMultiPeriod, isConvertingToTheory, isClearSlot, newSubject, newSubjectId, lectureType } = pendingPastChange;
+        const effectiveDate = new Date().toISOString().slice(0, 10);
+        handleApplySlotCustomization({
+            slot,
+            linkedSlot,
+            isMultiPeriod,
+            isConvertingToTheory,
+            isClearSlot,
+            newSubject,
+            newSubjectId,
+            lectureType,
+            effectiveDate,
+            appliesToPast: false
+        });
+        setPendingPastChange(null);
+    };
+
+    const handleConfirmApplyPast = () => {
+        if (!pendingPastChange) return;
+        const { slot, linkedSlot, isMultiPeriod, isConvertingToTheory, isClearSlot, newSubject, newSubjectId, lectureType } = pendingPastChange;
+        setTimetableSlots(prevSlots => {
+            const next = [...prevSlots];
+            if (isClearSlot) {
+                return next.map(s => {
+                    const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                    const isLinked = linkedSlot && s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(linkedSlot.startMinute);
+                    if (isTarget || isLinked) {
+                        return { ...s, subject: null, lectureType: 'Free Period', sessionGroupId: null, appliesToPast: true, isPersonalChange: true };
+                    }
+                    return s;
+                });
+            }
+            if (isConvertingToTheory) {
+                return next.map(s => {
+                    const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                    const isLinked = linkedSlot && s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(linkedSlot.startMinute);
+                    if (isTarget) return { ...s, subject: newSubject || newSubjectId, lectureType: 'Lecture', sessionGroupId: null, appliesToPast: true, isPersonalChange: true };
+                    if (isLinked) return { ...s, subject: null, lectureType: 'Free Period', sessionGroupId: null, appliesToPast: true, isPersonalChange: true };
+                    return s;
+                });
+            }
+            if (isMultiPeriod && linkedSlot) {
+                const groupId = slot.sessionGroupId || linkedSlot.sessionGroupId || `lab_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                return next.map(s => {
+                    const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                    const isLinked = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(linkedSlot.startMinute);
+                    if (isTarget || isLinked) {
+                        return { ...s, subject: newSubject || newSubjectId, lectureType: 'Lab', sessionGroupId: groupId, appliesToPast: true, isPersonalChange: true };
+                    }
+                    return s;
+                });
+            }
+            return next.map(s => {
+                const isTarget = s.dayOfWeek === slot.dayOfWeek && Number(s.startMinute) === Number(slot.startMinute);
+                if (!isTarget) return s;
+                return { ...s, subject: newSubject || newSubjectId, lectureType: lectureType || s.lectureType || 'Lecture', appliesToPast: true, isPersonalChange: true };
+            });
+        });
+        setPendingPastChange(null);
+    };
+
+    const activeTabObj = ALL_NAV_TABS.find(t => t.id === activeTab) || ALL_NAV_TABS[0];
 
     const renderActiveSection = () => {
         switch (activeTab) {
-            case 'subjects':
-            case 'subject-summary':
+            case 'timetable':
+            case 'my-timetable':
                 return (
-                    <SubjectSummaryTab
-                        overallMetrics={overallMetrics}
-                        progressList={progressList}
-                        onEditSubjectHistory={handleEditSubjectHistory}
-                        onUpdateTarget={handleUpdateAttendanceTarget}
-                    />
+                    <div className="flex flex-col gap-4 w-full">
+                        {/* Personal Timetable Top Header (CSES + Modern SaaS style) */}
+                        <div 
+                            style={{
+                                background: isDark 
+                                    ? 'linear-gradient(to right, rgba(24, 24, 27, 0.9), #131722, rgba(24, 24, 27, 0.9))'
+                                    : '#FFFFFF',
+                                border: `1px solid ${t.border}`,
+                                borderRadius: '12px',
+                                padding: '18px 20px',
+                                boxShadow: t.cardShadow,
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            {isDark && (
+                                <div className="absolute top-0 right-0 w-72 h-32 bg-violet-600/10 blur-3xl pointer-events-none" />
+                            )}
+                            <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="space-y-1.5">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', color: t.accentText, fontFamily: 'monospace', textTransform: 'uppercase' }}>
+                                            MY TIMETABLE
+                                        </span>
+                                        <span style={{ color: t.divider }}>·</span>
+                                        <span style={{ fontSize: '11px', color: t.textMuted, fontFamily: 'monospace' }}>
+                                            Semester {selectedSemester}
+                                        </span>
+                                        {personalChangesCount > 0 && (
+                                            <span style={{
+                                                padding: '2px 8px',
+                                                borderRadius: '9999px',
+                                                fontSize: '10px',
+                                                fontFamily: 'monospace',
+                                                fontWeight: 600,
+                                                background: t.accentBg,
+                                                color: t.accentText,
+                                                border: `1px solid ${t.accentBorder}`
+                                            }}>
+                                                {personalChangesCount} personal {personalChangesCount === 1 ? 'change' : 'changes'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="flex flex-wrap items-baseline gap-2.5">
+                                        <h2 style={{ fontSize: '19px', fontWeight: 700, color: t.text, letterSpacing: '-0.01em', margin: 0 }}>
+                                            Your personal timetable
+                                        </h2>
+                                        <span style={{ fontSize: '12px', color: t.textMuted, fontFamily: 'monospace' }}>
+                                            Section {allottedTimetable?.sectionName || userProfile?.section || 'K'} · Batch {allottedTimetable?.labBatch || userProfile?.labBatch || 'B1'}
+                                            {allottedTimetable?.branchName ? ` · ${allottedTimetable.branchName}` : ''}
+                                        </span>
+                                    </div>
+
+                                    <p style={{ fontSize: '12px', color: t.textMuted, margin: 0, maxWidth: '600px', lineHeight: 1.5 }}>
+                                        Based on your official college timetable. You can customize your personal schedule.
+                                    </p>
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="flex items-center gap-2 self-start md:self-center shrink-0 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsViewingOfficial(true)}
+                                        style={{
+                                            padding: '7px 14px',
+                                            borderRadius: '8px',
+                                            fontSize: '12px',
+                                            fontFamily: 'monospace',
+                                            fontWeight: 600,
+                                            color: t.text,
+                                            background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC',
+                                            border: `1px solid ${t.border}`,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        <Lock size={12} style={{ color: '#10B981' }} />
+                                        <span>View Official</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsResetConfirmOpen(true)}
+                                        title="Restore official college schedule for future dates"
+                                        style={{
+                                            padding: '7px 14px',
+                                            borderRadius: '8px',
+                                            fontSize: '12px',
+                                            fontFamily: 'monospace',
+                                            fontWeight: 600,
+                                            color: isDark ? '#94A3B8' : '#64748B',
+                                            background: isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC',
+                                            border: `1px solid ${t.border}`,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        <RotateCcw size={12} />
+                                        <span className="hidden sm:inline">Reset to Official</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (isCustomizingTimetable && unsavedChangesCount > 0) {
+                                                if (window.confirm('You have unsaved timetable changes. Discard them before exiting?')) {
+                                                    handleDiscardTimetableChanges();
+                                                    setIsCustomizingTimetable(false);
+                                                }
+                                            } else {
+                                                setIsCustomizingTimetable(prev => !prev);
+                                            }
+                                        }}
+                                        style={{
+                                            padding: '7px 14px',
+                                            borderRadius: '8px',
+                                            fontSize: '12px',
+                                            fontFamily: 'monospace',
+                                            fontWeight: 600,
+                                            color: '#FFFFFF',
+                                            background: isCustomizingTimetable 
+                                                ? '#059669' 
+                                                : (isDark ? 'rgba(124, 58, 237, 0.3)' : '#7C3AED'),
+                                            border: isCustomizingTimetable
+                                                ? '1px solid #059669'
+                                                : `1px solid ${isDark ? 'rgba(139, 92, 246, 0.4)' : '#7C3AED'}`,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            cursor: 'pointer',
+                                            boxShadow: isCustomizingTimetable 
+                                                ? '0 2px 8px rgba(5, 150, 105, 0.25)' 
+                                                : '0 2px 8px rgba(124, 58, 237, 0.25)',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        {isCustomizingTimetable ? (
+                                            <>
+                                                <Check size={13} strokeWidth={2.5} />
+                                                <span>Done Editing</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Edit3 size={13} />
+                                                <span>Customize Timetable</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {isTimetableLoading ? (
+                            <div className="p-12 text-center text-zinc-400 text-xs flex flex-col items-center justify-center gap-2">
+                                <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                                <span>Loading timetable schedule...</span>
+                            </div>
+                        ) : (
+                            <WeeklyTimetableGrid
+                                slots={timetableSlots}
+                                config={timetableConfig}
+                                subjects={registeredSubjectsList}
+                                registeredSubjects={registeredSubjectsList}
+                                user={userProfile}
+                                allottedTimetable={allottedTimetable}
+                                officialSlots={officialTimetableSlots}
+                                isCustomizing={isCustomizingTimetable}
+                                onCellClick={handleSlotClick}
+                            />
+                        )}
+
+                        {/* Floating Unsaved Changes Bar */}
+                        {isCustomizingTimetable && unsavedChangesCount > 0 && (
+                            <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4 px-5 py-3 rounded-xl border shadow-2xl backdrop-blur-md animate-fadeIn ${
+                                isDark 
+                                    ? 'bg-[#12141D]/95 border-violet-500/40 text-white' 
+                                    : 'bg-white/95 border-violet-500/30 text-slate-900 shadow-xl'
+                            }`}>
+                                <div className="flex items-center gap-2 font-mono text-xs text-violet-400 font-semibold">
+                                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping" />
+                                    <span>{unsavedChangesCount} unsaved timetable {unsavedChangesCount === 1 ? 'change' : 'changes'}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleDiscardTimetableChanges}
+                                        disabled={isSavingTimetable}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-colors disabled:opacity-50 ${
+                                            isDark
+                                                ? 'text-zinc-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10'
+                                                : 'text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200'
+                                        }`}
+                                    >
+                                        Discard
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSavePersonalTimetable}
+                                        disabled={isSavingTimetable}
+                                        className="px-4 py-1.5 rounded-lg text-xs font-mono font-semibold text-white bg-violet-600 hover:bg-violet-500 shadow-md shadow-violet-600/20 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                                    >
+                                        {isSavingTimetable ? (
+                                            <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                <span>Saving...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check className="w-3.5 h-3.5" />
+                                                <span>Save Changes</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 );
             case 'overview':
             case 'summary':
@@ -693,51 +1443,48 @@ const AttendanceSettings = () => {
                         overallMetrics={overallMetrics}
                         onOpenBaselineModal={() => setIsBaselineModalOpen(true)}
                         readOnly={readOnly}
+                        selectedSemester={selectedSemester}
+                        onTargetUpdated={() => fetchSemesterData(selectedSemester)}
                     />
                 );
             case 'today':
             case 'daily':
-            default:
+            default: {
                 return (
-                    <div className="attendance-daily-grid" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                        gap: '20px',
-                        alignItems: 'start',
-                        width: '100%'
-                    }}>
-                        {/* LEFT COLUMN: Date Navigator (Equal Width 50%) */}
-                        <div style={{ minWidth: 0, width: '100%' }}>
-                            <CalendarDateNavigator
-                                selectedDate={selectedDate}
-                                onSelectDate={handleSelectDate}
-                                timetableConfig={timetableConfig}
-                                groupedTimeline={groupedTimeline}
-                                selectedDayClasses={dayClasses}
-                            />
-                        </div>
-
-                        {/* RIGHT COLUMN: Selected Day Workspace (Equal Width 50%) */}
-                        <div style={{ minWidth: 0, width: '100%' }}>
-                            <DailyAttendanceWorkspace
-                                selectedDate={selectedDate}
-                                dayClasses={dayClasses}
-                                isLoading={isDayLoading}
-                                onMarkAttendance={handleMarkAttendance}
-                                onMarkAllPresent={handleMarkAllPresentToday}
-                                onResetDayAttendance={handleResetDayAttendance}
-                                unconfirmedPastCount={unconfirmedPastCount}
-                                onQuickMarkPast={handleQuickMarkPastAsPresent}
-                                readOnly={readOnly}
-                                overallMetrics={overallMetrics}
-                                progressList={progressList}
-                                onEditSubjectHistory={handleEditSubjectHistory}
-                                onOpenBaselineModal={() => setIsBaselineModalOpen(true)}
-                                onOpenSwapModal={handleOpenSwapModal}
-                            />
-                        </div>
+                    <div className="w-full">
+                        <DailyAttendanceWorkspace
+                            selectedDate={selectedDate}
+                            onSelectDate={handleSelectDate}
+                            onPrevDay={handlePrevDay}
+                            onNextDay={handleNextDay}
+                            onTodayClick={handleTodayClick}
+                            dayClasses={dayClasses}
+                            isLoading={isDayLoading}
+                            onMarkAttendance={handleMarkAttendance}
+                            onMarkAllPresent={handleMarkAllPresentToday}
+                            onResetDayAttendance={handleResetDayAttendance}
+                            unconfirmedPastCount={unconfirmedPastCount}
+                            onQuickMarkPast={handleQuickMarkPastAsPresent}
+                            readOnly={readOnly && !isSuperAdmin}
+                            timetableConfig={timetableConfig}
+                            groupedTimeline={groupedTimeline}
+                            events={eventsList}
+                            dayEventInfo={dayEventInfo}
+                            canEditAnytime={isSuperAdmin}
+                            registeredSubjects={registeredSubjectsList}
+                            onConfirmSubjectSwap={handleConfirmSubjectSwap}
+                            onRestoreOriginalClass={async (classItem) => {
+                                await handleConfirmSubjectSwap({
+                                    classItem,
+                                    scheduledSubjectId: classItem.scheduledSubjectId || classItem.subjectId,
+                                    newSubjectId: classItem.scheduledSubjectId || classItem.subjectId,
+                                    status: classItem.status || 'Present'
+                                });
+                            }}
+                        />
                     </div>
                 );
+            }
         }
     };
 
@@ -776,12 +1523,11 @@ const AttendanceSettings = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: t.surface,
+                        border: `1px solid ${t.border}`,
                         borderRadius: '12px',
                         padding: '16px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: t.cardShadow,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '12px',
@@ -797,7 +1543,7 @@ const AttendanceSettings = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '5px',
-                            color: 'rgba(148, 163, 184, 0.65)',
+                            color: t.textMuted,
                             fontSize: '11px',
                             fontWeight: 600,
                             textDecoration: 'none',
@@ -805,92 +1551,117 @@ const AttendanceSettings = () => {
                             cursor: 'pointer',
                             alignSelf: 'flex-start'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)'}
+                        onMouseEnter={e => e.currentTarget.style.color = t.text}
+                        onMouseLeave={e => e.currentTarget.style.color = t.textMuted}
                     >
                         <ArrowLeft size={12} />
                         <span>Back to Home</span>
                     </Link>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
-                            Attendance Tracker
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <h2 style={{ fontSize: '17px', fontWeight: 700, color: t.text, margin: 0, letterSpacing: '-0.01em' }}>
+                            Attendance
                         </h2>
-                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.55)', fontWeight: 500 }}>
-                            Daily class logging & threshold tracking
+                        <span style={{ fontSize: '11px', color: t.textMuted, fontWeight: 500 }}>
+                            Your personal attendance workspace
                         </span>
                     </div>
 
-                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: t.divider, margin: '4px 0' }} />
 
-                    {/* Navigation list */}
-                    <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                        {NAV_TABS.map((item) => {
-                            const Icon = item.icon;
-                            const isActive = activeTab === item.id;
-                            return (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    onClick={() => setActiveTab(item.path)}
-                                    style={{
-                                        padding: '9px 12px',
-                                        borderRadius: '8px',
-                                        color: isActive ? '#a78bfa' : 'rgba(148, 163, 184, 0.65)',
-                                        background: isActive
-                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
-                                            : 'transparent',
-                                        border: isActive
-                                            ? '1px solid rgba(139, 92, 246, 0.25)'
-                                            : '1px solid transparent',
-                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.08)' : 'none',
-                                        fontSize: '12.5px',
-                                        fontWeight: isActive ? 600 : 500,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        textDecoration: 'none',
-                                        transition: 'all 0.18s',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                        width: '100%'
-                                    }}
-                                    onMouseEnter={e => {
-                                        if (!isActive) {
-                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.85)';
-                                        }
-                                    }}
-                                    onMouseLeave={e => {
-                                        if (!isActive) {
-                                            e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)';
-                                        }
-                                    }}
-                                >
-                                    <Icon size={14} />
-                                    <span>{item.label}</span>
-                                </button>
-                            );
-                        })}
+                    {/* Grouped Navigation list */}
+                    <nav style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1 }}>
+                        {NAV_GROUPS.map((group) => (
+                            <div key={group.title} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <div style={{
+                                    paddingLeft: '6px',
+                                    fontSize: '10px',
+                                    fontFamily: 'monospace',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.08em',
+                                    color: t.textFaint,
+                                    textTransform: 'uppercase'
+                                }}>
+                                    {group.title}
+                                </div>
+                                {group.items.map((item) => {
+                                    const Icon = item.icon;
+                                    const isActive = activeTab === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => setActiveTab(item.path)}
+                                            style={{
+                                                padding: '8px 10px',
+                                                borderRadius: '8px',
+                                                color: isActive ? (isDark ? '#c4b5fd' : '#6d28d9') : t.textMuted,
+                                                background: isActive
+                                                    ? (isDark 
+                                                        ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(99, 102, 241, 0.14))' 
+                                                        : '#F5F3FF')
+                                                    : 'transparent',
+                                                border: isActive
+                                                    ? (isDark ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid rgba(124, 58, 237, 0.25)')
+                                                    : '1px solid transparent',
+                                                boxShadow: isActive 
+                                                    ? (isDark ? '0 4px 12px rgba(124, 58, 237, 0.12)' : '0 1px 3px rgba(124, 58, 237, 0.08)') 
+                                                    : 'none',
+                                                fontSize: '12px',
+                                                fontWeight: isActive ? 700 : 500,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                textDecoration: 'none',
+                                                transition: 'all 0.18s',
+                                                cursor: 'pointer',
+                                                textAlign: 'left',
+                                                width: '100%'
+                                            }}
+                                            onMouseEnter={e => {
+                                                if (!isActive) {
+                                                    e.currentTarget.style.background = t.surfaceMuted;
+                                                    e.currentTarget.style.color = t.text;
+                                                }
+                                            }}
+                                            onMouseLeave={e => {
+                                                if (!isActive) {
+                                                    e.currentTarget.style.background = 'transparent';
+                                                    e.currentTarget.style.color = t.textMuted;
+                                                }
+                                            }}
+                                        >
+                                            <Icon size={14} />
+                                            <span>{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ))}
                     </nav>
 
-                    {/* Bottom Status tag */}
+                    {/* Bottom Section & Lab Batch Context Footer */}
                     <div style={{
                         marginTop: 'auto',
                         paddingTop: '12px',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderTop: `1px solid ${t.divider}`,
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
+                        flexDirection: 'column',
+                        gap: '2px',
                         fontSize: '11px',
-                        color: 'rgba(148, 163, 184, 0.6)'
+                        color: t.textMuted
                     }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#c4b5fd' }}>
-                            <CheckCircle2 size={11} color="#34d399" />
-                            {overallMetrics ? `${overallMetrics.overallPercentage ?? 0}% Overall` : 'Attendance active'}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ color: t.text, fontWeight: 600 }}>
+                                Sec {typeof userProfile?.academicSection === 'object' && userProfile?.academicSection?.name ? userProfile.academicSection.name : (userProfile?.section || 'P')}{userProfile?.labBatch ? ` · ${userProfile.labBatch}` : ''}
+                            </span>
+                            <span style={{ fontSize: '10px', fontFamily: 'monospace', color: t.accentText, fontWeight: 700 }}>
+                                Sem {selectedSemester}
+                            </span>
+                        </div>
+                        <span style={{ fontSize: '10px', color: t.textFaint }}>
+                            {readOnly ? 'Snapshot Archive 🔒' : 'Active Attendance Workspace'}
                         </span>
-                        <span style={{ fontSize: '10px', fontFamily: 'monospace' }}>Sem {selectedSemester}</span>
                     </div>
                 </motion.div>
 
@@ -900,12 +1671,11 @@ const AttendanceSettings = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: t.surface,
+                        border: `1px solid ${t.border}`,
                         borderRadius: '12px',
                         padding: '20px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: t.cardShadow,
                         minWidth: 0,
                         height: '100%',
                         overflowY: 'auto',
@@ -920,16 +1690,35 @@ const AttendanceSettings = () => {
                         justifyContent: 'space-between',
                         marginBottom: '16px',
                         paddingBottom: '12px',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+                        borderBottom: `1px solid ${t.divider}`
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(148, 163, 184, 0.6)' }}>
-                            <span style={{ color: 'rgba(255, 255, 255, 0.85)', fontWeight: 600 }}>Attendance Tracker</span>
-                            <ChevronRight size={12} />
-                            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{activeTabObj.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: t.textMuted }}>
+                            <span style={{ color: t.text, fontWeight: 600 }}>Attendance</span>
+                            <ChevronRight size={12} style={{ color: t.textFaint }} />
+                            <span style={{ color: t.accentText, fontWeight: 600 }}>{activeTabObj.label}</span>
                         </div>
 
-                        {/* Top Right Controls: Semester Switcher */}
+                        {/* Top Right Controls: Section & Lab Batch Context + Semester Switcher */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            {userProfile?.section && (
+                                <div style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '5px 12px',
+                                    borderRadius: '8px',
+                                    background: t.accentBg,
+                                    border: `1px solid ${t.accentBorder}`,
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: t.accentText
+                                }}>
+                                    <span>Section {typeof userProfile.academicSection === 'object' && userProfile.academicSection?.name ? userProfile.academicSection.name : userProfile.section}</span>
+                                    <span style={{ fontSize: '10px', opacity: 0.8, fontWeight: 400 }}>
+                                        {userProfile.labBatch ? `· Batch ${userProfile.labBatch}` : '· Batch: All'}
+                                    </span>
+                                </div>
+                            )}
                             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                                 <div style={{
                                     display: 'flex',
@@ -937,24 +1726,24 @@ const AttendanceSettings = () => {
                                     gap: '6px',
                                     padding: '5px 12px',
                                     borderRadius: '8px',
-                                    background: 'rgba(19, 18, 26, 0.7)',
-                                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                                    background: isDark ? 'rgba(19, 18, 26, 0.7)' : '#F8FAFC',
+                                    border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : t.border}`,
                                     fontSize: '12px',
                                     fontWeight: 600,
-                                    color: '#e2e8f0',
+                                    color: t.text,
                                     cursor: 'pointer'
                                 }}>
                                     <span style={{
                                         width: '6px',
                                         height: '6px',
                                         borderRadius: '50%',
-                                        background: readOnly ? '#a78bfa' : '#34d399'
+                                        background: readOnly ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981'
                                     }} />
                                     <span>Semester {selectedSemester}</span>
-                                    <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 400 }}>
+                                    <span style={{ fontSize: '10px', color: t.textMuted, fontWeight: 400 }}>
                                         {readOnly ? '· Finalized 🔒' : '· Active ●'}
                                     </span>
-                                    <ChevronDown size={12} color="#a78bfa" />
+                                    <ChevronDown size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
                                     <select
                                         value={selectedSemester}
                                         onChange={(e) => handleSemesterChange(Number(e.target.value))}
@@ -968,7 +1757,7 @@ const AttendanceSettings = () => {
                                         }}
                                     >
                                         {semestersList.map(s => (
-                                             <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                             <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
                                                 Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
                                             </option>
                                         ))}
@@ -1014,12 +1803,11 @@ const AttendanceSettings = () => {
             <div className="attendance-tablet-container">
                 <div
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: t.surface,
+                        border: `1px solid ${t.border}`,
                         borderRadius: '12px',
                         padding: '16px 20px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: t.cardShadow,
                         boxSizing: 'border-box',
                         width: '100%',
                         minWidth: 0
@@ -1034,43 +1822,63 @@ const AttendanceSettings = () => {
                         gap: '12px',
                         marginBottom: '14px',
                         paddingBottom: '12px',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+                        borderBottom: `1px solid ${t.divider}`
                     }}>
                         <div>
-                            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                            <h2 style={{ fontSize: '16px', fontWeight: 700, color: t.text, margin: 0 }}>
                                 Attendance Tracker
                             </h2>
-                            <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                            <span style={{ fontSize: '11px', color: t.textMuted }}>
                                 Daily class logging & threshold tracking
                             </span>
                         </div>
 
-                        {/* Semester Switcher */}
-                        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                        {/* Top Right Controls: Section & Lab Batch Context + Semester Switcher */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            {userProfile?.section && (
+                                <div style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    padding: '4px 10px',
+                                    borderRadius: '8px',
+                                    background: t.accentBg,
+                                    border: `1px solid ${t.accentBorder}`,
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: t.accentText
+                                }}>
+                                    <span>Sec {typeof userProfile.academicSection === 'object' && userProfile.academicSection?.name ? userProfile.academicSection.name : userProfile.section}</span>
+                                    <span style={{ fontSize: '10px', opacity: 0.8, fontWeight: 400 }}>
+                                        {userProfile.labBatch ? `· ${userProfile.labBatch}` : '· All'}
+                                    </span>
+                                </div>
+                            )}
+                            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
                                 padding: '5px 12px',
                                 borderRadius: '8px',
-                                background: 'rgba(19, 18, 26, 0.7)',
-                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                background: isDark ? 'rgba(19, 18, 26, 0.7)' : '#F8FAFC',
+                                border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : t.border}`,
                                 fontSize: '12px',
                                 fontWeight: 600,
-                                color: '#e2e8f0',
+                                color: t.text,
                                 cursor: 'pointer'
                             }}>
                                 <span style={{
                                     width: '6px',
                                     height: '6px',
                                     borderRadius: '50%',
-                                    background: readOnly ? '#a78bfa' : '#34d399'
+                                    background: readOnly ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981'
                                 }} />
                                 <span>Semester {selectedSemester}</span>
-                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 400 }}>
+                                <span style={{ fontSize: '10px', color: t.textMuted, fontWeight: 400 }}>
                                     {readOnly ? '· Finalized 🔒' : '· Active ●'}
                                 </span>
-                                <ChevronDown size={12} color="#a78bfa" />
+                                <ChevronDown size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
                                 <select
                                     value={selectedSemester}
                                     onChange={(e) => handleSemesterChange(Number(e.target.value))}
@@ -1084,7 +1892,7 @@ const AttendanceSettings = () => {
                                     }}
                                 >
                                     {semestersList.map(s => (
-                                        <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                        <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
                                             Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
                                         </option>
                                     ))}
@@ -1092,10 +1900,11 @@ const AttendanceSettings = () => {
                             </div>
                         </div>
                     </div>
+                </div>
 
                     {/* Tablet Horizontal Tab Navigation */}
                     <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                        {NAV_TABS.map((tab) => {
+                        {ALL_NAV_TABS.map((tab) => {
                             const Icon = tab.icon;
                             const isActive = activeTab === tab.id;
 
@@ -1115,12 +1924,15 @@ const AttendanceSettings = () => {
                                         cursor: 'pointer',
                                         whiteSpace: 'nowrap',
                                         background: isActive
-                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))'
-                                            : 'rgba(255, 255, 255, 0.03)',
+                                            ? (isDark 
+                                                ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))' 
+                                                : '#F5F3FF')
+                                            : (isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC'),
                                         border: isActive
-                                            ? '1px solid rgba(139, 92, 246, 0.4)'
-                                            : '1px solid rgba(255, 255, 255, 0.06)',
-                                        color: isActive ? '#c4b5fd' : 'rgba(148, 163, 184, 0.7)',
+                                            ? (isDark ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(124, 58, 237, 0.3)')
+                                            : `1px solid ${t.border}`,
+                                        color: isActive ? (isDark ? '#c4b5fd' : '#6d28d9') : t.textMuted,
+                                        boxShadow: isActive ? (isDark ? 'none' : '0 1px 3px rgba(124, 58, 237, 0.08)') : 'none',
                                         transition: 'all 0.15s'
                                     }}
                                 >
@@ -1135,12 +1947,11 @@ const AttendanceSettings = () => {
                 {/* Tablet Main Content */}
                 <div
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: t.surface,
+                        border: `1px solid ${t.border}`,
                         borderRadius: '12px',
                         padding: '18px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: t.cardShadow,
                         flex: 1,
                         overflowY: 'auto',
                         boxSizing: 'border-box',
@@ -1157,10 +1968,11 @@ const AttendanceSettings = () => {
             <div className="attendance-mobile-container">
                 {/* Mobile Header: Title + Semester Switcher */}
                 <div style={{
-                    background: 'rgba(19, 18, 26, 0.55)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    background: t.surface,
+                    border: `1px solid ${t.border}`,
                     borderRadius: '12px',
                     padding: '12px 14px',
+                    boxShadow: t.cardShadow,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -1170,10 +1982,10 @@ const AttendanceSettings = () => {
                     minWidth: 0
                 }}>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: t.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             Attendance Tracker
                         </h2>
-                        <span style={{ fontSize: '10.5px', color: 'rgba(148, 163, 184, 0.6)' }}>
+                        <span style={{ fontSize: '10.5px', color: t.textMuted }}>
                             Daily class logging & threshold
                         </span>
                     </div>
@@ -1186,11 +1998,11 @@ const AttendanceSettings = () => {
                             gap: '4px',
                             padding: '6px 10px',
                             borderRadius: '8px',
-                            background: 'rgba(19, 18, 26, 0.8)',
-                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                            background: isDark ? 'rgba(19, 18, 26, 0.8)' : '#F8FAFC',
+                            border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : t.border}`,
                             fontSize: '11px',
                             fontWeight: 600,
-                            color: '#e2e8f0',
+                            color: t.text,
                             cursor: 'pointer',
                             minHeight: '34px'
                         }}>
@@ -1198,10 +2010,10 @@ const AttendanceSettings = () => {
                                 width: '6px',
                                 height: '6px',
                                 borderRadius: '50%',
-                                background: readOnly ? '#a78bfa' : '#34d399'
+                                background: readOnly ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981'
                             }} />
                             <span>Sem {selectedSemester}</span>
-                            <ChevronDown size={11} color="#a78bfa" />
+                            <ChevronDown size={11} color={isDark ? '#a78bfa' : '#7c3aed'} />
                             <select
                                 value={selectedSemester}
                                 onChange={(e) => handleSemesterChange(Number(e.target.value))}
@@ -1215,7 +2027,7 @@ const AttendanceSettings = () => {
                                 }}
                             >
                                 {semestersList.map(s => (
-                                    <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                    <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
                                         Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
                                     </option>
                                 ))}
@@ -1239,7 +2051,7 @@ const AttendanceSettings = () => {
                         boxSizing: 'border-box'
                     }}
                 >
-                    {NAV_TABS.map((tab) => {
+                    {ALL_NAV_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
 
@@ -1261,13 +2073,15 @@ const AttendanceSettings = () => {
                                     whiteSpace: 'nowrap',
                                     minHeight: '44px',
                                     background: isActive
-                                        ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.28), rgba(99, 102, 241, 0.22))'
-                                        : 'rgba(19, 18, 26, 0.65)',
+                                        ? (isDark 
+                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.28), rgba(99, 102, 241, 0.22))' 
+                                            : '#F5F3FF')
+                                        : (isDark ? 'rgba(19, 18, 26, 0.65)' : '#FFFFFF'),
                                     border: isActive
-                                        ? '1.5px solid rgba(139, 92, 246, 0.5)'
-                                        : '1px solid rgba(255, 255, 255, 0.08)',
-                                    color: isActive ? '#c4b5fd' : 'rgba(148, 163, 184, 0.75)',
-                                    boxShadow: isActive ? '0 2px 12px rgba(124, 58, 237, 0.18)' : 'none',
+                                        ? (isDark ? '1.5px solid rgba(139, 92, 246, 0.5)' : '1px solid rgba(124, 58, 237, 0.3)')
+                                        : `1px solid ${t.border}`,
+                                    color: isActive ? (isDark ? '#c4b5fd' : '#6d28d9') : t.textMuted,
+                                    boxShadow: isActive ? (isDark ? '0 2px 12px rgba(124, 58, 237, 0.18)' : '0 1px 4px rgba(124, 58, 237, 0.12)') : 'none',
                                     transition: 'all 0.15s ease'
                                 }}
                             >
@@ -1281,12 +2095,11 @@ const AttendanceSettings = () => {
                 {/* Mobile Main Content */}
                 <div
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        background: t.surface,
+                        border: `1px solid ${t.border}`,
                         borderRadius: '12px',
                         padding: '12px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: t.cardShadow,
                         width: '100%',
                         boxSizing: 'border-box',
                         minWidth: 0
@@ -1307,6 +2120,109 @@ const AttendanceSettings = () => {
                 registeredSubjects={registeredSubjectsList}
                 onSwapConfirmed={handleConfirmSubjectSwap}
             />
+
+            {/* Timetable Slot Customization Modal */}
+            {editingTimetableSlot && (
+                <TimetableSlotCustomizeModal
+                    isOpen={Boolean(editingTimetableSlot)}
+                    onClose={() => setEditingTimetableSlot(null)}
+                    slot={editingTimetableSlot}
+                    allSlots={timetableSlots}
+                    registeredSubjects={registeredSubjectsList}
+                    subjects={registeredSubjectsList}
+                    onApplyChange={handleApplySlotCustomization}
+                    onResetSlotToOfficial={handleResetSlotToOfficial}
+                />
+            )}
+
+            {/* Past Week Change Warning Modal */}
+            {pendingPastChange && (
+                <PastWeekChangeWarningModal
+                    isOpen={Boolean(pendingPastChange)}
+                    onClose={() => setPendingPastChange(null)}
+                    slot={pendingPastChange.slot}
+                    oldSubjectName={pendingPastChange.slot?.subject?.name || 'Current Subject'}
+                    newSubjectName={pendingPastChange.newSubject?.name || 'New Subject'}
+                    affectedCount={4}
+                    onConfirmKeepPast={handleConfirmKeepPast}
+                    onConfirmApplyPast={handleConfirmApplyPast}
+                />
+            )}
+
+            {/* Official Allotted Timetable Read-Only View Modal */}
+            {isViewingOfficial && (
+                <OfficialTimetableModal
+                    isOpen={isViewingOfficial}
+                    onClose={() => setIsViewingOfficial(false)}
+                    slots={officialTimetableSlots.length > 0 ? officialTimetableSlots : timetableSlots}
+                    config={timetableConfig}
+                    subjects={registeredSubjectsList}
+                    registeredSubjects={registeredSubjectsList}
+                    userProfile={userProfile}
+                    allottedTimetable={allottedTimetable}
+                />
+            )}
+
+            {/* Reset to Official Timetable Confirmation Modal */}
+            {isResetConfirmOpen && (
+                <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fadeIn ${
+                    isDark ? 'bg-black/80' : 'bg-slate-900/40'
+                }`}>
+                    <div className={`w-full max-w-md rounded-xl p-5 shadow-2xl space-y-4 border ${
+                        isDark 
+                            ? 'bg-[#13111b] border-white/10 text-white' 
+                            : 'bg-white border-slate-200 text-slate-900'
+                    }`}>
+                        <div className="flex items-start gap-3">
+                            <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 shrink-0">
+                                <AlertCircle className="w-5 h-5" />
+                            </div>
+                            <div className="space-y-1">
+                                <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                    Reset to Official College Timetable?
+                                </h3>
+                                <p className={`text-xs leading-relaxed ${isDark ? 'text-zinc-400' : 'text-slate-600'}`}>
+                                    This will remove all personal timetable overrides and restore the official college schedule for all future dates.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3 text-xs text-emerald-600 dark:text-emerald-300/90 flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                            <span>Past attendance records are strictly protected and will remain unchanged.</span>
+                        </div>
+
+                        <div className={`flex items-center justify-end gap-2.5 pt-2 border-t ${isDark ? 'border-white/5' : 'border-slate-100'}`}>
+                            <button
+                                type="button"
+                                onClick={() => setIsResetConfirmOpen(false)}
+                                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono transition-colors border ${
+                                    isDark 
+                                        ? 'text-zinc-300 hover:bg-white/5 border-white/10' 
+                                        : 'text-slate-700 hover:bg-slate-100 border-slate-200'
+                                }`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isResettingTimetable}
+                                onClick={handleConfirmResetToOfficial}
+                                className="px-4 py-1.5 rounded-lg text-xs font-mono font-semibold text-white bg-rose-600 hover:bg-rose-500 shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                {isResettingTimetable ? (
+                                    <>
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        <span>Resetting...</span>
+                                    </>
+                                ) : (
+                                    <span>Reset Schedule</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* CSS Media Queries for Dynamic Deterministic Responsiveness */}
             <style>{`

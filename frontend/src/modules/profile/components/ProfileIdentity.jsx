@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../../context/ThemeContext';
 
 const ProfileIdentity = ({ student }) => {
-    if (!student) return null;
-
+    const { isDark } = useTheme();
     const [imgError, setImgError] = useState(false);
 
     useEffect(() => {
         setImgError(false);
-    }, [student.profilePicture]);
+    }, [student?.profilePicture]);
+
+    if (!student) return null;
 
     const initials = student.name
         ? student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -23,6 +25,8 @@ const ProfileIdentity = ({ student }) => {
         return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${pic}`;
     };
 
+    const nameColor = isDark ? '#FFFFFF' : '#0F172A';
+
     return (
         <div style={{
             display: 'flex',
@@ -34,10 +38,12 @@ const ProfileIdentity = ({ student }) => {
             <div style={{
                 width: '52px',
                 height: '52px',
-                borderRadius: '10px',
-                border: '1.5px solid rgba(139, 92, 246, 0.3)',
-                background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(99, 102, 241, 0.15))',
-                color: '#c4b5fd',
+                borderRadius: '12px',
+                border: isDark ? '1.5px solid rgba(139, 92, 246, 0.35)' : '1.5px solid rgba(139, 92, 246, 0.25)',
+                background: isDark 
+                    ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(99, 102, 241, 0.15))'
+                    : 'linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(99, 102, 241, 0.06))',
+                color: isDark ? '#c4b5fd' : '#7c3aed',
                 fontSize: '16px',
                 fontWeight: 700,
                 display: 'flex',
@@ -67,7 +73,7 @@ const ProfileIdentity = ({ student }) => {
                 <h2 style={{
                     fontSize: '16px',
                     fontWeight: 700,
-                    color: '#fff',
+                    color: nameColor,
                     margin: 0,
                     letterSpacing: '-0.01em',
                     lineHeight: '1.2'
@@ -77,7 +83,7 @@ const ProfileIdentity = ({ student }) => {
                 <span style={{
                     fontSize: '12px',
                     fontWeight: 600,
-                    color: '#f97316', // Orange theme highlight from the screenshot
+                    color: '#f97316',
                     letterSpacing: '0.01em'
                 }}>
                     {student.username || student.usn || 'mr_kp66'}

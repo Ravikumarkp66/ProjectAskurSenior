@@ -6,33 +6,20 @@ import toast from 'react-hot-toast';
 
 import { EditProfileProvider, useEditProfile } from '../../contexts/EditProfileContext';
 
-// ── All settings nav items (used by desktop sidebar) ─────────────────────────
+// ── Settings navigation (Basic Information only) ──────────────────────────────
 const desktopNavItems = [
-    { label: 'Basic Information', path: '/profile/edit/basic',       icon: User,       chunk: () => import('./settings/BasicInformationSettings') },
-    { label: 'SGPA Calculator',   path: '/profile/edit/sgpa',        icon: TrendingUp, chunk: () => import('./settings/SgpaSettings') },
-    { label: 'Attendance Overview', path: '/profile/edit/attendance', icon: Clock,      chunk: () => import('./settings/AttendanceSettings') },
-    { label: 'CIE Analyzer',      path: '/profile/edit/cie',         icon: Sparkles,   chunk: () => import('./settings/CieSettings') },
-    { label: 'Events',            path: '/profile/edit/events',       icon: Bell,       chunk: () => import('./settings/EventsSettings') },
+    { label: 'Basic Information', path: '/profile/edit/basic', icon: User, chunk: () => import('./settings/BasicInformationSettings') },
 ];
 
-// ── Mobile 3-tab items ────────────────────────────────────────────────────────
+// ── Mobile tab items ────────────────────────────────────────────────────────
 const mobileTabs = [
-    { label: 'Profile',  path: '/profile/edit/basic',    chunk: () => import('./settings/BasicInformationSettings') },
-    { label: 'Academic', path: '/profile/edit/academic', chunk: () => import('./settings/AcademicSettings') },
-    { label: 'Progress', path: '/profile/edit/progress', chunk: () => import('./settings/ProgressSettings') },
+    { label: 'Basic Information', path: '/profile/edit/basic', chunk: () => import('./settings/BasicInformationSettings') },
 ];
 
-// Deep sub-pages that are reached via Manage → buttons (not in tab bar)
-// Maps path prefix → { label, backTo, backLabel }
-const DEEP_PAGES = {
-    '/profile/edit/cgpa':        { label: 'CGPA Progress',      backTo: '/profile/edit/progress', backLabel: 'Progress' },
-    '/profile/edit/attendance':  { label: 'Attendance',          backTo: '/profile/edit/progress', backLabel: 'Progress' },
-    '/profile/edit/cie':         { label: 'CIE Analyzer',        backTo: '/profile/edit/academic', backLabel: 'Academic' },
-    '/profile/edit/events':      { label: 'Events',              backTo: '/profile/edit/basic',    backLabel: 'Profile' },
-};
+// Deep sub-pages (none — all settings consolidated in Basic Information)
+const DEEP_PAGES = {};
 
-// Paths that hide the save button (Progress tab + its deep pages are read-display)
-const NO_SAVE_PATHS = ['/profile/edit/progress'];
+const NO_SAVE_PATHS = [];
 
 const SettingsSkeleton = () => (
     <div style={{
@@ -316,44 +303,46 @@ const LayoutInner = () => {
                             <div style={{ width: 48 }} />
                         </div>
 
-                        {/* Mobile Tab Bar */}
-                        <div style={{
-                            display: 'flex',
-                            padding: '12px 16px 0',
-                            gap: '6px',
-                            boxSizing: 'border-box'
-                        }}>
-                            {mobileTabs.map(tab => {
-                                const isActive = currentPath === tab.path || currentPath.startsWith(tab.path + '/');
-                                return (
-                                    <NavLink
-                                        key={tab.path}
-                                        to={tab.path}
-                                        style={{
-                                            flex: 1,
-                                            textAlign: 'center',
-                                            padding: '8px 4px',
-                                            borderRadius: '8px',
-                                            fontSize: '13px',
-                                            fontWeight: isActive ? 700 : 500,
-                                            color: isActive ? '#fff' : 'rgba(148,163,184,0.55)',
-                                            background: isActive
-                                                ? 'linear-gradient(135deg, rgba(124,58,237,0.22), rgba(99,102,241,0.18))'
-                                                : 'rgba(255,255,255,0.03)',
-                                            border: isActive
-                                                ? '1px solid rgba(139,92,246,0.35)'
-                                                : '1px solid rgba(255,255,255,0.06)',
-                                            textDecoration: 'none',
-                                            transition: 'all 0.18s',
-                                            boxSizing: 'border-box',
-                                            letterSpacing: '-0.01em'
-                                        }}
-                                    >
-                                        {tab.label}
-                                    </NavLink>
-                                );
-                            })}
-                        </div>
+                        {/* Mobile Tab Bar (only if multiple tabs) */}
+                        {mobileTabs.length > 1 && (
+                            <div style={{
+                                display: 'flex',
+                                padding: '12px 16px 0',
+                                gap: '6px',
+                                boxSizing: 'border-box'
+                            }}>
+                                {mobileTabs.map(tab => {
+                                    const isActive = currentPath === tab.path || currentPath.startsWith(tab.path + '/');
+                                    return (
+                                        <NavLink
+                                            key={tab.path}
+                                            to={tab.path}
+                                            style={{
+                                                flex: 1,
+                                                textAlign: 'center',
+                                                padding: '8px 4px',
+                                                borderRadius: '8px',
+                                                fontSize: '13px',
+                                                fontWeight: isActive ? 700 : 500,
+                                                color: isActive ? '#fff' : 'rgba(148,163,184,0.55)',
+                                                background: isActive
+                                                    ? 'linear-gradient(135deg, rgba(124,58,237,0.22), rgba(99,102,241,0.18))'
+                                                    : 'rgba(255,255,255,0.03)',
+                                                border: isActive
+                                                    ? '1px solid rgba(139,92,246,0.35)'
+                                                    : '1px solid rgba(255,255,255,0.06)',
+                                                textDecoration: 'none',
+                                                transition: 'all 0.18s',
+                                                boxSizing: 'border-box',
+                                                letterSpacing: '-0.01em'
+                                            }}
+                                        >
+                                            {tab.label}
+                                        </NavLink>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </>
                 )}
 

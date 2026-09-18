@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../utils/hooks';
+import { useTheme } from '../../context/ThemeContext';
 import {
     ProfileBasicCard,
     CgpaProgressCard,
@@ -10,10 +11,12 @@ import {
     AcademicJourneyCard,
     BasicInformation,
 } from '../../modules/profile';
+import AcademicProfileCompletionBanner from '../../modules/profile/components/AcademicProfileCompletionBanner';
 
 // ─── Mobile Profile Card Component (< 768px) ──────────────────────────
 const MobileProfileCard = () => {
     const { user } = useAuth();
+    const { isDark } = useTheme();
     const navigate = useNavigate();
     const [imgError, setImgError] = useState(false);
 
@@ -62,14 +65,20 @@ const MobileProfileCard = () => {
         }
     };
 
+    const cardBg = isDark ? '#0D111C' : '#FFFFFF';
+    const cardBorder = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
+    const cardShadow = isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 1px 3px rgba(15,23,42,0.06)';
+    const nameColor = isDark ? '#F1F5F9' : '#0F172A';
+    const subColor = isDark ? '#94A3B8' : '#64748B';
+    const dividerColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
+
     return (
         <div style={{
-            borderRadius: '20px',
-            background: 'rgba(19, 18, 26, 0.55)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '16px',
+            background: cardBg,
+            border: `1px solid ${cardBorder}`,
+            boxShadow: cardShadow,
             padding: '20px 16px',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -82,8 +91,10 @@ const MobileProfileCard = () => {
                 height: '76px',
                 borderRadius: '50%',
                 border: '2px solid rgba(139, 92, 246, 0.4)',
-                background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))',
-                color: '#c4b5fd',
+                background: isDark
+                    ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))'
+                    : 'linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(99, 102, 241, 0.08))',
+                color: isDark ? '#c4b5fd' : '#7c3aed',
                 fontSize: '24px',
                 fontWeight: 700,
                 display: 'flex',
@@ -91,7 +102,7 @@ const MobileProfileCard = () => {
                 justifyContent: 'center',
                 overflow: 'hidden',
                 marginBottom: '12px',
-                boxShadow: '0 8px 24px rgba(124, 58, 237, 0.25)'
+                boxShadow: '0 8px 24px rgba(124, 58, 237, 0.15)'
             }}>
                 {user.profilePicture && !imgError ? (
                     <img 
@@ -109,7 +120,7 @@ const MobileProfileCard = () => {
             <h2 style={{
                 fontSize: '18px',
                 fontWeight: 800,
-                color: '#F1F5F9',
+                color: nameColor,
                 margin: '0 0 2px 0',
                 letterSpacing: '0.02em'
             }}>
@@ -130,7 +141,7 @@ const MobileProfileCard = () => {
             <p style={{
                 fontSize: '13px',
                 fontWeight: 500,
-                color: '#94A3B8',
+                color: subColor,
                 margin: '0 0 4px 0'
             }}>
                 {branchStr}
@@ -140,14 +151,14 @@ const MobileProfileCard = () => {
             <p style={{
                 fontSize: '12px',
                 fontWeight: 600,
-                color: '#A78BFA',
+                color: isDark ? '#A78BFA' : '#7C3AED',
                 margin: 0
             }}>
                 {getYearLabel(user.semester)} • {user.graduationYear || '2027'}
             </p>
 
             {/* Horizontal Divider */}
-            <div style={{ width: '100%', height: '1px', background: 'rgba(255, 255, 255, 0.1)', margin: '16px 0' }} />
+            <div style={{ width: '100%', height: '1px', background: dividerColor, margin: '16px 0' }} />
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'center' }}>
@@ -158,9 +169,9 @@ const MobileProfileCard = () => {
                         maxWidth: '140px',
                         padding: '10px 16px',
                         borderRadius: '12px',
-                        background: 'rgba(124, 58, 237, 0.25)',
-                        border: '1px solid rgba(139, 92, 246, 0.4)',
-                        color: '#EDE9FE',
+                        background: isDark ? 'rgba(124, 58, 237, 0.25)' : '#7C3AED',
+                        border: isDark ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid #7C3AED',
+                        color: '#FFFFFF',
                         fontSize: '13px',
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -176,9 +187,9 @@ const MobileProfileCard = () => {
                         maxWidth: '140px',
                         padding: '10px 16px',
                         borderRadius: '12px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                        color: '#CBD5E1',
+                        background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid #E2E8F0',
+                        color: isDark ? '#CBD5E1' : '#334155',
                         fontSize: '13px',
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -195,6 +206,15 @@ const MobileProfileCard = () => {
 const ProfilePage = () => {
     const [selectedDate, setSelectedDate] = useState(null);
     const { user } = useAuth();
+    const { isDark } = useTheme();
+
+    const mobileCardStyle = {
+        borderRadius: '16px',
+        background: isDark ? '#0D111C' : '#FFFFFF',
+        border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
+        padding: '16px',
+        boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 1px 3px rgba(15,23,42,0.06)',
+    };
 
     return (
         <div style={{
@@ -206,68 +226,28 @@ const ProfilePage = () => {
         }}>
             {/* ── MOBILE LAYOUT (< 768px): Dedicated Single Column Stack ── */}
             <div className="mobile-profile-stack">
+                {/* 0. Academic Profile Completion Banner */}
+                <AcademicProfileCompletionBanner student={user} />
+
                 {/* 1. Profile Card */}
                 <MobileProfileCard />
 
                 {/* 2. Basic Information Card */}
-                <div style={{
-                    borderRadius: '20px',
-                    background: 'rgba(19, 18, 26, 0.55)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    padding: '16px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}>
+                <div style={mobileCardStyle}>
                     <BasicInformation student={user} />
                 </div>
 
                 {/* 3. Academic Journey Card */}
-                <div style={{
-                    borderRadius: '20px',
-                    background: 'rgba(19, 18, 26, 0.55)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    padding: '16px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}>
-                    <AcademicJourneyCard onSelectDate={setSelectedDate} />
-                </div>
+                <AcademicJourneyCard onSelectDate={setSelectedDate} />
 
                 {/* 4. CGPA Progress Card */}
-                <div style={{
-                    borderRadius: '20px',
-                    background: 'rgba(19, 18, 26, 0.55)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    padding: '16px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}>
-                    <CgpaProgressCard />
-                </div>
+                <CgpaProgressCard />
 
                 {/* 5. Attendance Card */}
-                <div style={{
-                    borderRadius: '20px',
-                    background: 'rgba(19, 18, 26, 0.55)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    padding: '16px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}>
-                    <AttendanceOverviewCard />
-                </div>
+                <AttendanceOverviewCard />
 
                 {/* 6. Today's Classes Card */}
-                <div style={{
-                    borderRadius: '20px',
-                    background: 'rgba(19, 18, 26, 0.55)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    padding: '16px',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)',
-                }}>
-                    <TodayClassesCard selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
-                </div>
+                <TodayClassesCard selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
             </div>
 
             {/* ── DESKTOP & TABLET LAYOUT (≥ 768px): 100% UNCHANGED ── */}
@@ -308,6 +288,9 @@ const ProfilePage = () => {
                     }}
                     className="profile-scroll-col"
                 >
+                    {/* Academic Profile Completion Banner */}
+                    <AcademicProfileCompletionBanner student={user} />
+
                     {/* Row 1 — Summary Cards */}
                     <div
                         style={{
@@ -372,11 +355,11 @@ const ProfilePage = () => {
                     background: transparent;
                 }
                 .profile-scroll-col::-webkit-scrollbar-thumb {
-                    background: rgba(255,255,255,0.1);
+                    background: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.15)'};
                     border-radius: 4px;
                 }
                 .profile-scroll-col::-webkit-scrollbar-thumb:hover {
-                    background: rgba(255,255,255,0.2);
+                    background: ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(15,23,42,0.25)'};
                 }
             `}} />
         </div>

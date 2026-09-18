@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { SUPER1, ADMIN_CSE, STUDENT_CSE } from './helpers/test-accounts.js';
 import { adminLogin, studentLogin, apiGet } from './helpers/api-client.js';
 
-test.describe('TEST 19, 20, 21 & 22: Session Management, Security History & Risk Engine', () => {
+test.describe('TEST 19, 20, 21 & 22: Session Management, Security History & Risk Engine', { tag: ['@regression', '@critical', '@security'] }, () => {
   let superToken = null;
   let cseToken = null;
 

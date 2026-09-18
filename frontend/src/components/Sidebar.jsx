@@ -371,12 +371,13 @@ const Sidebar = () => {
                 const isSGPA = location.pathname.includes('/sgpa-calculator') || location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
                 const isCGPA = location.pathname.includes('/cgpa-calculator');
                 const isHomeExact = location.pathname === '/home' || location.pathname === '/home/';
-                const isStudentAcademics = location.pathname.includes('/student-academics') || location.pathname.includes('/academic-register');
+                const isStudentAcademics = location.pathname.includes('/student-academics') || location.pathname.includes('/academic-register') || location.pathname.includes('academic-summary') || location.pathname.includes('academic-overview');
                 const isAttendance = location.pathname.includes('/attendance');
                 const isCie = location.pathname.includes('/cie');
                 const isSgpa = location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
                 const isTimetable = location.pathname.includes('/timetable') || location.pathname.includes('/todays-classes');
-                const isAcademicNav = isStudentAcademics || isAttendance || isCie || isSgpa || isTimetable;
+                const isRoadmaps = location.pathname.includes('/roadmaps');
+                const isAcademicNav = isStudentAcademics || isAttendance || isCie || isSgpa || isTimetable || isRoadmaps;
 
                 return (
                     <nav
@@ -412,7 +413,7 @@ const Sidebar = () => {
                             onClick={() => navigate('/student-academics')}
                         />
 
-                        {(isAttendance || isCie || isSgpa) && (
+                        {(isAttendance || isCie || isSgpa || isRoadmaps) && (
                             <>
                                 <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />
                                 {isAttendance && (
@@ -436,7 +437,15 @@ const Sidebar = () => {
                                         icon={<SgpaIcon filled={true} />}
                                         label="SGPA"
                                         isActive={true}
-                                        onClick={() => navigate('/home/sgpa')}
+                                        onClick={() => navigate('/plus/sgpa')}
+                                    />
+                                )}
+                                {isRoadmaps && (
+                                    <NavItem
+                                        icon={<Map size={20} strokeWidth={1.8} />}
+                                        label="Roadmap"
+                                        isActive={true}
+                                        onClick={() => navigate('/plus/roadmaps')}
                                     />
                                 )}
                                 <div style={{ width: '100%', height: 1, backgroundColor: 'rgba(139, 92, 246, 0.15)', margin: '4px 0' }} />

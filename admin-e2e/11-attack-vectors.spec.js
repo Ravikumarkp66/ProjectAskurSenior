@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { ADMIN_CSE, STUDENT_CSE, ADMIN_PORTAL_URL } from './helpers/test-accounts.js';
 import { adminLogin, studentLogin, injectAdminAuth, clearAuth, apiGet } from './helpers/api-client.js';
 
-test.describe('TEST 24, 25 & 26: Direct Attack Vectors, URL Tampering & Session Manipulation', () => {
+test.describe('TEST 24, 25 & 26: Direct Attack Vectors, URL Tampering & Session Manipulation', { tag: ['@regression', '@security'] }, () => {
   let cseToken = null;
   let cseUser = null;
   let studentToken = null;

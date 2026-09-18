@@ -1,4 +1,4 @@
-import { GraduationCap, BookOpen, Building2, Calendar, User, Layers } from 'lucide-react';
+import { GraduationCap, BookOpen, Building2, Calendar, User, Layers, Users, FlaskConical } from 'lucide-react';
 
 export const basicInformationConfig = [
   {
@@ -15,6 +15,16 @@ export const basicInformationConfig = [
     key: "branch",
     label: "Branch",
     icon: Building2,
+  },
+  {
+    key: "section",
+    label: "Section",
+    icon: Users,
+  },
+  {
+    key: "labBatch",
+    label: "Lab Batch",
+    icon: FlaskConical,
   },
   {
     key: "scheme",

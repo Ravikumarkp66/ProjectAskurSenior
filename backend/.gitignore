@@ -11,4 +11,6 @@ uploads/
 logs/
 scratch/
 tmp/
+coverage/
+.c8_output/
 

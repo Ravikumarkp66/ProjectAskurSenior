@@ -11,31 +11,12 @@ import InterviewMobileCardList from '../../components/interview/sheet/InterviewM
 import InterviewEmptyState from '../../components/interview/sheet/InterviewEmptyState';
 import InterviewSkeletonSheet from '../../components/interview/sheet/InterviewSkeletonSheet';
 
-import { Sparkles, PlusCircle } from 'lucide-react';
-
-const parseCtcNumeric = (ctcStr) => {
-    if (!ctcStr) return 0;
-    const str = String(ctcStr);
-    const match = str.match(/(\d+(\.\d+)?)/);
-    if (!match) return 0;
-    let val = parseFloat(match[1]);
-    if (/k/i.test(str) && !/lpa|lakh/i.test(str)) {
-        // e.g. 87K/month is ~10 LPA
-        val = val * 0.12;
-    }
-    return val;
-};
+import { PlusCircle } from 'lucide-react';
 
 const InterviewPage = () => {
     const [companies, setCompanies] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    // Filter & search states
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState('all');
-    const [selectedBatch, setSelectedBatch] = useState('all');
-    const [selectedCtcTier, setSelectedCtcTier] = useState('all');
-    const [sortBy, setSortBy] = useState('most-stories');
 
     useEffect(() => {
         let isMounted = true;
@@ -138,47 +119,26 @@ const InterviewPage = () => {
     const summaryStats = useMemo(() => {
         const uniqueCompanies = new Set();
         let totalStories = 0;
-        const batchSet = new Set();
 
         companies.forEach(item => {
             uniqueCompanies.add(item.companyId || item._id);
             totalStories += (item.totalExperiences || item.experienceCount || 0);
-            if (item.batch) batchSet.add(String(item.batch));
         });
-
-        const sortedBatches = Array.from(batchSet).sort().reverse();
 
         return {
             totalCompanies: uniqueCompanies.size,
-            totalStories,
-            batches: sortedBatches
+            totalStories
         };
     }, [companies]);
 
-    // Active filters flag
-    const hasActiveFilters = useMemo(() => {
-        return Boolean(
-            searchQuery.trim() ||
-            selectedCategory !== 'all' ||
-            selectedBatch !== 'all' ||
-            selectedCtcTier !== 'all' ||
-            sortBy !== 'most-stories'
-        );
-    }, [searchQuery, selectedCategory, selectedBatch, selectedCtcTier, sortBy]);
-
     const handleResetFilters = useCallback(() => {
         setSearchQuery('');
-        setSelectedCategory('all');
-        setSelectedBatch('all');
-        setSelectedCtcTier('all');
-        setSortBy('most-stories');
     }, []);
 
-    // Multi-dimensional filter & sort engine
+    // Clean, search-only filtering engine
     const filteredRoles = useMemo(() => {
         let result = [...companies];
 
-        // 1. Text Search across name, role, batch, industry
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase().trim();
             result = result.filter(item => {
@@ -190,76 +150,27 @@ const InterviewPage = () => {
             });
         }
 
-        // 2. Category Filter (Product vs Service)
-        if (selectedCategory !== 'all') {
-            result = result.filter(item => {
-                const itemType = String(item.type || '').toLowerCase();
-                return itemType === selectedCategory.toLowerCase();
-            });
-        }
-
-        // 3. Batch Filter
-        if (selectedBatch !== 'all') {
-            result = result.filter(item => String(item.batch) === selectedBatch);
-        }
-
-        // 4. CTC Tier Filter
-        if (selectedCtcTier !== 'all') {
-            result = result.filter(item => {
-                const numericCtc = parseCtcNumeric(item.ctc || item.representativeCtc);
-                if (selectedCtcTier === 'tier-high') return numericCtc >= 20;
-                if (selectedCtcTier === 'tier-mid') return numericCtc >= 10 && numericCtc < 20;
-                if (selectedCtcTier === 'tier-base') return numericCtc > 0 && numericCtc < 10;
-                return true;
-            });
-        }
-
-        // 5. Sorting
+        // Default sort by most experiences/stories
         result.sort((a, b) => {
-            if (sortBy === 'most-stories') {
-                return (b.totalExperiences || b.experienceCount || 0) - (a.totalExperiences || a.experienceCount || 0);
-            }
-            if (sortBy === 'latest-batch') {
-                return Number(b.batch || 0) - Number(a.batch || 0);
-            }
-            if (sortBy === 'a-z') {
-                const nameA = String(a.company || a.name || '');
-                const nameB = String(b.company || b.name || '');
-                return nameA.localeCompare(nameB);
-            }
-            if (sortBy === 'ctc-high') {
-                return parseCtcNumeric(b.ctc || b.representativeCtc) - parseCtcNumeric(a.ctc || a.representativeCtc);
-            }
-            return 0;
+            return (b.totalExperiences || b.experienceCount || 0) - (a.totalExperiences || a.experienceCount || 0);
         });
 
         return result;
-    }, [companies, searchQuery, selectedCategory, selectedBatch, selectedCtcTier, sortBy]);
+    }, [companies, searchQuery]);
 
     return (
         <div className="w-full">
-            {/* 1. Compact Hero with Live Stats & Recruitment Disclaimer */}
+            {/* 1. Centered Hero with Animated Counters & Top-Left "i" Recruitment Notes */}
             <InterviewHero 
                 totalCompanies={summaryStats.totalCompanies}
                 totalStories={summaryStats.totalStories}
-                batches={summaryStats.batches}
             />
 
-            {/* 2. Unified Discovery Toolbar (Search + Category Tabs + Dropdown Filters + Sort) */}
+            {/* 2. Simplified Clean Search Toolbar with Dynamic Rotating Placeholder */}
             <InterviewToolbar 
                 searchQuery={searchQuery}
                 setSearchQuery={setSearchQuery}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                selectedBatch={selectedBatch}
-                setSelectedBatch={setSelectedBatch}
-                selectedCtcTier={selectedCtcTier}
-                setSelectedCtcTier={setSelectedCtcTier}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
                 totalResults={filteredRoles.length}
-                onResetFilters={handleResetFilters}
-                hasActiveFilters={hasActiveFilters}
             />
 
             {/* 3. The Placement Intelligence Sheet Matrix */}
@@ -279,10 +190,10 @@ const InterviewPage = () => {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
+                            transition={{ duration: 0.15 }}
                             className="w-full"
                         >
-                            {/* Desktop 7-Column Dense Table (>= 1024px) */}
+                            {/* Desktop Table (>= 1024px) */}
                             <div className="hidden lg:block">
                                 <InterviewSheetTable items={filteredRoles} />
                             </div>
@@ -296,24 +207,23 @@ const InterviewPage = () => {
                 </AnimatePresence>
             </div>
 
-            {/* 4. Subdued Senior Contribution Footer Banner */}
+            {/* 4. Subdued Senior Contribution Footer Link */}
             {!isLoading && (
-                <div className="mt-14 p-6 rounded-2xl bg-gradient-to-r from-purple-900/10 via-white/[0.02] to-transparent border border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 text-center sm:text-left">
-                        <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 shrink-0">
-                            <Sparkles size={18} />
-                        </div>
-                        <div>
-                            <h4 className="text-sm font-bold text-white">Got placed recently or cleared an interview?</h4>
-                            <p className="text-xs text-slate-400">Your questions and tips help the next SIT batch prepare with confidence.</p>
-                        </div>
+                <div className="mt-12 py-5 px-6 rounded-xl bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h4 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            Cleared an interview or received an offer?
+                        </h4>
+                        <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Share your rounds and questions to help junior batches prepare.
+                        </p>
                     </div>
                     <Link
                         to="/home/interview/share"
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.1] text-xs font-bold text-white uppercase tracking-wider transition-all whitespace-nowrap"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors whitespace-nowrap"
                     >
-                        <PlusCircle size={14} className="text-purple-400" />
-                        <span>Add Your Story</span>
+                        <PlusCircle size={13} className="text-purple-600 dark:text-purple-400" />
+                        <span>Share Experience</span>
                     </Link>
                 </div>
             )}

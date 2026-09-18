@@ -4,14 +4,14 @@ import { X, Check, Tag, ShieldCheck, Sparkles, ArrowRight, Loader2 } from 'lucid
 import { subscriptionAPI } from '../../services/api';
 
 const SubscriptionModal = ({ isOpen, onClose, plan }) => {
-    if (!isOpen || !plan) return null;
-
     const [couponCode, setCouponCode] = useState('');
     const [appliedCoupon, setAppliedCoupon] = useState(null);
     const [loadingCoupon, setLoadingCoupon] = useState(false);
     const [couponError, setCouponError] = useState('');
     const [acceptedTerms, setAcceptedTerms] = useState(true);
     const [paymentSubmitted, setPaymentSubmitted] = useState(false);
+
+    if (!isOpen || !plan) return null;
 
     const basePrice = plan.price || 199;
     const discountAmount = appliedCoupon?.discountAmount || 0;

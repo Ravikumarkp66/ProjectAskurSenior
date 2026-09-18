@@ -52,7 +52,14 @@ const facultyReviewSchema = new mongoose.Schema(
         attendanceResponse: { type: String, trim: true },
         wishIKnew: { type: String, trim: true, maxlength: 250 },
         advice: { type: String, trim: true, maxlength: 250 },
-        recommendation: { type: String, trim: true }
+        recommendation: { type: String, trim: true },
+
+        status: {
+            type: String,
+            enum: ['Published', 'Hidden'],
+            default: 'Published',
+            index: true
+        }
     },
     {
         timestamps: true,

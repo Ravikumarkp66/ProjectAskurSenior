@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { SUPER1 } from './helpers/test-accounts.js';
 import { adminLogin, apiGet, apiPost, apiDelete, apiPatch } from './helpers/api-client.js';
 
-test.describe('TEST 23: Super Admin Quota Limit (Max 3) & Demotion Protection', () => {
+test.describe('TEST 23: Super Admin Quota Limit (Max 3) & Demotion Protection', { tag: '@security' }, () => {
   let superToken = null;
 
   test.beforeAll(async () => {

@@ -30,7 +30,7 @@ const studentCieRecordSchema = new mongoose.Schema({
         enum: ['IPCC', 'THEORY_ONLY', 'LAB_ONLY', 'LOW_THEORY'],
         required: true
     },
-    rawMarks: {
+    rawMarks: new mongoose.Schema({
         test1: { type: Number, default: null, min: 0 },
         test2: { type: Number, default: null, min: 0 },
         quiz1: { type: Number, default: null, min: 0 },
@@ -38,8 +38,9 @@ const studentCieRecordSchema = new mongoose.Schema({
         assignment1: { type: Number, default: null, min: 0 },
         assignment2: { type: Number, default: null, min: 0 },
         labRecord: { type: Number, default: null, min: 0 },
-        labTest: { type: Number, default: null, min: 0 }
-    },
+        labTest: { type: Number, default: null, min: 0 },
+        cie: { type: Number, default: null, min: 0 }
+    }, { _id: false, strict: false }),
     calculatedResult: {
         contributions: {
             tests: { type: Number, default: 0 },

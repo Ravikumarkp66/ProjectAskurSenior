@@ -3,7 +3,7 @@ const cacheInvalidator = require('../utils/cacheInvalidator');
 
 const createBug = async (req, res) => {
     try {
-        const { title, description, pageUrl } = req.body;
+        const { title, description, pageUrl, problemType } = req.body;
 
         if (!title || !String(title).trim()) {
             return res.status(400).json({ error: 'Title is required' });
@@ -15,11 +15,15 @@ const createBug = async (req, res) => {
             return res.status(400).json({ error: 'Page URL is required' });
         }
 
+        const validTypes = ['UI / Design', 'Feature not working', 'Performance', 'Login / Account', 'Academic data', 'Other'];
+        const safeProblemType = validTypes.includes(problemType) ? problemType : 'Other';
+
         const bug = await BugReport.create({
             userId: req.userId,
             title: String(title).trim(),
             description: String(description).trim(),
-            pageUrl: String(pageUrl).trim()
+            pageUrl: String(pageUrl).trim(),
+            problemType: safeProblemType
         });
 
         return res.status(201).json({ message: 'Bug reported', bug });
