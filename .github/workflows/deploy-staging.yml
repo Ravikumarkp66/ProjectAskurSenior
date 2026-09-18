@@ -30,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Path Filter Detection
         uses: dorny/paths-filter@v3
@@ -263,6 +265,20 @@ jobs:
               echo "${{ secrets.GHCR_READ_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
             fi
 
+            echo "=== Checking disk space before deployment ==="
+            df -h
+
+            echo "=== Cleaning up dangling Docker data and system logs to free space ==="
+            docker container prune -f || true
+            docker image prune -f || true
+            docker builder prune -af || true
+            sudo journalctl --vacuum-time=1d || true
+            sudo rm -rf /tmp/* || true
+            npm cache clean --force || true
+
+            echo "=== Disk space after initial cleanup ==="
+            df -h
+
             # 1. Pull, verify digest, and retag C Runner if updated
             if [ "${{ needs.detect-changes.outputs.c }}" == "true" ]; then
               EXPECTED_C_DIGEST="${{ needs.build-c-runner.outputs.digest }}"
@@ -340,6 +356,9 @@ jobs:
               echo "Successfully verified and tagged askursenior-python-runner:latest"
             fi
 
+            # Clean up dangling images left from replaced image tags
+            docker image prune -f || true
+
             echo "=== 5. Pulling latest development branch on EC2 ==="
             cd ~/ProjectAskurSenior
 
@@ -350,10 +369,13 @@ jobs:
             # Ensure swap space exists to prevent OOM killer on memory-constrained EC2 instances
             SWAP_TOTAL=$(free -m | awk '/^Swap:/ {print $2}')
             if [ -z "$SWAP_TOTAL" ] || [ "$SWAP_TOTAL" -eq 0 ]; then
-              echo "No swap detected. Allocating 2GB swap to prevent OOM..."
-              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
-              sudo chmod 600 /swapfile
-              sudo mkswap /swapfile || true
+              echo "No active swap detected."
+              if [ ! -f /swapfile ]; then
+                echo "Allocating 2GB swap file to prevent OOM..."
+                sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+                sudo chmod 600 /swapfile
+                sudo mkswap /swapfile || true
+              fi
               sudo swapon /swapfile || true
             fi
 
@@ -366,13 +388,14 @@ jobs:
             NODE_OPTIONS="--max-old-space-size=512" npm ci --no-audit --no-fund
             npm run build
             echo "Admin frontend built successfully."
+            npm cache clean --force || true
 
-             echo "=== Deploying admin frontend to Nginx ==="
-             sudo rm -rf /var/www/askursenior-admin/*
-             sudo cp -r ~/ProjectAskurSenior/admin/dist/. /var/www/askursenior-admin/
-             sudo chown -R root:root /var/www/askursenior-admin
-             sudo chmod -R 755 /var/www/askursenior-admin
-             echo "Admin frontend deployed successfully."
+            echo "=== Deploying admin frontend to Nginx ==="
+            sudo rm -rf /var/www/askursenior-admin/*
+            sudo cp -r ~/ProjectAskurSenior/admin/dist/. /var/www/askursenior-admin/
+            sudo chown -R root:root /var/www/askursenior-admin
+            sudo chmod -R 755 /var/www/askursenior-admin
+            echo "Admin frontend deployed successfully."
             
             echo "=== 8. Restarting askursenior-backend systemd service ==="
             cd ~/ProjectAskurSenior/backend
