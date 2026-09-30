@@ -178,6 +178,6 @@ export const mergeSubjectWithContentTree = (subject, normalizedApiModules) => {
 
     return {
         ...subject,
-        contentSource: 'legacy'
+        contentSource: subject.contentSource || 'legacy'
     };
 };

@@ -67,72 +67,68 @@ const getInitials = (name) => {
 const ContributorCard = ({ contributor, index }) => {
     const initials = getInitials(contributor.name);
     
-    // Unique gradient variants per card
+    // Clean purple / slate gradient variants
     const gradients = [
-        'from-purple-600 via-indigo-600 to-purple-700',
-        'from-indigo-600 via-purple-600 to-violet-700',
-        'from-violet-600 via-purple-500 to-indigo-700',
-        'from-purple-500 via-pink-600 to-purple-700'
+        'from-purple-600 to-indigo-700',
+        'from-indigo-600 to-purple-700',
+        'from-slate-700 to-slate-900',
+        'from-purple-700 to-violet-800'
     ];
     const avatarGradient = gradients[index % gradients.length];
     const isFounder = contributor.role && contributor.role.toLowerCase().includes('founder');
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.35, delay: index * 0.05 }}
-            className={`p-6 rounded-2xl border transition-all duration-200 flex flex-col items-center text-center group relative overflow-hidden ${
+        <div
+            className={`p-5 rounded-lg border transition-colors duration-150 flex flex-col items-center text-center group relative overflow-hidden shadow-none ${
                 isFounder 
-                    ? 'border-purple-300 dark:border-purple-500/30 bg-purple-50/50 dark:bg-purple-500/[0.04]' 
-                    : 'bg-white dark:bg-[#0D111C] border-slate-200 dark:border-slate-800/80 hover:border-purple-300 dark:hover:border-purple-500/30 shadow-sm dark:shadow-none'
+                    ? 'border-[#E9D5FF] dark:border-[#7C3AED]/30 bg-[#FAF5FF]/50 dark:bg-[#581C87]/15' 
+                    : 'bg-white dark:bg-[#15181D] border-[#E5E7EB] dark:border-[#292E37] hover:border-[#D1D5DB] dark:hover:border-[#3E4451]'
             }`}
         >
-            {/* Circular Avatar: Photo if available, else Gradient Initials */}
-            <div className="relative mb-4">
+            {/* Circular Avatar: Photo if available, else Initials */}
+            <div className="relative mb-3">
                 {contributor.avatar ? (
                     <img 
                         src={contributor.avatar} 
                         alt={contributor.name}
-                        className="relative w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-700 shadow-sm group-hover:scale-105 transition-transform duration-200"
+                        className="relative w-14 h-14 rounded-full object-cover border border-[#E5E7EB] dark:border-[#292E37]"
                     />
                 ) : (
-                    <div className={`relative w-16 h-16 rounded-full bg-gradient-to-br ${avatarGradient} text-white font-bold text-lg font-outfit flex items-center justify-center border-2 border-slate-200 dark:border-slate-700 shadow-sm group-hover:scale-105 transition-transform duration-200 tracking-wider`}>
+                    <div className={`relative w-14 h-14 rounded-full bg-gradient-to-br ${avatarGradient} text-white font-bold text-base flex items-center justify-center border border-[#E5E7EB] dark:border-[#292E37] tracking-wider`}>
                         {initials}
                     </div>
                 )}
             </div>
 
             {/* Contributor Name */}
-            <h3 className="text-base font-bold text-slate-900 dark:text-white font-outfit tracking-tight group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
+            <h3 className="text-base font-semibold text-[#111827] dark:text-[#F3F4F6] tracking-tight group-hover:text-[#7C3AED] dark:group-hover:text-[#A78BFA] transition-colors">
                 {contributor.name}
             </h3>
 
             {/* USN */}
             {contributor.usn && (
-                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 font-mono tracking-wider uppercase mt-1">
+                <p className="text-[11px] font-medium text-[#6B7280] dark:text-[#71717A] font-mono tracking-wider uppercase mt-0.5">
                     {contributor.usn}
                 </p>
             )}
 
             {/* Branch */}
             {contributor.branch && (
-                <p className="text-xs text-slate-600 dark:text-slate-400 font-normal leading-relaxed mt-2 line-clamp-1 max-w-[220px]">
+                <p className="text-xs text-[#4B5563] dark:text-[#A1A1AA] font-normal leading-relaxed mt-1.5 line-clamp-1 max-w-[220px]">
                     {contributor.branch}
                 </p>
             )}
 
             {/* Role Badge */}
-            <div className={`mt-5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold ${
+            <div className={`mt-4 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
                 isFounder 
-                    ? 'bg-purple-600 text-white border border-purple-500 shadow-sm' 
-                    : 'bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-300'
+                    ? 'bg-[#7C3AED] text-white border border-[#7C3AED]' 
+                    : 'bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#6D28D9] dark:text-[#DDD6FE]'
             }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isFounder ? 'bg-white' : 'bg-purple-500 dark:bg-purple-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${isFounder ? 'bg-white' : 'bg-[#7C3AED] dark:bg-[#A78BFA]'}`} />
                 <span>{contributor.role || 'Community Contributor'}</span>
             </div>
-        </motion.div>
+        </div>
     );
 };
 
@@ -169,27 +165,27 @@ const CommunityContributorsSection = ({ data }) => {
     const sortedContributors = [...contributors].sort((a, b) => (a.order || 0) - (b.order || 0));
 
     return (
-        <section id="contributors" className="py-20 px-6 relative bg-transparent overflow-hidden">
-            <div className="max-w-6xl mx-auto relative z-10 space-y-12">
+        <section id="contributors" className="py-20 px-6 relative bg-transparent border-b border-[#E5E7EB] dark:border-[#292E37]">
+            <div className="max-w-6xl mx-auto relative z-10 space-y-10">
                 
                 {/* Section Header */}
-                <div className="text-center max-w-3xl mx-auto space-y-3">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                <div className="text-center max-w-3xl mx-auto space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#7C3AED] dark:text-[#A78BFA] text-xs font-medium uppercase tracking-wider mb-2">
                         <UserCheck className="w-3.5 h-3.5" />
                         <span>Community Champions</span>
                     </div>
 
-                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white font-outfit tracking-tight">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
                         {data?.sectionTitle || 'Community Contributors'}
                     </h2>
 
-                    <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base font-normal max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-[#4B5563] dark:text-[#A1A1AA] text-sm sm:text-base font-normal max-w-2xl mx-auto leading-relaxed">
                         {data?.subtitle || 'The students who helped strengthen the AskUrSenior community by supporting juniors, sharing resources, and contributing valuable information.'}
                     </p>
                 </div>
 
                 {/* Grid Layout: Desktop 4 cards (lg:grid-cols-4), Tablet 2 cards (sm:grid-cols-2), Mobile 1 card (grid-cols-1) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {sortedContributors.map((contributor, index) => (
                         <ContributorCard 
                             key={contributor._id || contributor.usn || index} 
@@ -200,21 +196,17 @@ const CommunityContributorsSection = ({ data }) => {
                 </div>
 
                 {/* Footer Appreciation Banner */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 15 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5 }}
-                    className="p-6 sm:p-8 rounded-2xl bg-slate-100/70 dark:bg-[#0D111C]/60 border border-slate-200 dark:border-slate-800 text-center max-w-3xl mx-auto"
+                <div 
+                    className="p-5 sm:p-6 rounded-lg bg-[#F8FAFC] dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] text-center max-w-3xl mx-auto"
                 >
-                    <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-normal mb-2">
+                    <p className="text-[#374151] dark:text-[#D1D5DB] text-xs sm:text-sm leading-relaxed font-normal mb-1.5">
                         Every contribution, whether sharing resources, guiding juniors, or helping the community, has played an important role in making AskUrSenior better for everyone.
                     </p>
-                    <p className="text-purple-700 dark:text-purple-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5">
-                        <Heart className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 fill-purple-600 dark:fill-purple-400" />
+                    <p className="text-[#7C3AED] dark:text-[#A78BFA] text-xs sm:text-sm font-medium flex items-center justify-center gap-1.5">
+                        <Heart className="w-3.5 h-3.5 text-[#7C3AED] dark:text-[#A78BFA] fill-[#7C3AED] dark:fill-[#A78BFA]" />
                         <span>Thank you to every student who contributed.</span>
                     </p>
-                </motion.div>
+                </div>
 
             </div>
         </section>

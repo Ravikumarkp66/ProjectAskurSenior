@@ -150,11 +150,11 @@ const BasicInformationSettings = () => {
     return (
         <form onSubmit={e => { e.preventDefault(); doSave(); }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Section header — desktop only (mobile uses layout header) */}
-            <div className="edit-section-header" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 600, color: '#fff', margin: 0 }}>
+            <div className="edit-section-header flex flex-col gap-1 pb-1">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
                     Basic Information
                 </h2>
-                <span style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.55)' }}>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Manage your personal and academic profile identity
                 </span>
             </div>
@@ -184,34 +184,15 @@ const BasicInformationSettings = () => {
             />
 
             {/* Desktop-only inline Save button row (hidden on mobile — layout provides sticky button) */}
-            <div className="desktop-save-row" style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: '12px',
-                marginTop: '8px'
-            }}>
+            <div className="desktop-save-row flex items-center justify-end gap-3 pt-2">
                 <button
                     type="submit"
                     disabled={!isChanged}
-                    style={{
-                        padding: '8px 20px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        outline: 'none',
-                        background: !isChanged
-                            ? 'rgba(255, 255, 255, 0.04)'
-                            : 'linear-gradient(135deg, #7C3AED, #6366F1)',
-                        color: !isChanged ? 'rgba(255, 255, 255, 0.25)' : '#fff',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        cursor: !isChanged ? 'not-allowed' : 'pointer',
-                        boxShadow: isChanged ? '0 4px 14px rgba(124, 58, 237, 0.3)' : 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s'
-                    }}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all duration-150 ${
+                        !isChanged
+                            ? 'bg-slate-100 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200/80 dark:border-white/[0.06]'
+                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20 hover:from-purple-500 hover:to-indigo-500 cursor-pointer active:scale-[0.98]'
+                    }`}
                 >
                     Save Changes
                 </button>

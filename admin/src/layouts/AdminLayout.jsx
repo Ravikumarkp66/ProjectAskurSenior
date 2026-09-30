@@ -31,6 +31,7 @@ export const AdminLayout = () => {
   const canViewMaterials = hasPermission(admin, 'materials', 'view');
   const canViewInterviews = isSuperAdmin(admin) || hasPermission(admin, 'interviews', 'view');
   const canViewAnnouncements = isSuperAdmin(admin) || hasPermission(admin, 'announcements', 'view');
+  const canViewBugs = isSuperAdmin(admin) || hasPermission(admin, 'bugs', 'view');
   const isSuper = isSuperAdmin(admin);
 
   // Compute first allowed route
@@ -44,6 +45,8 @@ export const AdminLayout = () => {
     ? '/materials'
     : canViewInterviews
     ? '/interviews'
+    : canViewBugs
+    ? '/bugs'
     : isSuper
     ? '/admins'
     : '/login';
@@ -66,6 +69,9 @@ export const AdminLayout = () => {
     return <Navigate to={firstAllowedRoute} replace />;
   }
   if (currentPath === '/announcements' && !canViewAnnouncements) {
+    return <Navigate to={firstAllowedRoute} replace />;
+  }
+  if (currentPath === '/bugs' && !canViewBugs) {
     return <Navigate to={firstAllowedRoute} replace />;
   }
   const canViewEvaluation = isSuper || canViewSubjects || canViewStructure;

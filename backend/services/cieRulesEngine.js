@@ -287,6 +287,16 @@ function calculateSubjectCie({ registeredSubject, rawMarks = {}, evaluationTypeO
             }
         }
 
+        // Support direct CIE or continuousAssessment input for NCMC courses
+        if (compEnteredCount === 0 && (compKey === 'continuousAssessment' || evalType === 'NCMC')) {
+            const fallbackVal = raw.cie ?? raw.continuousAssessment ?? raw.totalCie;
+            if (fallbackVal !== undefined && fallbackVal !== null && fallbackVal !== '' && !isNaN(Number(fallbackVal))) {
+                compRawSum = Number(fallbackVal);
+                compEnteredCount = 1;
+                totalEnteredCount = 1;
+            }
+        }
+
         rawTotals[compKey] = {
             rawSum: compRawSum,
             maxRaw: compConfig.maxRaw,

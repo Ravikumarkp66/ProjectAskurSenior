@@ -20,6 +20,41 @@ function formatDate(date) {
     return `${year}-${month}-${day}`;
 }
 
+function resolveEventSuspension(e) {
+    if (!e) return { classesSuspended: false, suspensionType: 'none' };
+    const title = (e.title || '').trim();
+    const eventType = (e.eventType || e.type || e.kind || '').trim();
+    const isHoliday = eventType === 'Holiday / Closure' || eventType === 'HOLIDAY' || eventType === 'Government Holiday' || eventType === 'Vacation' || /vacation|holiday|closure|preparation.*holiday/i.test(title);
+    const isTestOrExam = eventType === 'Exam' || eventType === 'EXAM' || eventType === 'CIE / Test' || /test[-\s]?\d+|cie[-\s]?\d+|exam|midterm|see\b/i.test(title);
+    
+    // Explicit classImpact from AcademicCalendarItem
+    if (e.classImpact === 'NONE' || (/evening/i.test(title) && e.classesSuspended === false)) {
+        return { classesSuspended: false, suspensionType: 'none' };
+    }
+    if (e.classImpact === 'FULL_DAY') {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+    if (e.classImpact === 'TIME_RANGE') {
+        return { classesSuspended: true, suspensionType: 'time_range' };
+    }
+
+    if (e.classesSuspended === true) {
+        return { classesSuspended: true, suspensionType: e.suspensionType || 'full_day' };
+    }
+    if (e.suspensionType && e.suspensionType !== 'none') {
+        return { classesSuspended: true, suspensionType: e.suspensionType };
+    }
+
+    if (isHoliday) {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+    if (isTestOrExam && e.classesSuspended !== false) {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+
+    return { classesSuspended: false, suspensionType: 'none' };
+}
+
 /**
  * Compiles a single Semester Analytics Object (Single Source of Truth)
  */
@@ -56,7 +91,7 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
         const ClassOccurrence = require('../models/ClassOccurrence');
         const StudentTimetable = require('../models/StudentTimetable');
 
-        const [configDoc, cachedScheduleDoc, subjectsDocs, occDocs, timetableSlotsDocs] = await Promise.all([
+        const [configDoc, cachedScheduleDoc, subjectsDocs, occDocs, legacyEntryDocs, timetableSlotsDocs] = await Promise.all([
             StudentTimetableConfiguration.findOne({ 
                 student: studentId, 
                 $or: [ { semester }, { semester: { $exists: false } } ] 
@@ -70,6 +105,7 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
                 ]
             }).populate('subject').lean(),
             ClassOccurrence.find({ student: studentId, semester }).lean(),
+            StudentAttendanceEntry.find({ student: studentId, semester }).lean(),
             StudentTimetable.find({ student: studentId, semester }).lean()
         ]);
 
@@ -86,22 +122,57 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
             const startDate = new Date(configuration.semesterStartDate);
             const endDate = new Date(configuration.lastWorkingDate);
 
-            // Fetch Student Academic Events overlapping semester range
-            events = await StudentAcademicEvent.find({
-                student: studentId,
-                startDate: { $lte: endDate },
-                endDate: { $gte: startDate }
-            }).lean() || [];
+            // Fetch Student Academic Events & College Events overlapping semester range
+            const CollegeEvent = require('../models/CollegeEvent');
+            const [studentEvents, colEvents] = await Promise.all([
+                StudentAcademicEvent.find({
+                    student: studentId,
+                    startDate: { $lte: endDate },
+                    endDate: { $gte: startDate }
+                }).lean().catch(() => []),
+                CollegeEvent.find({
+                    status: { $ne: 'ARCHIVED' },
+                    startDate: { $lte: endDate },
+                    endDate: { $gte: startDate }
+                }).lean().catch(() => [])
+            ]);
 
-            // Holidays are mapped as events of type 'Government Holiday'
-            holidays = events.filter(e => e.eventType === 'Government Holiday');
+            events = [
+                ...(colEvents || []).map(e => {
+                    const susp = resolveEventSuspension(e);
+                    return {
+                        ...e,
+                        classesSuspended: susp.classesSuspended,
+                        suspensionType: susp.suspensionType
+                    };
+                }),
+                ...(studentEvents || []).map(e => {
+                    const susp = resolveEventSuspension(e);
+                    return {
+                        ...e,
+                        classesSuspended: susp.classesSuspended,
+                        suspensionType: susp.suspensionType
+                    };
+                })
+            ];
+
+            holidays = events.filter(e => e.eventType === 'Government Holiday' || e.eventType === 'Holiday / Closure');
         }
 
         subjects = subjectsDocs || [];
-        entries = occDocs || [];
-        if (!entries || entries.length === 0) {
-            entries = await StudentAttendanceEntry.find({ student: studentId, semester }).lean();
+        // Merge entries: legacy StudentAttendanceEntry + ClassOccurrence (ClassOccurrence overrides on matching slot)
+        const mergedEntriesMap = new Map();
+        for (const leg of (legacyEntryDocs || [])) {
+            const sId = (leg.scheduledSubject?._id || leg.scheduledSubject || leg.subject?._id || leg.subject)?.toString() || '';
+            const key = `${leg.date}_${leg.timeSlot || ''}_${sId}`;
+            mergedEntriesMap.set(key, leg);
         }
+        for (const occ of (occDocs || [])) {
+            const sId = (occ.scheduledSubject?._id || occ.scheduledSubject || occ.actualSubject?._id || occ.actualSubject)?.toString() || '';
+            const key = `${occ.date}_${occ.timeSlot || ''}_${sId}`;
+            mergedEntriesMap.set(key, occ);
+        }
+        entries = Array.from(mergedEntriesMap.values());
         timetableSlots = timetableSlotsDocs || [];
 
         // Authoritative resolution of enrolled subjects from SectionTimetable
@@ -203,7 +274,7 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     }
 
     // 3. Compile Timeline
-    let timeline = compileRawTimeline(expectedClasses, entries);
+    let timeline = compileRawTimeline(expectedClasses, entries, events);
     timeline = mergeConsecutiveLabs(timeline);
     const todayStr = formatDate(new Date());
 
@@ -479,19 +550,25 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
         }
     }
 
-    // Monthly Analytics
+    // Monthly Analytics — separate "expected" from "conducted" properly
+    // expected = scheduled (all entries except suspended/cancelled)
+    // conducted = actually happened (not Yet To Be Taken or Cancelled)
     const monthlyData = {};
     timeline.forEach(t => {
-        if (t.status === 'Cancelled' || t.status === 'Yet To Be Taken') return;
+        // Skip suspended/cancelled entirely
+        if (isSuspended(t.status)) return;
         const d = new Date(t.date);
         const monthName = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         if (!monthlyData[monthName]) {
             monthlyData[monthName] = { expected: 0, conducted: 0, present: 0 };
         }
-        monthlyData[monthName].expected++; // count expected within month limit
-        monthlyData[monthName].conducted++;
-        if (t.status === 'Present' || t.status === 'On Duty') {
-            monthlyData[monthName].present++;
+        monthlyData[monthName].expected++; // all scheduled non-cancelled classes
+        // Only count classes that were actually taken (not future unmarked)
+        if (!isUnmarked(t.status)) {
+            monthlyData[monthName].conducted++;
+            if (isPresent(t.status)) {
+                monthlyData[monthName].present++;
+            }
         }
     });
 
@@ -654,13 +731,51 @@ async function compileSemesterAnalytics(studentId, semester, filters = {}) {
     };
 }
 
+function parseTimeToMinutes(timeStrOrMin) {
+    if (typeof timeStrOrMin === 'number') return timeStrOrMin;
+    if (!timeStrOrMin || typeof timeStrOrMin !== 'string' || !timeStrOrMin.includes(':')) return null;
+    const parts = timeStrOrMin.trim().split(':');
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return null;
+    return h * 60 + m;
+}
+
 /**
  * Compiles flat expected classes & manual entries
  */
-function compileRawTimeline(expectedClasses, entries) {
+function compileRawTimeline(expectedClasses, entries, events = []) {
     const timeline = [];
     const entryMap = new Map();
     const extraEntries = [];
+
+    // Pre-process suspended events for O(1) day lookups
+    const fullDaySuspendedDates = new Set();
+    const timeSuspendedByDate = new Map(); // dateStr -> array of { startMin, endMin, title }
+
+    for (const ev of (events || [])) {
+        if (!ev.classesSuspended) continue;
+        const start = new Date(ev.startDate);
+        const end = new Date(ev.endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+
+        const isFullDay = !ev.suspensionType || ev.suspensionType === 'full_day';
+        const cur = new Date(start);
+        while (cur <= end) {
+            const dStr = formatDate(cur);
+            if (isFullDay) {
+                fullDaySuspendedDates.add(dStr);
+            } else if (ev.suspensionType === 'time_range') {
+                const sMin = parseTimeToMinutes(ev.suspensionStartTime || ev.suspensionStartMinute);
+                const eMin = parseTimeToMinutes(ev.suspensionEndTime || ev.suspensionEndMinute);
+                if (sMin !== null && eMin !== null) {
+                    if (!timeSuspendedByDate.has(dStr)) timeSuspendedByDate.set(dStr, []);
+                    timeSuspendedByDate.get(dStr).push({ startMin: sMin, endMin: eMin, title: ev.title || 'Classes Suspended' });
+                }
+            }
+            cur.setDate(cur.getDate() + 1);
+        }
+    }
 
     for (const entry of entries) {
         if (entry.isExtraClass) {
@@ -698,6 +813,19 @@ function compileRawTimeline(expectedClasses, entries) {
             });
         }
 
+        let isSlotSuspended = fullDaySuspendedDates.has(exp.date);
+        let suspRemarks = isSlotSuspended ? 'Classes Suspended' : '';
+        if (!isSlotSuspended && timeSuspendedByDate.has(exp.date)) {
+            const expTimes = parseTimeSlot(exp.timeSlot);
+            const overlapping = timeSuspendedByDate.get(exp.date).find(t =>
+                Math.max(t.startMin, expTimes.start) < Math.min(t.endMin, expTimes.end)
+            );
+            if (overlapping) {
+                isSlotSuspended = true;
+                suspRemarks = overlapping.title || 'Classes Suspended';
+            }
+        }
+
         if (matchedEntry) {
             if (matchedEntry._id) matchedEntryIds.add(matchedEntry._id.toString());
             const actSubj = matchedEntry.actualSubject || matchedEntry.subject || expSubjectId;
@@ -723,9 +851,9 @@ function compileRawTimeline(expectedClasses, entries) {
                 subject: expSubjectId,
                 isSubjectChanged: false,
                 lectureType: exp.lectureType || 'Lecture',
-                status: 'Yet To Be Taken',
+                status: isSlotSuspended ? 'Suspended' : 'Yet To Be Taken',
                 isExtraClass: false,
-                remarks: '',
+                remarks: suspRemarks || '',
                 createdBy: 'System'
             });
         }
@@ -863,6 +991,7 @@ function calculateDailyOverallStreak(groupedTimeline, todayStr) {
         .filter(g => g.date <= todayStr)
         .sort((a, b) => a.date.localeCompare(b.date));
 
+    // Longest streak — forward scan
     let longest = 0;
     let temp = 0;
 
@@ -873,12 +1002,26 @@ function calculateDailyOverallStreak(groupedTimeline, todayStr) {
         if (day.absent > 0) {
             temp = 0; // Reset
         } else {
-            temp++; // Fully attended teaching day
+            temp++;
             if (temp > longest) longest = temp;
         }
     }
 
-    return { current: temp, longest };
+    // Current streak — independent reverse scan
+    let current = 0;
+    for (let i = sortedDays.length - 1; i >= 0; i--) {
+        const day = sortedDays[i];
+        if (day.expectedClasses === 0) {
+            continue; // Skip non-teaching days without breaking streak
+        }
+        if (day.absent > 0) {
+            break; // Streak broken by an absence
+        } else {
+            current++;
+        }
+    }
+
+    return { current, longest };
 }
 
 /**

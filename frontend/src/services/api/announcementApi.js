@@ -18,7 +18,7 @@ export const getAnnouncements = async ({ category, page = 1, limit = 20 } = {}) 
         const catMap = { Academic: 'ACADEMIC', Features: 'FEATURE', System: 'SYSTEM' };
         params.category = catMap[category] || category;
     }
-    const res = await apiClient.get(BASE, { params });
+    const res = await apiClient.get(BASE, { params, skipAuthRedirect: true });
     return res.data; // { success, data, pagination }
 };
 
@@ -28,7 +28,7 @@ export const getAnnouncements = async ({ category, page = 1, limit = 20 } = {}) 
  */
 export const markAnnouncementRead = async (announcementId) => {
     try {
-        await apiClient.post(`${BASE}/${announcementId}/read`);
+        await apiClient.post(`${BASE}/${announcementId}/read`, {}, { skipAuthRedirect: true });
     } catch {
         // Non-critical: silently swallow read-state errors
     }

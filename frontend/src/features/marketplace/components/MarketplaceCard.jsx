@@ -31,14 +31,14 @@ const MarketplaceCard = ({ item, onClick }) => {
                     onClick();
                 }
             }}
-            className={`group flex flex-col bg-[#161B22] border rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-sm hover:shadow-md h-full active:scale-[0.98] ${
+            className={`group flex flex-col bg-white dark:bg-[#161B22] border rounded-xl sm:rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-xs hover:shadow-md h-full active:scale-[0.98] ${
                 isSold
-                    ? 'border-[#21262D] opacity-75 grayscale-[20%]'
-                    : 'hover:bg-[#1C2129] border-[#21262D] hover:border-[#30363D]'
+                    ? 'border-slate-200 dark:border-[#21262D] opacity-75 grayscale-[20%]'
+                    : 'hover:bg-slate-50 dark:hover:bg-[#1C2129] border-slate-200 dark:border-[#21262D] hover:border-slate-300 dark:hover:border-[#30363D]'
             }`}
         >
             {/* Product Image Container */}
-            <div className="relative w-full h-32 sm:h-48 bg-[#0D1117] overflow-hidden shrink-0">
+            <div className="relative w-full h-32 sm:h-48 bg-slate-100 dark:bg-[#0D1117] overflow-hidden shrink-0">
                 {displayImage ? (
                     <img
                         src={displayImage}
@@ -49,7 +49,7 @@ const MarketplaceCard = ({ item, onClick }) => {
                         }`}
                     />
                 ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-[#8B949E] bg-[#0D1117]">
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 dark:text-[#8B949E] bg-slate-100 dark:bg-[#0D1117]">
                         <ImageOff size={22} className="stroke-[1.5] mb-1" />
                         <span className="text-[10px] sm:text-xs">No image provided</span>
                     </div>
@@ -78,35 +78,35 @@ const MarketplaceCard = ({ item, onClick }) => {
                 <div className="space-y-1">
                     {/* Item Title */}
                     <h3 className={`text-xs sm:text-base font-bold transition-colors line-clamp-1 ${
-                        isSold ? 'text-[#8B949E] line-through' : 'text-[#E6EDF3] group-hover:text-emerald-400'
+                        isSold ? 'text-slate-400 dark:text-[#8B949E] line-through' : 'text-slate-900 dark:text-[#E6EDF3] group-hover:text-emerald-600 dark:group-hover:text-emerald-400'
                     }`}>
                         {item.title}
                     </h3>
 
                     {/* Short Description */}
-                    <p className="text-[11px] sm:text-xs text-[#8B949E] line-clamp-1 sm:line-clamp-2 leading-tight sm:leading-relaxed">
+                    <p className="text-[11px] sm:text-xs text-slate-500 dark:text-[#8B949E] line-clamp-1 sm:line-clamp-2 leading-tight sm:leading-relaxed">
                         {item.description}
                     </p>
                 </div>
 
                 {/* Price Section */}
                 <div className="pt-0.5">
-                    <span className={`text-sm sm:text-xl font-extrabold ${isSold ? 'text-[#8B949E]' : 'text-emerald-400'}`}>
+                    <span className={`text-sm sm:text-xl font-extrabold ${isSold ? 'text-slate-400 dark:text-[#8B949E]' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {formatPrice(item.price)}
                     </span>
                 </div>
 
-                <div className="pt-1.5 sm:pt-2 border-t border-[#21262D]/60 space-y-1 text-[10px] sm:text-xs text-[#8B949E]">
+                <div className="pt-1.5 sm:pt-2 border-t border-slate-100 dark:border-[#21262D]/60 space-y-1 text-[10px] sm:text-xs text-slate-500 dark:text-[#8B949E]">
                     {/* Seller name & Location */}
-                    <div className="flex items-center gap-1.5 truncate text-[#E6EDF3]">
-                        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-[9px] sm:text-[10px] font-bold shrink-0">
+                    <div className="flex items-center gap-1.5 truncate text-slate-700 dark:text-[#E6EDF3]">
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 flex items-center justify-center text-[9px] sm:text-[10px] font-bold shrink-0">
                             {item.seller?.name ? item.seller.name.charAt(0) : <User size={9} />}
                         </div>
                         <span className="truncate">{item.seller?.name || 'Campus Student'}</span>
                     </div>
 
-                    <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-[#8B949E]">
-                        <MapPin size={11} className="text-emerald-400 shrink-0" />
+                    <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-400 dark:text-[#8B949E]">
+                        <MapPin size={11} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span className="truncate">{item.location || 'SIT Campus'}</span>
                         <span>·</span>
                         <span className="truncate">{formatRelativeTime(item.createdAt || item.date)}</span>

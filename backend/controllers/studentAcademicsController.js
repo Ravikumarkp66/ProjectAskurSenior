@@ -11,6 +11,7 @@ const StudentRegisteredSubject = require('../models/StudentRegisteredSubject');
 const StudentTimetableConfiguration = require('../models/StudentTimetableConfiguration');
 const AcademicPlacement = require('../models/AcademicPlacement');
 const SectionChangeRequest = require('../models/SectionChangeRequest');
+const SectionTimetable = require('../models/SectionTimetable');
 require('../models/Faculty');
 require('../models/Scheme');
 
@@ -241,12 +242,35 @@ async function getAvailableSections(req, res) {
             }).sort({ name: 1 }).lean();
         }
 
-        const mappedSections = (sections || []).map(sec => ({
-            id: sec._id,
-            name: sec.name,
-            capacity: sec.capacity,
-            isCurrent: context.academicSection && String(context.academicSection._id) === String(sec._id)
-        }));
+        const sectionIds = (sections || []).map(s => s._id);
+        let timetables = [];
+        try {
+            if (SectionTimetable && typeof SectionTimetable.find === 'function') {
+                const ttQuery = SectionTimetable.find({ section: { $in: sectionIds } });
+                timetables = (ttQuery && typeof ttQuery.lean === 'function') ? await ttQuery.lean() : (await ttQuery || []);
+            }
+        } catch (e) {
+            timetables = [];
+        }
+        const timetableBySection = new Map();
+        (Array.isArray(timetables) ? timetables : []).forEach(tt => {
+            timetableBySection.set(String(tt.section), tt);
+        });
+
+        const mappedSections = (sections || []).map(sec => {
+            const tt = timetableBySection.get(String(sec._id));
+            const slots = tt?.slots || [];
+            const nonAllBatches = [...new Set(slots.map(s => s.batchGroup).filter(bg => bg && bg !== 'ALL'))];
+            const hasLabBatches = nonAllBatches.length > 0;
+            return {
+                id: sec._id,
+                name: sec.name,
+                capacity: sec.capacity,
+                isCurrent: context.academicSection && String(context.academicSection._id) === String(sec._id),
+                hasLabBatches,
+                labBatches: hasLabBatches ? nonAllBatches.sort() : []
+            };
+        });
 
         return res.status(200).json({
             success: true,
@@ -267,7 +291,7 @@ async function getAvailableSections(req, res) {
 async function updateSection(req, res) {
     try {
         const student = req.student || req.user;
-        const { sectionId } = req.body;
+        const { sectionId, labBatch } = req.body;
 
         if (!sectionId || !mongoose.Types.ObjectId.isValid(sectionId)) {
             return res.status(400).json({ success: false, error: 'Valid sectionId is required' });
@@ -317,10 +341,14 @@ async function updateSection(req, res) {
         }
 
         // Update student account
-        const updatedStudent = await StudentAccount.findByIdAndUpdate(student._id, {
+        const updateFields = {
             section: targetSection.name,
             academicSection: targetSection._id
-        }, { new: true });
+        };
+        if (labBatch !== undefined) {
+            updateFields.labBatch = labBatch ? String(labBatch).toUpperCase() : null;
+        }
+        const updatedStudent = await StudentAccount.findByIdAndUpdate(student._id, updateFields, { new: true });
 
         // Invalidate cached expected schedule so next attendance query regenerates from the new section's timetable
         if (mongoose.connection.readyState === 1) {
@@ -812,13 +840,31 @@ async function confirmPlacement(req, res) {
 
         const validLabBatches = ['B1', 'B2'];
         const normalizedLabBatch = labBatch ? String(labBatch).toUpperCase() : null;
-        if (!normalizedLabBatch || !validLabBatches.includes(normalizedLabBatch)) {
+
+        if (normalizedLabBatch && !validLabBatches.includes(normalizedLabBatch)) {
             return res.status(400).json({ success: false, error: 'Lab Batch must be either B1 or B2' });
         }
 
         const targetSection = await AcademicSection.findById(sectionId).lean();
         if (!targetSection) {
             return res.status(404).json({ success: false, error: 'Target academic section not found' });
+        }
+
+        // Check if the section's timetable has batch-specific slots (e.g., B1, B2)
+        let sectionTt = null;
+        try {
+            if (SectionTimetable && typeof SectionTimetable.findOne === 'function') {
+                const ttQuery = SectionTimetable.findOne({ section: targetSection._id });
+                sectionTt = (ttQuery && typeof ttQuery.lean === 'function') ? await ttQuery.lean() : (await ttQuery || null);
+            }
+        } catch (ttErr) {
+            sectionTt = null;
+        }
+        const nonAllBatches = (sectionTt?.slots || []).map(s => s.batchGroup).filter(bg => bg && bg !== 'ALL');
+        const hasLabBatches = nonAllBatches.length > 0;
+
+        if (hasLabBatches && !normalizedLabBatch) {
+            return res.status(400).json({ success: false, error: 'Lab Batch must be either B1 or B2 for this section' });
         }
 
         const context = await resolveStudentAcademicContext(student, targetSection.semester);
@@ -1232,21 +1278,39 @@ async function getRoadmap(req, res) {
             shortDescription: nextEvent.shortDescription
         } : null;
 
+        const formattedAvailableSemesters = availableSemesters.map(s => ({
+            ...s,
+            semester: s.number,
+            eventCount: s.number === semNum && processedEvents.length > 0 ? processedEvents.length : (s.eventsCount || 0)
+        }));
+
         return res.status(200).json({
             success: true,
             data: {
                 selectedSemester: {
                     id: officialSem?._id || null,
                     number: semNum,
+                    semester: semNum,
                     label: officialSem?.label || `Semester ${semNum}`,
                     academicYear: context.batch?.academicYear || '2026-27',
                     startDate: officialSem?.startDate || null,
                     endDate: officialSem?.endDate || null
                 },
+                semester: semNum,
+                academicYear: context.batch?.academicYear || '2026-27',
+                branch: context.branch?.code || (typeof student.branch === 'object' ? (student.branch?.code || student.branch?.shortName || student.branch?.name) : student.branch) || '',
+                section: context.section?.name || (typeof student.section === 'object' ? (student.section?.name || student.section?.code) : student.section) || '',
+                startDate: officialSem?.startDate || null,
+                endDate: officialSem?.endDate || null,
+                semesterProgressPercent: progress.percentage,
                 progress,
                 upNext,
+                upNextEvent: upNext ? {
+                    ...upNext,
+                    startDate: upNext.date
+                } : null,
                 events: processedEvents,
-                availableSemesters
+                availableSemesters: formattedAvailableSemesters
             }
         });
     } catch (err) {

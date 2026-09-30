@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Layers, Award, AlertCircle, FileCheck } from 'lucide-react';
+import { BookOpen, Layers, Award, AlertCircle, FileCheck, Lock } from 'lucide-react';
 
 const CieRawInputWorkspace = ({
     subject,
     onMarksChange,
-    isSaving
+    isSaving,
+    isLocked = false,
+    onLockedClick
 }) => {
     const rawMarks = subject?.rawMarks || {};
     const [localMarks, setLocalMarks] = useState({ ...rawMarks });
@@ -106,8 +108,9 @@ const CieRawInputWorkspace = ({
                                 flexDirection: 'column',
                                 gap: '6px'
                             }}>
-                                <label style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1' }}>
+                                <label style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     {sub.name}
+                                    {isLocked && <Lock size={11} style={{ color: '#94a3b8', opacity: 0.7 }} />}
                                 </label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <input
@@ -115,19 +118,23 @@ const CieRawInputWorkspace = ({
                                         min="0"
                                         max={sub.maxRaw}
                                         step="any"
+                                        readOnly={isLocked}
+                                        disabled={isLocked}
                                         value={val}
-                                        onChange={(e) => handleInputChange(sub.id, e.target.value, sub.maxRaw)}
+                                        onChange={(e) => !isLocked && handleInputChange(sub.id, e.target.value, sub.maxRaw)}
+                                        onClick={() => isLocked && onLockedClick?.()}
                                         placeholder="—"
                                         style={{
                                             width: '100%',
-                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            background: isLocked ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
                                             border: '1px solid rgba(255, 255, 255, 0.12)',
                                             borderRadius: '8px',
                                             padding: '8px 12px',
-                                            color: '#fff',
+                                            color: isLocked ? '#94a3b8' : '#fff',
                                             fontSize: '15px',
                                             fontWeight: 700,
-                                            outline: 'none'
+                                            outline: 'none',
+                                            cursor: isLocked ? 'not-allowed' : 'text'
                                         }}
                                     />
                                     <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 600, flexShrink: 0 }}>

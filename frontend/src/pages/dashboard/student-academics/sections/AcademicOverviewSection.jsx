@@ -1,14 +1,27 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     ChevronDown, RefreshCw, CheckCircle2, AlertTriangle, 
-    AlertCircle
+    AlertCircle, Lock
 } from 'lucide-react';
 import { useStudentAcademics } from '../../../../contexts/StudentAcademicsContext';
+import { useTheme } from '../../../../context/ThemeContext';
+import { AuthContext } from '../../../../context/AuthContext';
 import { apiV2 } from '../../../../services/authService';
+import { DUMMY_ACADEMIC_OVERVIEW } from '../academicDummyData';
 
-const AcademicOverviewSection = () => {
+const AcademicOverviewSection = ({ isPreview: propIsPreview }) => {
     const navigate = useNavigate();
+    const { isDark = true } = useTheme?.() || { isDark: true };
+    const auth = useContext(AuthContext);
+
+    // If propIsPreview is specified, it takes priority.
+    // If auth context is present, check hasPlusAccess.
+    // If auth is null (e.g. running in isolated unit tests without AuthProvider), default to true.
+    const hasPlusAccess = propIsPreview !== undefined
+        ? !propIsPreview
+        : (auth ? Boolean(auth.hasPlusAccess) : true);
+
     const { 
         profile, 
         currentSemester, 
@@ -19,15 +32,33 @@ const AcademicOverviewSection = () => {
         timetableConfig, 
     } = useStudentAcademics();
 
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(hasPlusAccess);
+    const [localSemester, setLocalSemester] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
-    const [resultData, setResultData] = useState(null);
+    const [resultData, setResultData] = useState(() => {
+        if (!hasPlusAccess) {
+            return { ...DUMMY_ACADEMIC_OVERVIEW };
+        }
+        return null;
+    });
 
-    // Active semester defaults to selectedSemester or currentSemester or 1
-    const activeSem = selectedSemester || currentSemester || 1;
+    // Active semester defaults to selectedSemester or currentSemester or dummy default
+    const activeSem = localSemester !== null 
+        ? localSemester 
+        : (selectedSemester || currentSemester || (!hasPlusAccess ? DUMMY_ACADEMIC_OVERVIEW.semester : 1));
 
     const fetchSemesterResults = async (sem, isRefresh = false) => {
+        if (!hasPlusAccess) {
+            setResultData({
+                ...DUMMY_ACADEMIC_OVERVIEW,
+                semester: sem || activeSem
+            });
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
+
         try {
             if (isRefresh) setRefreshing(true);
             else setLoading(true);
@@ -54,8 +85,52 @@ const AcademicOverviewSection = () => {
     };
 
     useEffect(() => {
-        fetchSemesterResults(activeSem);
-    }, [activeSem]);
+        if (!hasPlusAccess) {
+            setResultData({
+                ...DUMMY_ACADEMIC_OVERVIEW,
+                semester: activeSem
+            });
+            setLoading(false);
+            setRefreshing(false);
+            return;
+        }
+
+        let isCancelled = false;
+
+        const load = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const res = await apiV2.getStudentSemesterResults(activeSem);
+                if (isCancelled) return;
+                const payload = res.data?.data || res.data;
+                if (payload && Array.isArray(payload.subjects)) {
+                    setResultData(payload);
+                } else {
+                    setResultData({
+                        semester: activeSem,
+                        scheme: profile?.scheme?.name || 'Scheme 2025',
+                        subjects: []
+                    });
+                }
+            } catch (err) {
+                if (isCancelled) return;
+                console.error('[AcademicOverviewSection] Error fetching results:', err);
+                setError(err.response?.data?.message || err.message || 'Unable to load academic sheet.');
+            } finally {
+                if (!isCancelled) {
+                    setLoading(false);
+                    setRefreshing(false);
+                }
+            }
+        };
+
+        load();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [activeSem, hasPlusAccess, profile?.scheme?.name]);
 
     // Subjects list
     const subjects = useMemo(() => {
@@ -78,16 +153,22 @@ const AcademicOverviewSection = () => {
         }));
     }, [resultData, contextRegisteredSubjects]);
 
-    // Available semesters (1..8)
+    // Available semesters (1..currentSemester or resultData or dummy)
     const availableSemesters = useMemo(() => {
         if (resultData?.availableSemesters && resultData.availableSemesters.length > 0) {
             return resultData.availableSemesters;
         }
+        if (!hasPlusAccess && DUMMY_ACADEMIC_OVERVIEW.availableSemesters) {
+            return DUMMY_ACADEMIC_OVERVIEW.availableSemesters;
+        }
         if (semestersData && semestersData.length > 0) {
             return semestersData.map(s => Number(s.number || s.semester)).filter(n => !isNaN(n) && n > 0).sort((a, b) => a - b);
         }
-        return [1, 2, 3, 4, 5, 6, 7, 8];
-    }, [resultData, semestersData]);
+        const maxSem = Math.max(currentSemester || 1, 1);
+        const sems = [];
+        for (let i = 1; i <= maxSem; i++) sems.push(i);
+        return sems;
+    }, [resultData, semestersData, currentSemester, hasPlusAccess]);
 
     // Summary calculations (presentation aggregation only)
     const metrics = useMemo(() => {
@@ -163,30 +244,43 @@ const AcademicOverviewSection = () => {
         return {
             sgpa: sgpa || '—',
             cgpa: formattedCgpa,
-            creditsDisplay: `${earnedCredits || totalCredits} / ${totalCredits}`,
+            creditsDisplay: `${earnedCredits} / ${totalCredits}`,
             backlogs: backlogsCount,
             attendance: avgAttendance,
             cie: avgCie,
             totalCredits,
-            earnedCredits: earnedCredits || totalCredits
+            earnedCredits
         };
     }, [subjects, resultData, profile]);
 
     const schemeName = resultData?.scheme || profile?.scheme?.name || 'Scheme 2025';
 
     return (
-        <div className="w-full flex flex-col gap-4 font-sans text-slate-200">
+        <div className={`w-full flex flex-col gap-4 font-sans ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
             {/* ══════════════════════════════════════════════════════════════════
                 1. TOP HEADER (Extremely Compact)
             ══════════════════════════════════════════════════════════════════ */}
-            <div className="flex items-center justify-between gap-4 pb-2 border-b border-white/[0.08]">
-                <div className="flex items-baseline gap-3">
-                    <h1 className="text-lg md:text-xl font-bold tracking-tight text-white">
+            <div className={`flex items-center justify-between gap-4 pb-2 border-b ${isDark ? 'border-white/[0.08]' : 'border-slate-200'}`}>
+                <div className="flex items-center gap-3">
+                    <h1 className={`text-lg md:text-xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         Academic Overview
                     </h1>
-                    <span className="text-xs text-slate-400 font-mono">
+                    <span className={`text-xs font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                         Semester {activeSem} · {schemeName}
                     </span>
+                    {!hasPlusAccess && (
+                        <span 
+                            title="Interactive preview mode with static dummy data"
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium border ${
+                                isDark 
+                                    ? 'bg-purple-950/30 border-purple-500/30 text-purple-300' 
+                                    : 'bg-purple-50 border-purple-200 text-purple-700'
+                            }`}
+                        >
+                            <Lock size={10} className="opacity-70" />
+                            Preview
+                        </span>
+                    )}
                 </div>
 
                 {/* Right Controls: Semester Selector & Refresh */}
@@ -194,43 +288,69 @@ const AcademicOverviewSection = () => {
                     <div className="relative">
                         <select
                             value={activeSem}
-                            onChange={(e) => selectSemester && selectSemester(Number(e.target.value))}
-                            className="appearance-none bg-[#0e121d] hover:bg-[#131826] text-xs font-semibold text-slate-200 border border-white/10 rounded-md pl-2.5 pr-7 py-1 cursor-pointer focus:outline-none focus:border-purple-500/50 transition-colors"
+                            onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setLocalSemester(val);
+                                if (selectSemester && hasPlusAccess) selectSemester(val);
+                            }}
+                            className={`appearance-none text-xs font-semibold rounded-md pl-2.5 pr-7 py-1 cursor-pointer focus:outline-none transition-colors ${
+                                isDark
+                                    ? 'bg-[#0e121d] hover:bg-[#131826] text-slate-200 border border-white/10 focus:border-purple-500/50'
+                                    : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 shadow-xs focus:border-purple-500'
+                            }`}
                         >
                             {availableSemesters.map((sem) => (
-                                <option key={sem} value={sem} className="bg-[#0e121d] text-white">
+                                <option
+                                    key={sem}
+                                    value={sem}
+                                    className={isDark ? 'bg-[#0e121d] text-white' : 'bg-white text-slate-800'}
+                                >
                                     Semester {sem} {sem === currentSemester ? '(Current)' : ''}
                                 </option>
                             ))}
                         </select>
-                        <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        <ChevronDown size={12} className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                     </div>
 
                     <button
                         type="button"
-                        onClick={() => fetchSemesterResults(activeSem, true)}
-                        disabled={loading || refreshing}
-                        title="Sync Academic Data"
-                        className="p-1.5 rounded-md bg-[#0e121d] hover:bg-[#131826] border border-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+                        onClick={() => !hasPlusAccess ? null : fetchSemesterResults(activeSem, true)}
+                        disabled={!hasPlusAccess || loading || refreshing}
+                        title={!hasPlusAccess ? "Data synchronization disabled in Preview mode" : "Sync Academic Data"}
+                        className={`p-1.5 rounded-md transition-colors border ${
+                            !hasPlusAccess ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'
+                        } ${
+                            isDark
+                                ? 'bg-[#0e121d] hover:bg-[#131826] border-white/10 text-slate-400 hover:text-white'
+                                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 shadow-xs'
+                        }`}
                     >
-                        <RefreshCw size={12} className={refreshing ? 'animate-spin text-purple-400' : ''} />
+                        <RefreshCw size={12} className={refreshing ? 'animate-spin text-purple-500' : ''} />
                     </button>
                 </div>
             </div>
 
             {/* Loading / Error States */}
             {loading ? (
-                <div className="py-16 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <RefreshCw size={14} className="animate-spin text-purple-400" />
+                <div className={`py-16 text-center text-xs flex items-center justify-center gap-2 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <RefreshCw size={14} className="animate-spin text-purple-500" />
                     <span>Loading academic sheet...</span>
                 </div>
             ) : error ? (
-                <div className="p-4 rounded-lg bg-red-950/20 border border-red-500/30 text-xs text-red-300 flex items-center justify-between">
+                <div className={`p-4 rounded-lg border text-xs flex items-center justify-between ${
+                    isDark
+                        ? 'bg-red-950/20 border-red-500/30 text-red-300'
+                        : 'bg-red-50 border-red-200 text-red-700'
+                }`}>
                     <span>{error}</span>
                     <button
                         type="button"
                         onClick={() => fetchSemesterResults(activeSem)}
-                        className="px-2 py-0.5 rounded bg-red-500/20 hover:bg-red-500/30 text-white font-medium"
+                        className={`px-2 py-0.5 rounded font-medium ${
+                            isDark
+                                ? 'bg-red-500/20 hover:bg-red-500/30 text-white'
+                                : 'bg-red-100 hover:bg-red-200 text-red-800'
+                        }`}
                     >
                         Retry
                     </button>
@@ -240,44 +360,50 @@ const AcademicOverviewSection = () => {
                     {/* ══════════════════════════════════════════════════════════════════
                         2. SUMMARY STRIP (Compact SaaS Toolbar - No Big Cards)
                     ══════════════════════════════════════════════════════════════════ */}
-                    <div className="w-full overflow-x-auto rounded-lg bg-[#0a0d16] border border-white/[0.08] px-4 py-2 flex items-center divide-x divide-white/[0.08] text-xs">
+                    <div className={`w-full overflow-x-auto rounded-lg px-4 py-2 flex items-center text-xs border ${
+                        isDark
+                            ? 'bg-[#0a0d16] border-white/[0.08] divide-x divide-white/[0.08]'
+                            : 'bg-white border-slate-200 divide-x divide-slate-100 shadow-xs'
+                    }`}>
                         {/* SGPA */}
                         <div className="flex flex-col pr-5 min-w-[75px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 SGPA
                             </span>
-                            <span className="text-sm font-bold text-white font-mono mt-0.5">
+                            <span className={`text-sm font-bold font-mono mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {metrics.sgpa}
                             </span>
                         </div>
 
                         {/* CGPA */}
                         <div className="flex flex-col px-5 min-w-[75px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 CGPA
                             </span>
-                            <span className="text-sm font-bold text-white font-mono mt-0.5">
+                            <span className={`text-sm font-bold font-mono mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {metrics.cgpa}
                             </span>
                         </div>
 
                         {/* Credits */}
                         <div className="flex flex-col px-5 min-w-[90px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 Credits
                             </span>
-                            <span className="text-sm font-bold text-white font-mono mt-0.5">
+                            <span className={`text-sm font-bold font-mono mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {metrics.creditsDisplay}
                             </span>
                         </div>
 
                         {/* Backlogs */}
                         <div className="flex flex-col px-5 min-w-[75px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 Backlogs
                             </span>
                             <span className={`text-sm font-bold font-mono mt-0.5 ${
-                                metrics.backlogs > 0 ? 'text-red-400' : 'text-slate-200'
+                                metrics.backlogs > 0 
+                                    ? (isDark ? 'text-red-400' : 'text-red-600 font-bold') 
+                                    : (isDark ? 'text-slate-200' : 'text-slate-800')
                             }`}>
                                 {metrics.backlogs}
                             </span>
@@ -285,20 +411,20 @@ const AcademicOverviewSection = () => {
 
                         {/* Attendance */}
                         <div className="flex flex-col px-5 min-w-[90px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 Attendance
                             </span>
-                            <span className="text-sm font-bold text-white font-mono mt-0.5">
+                            <span className={`text-sm font-bold font-mono mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {metrics.attendance}
                             </span>
                         </div>
 
                         {/* CIE */}
                         <div className="flex flex-col pl-5 min-w-[90px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider font-mono ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 CIE
                             </span>
-                            <span className="text-sm font-bold text-white font-mono mt-0.5">
+                            <span className={`text-sm font-bold font-mono mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {metrics.cie}
                             </span>
                         </div>
@@ -307,11 +433,17 @@ const AcademicOverviewSection = () => {
                     {/* ══════════════════════════════════════════════════════════════════
                         3. MAIN TABLE (CSES Problem Sheet / Academic Marks Sheet)
                     ══════════════════════════════════════════════════════════════════ */}
-                    <div className="w-full rounded-lg border border-white/[0.08] bg-[#07090e] overflow-hidden shadow-sm">
+                    <div className={`w-full rounded-lg border overflow-hidden ${
+                        isDark ? 'border-white/[0.08] bg-[#07090e] shadow-sm' : 'border-slate-200 bg-white shadow-xs'
+                    }`}>
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs text-slate-300 border-collapse">
+                            <table className={`w-full text-left text-xs border-collapse ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                                 <thead>
-                                    <tr className="bg-[#0c101a] border-b border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                                    <tr className={`border-b text-[10px] font-bold uppercase tracking-wider font-mono ${
+                                        isDark
+                                            ? 'bg-[#0c101a] border-white/[0.08] text-slate-400'
+                                            : 'bg-slate-50 border-slate-200 text-slate-600'
+                                    }`}>
                                         <th className="py-2.5 px-3 min-w-[180px]">Subject</th>
                                         <th className="py-2.5 px-3 min-w-[85px]">Code</th>
                                         <th className="py-2.5 px-3 text-center min-w-[45px]">Cr</th>
@@ -323,10 +455,10 @@ const AcademicOverviewSection = () => {
                                         <th className="py-2.5 px-3 text-right min-w-[85px]">Result</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/[0.04]">
+                                <tbody className={`divide-y ${isDark ? 'divide-white/[0.04]' : 'divide-slate-100'}`}>
                                     {subjects.length === 0 ? (
                                         <tr>
-                                            <td colSpan={9} className="py-8 text-center text-xs text-slate-500">
+                                            <td colSpan={9} className={`py-8 text-center text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                                                 No enrolled subjects recorded for Semester {activeSem}.
                                             </td>
                                         </tr>
@@ -362,22 +494,24 @@ const AcademicOverviewSection = () => {
 
                                             // Result
                                             let resultLabel = 'In Progress';
-                                            let resultColor = 'text-slate-400';
+                                            let resultColor = isDark ? 'text-slate-400' : 'text-slate-500';
 
                                             if (!isEligible) {
                                                 resultLabel = 'At Risk';
-                                                resultColor = 'text-amber-400';
+                                                resultColor = isDark ? 'text-amber-400' : 'text-amber-600 font-semibold';
                                             } else if (hasGrade) {
                                                 if (isNcmc) {
                                                     resultLabel = gradeLetter === 'PP' ? 'Passed' : 'Not Passed';
-                                                    resultColor = gradeLetter === 'PP' ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold';
+                                                    resultColor = gradeLetter === 'PP' 
+                                                        ? (isDark ? 'text-emerald-400 font-semibold' : 'text-emerald-600 font-bold') 
+                                                        : (isDark ? 'text-red-400 font-semibold' : 'text-red-600 font-bold');
                                                 } else {
                                                     if (gradeLetter === 'F' || gradeLetter === 'NP' || gradeLetter === 'NE') {
                                                         resultLabel = gradeLetter === 'NE' ? 'Not Eligible' : 'Failed';
-                                                        resultColor = 'text-red-400 font-semibold';
+                                                        resultColor = isDark ? 'text-red-400 font-semibold' : 'text-red-600 font-bold';
                                                     } else {
                                                         resultLabel = 'Passed';
-                                                        resultColor = 'text-emerald-400 font-semibold';
+                                                        resultColor = isDark ? 'text-emerald-400 font-semibold' : 'text-emerald-600 font-bold';
                                                     }
                                                 }
                                             }
@@ -385,78 +519,92 @@ const AcademicOverviewSection = () => {
                                             return (
                                                 <tr 
                                                     key={sub.code || idx}
-                                                    className="hover:bg-white/[0.02] transition-colors group"
+                                                    className={`transition-colors group ${isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-slate-50/80'}`}
                                                 >
                                                     {/* Subject Name */}
                                                     <td className="py-2.5 px-3">
-                                                        <span className="font-semibold text-slate-100 group-hover:text-purple-300 transition-colors">
+                                                        <span className={`font-semibold transition-colors ${
+                                                            isDark ? 'text-slate-100 group-hover:text-purple-300' : 'text-slate-900 font-bold group-hover:text-purple-700'
+                                                        }`}>
                                                             {sub.name || 'Subject'}
                                                         </span>
                                                     </td>
 
                                                     {/* Code */}
-                                                    <td className="py-2.5 px-3 font-mono text-[11px] text-slate-400">
+                                                    <td className={`py-2.5 px-3 font-mono text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500 font-medium'}`}>
                                                         {sub.code}
                                                     </td>
 
                                                     {/* Credits */}
-                                                    <td className="py-2.5 px-3 text-center font-mono font-medium text-slate-300">
+                                                    <td className={`py-2.5 px-3 text-center font-mono font-medium ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>
                                                         {credits}
                                                     </td>
 
                                                     {/* Attendance */}
                                                     <td className="py-2.5 px-3 text-right font-mono text-xs">
                                                         {attPct !== null ? (
-                                                            <span className={attPct < 85 ? 'text-amber-400 font-semibold' : 'text-slate-200'}>
+                                                            <span className={
+                                                                attPct < 85 
+                                                                    ? (isDark ? 'text-amber-400 font-semibold' : 'text-amber-600 font-bold') 
+                                                                    : (isDark ? 'text-slate-200' : 'text-slate-700 font-medium')
+                                                            }>
                                                                 {attPct}%
                                                             </span>
                                                         ) : (
-                                                            <span className="text-slate-500">—</span>
+                                                            <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>—</span>
                                                         )}
                                                     </td>
 
                                                     {/* CIE */}
-                                                    <td className="py-2.5 px-3 text-right font-mono text-xs text-slate-200">
+                                                    <td className={`py-2.5 px-3 text-right font-mono text-xs ${isDark ? 'text-slate-200' : 'text-slate-800 font-medium'}`}>
                                                         {cieVal !== null ? `${cieVal} / ${cieMax}` : '—'}
                                                     </td>
 
                                                     {/* SEE */}
-                                                    <td className="py-2.5 px-3 text-right font-mono text-xs text-slate-200">
+                                                    <td className={`py-2.5 px-3 text-right font-mono text-xs ${isDark ? 'text-slate-200' : 'text-slate-800 font-medium'}`}>
                                                         {isNcmc ? (
-                                                            <span className="text-slate-500 font-sans">N/A</span>
+                                                            <span className={`${isDark ? 'text-slate-500' : 'text-slate-400'} font-sans`}>N/A</span>
                                                         ) : seeVal !== null ? (
                                                             `${seeVal} / ${seeMax}`
                                                         ) : (
-                                                            <span className="text-slate-500">Upcoming</span>
+                                                            <span className={isDark ? 'text-slate-500' : 'text-slate-400'}>Upcoming</span>
                                                         )}
                                                     </td>
 
                                                     {/* Eligibility */}
                                                     <td className="py-2.5 px-3 text-center font-mono text-xs">
                                                         {isEligible ? (
-                                                            <span className="text-emerald-400 inline-flex items-center gap-1 font-medium text-[11px]">
+                                                            <span className={`inline-flex items-center gap-1 font-medium text-[11px] ${
+                                                                isDark ? 'text-emerald-400' : 'text-emerald-600 font-semibold'
+                                                            }`}>
                                                                 ✓ Eligible
                                                             </span>
                                                         ) : (
-                                                            <span className="text-amber-400 inline-flex items-center gap-1 font-medium text-[11px]">
+                                                            <span className={`inline-flex items-center gap-1 font-medium text-[11px] ${
+                                                                isDark ? 'text-amber-400' : 'text-amber-600 font-semibold'
+                                                            }`}>
                                                                 ⚠ At Risk
                                                             </span>
                                                         )}
                                                     </td>
 
                                                     {/* Grade */}
-                                                    <td className="py-2.5 px-3 text-center font-mono text-xs font-bold text-slate-200">
+                                                    <td className={`py-2.5 px-3 text-center font-mono text-xs font-bold ${
+                                                        isDark ? 'text-slate-200' : 'text-slate-900'
+                                                    }`}>
                                                         {hasGrade ? (
                                                             <span>
                                                                 {gradeLetter}
                                                                 {gradePoint !== null && (
-                                                                    <span className="text-[10px] text-slate-500 font-normal ml-1">
+                                                                    <span className={`text-[10px] font-normal ml-1 ${
+                                                                        isDark ? 'text-slate-500' : 'text-slate-400'
+                                                                    }`}>
                                                                         · {gradePoint}
                                                                     </span>
                                                                 )}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-slate-500 font-normal">—</span>
+                                                            <span className={`${isDark ? 'text-slate-500' : 'text-slate-400'} font-normal`}>—</span>
                                                         )}
                                                     </td>
 
@@ -476,12 +624,14 @@ const AcademicOverviewSection = () => {
                     {/* ══════════════════════════════════════════════════════════════════
                         4. MINIMAL SEMESTER SUMMARY (Bottom Footnote)
                     ══════════════════════════════════════════════════════════════════ */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-400 px-1 pt-1">
+                    <div className={`flex flex-wrap items-center justify-between gap-3 text-xs font-mono px-1 pt-1 ${
+                        isDark ? 'text-slate-400' : 'text-slate-600'
+                    }`}>
                         <div className="flex items-center gap-4">
-                            <span>Total Credits: <strong className="text-white">{metrics.totalCredits}</strong></span>
-                            <span>Earned Credits: <strong className="text-white">{metrics.earnedCredits}</strong></span>
-                            <span>SGPA: <strong className="text-white">{metrics.sgpa}</strong></span>
-                            {metrics.cgpa !== null && <span>CGPA: <strong className="text-white">{metrics.cgpa}</strong></span>}
+                            <span>Total Credits: <strong className={isDark ? 'text-white' : 'text-slate-900 font-bold'}>{metrics.totalCredits}</strong></span>
+                            <span>Earned Credits: <strong className={isDark ? 'text-white' : 'text-slate-900 font-bold'}>{metrics.earnedCredits}</strong></span>
+                            <span>SGPA: <strong className={isDark ? 'text-white' : 'text-slate-900 font-bold'}>{metrics.sgpa}</strong></span>
+                            {metrics.cgpa !== null && <span>CGPA: <strong className={isDark ? 'text-white' : 'text-slate-900 font-bold'}>{metrics.cgpa}</strong></span>}
                         </div>
                     </div>
                 </>

@@ -1,27 +1,38 @@
 /**
  * Central College SGPA Rules & Grading Calculation Engine
- * SIT College Rules Configuration
+ * Scheme 2025 & SIT Autonomous Grading Standards
  */
+
+function round(val, decimals = 2) {
+    if (val === null || val === undefined || isNaN(val)) return 0;
+    const factor = Math.pow(10, decimals);
+    return Math.round((Number(val) + Number.EPSILON) * factor) / factor;
+}
 
 const SIT_SGPA_RULES = {
     collegeId: 'SIT',
-    version: '1.0.0',
+    version: '2.0.0',
     cieMax: 50,
     seeScaledMax: 50,
     totalMaxMarks: 100,
-    cieMinThreshold: 20, // Overall min CIE threshold
+    cieMinThreshold: 20, // Overall min CIE threshold for credit courses
     seeMinRawThreshold100: 36, // 36 / 100 raw SEE min requirement
     seeMinRawThreshold50: 18,  // 18 / 50 raw SEE min requirement
 
-    gradingScale: [
-        { min: 90, max: 100, grade: 'O',  gradePoint: 10 },
-        { min: 80, max: 89.99, grade: 'A+', gradePoint: 9 },
-        { min: 70, max: 79.99, grade: 'A',  gradePoint: 8 },
-        { min: 60, max: 69.99, grade: 'B+', gradePoint: 7 },
-        { min: 50, max: 59.99, grade: 'B',  gradePoint: 6 },
-        { min: 40, max: 49.99, grade: 'C',  gradePoint: 5 },
-        { min: 0,  max: 39.99, grade: 'F',  gradePoint: 0 }
-    ]
+    // Standard Scheme 2025 Grade Scale (gap-free descending intervals):
+    // O (90-100): 10, A+ (80-89): 9, A (70-79): 8, B+ (60-69): 7, B (50-59): 6, C (40-49): 5, F (<40): 0
+    getGradeForTotalMarks(totalMarks) {
+        if (typeof totalMarks !== 'number' || isNaN(totalMarks)) {
+            return { grade: 'F', gradePoint: 0 };
+        }
+        if (totalMarks >= 90) return { grade: 'O', gradePoint: 10 };
+        if (totalMarks >= 80) return { grade: 'A+', gradePoint: 9 };
+        if (totalMarks >= 70) return { grade: 'A', gradePoint: 8 };
+        if (totalMarks >= 60) return { grade: 'B+', gradePoint: 7 };
+        if (totalMarks >= 50) return { grade: 'B', gradePoint: 6 };
+        if (totalMarks >= 40) return { grade: 'C', gradePoint: 5 };
+        return { grade: 'F', gradePoint: 0 };
+    }
 };
 
 /**
@@ -29,11 +40,67 @@ const SIT_SGPA_RULES = {
  */
 function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, seeRawMaximum = 100 }) {
     const credits = Number(registeredSubject.registeredCredits || 0);
+    const evalType = (registeredSubject.evaluationType || registeredSubject.category || '').toUpperCase();
+    const code = (registeredSubject.customCode || registeredSubject.subject?.code || '').toUpperCase();
+    const name = (registeredSubject.customName || registeredSubject.subject?.name || '').toUpperCase();
+    const isNcmc = credits === 0 || evalType.includes('NCMC') || code.includes('NCMC') || code.includes('CC10') || name.includes('NON-CREDIT') || name.includes('MANDATORY');
 
     const cieMarks = cieData?.totalCie !== undefined && cieData?.totalCie !== null ? Number(cieData.totalCie) : null;
     const cieStatus = cieData?.status || 'NOT_STARTED';
     const cieEligible = cieData?.isEligible !== false && cieStatus !== 'NOT_ELIGIBLE';
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // A. NCMC Evaluation (Continuous Internal Evaluation only, no SEE exam)
+    // ──────────────────────────────────────────────────────────────────────────
+    if (isNcmc) {
+        if (cieMarks === null) {
+            return {
+                registeredSubjectId: registeredSubject._id,
+                subjectCode: registeredSubject.customCode || registeredSubject.subject?.code || 'SUBJ',
+                subjectName: registeredSubject.customName || registeredSubject.subject?.name || 'Subject',
+                credits: 0,
+                isNcmc: true,
+                cieMarks: null,
+                cieMax: 100,
+                cieStatus,
+                seeRawMarks: null,
+                seeRawMaximum: null,
+                seeScaledMarks: null,
+                seeScaledMaximum: null,
+                totalMarks: null,
+                grade: 'PENDING',
+                gradePoint: 0,
+                creditPoints: 0,
+                status: 'PENDING'
+            };
+        }
+
+        const isPassed = cieMarks >= 40;
+        return {
+            registeredSubjectId: registeredSubject._id,
+            subjectCode: registeredSubject.customCode || registeredSubject.subject?.code || 'SUBJ',
+            subjectName: registeredSubject.customName || registeredSubject.subject?.name || 'Subject',
+            credits: 0,
+            isNcmc: true,
+            cieMarks,
+            cieMax: 100,
+            cieStatus: isPassed ? 'ELIGIBLE' : 'NOT_ELIGIBLE',
+            seeRawMarks: null,
+            seeRawMaximum: null,
+            seeScaledMarks: null,
+            seeScaledMaximum: null,
+            totalMarks: cieMarks,
+            grade: isPassed ? 'PP' : 'NP',
+            gradePoint: 0,
+            creditPoints: 0,
+            status: isPassed ? 'COMPLETED' : 'FAILED',
+            failureReason: isPassed ? null : 'NCMC continuous evaluation below passing requirement (min 40 / 100)'
+        };
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // B. Credit Course Evaluation (CIE + SEE)
+    // ──────────────────────────────────────────────────────────────────────────
     const seeRaw = seeRawMarks !== undefined && seeRawMarks !== null && seeRawMarks !== '' && !isNaN(Number(seeRawMarks))
         ? Number(seeRawMarks)
         : null;
@@ -47,12 +114,13 @@ function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, s
             subjectCode: registeredSubject.customCode || registeredSubject.subject?.code || 'SUBJ',
             subjectName: registeredSubject.customName || registeredSubject.subject?.name || 'Subject',
             credits,
+            isNcmc: false,
             cieMarks,
             cieMax: SIT_SGPA_RULES.cieMax,
             cieStatus,
             seeRawMarks: seeRaw,
             seeRawMaximum: rawMax,
-            seeScaledMarks: seeRaw !== null ? Number(((seeRaw / rawMax) * SIT_SGPA_RULES.seeScaledMax).toFixed(2)) : null,
+            seeScaledMarks: seeRaw !== null ? round((seeRaw / rawMax) * SIT_SGPA_RULES.seeScaledMax) : null,
             seeScaledMaximum: SIT_SGPA_RULES.seeScaledMax,
             totalMarks: null,
             grade: 'PENDING',
@@ -63,8 +131,8 @@ function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, s
     }
 
     // Scale SEE to 50
-    const seeScaled = Number(((seeRaw / rawMax) * SIT_SGPA_RULES.seeScaledMax).toFixed(2));
-    const totalMarks = Number((cieMarks + seeScaled).toFixed(2));
+    const seeScaled = round((seeRaw / rawMax) * SIT_SGPA_RULES.seeScaledMax);
+    const totalMarks = round(cieMarks + seeScaled);
 
     // CHECK RULE 1: CIE Eligibility Override (CIE NE)
     if (!cieEligible || cieStatus === 'NOT_ELIGIBLE' || cieMarks < SIT_SGPA_RULES.cieMinThreshold) {
@@ -73,6 +141,7 @@ function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, s
             subjectCode: registeredSubject.customCode || registeredSubject.subject?.code || 'SUBJ',
             subjectName: registeredSubject.customName || registeredSubject.subject?.name || 'Subject',
             credits,
+            isNcmc: false,
             cieMarks,
             cieMax: SIT_SGPA_RULES.cieMax,
             cieStatus: 'NOT_ELIGIBLE',
@@ -98,6 +167,7 @@ function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, s
             subjectCode: registeredSubject.customCode || registeredSubject.subject?.code || 'SUBJ',
             subjectName: registeredSubject.customName || registeredSubject.subject?.name || 'Subject',
             credits,
+            isNcmc: false,
             cieMarks,
             cieMax: SIT_SGPA_RULES.cieMax,
             cieStatus,
@@ -115,13 +185,9 @@ function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, s
     }
 
     // Calculate Grade from scale
-    let gradeObj = SIT_SGPA_RULES.gradingScale.find(g => totalMarks >= g.min && totalMarks <= g.max);
-    if (!gradeObj) {
-        gradeObj = totalMarks < 40 ? { grade: 'F', gradePoint: 0 } : { grade: 'C', gradePoint: 5 };
-    }
-
+    const gradeObj = SIT_SGPA_RULES.getGradeForTotalMarks(totalMarks);
     const gradePoint = gradeObj.gradePoint;
-    const creditPoints = Number((credits * gradePoint).toFixed(2));
+    const creditPoints = round(credits * gradePoint);
     const status = gradeObj.grade === 'F' ? 'FAILED' : 'COMPLETED';
 
     return {
@@ -129,6 +195,7 @@ function calculateSubjectSgpaResult({ registeredSubject, cieData, seeRawMarks, s
         subjectCode: registeredSubject.customCode || registeredSubject.subject?.code || 'SUBJ',
         subjectName: registeredSubject.customName || registeredSubject.subject?.name || 'Subject',
         credits,
+        isNcmc: false,
         cieMarks,
         cieMax: SIT_SGPA_RULES.cieMax,
         cieStatus,
@@ -152,8 +219,23 @@ function calculateSemesterSgpa(subjectResults = []) {
     let totalCreditPoints = 0;
     let hasPending = false;
     let completedCount = 0;
+    let hasFailedSubjects = false;
 
     for (const sub of subjectResults) {
+        const isNcmc = sub.credits === 0 || sub.isNcmc;
+
+        if (isNcmc) {
+            if (sub.status === 'PENDING' || sub.cieMarks === null) {
+                hasPending = true;
+            } else {
+                completedCount++;
+                if (sub.status === 'FAILED' || sub.grade === 'NP') {
+                    hasFailedSubjects = true;
+                }
+            }
+            continue;
+        }
+
         if (sub.status === 'PENDING' || sub.seeRawMarks === null || sub.cieMarks === null) {
             hasPending = true;
             continue;
@@ -163,7 +245,10 @@ function calculateSemesterSgpa(subjectResults = []) {
         const credits = Number(sub.credits || 0);
         const gp = Number(sub.gradePoint || 0);
 
-        // Include credits in denominator for subjects with credits > 0 (even if failed or NE)
+        if (sub.status === 'FAILED' || sub.grade === 'F' || sub.status === 'NE' || sub.grade === 'NE') {
+            hasFailedSubjects = true;
+        }
+
         if (credits > 0) {
             totalCredits += credits;
             totalCreditPoints += (credits * gp);
@@ -174,17 +259,16 @@ function calculateSemesterSgpa(subjectResults = []) {
     let status = 'PENDING';
 
     if (!hasPending && completedCount > 0 && totalCredits > 0) {
-        sgpa = Number((totalCreditPoints / totalCredits).toFixed(2));
-        status = 'COMPLETED';
+        sgpa = round(totalCreditPoints / totalCredits);
+        status = hasFailedSubjects ? 'FAILED_SUBJECTS' : 'COMPLETED';
     } else if (completedCount > 0 && totalCredits > 0) {
-        // Partial SGPA if requested or previewed
-        sgpa = Number((totalCreditPoints / totalCredits).toFixed(2));
+        sgpa = round(totalCreditPoints / totalCredits);
         status = 'PARTIAL';
     }
 
     return {
         totalCredits,
-        totalCreditPoints: Number(totalCreditPoints.toFixed(2)),
+        totalCreditPoints: round(totalCreditPoints),
         sgpa,
         hasPending,
         completedCount,
@@ -196,5 +280,6 @@ function calculateSemesterSgpa(subjectResults = []) {
 module.exports = {
     SIT_SGPA_RULES,
     calculateSubjectSgpaResult,
-    calculateSemesterSgpa
+    calculateSemesterSgpa,
+    round
 };

@@ -11,19 +11,13 @@ import {
   FileText,
   Briefcase,
   Megaphone,
-  FileEdit,
-  Newspaper,
-  KeyRound,
   Sparkles,
   Layers,
-  CreditCard,
-  Receipt,
-  BarChart3,
-  FileSpreadsheet,
   ShieldAlert,
   Settings,
   LogOut,
-  X
+  X,
+  Bug
 } from 'lucide-react';
 import { hasPermission, isSuperAdmin } from '../../utils/permissions';
 
@@ -48,8 +42,9 @@ export const AdminSidebar = ({
   const canViewMaterials = hasPermission(admin, 'materials', 'view');
   const canViewInterviews = isSuper || hasPermission(admin, 'interviews', 'view');
   const canViewAnnouncements = isSuper || hasPermission(admin, 'announcements', 'view');
+  const canViewBugs = isSuper || hasPermission(admin, 'bugs', 'view');
 
-  // Navigation Group Definitions
+  // Organized Clean Navigation Group Definitions
   const navigationGroups = [
     {
       title: 'OVERVIEW',
@@ -59,201 +54,124 @@ export const AdminSidebar = ({
           label: 'Dashboard',
           to: '/dashboard',
           icon: LayoutDashboard,
-          visible: true,
-          badge: null
+          visible: true
         }
       ]
     },
     {
-      title: 'USERS',
+      title: 'STUDENTS & ACCESS',
       items: [
         {
           key: 'users',
-          label: 'Users',
+          label: 'Students',
           to: '/users',
           icon: Users,
-          visible: canViewUsers,
-          badge: null
+          visible: canViewUsers
+        },
+        {
+          key: 'features',
+          label: 'Feature Flags & Plus',
+          to: '/features',
+          icon: Sparkles,
+          visible: true
         },
         {
           key: 'admins',
-          label: 'Admins',
+          label: 'Administrators',
           to: '/admins',
           icon: Shield,
-          visible: isSuper,
-          badge: null
+          visible: isSuper
         }
       ]
     },
     {
-      title: 'ACADEMIC',
+      title: 'ACADEMIC MANAGEMENT',
       items: [
         {
           key: 'structure',
           label: 'Structure',
           to: '/structure',
           icon: Building2,
-          visible: canViewStructure,
-          badge: null
+          visible: canViewStructure
         },
         {
           key: 'subjects',
           label: 'Subjects',
           to: '/subjects',
           icon: BookOpen,
-          visible: canViewSubjects,
-          badge: null
+          visible: canViewSubjects
         },
         {
           key: 'evaluation-groups',
           label: 'Evaluation Groups',
           to: '/evaluation-groups',
           icon: Layers,
-          visible: canViewEvaluationGroups,
-          badge: null
+          visible: canViewEvaluationGroups
         },
         {
           key: 'evaluation-rules',
           label: 'Evaluation Rules',
           to: '/evaluation-rules',
           icon: ScrollText,
-          visible: canViewEvaluationGroups,
-          badge: null
+          visible: canViewEvaluationGroups
         }
       ]
     },
     {
-      title: 'CONTENT',
+      title: 'CONTENT & COMMUNITY',
       items: [
         {
           key: 'materials',
-          label: 'Materials',
+          label: 'Study Materials',
           to: '/materials',
           icon: FileText,
-          visible: canViewMaterials,
-          badge: null
+          visible: canViewMaterials
         },
         {
           key: 'interviews',
           label: 'Interviews',
           to: '/interviews',
           icon: Briefcase,
-          visible: canViewInterviews,
-          badge: null
+          visible: canViewInterviews
         },
         {
           key: 'announcements',
           label: 'Announcements',
           to: '/announcements',
           icon: Megaphone,
-          visible: canViewAnnouncements,
-          badge: null
-        },
-        {
-          key: 'editorials',
-          label: 'Editorials',
-          to: null,
-          icon: FileEdit,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
-        },
-        {
-          key: 'blogs',
-          label: 'Blogs',
-          to: null,
-          icon: Newspaper,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
+          visible: canViewAnnouncements
         }
       ]
     },
     {
-      title: 'PLUS',
+      title: 'FEEDBACK & SUPPORT',
       items: [
         {
-          key: 'plus-access',
-          label: 'Access',
-          to: '/users',
-          icon: KeyRound,
-          visible: true,
-          badge: null
-        },
-        {
-          key: 'plus-features',
-          label: 'Features',
-          to: '/features',
-          icon: Sparkles,
-          visible: true,
-          badge: null
-        },
-        {
-          key: 'plus-plans',
-          label: 'Plans',
-          to: null,
-          icon: Layers,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
-        },
-        {
-          key: 'plus-subscriptions',
-          label: 'Subscriptions',
-          to: null,
-          icon: CreditCard,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
-        },
-        {
-          key: 'plus-payments',
-          label: 'Payments',
-          to: null,
-          icon: Receipt,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
+          key: 'bugs',
+          label: 'Bug Reports',
+          to: '/bugs',
+          icon: Bug,
+          visible: canViewBugs
         }
       ]
     },
     {
-      title: 'SYSTEM',
+      title: 'SECURITY & AUDIT',
       items: [
-        {
-          key: 'analytics',
-          label: 'Analytics',
-          to: null,
-          icon: BarChart3,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
-        },
-        {
-          key: 'reports',
-          label: 'Reports',
-          to: null,
-          icon: FileSpreadsheet,
-          visible: true,
-          badge: 'Soon',
-          disabled: true
-        },
         {
           key: 'security',
-          label: 'Security',
+          label: 'Security Logs',
           to: '/security',
           icon: ShieldAlert,
-          visible: isSuper,
-          badge: null
+          visible: isSuper
         },
         {
           key: 'settings',
-          label: 'Settings',
+          label: 'Active Sessions',
           to: null,
           icon: Settings,
           visible: true,
-          onClick: onOpenSecurityDrawer,
-          badge: 'Sessions'
+          onClick: onOpenSecurityDrawer
         }
       ]
     }
@@ -266,7 +184,7 @@ export const AdminSidebar = ({
       }`}
     >
       {/* Brand Header */}
-      <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-zinc-800/80">
+      <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-zinc-800/80 shrink-0">
         <Link
           to="/dashboard"
           onClick={onCloseMobile}
@@ -291,7 +209,7 @@ export const AdminSidebar = ({
       </div>
 
       {/* Navigation Groups List */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-5 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-800">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-800">
         {navigationGroups.map((group) => {
           const visibleItems = group.items.filter((item) => item.visible !== false);
           if (visibleItems.length === 0) return null;
@@ -305,27 +223,6 @@ export const AdminSidebar = ({
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
                   const IconComp = item.icon;
-
-                  // Disabled / Coming Soon items
-                  if (item.disabled) {
-                    return (
-                      <div
-                        key={item.key}
-                        className="flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-75"
-                        title={`${item.label} (Coming Soon)`}
-                      >
-                        <div className="flex items-center gap-2.5 truncate">
-                          {IconComp && <IconComp className="w-4 h-4 shrink-0 text-zinc-400 dark:text-zinc-600" />}
-                          <span className="truncate">{item.label}</span>
-                        </div>
-                        {item.badge && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold tracking-wide bg-zinc-100 dark:bg-zinc-800/80 text-zinc-500 dark:text-zinc-500 border border-zinc-200/50 dark:border-zinc-700/40">
-                            {item.badge}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
 
                   // Clickable Action items (e.g. Settings opening drawer)
                   if (item.onClick) {
@@ -343,11 +240,6 @@ export const AdminSidebar = ({
                           {IconComp && <IconComp className="w-4 h-4 shrink-0 text-zinc-500 dark:text-zinc-400" />}
                           <span className="truncate">{item.label}</span>
                         </div>
-                        {item.badge && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold tracking-wide bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/40">
-                            {item.badge}
-                          </span>
-                        )}
                       </button>
                     );
                   }
@@ -355,7 +247,7 @@ export const AdminSidebar = ({
                   // Active NavLink routes
                   const isActive =
                     item.to === '/dashboard'
-                      ? location.pathname === '/dashboard' || location.pathname === '/overview'
+                      ? location.pathname === '/dashboard' || location.pathname === '/' || location.pathname === '/overview'
                       : location.pathname.startsWith(item.to);
 
                   return (
@@ -381,11 +273,6 @@ export const AdminSidebar = ({
                         )}
                         <span className="truncate">{item.label}</span>
                       </div>
-                      {item.badge && (
-                        <span className="px-1.5 py-0.2 rounded text-[9px] font-semibold tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                          {item.badge}
-                        </span>
-                      )}
                     </NavLink>
                   );
                 })}
@@ -396,7 +283,7 @@ export const AdminSidebar = ({
       </div>
 
       {/* Admin Profile Footer */}
-      <div className="p-3 border-t border-gray-200 dark:border-zinc-800/80 bg-gray-50/50 dark:bg-[#0d0d0f]/60">
+      <div className="p-3 border-t border-gray-200 dark:border-zinc-800/80 bg-gray-50/50 dark:bg-[#0d0d0f]/60 shrink-0">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">

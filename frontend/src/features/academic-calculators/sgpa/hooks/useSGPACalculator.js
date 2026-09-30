@@ -108,11 +108,11 @@ export const useSGPACalculator = () => {
             return;
         }
 
-        // Validate that credits are valid numbers
+        // Validate that credits are valid numbers (allow 0 for NCMC courses)
         for (const sub of subjects) {
             const cr = parseFloat(sub.credits);
-            if (isNaN(cr) || cr <= 0) {
-                setValidationError(`Invalid credits for "${sub.name || 'Subject'}". Credits must be greater than 0.`);
+            if (isNaN(cr) || cr < 0) {
+                setValidationError(`Invalid credits for "${sub.name || 'Subject'}". Credits cannot be negative.`);
                 setResult(null);
                 return;
             }

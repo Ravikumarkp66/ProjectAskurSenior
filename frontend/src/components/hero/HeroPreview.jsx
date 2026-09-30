@@ -1,34 +1,35 @@
 /**
  * HeroPreview.jsx
  * ─────────────────────────────────────────────────────────
- * Premium AskUrSenior Product Showcase.
- * Replaces fake browser mockups with real, polished UI previews:
- *   1. Ask+ AI
- *   2. Study Materials & PYQs
- *   3. Interview Experiences
- *   4. Campus Explorer
+ * Genuine AskUrSenior Product Showcase.
+ * Displays interactive, authentic UI previews of real platform tools:
+ *   1. Smart Attendance & Timetable Tracker
+ *   2. CIE 50-Mark Analyzer & SEE Forecaster
+ *   3. Study Materials & Solved PYQs
+ *   4. Senior Interview Experiences
  * ─────────────────────────────────────────────────────────
  */
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, Calendar, PieChart, FileText, Briefcase } from 'lucide-react';
 
 const TABS = [
-    { id: 'ask_plus', label: 'Ask+ AI', badge: 'Trained on SIT' },
-    { id: 'materials', label: 'Study Materials & PYQs', badge: '360+ Verified' },
-    { id: 'interviews', label: 'Interview Experiences', badge: 'Real Placements' },
-    { id: 'campus_map', label: 'Campus Explorer', badge: '3D Campus' }
+    { id: 'attendance', label: 'Smart Attendance', badge: '85% SIT Rule' },
+    { id: 'cie', label: 'CIE Analyzer', badge: '50-Mark Normalization' },
+    { id: 'materials', label: 'Materials & PYQs', badge: 'Verified Notes' },
+    { id: 'interviews', label: 'Interview Logs', badge: 'Real Placements' }
 ];
 
 const HeroPreview = () => {
-    const [activeTab, setActiveTab] = useState('ask_plus');
+    const [activeTab, setActiveTab] = useState('attendance');
     const navigate = useNavigate();
 
     return (
         <div className="w-full max-w-lg lg:max-w-xl mx-auto flex flex-col gap-3">
             {/* Top Product Navigation Bar */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#0D111C] border border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#F8FAFC] dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] overflow-x-auto no-scrollbar">
                 {TABS.map((tab) => {
                     const isActive = activeTab === tab.id;
                     return (
@@ -37,10 +38,10 @@ const HeroPreview = () => {
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
                             aria-label={`View ${tab.label}`}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
+                            className={`px-3 py-1.5 rounded-[6px] text-xs font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer ${
                                 isActive
-                                    ? 'bg-white dark:bg-[#151B2C] text-purple-700 dark:text-purple-300 shadow-sm border border-slate-200/80 dark:border-slate-700/60'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-white/5 border border-transparent'
+                                    ? 'bg-white dark:bg-[#1B1F26] text-[#7C3AED] dark:text-[#A78BFA] border border-[#E5E7EB] dark:border-[#292E37]'
+                                    : 'text-[#4B5563] dark:text-[#A1A1AA] hover:text-[#111827] dark:hover:text-[#F3F4F6] border border-transparent'
                             }`}
                         >
                             <span>{tab.label}</span>
@@ -50,16 +51,16 @@ const HeroPreview = () => {
             </div>
 
             {/* Product Showcase Card */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800/90 bg-white dark:bg-[#0D111C] shadow-sm overflow-hidden flex flex-col min-h-[360px]">
+            <div className="rounded-lg border border-[#E5E7EB] dark:border-[#292E37] bg-white dark:bg-[#15181D] shadow-none overflow-hidden flex flex-col min-h-[360px]">
                 {/* Header Bar */}
-                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-[#111624]/60">
+                <div className="px-4 py-2.5 border-b border-[#E5E7EB] dark:border-[#292E37] flex items-center justify-between bg-[#F8FAFC] dark:bg-[#1B1F26]">
                     <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden="true" />
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        <span className="w-2 h-2 rounded-full bg-[#16A34A]" aria-hidden="true" />
+                        <span className="text-xs font-semibold text-[#111827] dark:text-[#F3F4F6]">
                             {TABS.find(t => t.id === activeTab)?.label}
                         </span>
                     </div>
-                    <span className="text-[11px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-medium text-[#7C3AED] dark:text-[#DDD6FE] bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 px-2 py-0.5 rounded-full">
                         {TABS.find(t => t.id === activeTab)?.badge}
                     </span>
                 </div>
@@ -69,80 +70,128 @@ const HeroPreview = () => {
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={activeTab}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.2 }}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
                             className="flex-1 flex flex-col justify-between"
                         >
-                            {/* 1. Ask+ AI Assistant View */}
-                            {activeTab === 'ask_plus' && (
+                            {/* 1. Smart Attendance Tracker View */}
+                            {activeTab === 'attendance' && (
                                 <div className="space-y-3.5 flex-1 flex flex-col justify-between">
-                                    <div className="space-y-3">
-                                        {/* User prompt preview */}
-                                        <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-slate-50 dark:bg-[#111624] border border-slate-200/70 dark:border-slate-800">
-                                            <span className="text-xs font-bold text-slate-500 uppercase shrink-0 mt-0.5">Q:</span>
-                                            <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
-                                                What is the minimum CIE required for SEE 2026?
-                                            </p>
+                                    <div className="space-y-2.5">
+                                        {/* Attendance Status Widget */}
+                                        <div className="p-3 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/15 border border-[#E9D5FF] dark:border-[#7C3AED]/30 flex items-center justify-between">
+                                            <div>
+                                                <span className="text-[10px] font-semibold text-[#7C3AED] dark:text-[#A78BFA] uppercase tracking-wider block">Overall SIT Attendance</span>
+                                                <span className="text-xl font-bold text-[#111827] dark:text-[#F3F4F6] tabular-nums">89.4%</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[10px] font-medium text-[#16A34A] dark:text-[#4ADE80] bg-[#F0FDF4] dark:bg-[#14532D]/30 border border-[#BBF7D0] dark:border-[#166534] px-2 py-0.5 rounded-[4px] block">
+                                                    Safe (Above 85%)
+                                                </span>
+                                                <span className="text-[11px] text-[#6B7280] dark:text-[#71717A] mt-0.5 block">Can Miss: 4 classes</span>
+                                            </div>
                                         </div>
 
-                                        {/* AI response preview */}
-                                        <div className="p-3.5 rounded-xl bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-500/20 space-y-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
-                                                    Ask+ Assistant
-                                                </span>
-                                                <span className="text-[10px] text-slate-500 dark:text-slate-400">• Official Syllabus</span>
-                                            </div>
-                                            <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-300">
-                                                Under SIT regulations, you must score at least <strong>40% in aggregate CIE</strong> (minimum 20/50) to be eligible for SEE. Scoring below 40% leads to a Not Eligible (NE) status.
-                                            </p>
-                                            <div className="flex items-center gap-2 pt-1">
-                                                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 bg-white dark:bg-[#111624] border border-slate-200 dark:border-slate-800 px-2 py-0.5 rounded">
-                                                    Ref: Academic Policy §4.1
-                                                </span>
-                                                <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded">
-                                                    Verified Rule
-                                                </span>
-                                            </div>
+                                        {/* Subject List */}
+                                        <div className="space-y-1.5">
+                                            {[
+                                                { code: '22CS501', name: 'Database Management Systems', pct: '92%', attended: '23/25', status: 'Safe' },
+                                                { code: '22CS502', name: 'Operating Systems & Concurrency', pct: '86%', attended: '19/22', status: 'Safe' },
+                                                { code: '22CS503', name: 'Computer Networks Lab (B1)', pct: '100%', attended: '8/8', status: 'Optimal' }
+                                            ].map((sub, i) => (
+                                                <div key={i} className="p-2 px-3 rounded-[6px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#F8FAFC] dark:bg-[#1B1F26] flex items-center justify-between">
+                                                    <div className="min-w-0 pr-2">
+                                                        <p className="text-xs font-semibold text-[#111827] dark:text-[#F3F4F6] truncate">{sub.name}</p>
+                                                        <p className="text-[10px] text-[#6B7280] dark:text-[#71717A] font-mono">{sub.code} • {sub.attended}</p>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-[#111827] dark:text-[#F3F4F6] tabular-nums">{sub.pct}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
 
                                     {/* Action button */}
                                     <button
                                         type="button"
-                                        onClick={() => navigate('/ask-finder')}
-                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        onClick={() => navigate('/home')}
+                                        className="w-full h-9 px-4 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        <span>Ask Ask+ a Question</span>
+                                        <span>Open Attendance Workspace</span>
                                         <span>→</span>
                                     </button>
                                 </div>
                             )}
 
-                            {/* 2. Study Materials View */}
+                            {/* 2. CIE Analyzer View */}
+                            {activeTab === 'cie' && (
+                                <div className="space-y-3.5 flex-1 flex flex-col justify-between">
+                                    <div className="space-y-2.5">
+                                        <div className="p-3 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/15 border border-[#E9D5FF] dark:border-[#7C3AED]/30 flex items-center justify-between">
+                                            <div>
+                                                <span className="text-[10px] font-semibold text-[#7C3AED] dark:text-[#A78BFA] uppercase tracking-wider block">Normalized CIE Score</span>
+                                                <span className="text-xl font-bold text-[#111827] dark:text-[#F3F4F6] tabular-nums">44.5 / 50</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[10px] font-medium text-[#7C3AED] dark:text-[#A78BFA] bg-white dark:bg-[#15181D] border border-[#E9D5FF] dark:border-[#7C3AED]/30 px-2 py-0.5 rounded-[4px] block">
+                                                    Target: 'O' Grade (90%+)
+                                                </span>
+                                                <span className="text-[11px] text-[#6B7280] dark:text-[#71717A] mt-0.5 block">Required SEE: 46 / 50</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <div className="p-2.5 rounded-[6px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#F8FAFC] dark:bg-[#1B1F26] space-y-1">
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="font-semibold text-[#111827] dark:text-[#F3F4F6]">Test 1 (Normalized 20M)</span>
+                                                    <span className="font-bold text-[#111827] dark:text-[#F3F4F6] tabular-nums">18.5 / 20</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="font-semibold text-[#111827] dark:text-[#F3F4F6]">Test 2 (Normalized 20M)</span>
+                                                    <span className="font-bold text-[#111827] dark:text-[#F3F4F6] tabular-nums">19.0 / 20</span>
+                                                </div>
+                                                <div className="flex justify-between text-xs border-t border-[#E5E7EB] dark:border-[#292E37] pt-1">
+                                                    <span className="font-semibold text-[#111827] dark:text-[#F3F4F6]">Quiz & Assignment (10M)</span>
+                                                    <span className="font-bold text-[#16A34A] tabular-nums">7.0 / 10</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/home')}
+                                        className="w-full h-9 px-4 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        <span>Calculate CIE & Target SEE Marks</span>
+                                        <span>→</span>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* 3. Study Materials View */}
                             {activeTab === 'materials' && (
                                 <div className="space-y-3 flex-1 flex flex-col justify-between">
                                     <div className="space-y-2">
                                         {[
-                                            { title: 'DBMS Module 3 — Normalization Notes', branch: 'CSE', sem: 'Sem 5', downloads: '412', type: 'Notes' },
-                                            { title: 'Engineering Physics — 2025 Solved Papers', branch: '1st Year', sem: 'Sem 1-2', downloads: '890', type: 'PYQ' },
-                                            { title: 'Operating Systems — Question Bank', branch: 'ISE/CSE', sem: 'Sem 4', downloads: '654', type: 'Bank' }
+                                            { title: 'DBMS Module 3 — Normalization Notes', branch: 'CSE/ISE', sem: 'Sem 5', type: 'Notes' },
+                                            { title: 'Engineering Physics — 2025 Solved SEE Papers', branch: '1st Year', sem: 'Sem 1-2', type: 'PYQ' },
+                                            { title: 'Operating Systems — Model Question Bank', branch: 'CSE/ISE', sem: 'Sem 4', type: 'Question Bank' }
                                         ].map((item, i) => (
                                             <div
                                                 key={i}
-                                                className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#111624]/60 flex items-center justify-between"
+                                                className="p-2.5 rounded-[6px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#F8FAFC] dark:bg-[#1B1F26] flex items-center justify-between"
                                             >
                                                 <div className="min-w-0 pr-2">
-                                                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                                    <p className="text-xs font-semibold text-[#111827] dark:text-[#F3F4F6] truncate">
                                                         {item.title}
                                                     </p>
-                                                    <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                                                        {item.branch} • {item.sem} • {item.downloads} downloads
+                                                    <p className="text-[10px] text-[#6B7280] dark:text-[#71717A]">
+                                                        {item.branch} • {item.sem}
                                                     </p>
                                                 </div>
-                                                <span className="text-[10px] font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 border border-purple-200/60 dark:border-purple-800/40 px-2 py-0.5 rounded shrink-0">
+                                                <span className="text-[10px] font-medium text-[#7C3AED] dark:text-[#DDD6FE] bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 px-2 py-0.5 rounded-[4px] shrink-0">
                                                     {item.type}
                                                 </span>
                                             </div>
@@ -152,38 +201,38 @@ const HeroPreview = () => {
                                     <button
                                         type="button"
                                         onClick={() => navigate('/ask-finder')}
-                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full h-9 px-4 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        <span>Browse Study Materials</span>
+                                        <span>Browse Verified Materials & PYQs</span>
                                         <span>→</span>
                                     </button>
                                 </div>
                             )}
 
-                            {/* 3. Interview Experiences View */}
+                            {/* 4. Interview Experiences View */}
                             {activeTab === 'interviews' && (
                                 <div className="space-y-3 flex-1 flex flex-col justify-between">
                                     <div className="space-y-2">
                                         {[
-                                            { company: 'Amazon', role: 'SDE-1', ctc: '28 LPA', summary: 'OA: Trees & DP. Technical R1: Graph traversal & system design.' },
-                                            { company: 'Morgan Stanley', role: 'Technology Analyst', ctc: '19 LPA', summary: 'R1: Core Java, DBMS indexing. R2: Scenario architecture.' }
+                                            { company: 'Cisco', role: 'Software Engineer', rounds: '3 Rounds (OA + DSA + Tech/HR)', summary: 'Focus on Computer Networks (OSI, TCP/IP) and Graph traversal questions.' },
+                                            { company: 'Torry Harris', role: 'Associate Software Engineer', rounds: '2 Rounds', summary: 'Core Java fundamentals, SQL queries, and final behavioral round.' }
                                         ].map((exp, i) => (
                                             <div
                                                 key={i}
-                                                className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#111624]/60 space-y-1"
+                                                className="p-3 rounded-[6px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#F8FAFC] dark:bg-[#1B1F26] space-y-1"
                                             >
                                                 <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                                                    <span className="text-xs font-semibold text-[#111827] dark:text-[#F3F4F6]">
                                                         {exp.company}
                                                     </span>
-                                                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                                                        {exp.ctc}
+                                                    <span className="text-[10px] font-medium text-[#16A34A] dark:text-[#4ADE80] bg-[#F0FDF4] dark:bg-[#14532D]/30 border border-[#BBF7D0] dark:border-[#166534] px-1.5 py-0.5 rounded-[4px]">
+                                                        Verified Senior
                                                     </span>
                                                 </div>
-                                                <p className="text-[11px] font-medium text-purple-600 dark:text-purple-400">
-                                                    {exp.role}
+                                                <p className="text-[11px] font-medium text-[#7C3AED] dark:text-[#A78BFA]">
+                                                    {exp.role} • {exp.rounds}
                                                 </p>
-                                                <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2">
+                                                <p className="text-[11px] text-[#4B5563] dark:text-[#A1A1AA] line-clamp-2">
                                                     {exp.summary}
                                                 </p>
                                             </div>
@@ -193,43 +242,9 @@ const HeroPreview = () => {
                                     <button
                                         type="button"
                                         onClick={() => navigate('/interview')}
-                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                                        className="w-full h-9 px-4 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
                                     >
-                                        <span>Read Placement Transcripts</span>
-                                        <span>→</span>
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* 4. Campus Explorer View */}
-                            {activeTab === 'campus_map' && (
-                                <div className="space-y-3 flex-1 flex flex-col justify-between">
-                                    <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#111624]/60 space-y-2.5">
-                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                            <span>🗺️</span>
-                                            <span>SIT Campus Locations</span>
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            {[
-                                                'Academic Block 2 (CSE & ISE)',
-                                                'Central Library & Digital Reading Hall',
-                                                'Mechanical Labs & Robotics Wing',
-                                                'Food Court & South Canteen'
-                                            ].map((loc, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" aria-hidden="true" />
-                                                    <span>{loc}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/campus-map')}
-                                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-purple-600 dark:hover:bg-purple-700 text-white font-medium text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                                    >
-                                        <span>Open Campus Explorer</span>
+                                        <span>Read Senior Placement Transcripts</span>
                                         <span>→</span>
                                     </button>
                                 </div>

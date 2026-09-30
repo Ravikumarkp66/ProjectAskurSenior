@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const authV2Service = require('../services/authV2.service');
 const studentAccountRepository = require('../repositories/studentAccount.repository');
 const studentDto = require('../dtos/authV2.dto');
@@ -38,6 +39,41 @@ const getRefreshTokenFromRequest = (req) => {
     }
     return token;
 };
+
+function resolveEventSuspension(e) {
+    if (!e) return { classesSuspended: false, suspensionType: 'none' };
+    const title = (e.title || '').trim();
+    const eventType = (e.eventType || e.type || e.kind || '').trim();
+    const isHoliday = eventType === 'Holiday / Closure' || eventType === 'HOLIDAY' || eventType === 'Government Holiday' || eventType === 'Vacation' || /vacation|holiday|closure|preparation.*holiday/i.test(title);
+    const isTestOrExam = eventType === 'Exam' || eventType === 'EXAM' || eventType === 'CIE / Test' || /test[-\s]?\d+|cie[-\s]?\d+|exam|midterm|see\b/i.test(title);
+    
+    // Explicit classImpact from AcademicCalendarItem
+    if (e.classImpact === 'NONE' || (/evening/i.test(title) && e.classesSuspended === false)) {
+        return { classesSuspended: false, suspensionType: 'none' };
+    }
+    if (e.classImpact === 'FULL_DAY') {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+    if (e.classImpact === 'TIME_RANGE') {
+        return { classesSuspended: true, suspensionType: 'time_range' };
+    }
+
+    if (e.classesSuspended === true) {
+        return { classesSuspended: true, suspensionType: e.suspensionType || 'full_day' };
+    }
+    if (e.suspensionType && e.suspensionType !== 'none') {
+        return { classesSuspended: true, suspensionType: e.suspensionType };
+    }
+
+    if (isHoliday) {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+    if (isTestOrExam && e.classesSuspended !== false) {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+
+    return { classesSuspended: false, suspensionType: 'none' };
+}
 
 class AuthV2Controller {
     async loginGoogle(req, res) {
@@ -1281,42 +1317,47 @@ class AuthV2Controller {
                 });
             }
 
-            const studyYearVal = Math.max(1, Math.min(4, Math.ceil(targetSemester / 2)));
-            
-            let yearStr = '1st Year';
-            if (studyYearVal === 2) yearStr = '2nd Year';
-            else if (studyYearVal === 3) yearStr = '3rd Year';
-            else if (studyYearVal === 4) yearStr = '4th Year';
+            const { resolveStudentCurriculumSubjects } = require('../../../services/studentSubjectResolver');
+            let subjects = await resolveStudentCurriculumSubjects(student, targetSemester);
 
-            const query = {
-                year: yearStr,
-                $or: [{ status: 'Published' }, { status: { $exists: false } }]
-            };
+            if (!subjects || subjects.length === 0) {
+                const studyYearVal = Math.max(1, Math.min(4, Math.ceil(targetSemester / 2)));
+                
+                let yearStr = '1st Year';
+                if (studyYearVal === 2) yearStr = '2nd Year';
+                else if (studyYearVal === 3) yearStr = '3rd Year';
+                else if (studyYearVal === 4) yearStr = '4th Year';
 
-            // First Year subjects are common across branches. Second Year+ filter by student's branch/scheme if available.
-            if (yearStr !== '1st Year' && student.branch) {
-                query.branch = student.branch;
-                if (student.scheme) {
-                    query.scheme = student.scheme;
+                const query = {
+                    year: yearStr,
+                    $or: [{ status: 'Published' }, { status: { $exists: false } }]
+                };
+
+                // First Year subjects are common across branches. Second Year+ filter by student's branch/scheme if available.
+                if (yearStr !== '1st Year' && student.branch) {
+                    query.branch = student.branch;
+                    if (student.scheme) {
+                        query.scheme = student.scheme;
+                    }
                 }
-            }
 
-            let subjects = await AcademicSubjectCms.find(query).sort({ name: 1 });
-
-            // Fallback 1: Try without scheme if no subjects found
-            if ((!subjects || subjects.length === 0) && query.scheme) {
-                delete query.scheme;
                 subjects = await AcademicSubjectCms.find(query).sort({ name: 1 });
-            }
 
-            // Fallback 2: Try with year alone if still empty
-            if (!subjects || subjects.length === 0) {
-                subjects = await AcademicSubjectCms.find({ year: yearStr }).sort({ name: 1 });
-            }
+                // Fallback 1: Try without scheme if no subjects found
+                if ((!subjects || subjects.length === 0) && query.scheme) {
+                    delete query.scheme;
+                    subjects = await AcademicSubjectCms.find(query).sort({ name: 1 });
+                }
 
-            // Fallback 3: Check CmsSubject collection if AcademicSubjectCms collection returned no results
-            if (!subjects || subjects.length === 0) {
-                subjects = await CmsSubject.find({ year: yearStr }).sort({ name: 1 });
+                // Fallback 2: Try with year alone if still empty
+                if (!subjects || subjects.length === 0) {
+                    subjects = await AcademicSubjectCms.find({ year: yearStr }).sort({ name: 1 });
+                }
+
+                // Fallback 3: Check CmsSubject collection if AcademicSubjectCms collection returned no results
+                if (!subjects || subjects.length === 0) {
+                    subjects = await CmsSubject.find({ year: yearStr }).sort({ name: 1 });
+                }
             }
 
             return res.status(200).json({
@@ -2249,17 +2290,23 @@ class AuthV2Controller {
                 const { resolveStudentAcademicContext } = require('../../../services/studentAcademicResolver');
                 const academicCtx = await resolveStudentAcademicContext(req.student, requestedSemester).catch(() => null);
 
+                const semScopeOr = [
+                    { scope: 'GLOBAL' },
+                    { scope: { $exists: false } }
+                ];
+                if (academicCtx?.officialSemester?._id) {
+                    semScopeOr.push({ scope: 'SEMESTER', academicSemesterId: academicCtx.officialSemester._id });
+                    semScopeOr.push({ academicSemesterId: academicCtx.officialSemester._id });
+                }
+                if (requestedSemester) {
+                    semScopeOr.push({ semester: requestedSemester });
+                }
+
                 const semFilter = {
                     status: { $ne: 'ARCHIVED' },
-                    $or: [
-                        { scope: 'GLOBAL', eventType: 'Holiday / Closure' },
-                        ...(academicCtx?.officialSemester ? [{
-                            scope: 'SEMESTER',
-                            academicSemesterId: academicCtx.officialSemester._id
-                        }] : [])
-                    ]
+                    $or: semScopeOr
                 };
-                if (req.student.college) semFilter.college = req.student.college;
+                if (req.student.college) semFilter.college = { $in: [req.student.college, null] };
 
                 const [collegeEvents, studentEvents] = await Promise.all([
                     CollegeEvent.find(semFilter).sort({ startDate: 1, startTime: 1 }).lean().catch(() => []),
@@ -2267,40 +2314,50 @@ class AuthV2Controller {
                 ]);
 
                 events = [
-                    ...(collegeEvents || []).map(e => ({
-                        _id: e._id,
-                        title: e.title,
-                        eventType: e.eventType,
-                        type: e.eventType === 'Holiday / Closure' ? 'HOLIDAY' : (e.eventType === 'Exam' ? 'EXAM' : 'EVENT'),
-                        kind: e.eventType === 'Holiday / Closure' ? 'HOLIDAY' : 'EVENT',
-                        description: e.description || '',
-                        startDate: e.startDate,
-                        endDate: e.endDate,
-                        allDay: e.allDay,
-                        isAllDay: e.allDay,
-                        scope: e.scope,
-                        classesSuspended: e.eventType === 'Holiday / Closure' || e.classesSuspended || (e.suspensionType && e.suspensionType !== 'none') || /vacation|holiday|closure/i.test(e.title) || /preparation.*holiday/i.test(e.title),
-                        suspensionType: e.suspensionType || (e.eventType === 'Holiday / Closure' ? 'full_day' : 'none'),
-                        suspensionStartTime: e.suspensionStartTime || null,
-                        suspensionEndTime: e.suspensionEndTime || null
-                    })),
-                    ...(studentEvents || []).map(e => ({
-                        _id: e._id,
-                        title: e.title,
-                        eventType: e.eventType,
-                        type: e.eventType === 'Government Holiday' ? 'HOLIDAY' : (e.eventType === 'Exam' || e.eventType === 'CIE / Test' ? 'EXAM' : 'EVENT'),
-                        kind: e.eventType === 'Government Holiday' ? 'HOLIDAY' : 'EVENT',
-                        description: e.description || '',
-                        startDate: e.startDate,
-                        endDate: e.endDate,
-                        allDay: e.isAllDay,
-                        isAllDay: e.isAllDay,
-                        scope: e.scope,
-                        classesSuspended: Boolean(e.classesSuspended) || e.eventType === 'Government Holiday' || e.eventType === 'Vacation',
-                        suspensionType: e.suspensionType || (e.classesSuspended ? 'full_day' : 'none'),
-                        suspensionStartTime: e.suspensionStartTime || null,
-                        suspensionEndTime: e.suspensionEndTime || null
-                    }))
+                    ...(collegeEvents || []).map(e => {
+                        const susp = resolveEventSuspension(e);
+                        const isHoliday = e.eventType === 'Holiday / Closure' || e.eventType === 'HOLIDAY';
+                        const isTestOrExam = e.eventType === 'Exam' || e.eventType === 'EXAM' || /test[-\s]?\d+|cie[-\s]?\d+|exam|internal/i.test(e.title || '');
+                        return {
+                            _id: e._id,
+                            title: e.title,
+                            eventType: e.eventType,
+                            type: isHoliday ? 'HOLIDAY' : (isTestOrExam ? 'EXAM' : 'EVENT'),
+                            kind: isHoliday ? 'HOLIDAY' : 'EVENT',
+                            description: e.description || '',
+                            startDate: e.startDate,
+                            endDate: e.endDate,
+                            allDay: e.allDay,
+                            isAllDay: e.allDay,
+                            scope: e.scope,
+                            classesSuspended: susp.classesSuspended,
+                            suspensionType: susp.suspensionType,
+                            suspensionStartTime: e.suspensionStartTime || null,
+                            suspensionEndTime: e.suspensionEndTime || null
+                        };
+                    }),
+                    ...(studentEvents || []).map(e => {
+                        const susp = resolveEventSuspension(e);
+                        const isHoliday = e.eventType === 'Government Holiday' || e.eventType === 'Vacation';
+                        const isTestOrExam = e.eventType === 'Exam' || e.eventType === 'CIE / Test' || /test[-\s]?\d+|cie[-\s]?\d+|exam/i.test(e.title || '');
+                        return {
+                            _id: e._id,
+                            title: e.title,
+                            eventType: e.eventType,
+                            type: isHoliday ? 'HOLIDAY' : (isTestOrExam ? 'EXAM' : 'EVENT'),
+                            kind: isHoliday ? 'HOLIDAY' : 'EVENT',
+                            description: e.description || '',
+                            startDate: e.startDate,
+                            endDate: e.endDate,
+                            allDay: e.isAllDay,
+                            isAllDay: e.isAllDay,
+                            scope: e.scope,
+                            classesSuspended: susp.classesSuspended,
+                            suspensionType: susp.suspensionType,
+                            suspensionStartTime: e.suspensionStartTime || null,
+                            suspensionEndTime: e.suspensionEndTime || null
+                        };
+                    })
                 ];
             } catch (evErr) {
                 console.warn('[getAttendanceDashboardV2] Event resolution warning:', evErr.message);
@@ -2339,6 +2396,7 @@ class AuthV2Controller {
                 }
             });
         } catch (error) {
+            console.error('[getAttendanceDashboardV2] Error:', error);
             return res.status(400).json({
                 success: false,
                 message: error.message || 'Failed to fetch dashboard'
@@ -2448,8 +2506,8 @@ class AuthV2Controller {
 
             const s = analytics.subjects.find(sub => 
                 sub.subjectId.toString() === subjectId && 
-                sub.category.toLowerCase() === requestedCategory.toLowerCase()
-            );
+                (sub.category ? sub.category.toLowerCase() : '') === requestedCategory.toLowerCase()
+            ) || analytics.subjects.find(sub => sub.subjectId.toString() === subjectId);
             if (!s) {
                 return res.status(404).json({ success: false, message: 'Subject not registered' });
             }
@@ -2515,7 +2573,7 @@ class AuthV2Controller {
             const StudentTimetable = require('../../../models/StudentTimetable');
             const StudentAttendanceEntry = require('../../../models/StudentAttendanceEntry');
 
-            const [config, rawOccurrences, rawSlots] = await Promise.all([
+            const [config, rawOccurrences, rawLegacyEntries, rawSlots] = await Promise.all([
                 StudentTimetableConfiguration.findOne({
                     student: studentId,
                     $or: [ { semester }, { semester: { $exists: false } } ]
@@ -2525,6 +2583,11 @@ class AuthV2Controller {
                     semester,
                     date: todayStr
                 }).populate('actualSubject scheduledSubject').lean(),
+                StudentAttendanceEntry.find({
+                    student: studentId,
+                    semester,
+                    date: todayStr
+                }).populate('subject scheduledSubject').lean(),
                 StudentTimetable.find({
                     student: studentId,
                     $or: [ { semester }, { semester: { $exists: false } } ],
@@ -2532,14 +2595,19 @@ class AuthV2Controller {
                 }).populate('subject').lean()
             ]);
 
-            let entries = rawOccurrences || [];
-            if (!entries || entries.length === 0) {
-                entries = await StudentAttendanceEntry.find({
-                    student: studentId,
-                    semester,
-                    date: todayStr
-                }).populate('subject scheduledSubject').lean();
+            // Merge entries: legacy StudentAttendanceEntry + ClassOccurrence (ClassOccurrence overrides)
+            const entryMergeMap = new Map();
+            for (const leg of (rawLegacyEntries || [])) {
+                const sId = (leg.scheduledSubject?._id || leg.scheduledSubject || leg.subject?._id || leg.subject)?.toString() || '';
+                const key = `${leg.timeSlot || ''}_${sId}`;
+                entryMergeMap.set(key, leg);
             }
+            for (const occ of (rawOccurrences || [])) {
+                const sId = (occ.scheduledSubject?._id || occ.scheduledSubject || occ.actualSubject?._id || occ.actualSubject)?.toString() || '';
+                const key = `${occ.timeSlot || ''}_${sId}`;
+                entryMergeMap.set(key, occ);
+            }
+            const entries = Array.from(entryMergeMap.values());
 
             let semStartStr = null;
             let semEndStr = null;
@@ -2583,20 +2651,26 @@ class AuthV2Controller {
             const startOfDay = new Date(todayStr + 'T00:00:00.000Z');
             const endOfDay = new Date(todayStr + 'T23:59:59.999Z');
 
+            const semScopeOr = [
+                { scope: 'GLOBAL' },
+                { scope: { $exists: false } }
+            ];
+            if (academicCtx?.officialSemester?._id) {
+                semScopeOr.push({ scope: 'SEMESTER', academicSemesterId: academicCtx.officialSemester._id });
+                semScopeOr.push({ academicSemesterId: academicCtx.officialSemester._id });
+            }
+            if (semester) {
+                semScopeOr.push({ semester });
+            }
+
             const collegeEventFilter = {
                 status: { $ne: 'ARCHIVED' },
                 startDate: { $lte: endOfDay },
                 endDate: { $gte: startOfDay },
-                $or: [
-                    { scope: 'GLOBAL', eventType: 'Holiday / Closure' },
-                    ...(academicCtx?.officialSemester ? [{
-                        scope: 'SEMESTER',
-                        academicSemesterId: academicCtx.officialSemester._id
-                    }] : [])
-                ]
+                $or: semScopeOr
             };
             if (req.student.college) {
-                collegeEventFilter.college = req.student.college;
+                collegeEventFilter.college = { $in: [req.student.college, null] };
             }
 
             const [activeCollegeEvents, activeStudentEvents] = await Promise.all([
@@ -2609,35 +2683,60 @@ class AuthV2Controller {
             ]);
 
             const dayEvents = [
-                ...(activeCollegeEvents || []).map(e => ({
-                    _id: e._id,
-                    title: e.title,
-                    eventType: e.eventType,
-                    description: e.description || '',
-                    classesSuspended: e.eventType === 'Holiday / Closure' || e.classesSuspended || (e.suspensionType && e.suspensionType !== 'none') || /vacation|holiday|closure/i.test(e.title) || /preparation.*holiday/i.test(e.title),
-                    suspensionType: e.suspensionType || (e.eventType === 'Holiday / Closure' ? 'full_day' : 'none'),
-                    suspensionStartTime: e.suspensionStartTime || null,
-                    suspensionEndTime: e.suspensionEndTime || null,
-                    scope: e.scope,
-                    startDate: e.startDate,
-                    endDate: e.endDate,
-                    source: 'COLLEGE'
-                })),
-                ...(activeStudentEvents || []).map(e => ({
-                    _id: e._id,
-                    title: e.title,
-                    eventType: e.eventType,
-                    description: e.description || '',
-                    classesSuspended: Boolean(e.classesSuspended) || e.eventType === 'Government Holiday' || e.eventType === 'Vacation',
-                    suspensionType: e.suspensionType || (e.classesSuspended ? 'full_day' : 'none'),
-                    suspensionStartTime: e.suspensionStartTime || null,
-                    suspensionEndTime: e.suspensionEndTime || null,
-                    scope: e.scope,
-                    startDate: e.startDate,
-                    endDate: e.endDate,
-                    source: 'STUDENT'
-                }))
+                ...(activeCollegeEvents || []).map(e => {
+                    const susp = resolveEventSuspension(e);
+                    return {
+                        _id: e._id,
+                        title: e.title,
+                        eventType: e.eventType,
+                        description: e.description || '',
+                        classesSuspended: susp.classesSuspended,
+                        suspensionType: susp.suspensionType,
+                        suspensionStartTime: e.suspensionStartTime || null,
+                        suspensionEndTime: e.suspensionEndTime || null,
+                        scope: e.scope,
+                        startDate: e.startDate,
+                        endDate: e.endDate,
+                        source: 'COLLEGE'
+                    };
+                }),
+                ...(activeStudentEvents || []).map(e => {
+                    const susp = resolveEventSuspension(e);
+                    return {
+                        _id: e._id,
+                        title: e.title,
+                        eventType: e.eventType,
+                        description: e.description || '',
+                        classesSuspended: susp.classesSuspended,
+                        suspensionType: susp.suspensionType,
+                        suspensionStartTime: e.suspensionStartTime || null,
+                        suspensionEndTime: e.suspensionEndTime || null,
+                        scope: e.scope,
+                        startDate: e.startDate,
+                        endDate: e.endDate,
+                        source: 'STUDENT'
+                    };
+                })
             ];
+
+            // If date is outside teaching bounds and no manual entries exist, return empty classes list
+            if ((isBeforeStart || isAfterEnd) && (!entries || entries.length === 0)) {
+                return res.status(200).json({
+                    success: true,
+                    message: isBeforeStart 
+                        ? `Regular classes commence on ${semStartStr}. No classes scheduled before commencement.`
+                        : `Last working day was ${semEndStr}. No classes scheduled after last working day.`,
+                    data: [],
+                    isOutsideSemester: true,
+                    classesSuspended: true,
+                    dayEvents,
+                    activeEvent: dayEvents[0] || null,
+                    semesterStartDate: semStartStr,
+                    lastWorkingDate: semEndStr,
+                    isSuperAdmin,
+                    canEditAnytime: isSuperAdmin
+                });
+            }
 
             const fullDaySuspendingEvent = dayEvents.find(e => 
                 e.suspensionType === 'full_day' || 
@@ -2667,25 +2766,6 @@ class AuthV2Controller {
             }
 
             const timeRangeSuspension = dayEvents.find(e => e.suspensionType === 'time_range' && e.suspensionStartTime && e.suspensionEndTime);
-
-            // If date is outside teaching bounds and no manual entries exist, return empty classes list
-            if ((isBeforeStart || isAfterEnd) && (!entries || entries.length === 0)) {
-                return res.status(200).json({
-                    success: true,
-                    message: isBeforeStart 
-                        ? `Regular classes commence on ${semStartStr}. No classes scheduled before commencement.`
-                        : `Last working day was ${semEndStr}. No classes scheduled after last working day.`,
-                    data: [],
-                    isOutsideSemester: true,
-                    classesSuspended: true,
-                    dayEvents,
-                    activeEvent: dayEvents[0] || null,
-                    semesterStartDate: semStartStr,
-                    lastWorkingDate: semEndStr,
-                    isSuperAdmin,
-                    canEditAnytime: isSuperAdmin
-                });
-            }
 
             let slots = [];
             if (!isBeforeStart && !isAfterEnd) {
@@ -2929,6 +3009,7 @@ class AuthV2Controller {
                 if (pastClasses.length > 0) {
                     const ops = pastClasses.map(c => ({
                         updateOne: {
+                            // B1 FIX: Include semester in filter to prevent cross-semester contamination
                             filter: { student: studentId, semester, date: c.date, timeSlot: c.timeSlot },
                             update: {
                                 $setOnInsert: {
@@ -2938,6 +3019,8 @@ class AuthV2Controller {
                                     subject: c.subject,
                                     date: c.date,
                                     timeSlot: c.timeSlot,
+                                    // B2 FIX: Persist lectureType so analytics can categorise correctly
+                                    lectureType: c.lectureType || 'Lecture',
                                     status: 'Present',
                                     createdBy: 'Student'
                                 }
@@ -2945,7 +3028,31 @@ class AuthV2Controller {
                             upsert: true
                         }
                     }));
-                    await StudentAttendanceEntry.bulkWrite(ops);
+                    const occOps = pastClasses.map(c => ({
+                        updateOne: {
+                            filter: { student: studentId, semester, date: c.date, timeSlot: c.timeSlot },
+                            update: {
+                                $setOnInsert: {
+                                    student: studentId,
+                                    semester,
+                                    date: c.date,
+                                    timeSlot: c.timeSlot,
+                                    scheduledSubject: c.subject,
+                                    actualSubject: c.subject,
+                                    sessionType: c.lectureType || 'Lecture',
+                                    occurrenceType: 'REGULAR',
+                                    status: 'PRESENT',
+                                    markedBy: 'STUDENT',
+                                    markedAt: new Date()
+                                }
+                            },
+                            upsert: true
+                        }
+                    }));
+                    await Promise.all([
+                        StudentAttendanceEntry.bulkWrite(ops),
+                        ClassOccurrence.bulkWrite(occOps)
+                    ]);
                 }
                 await StudentExpectedSchedule.deleteOne({ student: studentId, semester });
                 return res.status(200).json({
@@ -3023,7 +3130,10 @@ class AuthV2Controller {
                     if (!isNaN(eH)) endMinute = eH * 60 + (eM || 0);
                 }
 
-                const isSubjectSwap = schedSubj.toString() !== actSubj.toString();
+                // B3 FIX: Guard against null schedSubj/actSubj — avoid runtime crash on .toString()
+                const isSubjectSwap = schedSubj && actSubj
+                    ? schedSubj.toString() !== actSubj.toString()
+                    : false;
                 const occurrenceType = req.body.isExtraClass 
                     ? 'EXTRA' 
                     : (isSubjectSwap ? 'SWAPPED' : (validatedStatus === 'SUSPENDED' ? 'SUSPENDED' : 'REGULAR'));
@@ -3039,6 +3149,7 @@ class AuthV2Controller {
                         subject: actSubj,
                         date,
                         timeSlot: slot,
+                        lectureType: req.body.lectureType || 'Lecture',
                         status: status === 'Present' || status === 'PRESENT' ? 'Present' : (status === 'Absent' || status === 'ABSENT' ? 'Absent' : status),
                         remarks: remarks || '',
                         createdBy: 'Student'
@@ -3305,23 +3416,27 @@ class AuthV2Controller {
             }).populate('subject');
 
             let subjectDoc = null;
-            if (!regSubject) {
-                const AcademicSubjectCms = require('../../../models/AcademicSubject');
-                subjectDoc = await AcademicSubjectCms.findById(registeredSubjectId).lean();
-                if (subjectDoc) {
-                    regSubject = {
-                        _id: null,
-                        subject: subjectDoc,
-                        registeredCredits: subjectDoc.credits,
-                        category: subjectDoc.category || 'Theory'
-                    };
+            if (!regSubject && mongoose.connection?.readyState === 1) {
+                try {
+                    const AcademicSubjectCms = require('../../../models/AcademicSubject');
+                    subjectDoc = await AcademicSubjectCms.findById(registeredSubjectId).lean();
+                    if (subjectDoc) {
+                        regSubject = {
+                            _id: null,
+                            subject: subjectDoc,
+                            registeredCredits: subjectDoc.credits,
+                            category: subjectDoc.category || 'Theory'
+                        };
+                    }
+                } catch (e) {
+                    // Fallback lookup failed; regSubject remains null
                 }
             }
 
             if (!regSubject) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Subject not found'
+                    message: 'Registered subject not found'
                 });
             }
 
@@ -3459,22 +3574,36 @@ class AuthV2Controller {
                 const cieRec = cieMap.get(regIdStr) || (subjIdStr ? cieMap.get(subjIdStr) : null);
                 const savedResult = savedSubjectMap.get(regIdStr);
 
-                // Dynamically compute CIE from rules engine to ensure 100% accuracy
-                const rawMarks = cieRec?.rawMarks || {};
-                const evalTypeOverride = cieRec?.evaluationType || regSub.evaluationType || null;
-                const cieCalc = cieRulesEngine.calculateSubjectCie({
-                    registeredSubject: regSub,
-                    rawMarks,
-                    evaluationTypeOverride: evalTypeOverride
-                });
-
+                // Prioritize authoritative pre-calculated CIE result if present
                 let cieData = null;
-                if (cieRec || cieCalc.totalEnteredCount > 0) {
+                if (cieRec?.calculatedResult && cieRec.calculatedResult.status !== 'NOT_STARTED') {
                     cieData = {
-                        totalCie: cieCalc.totalCie,
-                        isEligible: cieCalc.isEligible,
-                        status: cieCalc.status
+                        totalCie: Number(cieRec.calculatedResult.totalCie || 0),
+                        isEligible: Boolean(cieRec.calculatedResult.isEligible),
+                        status: cieRec.calculatedResult.status
                     };
+                } else {
+                    const rawMarks = cieRec?.rawMarks || {};
+                    const evalTypeOverride = cieRec?.evaluationType || regSub.evaluationType || null;
+                    const cieCalc = cieRulesEngine.calculateSubjectCie({
+                        registeredSubject: regSub,
+                        rawMarks,
+                        evaluationTypeOverride: evalTypeOverride
+                    });
+
+                    if (cieRec || cieCalc.totalEnteredCount > 0) {
+                        cieData = {
+                            totalCie: cieCalc.totalCie,
+                            isEligible: cieCalc.isEligible,
+                            status: cieCalc.status
+                        };
+                    } else if (rawMarks.cie !== undefined && rawMarks.cie !== null) {
+                        cieData = {
+                            totalCie: Number(rawMarks.cie),
+                            isEligible: Number(rawMarks.cie) >= 40,
+                            status: 'COMPLETED'
+                        };
+                    }
                 }
 
                 const seeRawMarks = savedResult?.seeRawMarks !== undefined && savedResult?.seeRawMarks !== null
@@ -3622,22 +3751,36 @@ class AuthV2Controller {
                 const cieRec = cieMap.get(regIdStr) || (subjIdStr ? cieMap.get(subjIdStr) : null);
                 const existingSub = existingSubjectMap.get(regIdStr);
 
-                // Dynamically compute CIE from rules engine to ensure 100% accuracy
-                const rawMarks = cieRec?.rawMarks || {};
-                const evalTypeOverride = cieRec?.evaluationType || regSub.evaluationType || null;
-                const cieCalc = cieRulesEngine.calculateSubjectCie({
-                    registeredSubject: regSub,
-                    rawMarks,
-                    evaluationTypeOverride: evalTypeOverride
-                });
-
+                // Prioritize authoritative pre-calculated CIE result if present
                 let cieData = null;
-                if (cieRec || cieCalc.totalEnteredCount > 0) {
+                if (cieRec?.calculatedResult && cieRec.calculatedResult.status !== 'NOT_STARTED') {
                     cieData = {
-                        totalCie: cieCalc.totalCie,
-                        isEligible: cieCalc.isEligible,
-                        status: cieCalc.status
+                        totalCie: Number(cieRec.calculatedResult.totalCie || 0),
+                        isEligible: Boolean(cieRec.calculatedResult.isEligible),
+                        status: cieRec.calculatedResult.status
                     };
+                } else {
+                    const rawMarks = cieRec?.rawMarks || {};
+                    const evalTypeOverride = cieRec?.evaluationType || regSub.evaluationType || null;
+                    const cieCalc = cieRulesEngine.calculateSubjectCie({
+                        registeredSubject: regSub,
+                        rawMarks,
+                        evaluationTypeOverride: evalTypeOverride
+                    });
+
+                    if (cieRec || cieCalc.totalEnteredCount > 0) {
+                        cieData = {
+                            totalCie: cieCalc.totalCie,
+                            isEligible: cieCalc.isEligible,
+                            status: cieCalc.status
+                        };
+                    } else if (rawMarks.cie !== undefined && rawMarks.cie !== null) {
+                        cieData = {
+                            totalCie: Number(rawMarks.cie),
+                            isEligible: Number(rawMarks.cie) >= 40,
+                            status: 'COMPLETED'
+                        };
+                    }
                 }
 
                 const seeRaw = existingSub?.seeRawMarks !== undefined ? existingSub.seeRawMarks : null;
@@ -3700,6 +3843,28 @@ class AuthV2Controller {
                     },
                     { upsert: true }
                 );
+
+                // Compute cumulative CGPA across all completed semesters
+                const allCompletedSems = await StudentSemester.find({
+                    student: studentId,
+                    sgpa: { $ne: null, $gt: 0 }
+                }).lean();
+
+                let totalWeightedSgpa = 0;
+                let totalCgpaCredits = 0;
+                for (const s of allCompletedSems) {
+                    const semCredits = Number(s.credits) || 0;
+                    const semSgpa = Number(s.sgpa) || 0;
+                    if (semCredits > 0 && semSgpa > 0) {
+                        totalWeightedSgpa += semSgpa * semCredits;
+                        totalCgpaCredits += semCredits;
+                    }
+                }
+
+                if (totalCgpaCredits > 0) {
+                    const cumulativeCgpa = Math.round((totalWeightedSgpa / totalCgpaCredits + Number.EPSILON) * 100) / 100;
+                    await StudentAccount.findByIdAndUpdate(studentId, { cgpa: cumulativeCgpa });
+                }
             }
 
             return res.status(200).json({

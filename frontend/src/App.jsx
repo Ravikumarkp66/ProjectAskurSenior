@@ -80,13 +80,13 @@ const LoadingFallback = () => (
     </div>
 );
 
-const ProtectedRoute = ({ children, allowIncomplete = false }) => {
+const ProtectedRoute = ({ children, allowIncomplete = false, allowGuest = false }) => {
     const { isAuthenticated, loading, user } = useAuth();
     const location = useLocation();
 
     if (loading) return <LoadingFallback />;
     
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !allowGuest) {
         return <Navigate to="/login" />;
     }
     
@@ -208,7 +208,7 @@ function AppContent() {
                     <Route
                         path="/profile"
                         element={
-                            <ProtectedRoute>
+                            <ProtectedRoute allowGuest={true}>
                                 <DashboardLayout />
                             </ProtectedRoute>
                         }
@@ -252,7 +252,7 @@ function AppContent() {
 
                     {/* F-08: Academic Overview */}
                     <Route path="/student-academics" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowGuest={true}>
                             <DashboardLayout />
                         </ProtectedRoute>
                     }>
@@ -265,17 +265,18 @@ function AppContent() {
 
                     {/* F-011: Faculty Insights */}
                     <Route path="/faculty-insights" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowGuest={true}>
                             <DashboardLayout />
                         </ProtectedRoute>
                     }>
                         <Route index element={<FacultyInsightsPage />} />
+                        <Route path=":facultyId" element={<FacultyInsightsPage />} />
                         <Route path=":facultyId/:subjectCode" element={<FacultyInsightsPage />} />
                     </Route>
 
                     {/* My Subjects Dedicated Workspace */}
                     <Route path="/my-subjects" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowGuest={true}>
                             <DashboardLayout />
                         </ProtectedRoute>
                     }>
@@ -289,7 +290,7 @@ function AppContent() {
 
                     {/* Academic Dashboard Layout Group */}
                     <Route path="/home" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowGuest={true}>
                             <DashboardLayout />
                         </ProtectedRoute>
                     }>
@@ -313,6 +314,7 @@ function AppContent() {
                         <Route path="sgpa" element={<Navigate to="/plus/sgpa" replace />} />
                         <Route path="academic-summary" element={<AcademicSummaryPage />} />
                         <Route path="blogs" element={<UserHomePage />} />
+                        <Route path="announcements" element={<Navigate to="/plus/announcements" replace />} />
                         <Route path="attendance" element={<AttendanceSettings />} />
                         <Route path="timetable" element={<TimetableSettings />} />
                         <Route path="cie" element={<CieSettings />} />
@@ -322,7 +324,7 @@ function AppContent() {
 
                     {/* Plus Route Group */}
                     <Route path="/plus" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute allowGuest={true}>
                             <DashboardLayout />
                         </ProtectedRoute>
                     }>
@@ -354,17 +356,28 @@ function AppContent() {
                         <Route path="my-subjects/:subjectSlug/:moduleSlug/:section/:topicSlug" element={<MySubjectsPage />} />
                         <Route path="my-subjects/*" element={<MySubjectsPage />} />
                         <Route path="subject-registration" element={<Navigate to="/student-academics/subjects" replace />} />
-                        <Route path="cie-analyzer" element={<CieSettings />} />
+                        <Route path="cie-analyzer" element={<DashboardPage />} />
+                        <Route path="cie-eligibility" element={<DashboardPage />} />
                         <Route path="cie" element={<CieSettings />} />
-                        <Route path="eligibility-checker" element={<AcademicSummaryPage />} />
+                        <Route path="eligibility-checker" element={<DashboardPage />} />
                         <Route path="academic-summary" element={<AcademicSummaryPage />} />
                         <Route path="academic-overview" element={<AcademicSummaryPage />} />
                         <Route path="library" element={<SubjectsPage />} />
-                        <Route path="campus-explorer" element={<Navigate to="/campus-map" replace />} />
-                        <Route path="faculty-ratings" element={<Navigate to="/faculty-insights" replace />} />
-                        <Route path="faculty-insights" element={<Navigate to="/faculty-insights" replace />} />
-                        <Route path="interview" element={<Navigate to="/home/interview" replace />} />
-                        <Route path="interview-experiences" element={<Navigate to="/home/interview" replace />} />
+                        <Route path="campus-explorer" element={<CampusMap />} />
+                        <Route path="campus-map" element={<CampusMap />} />
+                        <Route path="campus-hub" element={<CampusHub />} />
+                        <Route path="faculty-ratings" element={<FacultyInsightsPage />} />
+                        <Route path="faculty-ratings/:facultyId" element={<FacultyInsightsPage />} />
+                        <Route path="faculty-ratings/:facultyId/:subjectCode" element={<FacultyInsightsPage />} />
+                        <Route path="faculty-insights" element={<FacultyInsightsPage />} />
+                        <Route path="faculty-insights/:facultyId" element={<FacultyInsightsPage />} />
+                        <Route path="faculty-insights/:facultyId/:subjectCode" element={<FacultyInsightsPage />} />
+                        <Route path="interview" element={<InterviewExperiencesPage />} />
+                        <Route path="interview/:id" element={<CompanyRolePage />} />
+                        <Route path="interview/add" element={<ShareExperience />} />
+                        <Route path="interview/share" element={<ShareExperience />} />
+                        <Route path="interview-experiences" element={<InterviewExperiencesPage />} />
+                        <Route path="interview-experiences/:id" element={<CompanyRolePage />} />
                         <Route path="year-back-predictor" element={<DashboardPage />} />
                         <Route path="branch-change-predictor" element={<DashboardPage />} />
                         <Route path="attendance" element={<AttendanceSettings />} />
@@ -383,15 +396,18 @@ function AppContent() {
                     </Route>
                     
                     {/* Coding Playground Workspace */}
-                    <Route path="/lab-programs" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
-                    <Route path="/playground" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
-                    <Route path="/plus/lab-programs" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
-                    <Route path="/plus/playground" element={<ProtectedRoute><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/lab-programs" element={<ProtectedRoute allowGuest={true}><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/playground" element={<ProtectedRoute allowGuest={true}><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/plus/lab-programs" element={<ProtectedRoute allowGuest={true}><CodingPlaygroundPage /></ProtectedRoute>} />
+                    <Route path="/plus/playground" element={<ProtectedRoute allowGuest={true}><CodingPlaygroundPage /></ProtectedRoute>} />
                     
                     {/* Quizzes & Campus */}
                     <Route path="/quiz/:quizId" element={<ProtectedRoute><QuizPage /></ProtectedRoute>} />
-                    <Route path="/campus-hub" element={<ProtectedRoute><CampusHub /></ProtectedRoute>} />
-                    <Route path="/campus-map" element={<ProtectedRoute><CampusMap /></ProtectedRoute>} />
+                    <Route path="/campus-hub" element={<ProtectedRoute allowGuest={true}><CampusHub /></ProtectedRoute>} />
+                    <Route path="/campus-map" element={<ProtectedRoute allowGuest={true}><CampusMap /></ProtectedRoute>} />
+
+                    {/* Announcements - Route smoothly to /plus/announcements */}
+                    <Route path="/announcements" element={<Navigate to="/plus/announcements" replace />} />
 
                     {/* Legacy Admin URLs smoothly redirect to home */}
                     <Route path="/admin/*" element={<Navigate to="/" replace />} />

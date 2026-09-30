@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../utils/hooks';
 import AcademicCalendar from '../../components/AcademicCalendar';
 import academicAPI from '../../services/academicService';
+import AuthGate from '../../components/AuthGate';
 
 const AcademicCalendarPage = () => {
     const navigate = useNavigate();
@@ -42,6 +43,16 @@ const AcademicCalendarPage = () => {
         };
         load();
     }, [isAuthenticated]);
+
+    if (!isAuthenticated) {
+        return (
+            <AuthGate
+                requireAuth={true}
+                requirePlus={false}
+                loginMessage="Sign in to view your academic calendar."
+            />
+        );
+    }
 
     /* ── Loading ── */
     if (loading) return (

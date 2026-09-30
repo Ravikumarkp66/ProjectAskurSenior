@@ -8,7 +8,9 @@ import {
     CircleHelp, 
     LogOut, 
     Sun, 
-    Moon 
+    Moon,
+    Plus,
+    Lock
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -39,7 +41,7 @@ const getProfilePicUrl = (pic) => {
 };
 
 const UserMenu = ({ direction = 'down', align = 'right' }) => {
-    const { user, logout } = useAuth();
+    const { user, isAuthenticated, logout, hasPlusAccess } = useAuth();
     const { isDark, themeMode, setThemeMode } = useTheme();
     const { openBugReport } = useBugReportModal();
     const navigate = useNavigate();
@@ -139,10 +141,12 @@ const UserMenu = ({ direction = 'down', align = 'right' }) => {
                         onError={() => setImgError(true)}
                         className="w-full h-full object-cover"
                     />
-                ) : (
+                ) : isAuthenticated ? (
                     <span className="text-xs font-bold tracking-tight text-purple-600 dark:text-purple-300">
                         {initials}
                     </span>
+                ) : (
+                    <UserRound size={16} className="text-purple-600 dark:text-purple-300" strokeWidth={1.75} />
                 )}
             </button>
 
@@ -160,40 +164,90 @@ const UserMenu = ({ direction = 'down', align = 'right' }) => {
                             : 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-900/10'
                     }`}
                 >
-                    {/* Header: Student Info */}
+                    {/* Header: Student Info / Guest Info */}
                     <div className={`px-3 py-2.5 mb-1 rounded-lg border-b ${
                         isDark ? 'border-slate-800/80 bg-slate-900/30' : 'border-slate-100 bg-slate-50/50'
                     }`}>
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-300 font-bold text-xs shrink-0 overflow-hidden">
-                                {profilePic && !imgError ? (
-                                    <img
-                                        src={getProfilePicUrl(profilePic)}
-                                        alt={user?.name || 'User'}
-                                        onError={() => setImgError(true)}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    initials
-                                )}
+                        <div className="flex items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-300 font-bold text-xs shrink-0 overflow-hidden">
+                                    {profilePic && !imgError ? (
+                                        <img
+                                            src={getProfilePicUrl(profilePic)}
+                                            alt={user?.name || 'User'}
+                                            onError={() => setImgError(true)}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : isAuthenticated ? (
+                                        initials
+                                    ) : (
+                                        <UserRound size={15} />
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-bold truncate text-slate-900 dark:text-slate-100">
+                                        {isAuthenticated ? (user?.name || 'AskUrSenior Student') : 'Guest Student'}
+                                    </p>
+                                    <p className="text-[11px] truncate text-slate-500 dark:text-slate-400">
+                                        {isAuthenticated ? user?.email : 'Sign in for full access'}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold truncate text-slate-900 dark:text-slate-100">
-                                    {user?.name || 'AskUrSenior Student'}
-                                </p>
-                                <p className="text-[11px] truncate text-slate-500 dark:text-slate-400">
-                                    {user?.email}
-                                </p>
-                            </div>
+                            {!isAuthenticated && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleItemClick('/login')}
+                                    className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-600 hover:bg-purple-700 text-white shrink-0 transition-all cursor-pointer shadow-sm"
+                                >
+                                    Sign In
+                                </button>
+                            )}
                         </div>
                     </div>
 
                     {/* Navigation Items */}
                     <div className="space-y-0.5">
+                        {/* Upgrade to Plus CTA / Plus Active Status */}
+                        {!hasPlusAccess ? (
+                            <button
+                                type="button"
+                                onClick={() => handleItemClick(isAuthenticated ? '/pricing' : '/plus')}
+                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all text-left cursor-pointer text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-md shadow-purple-600/20 mb-1.5"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                        <Plus size={11} strokeWidth={3} className="text-white" />
+                                    </span>
+                                    <span>Upgrade to Plus</span>
+                                </div>
+                                <span className="text-[11px] font-normal opacity-85">→</span>
+                            </button>
+                        ) : (
+                            <div className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs mb-1.5 border ${
+                                isDark
+                                    ? 'bg-purple-950/20 border-purple-800/40 text-purple-300'
+                                    : 'bg-purple-50 border-purple-200 text-purple-700'
+                            }`}>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                                        <Plus size={11} strokeWidth={3} className="text-purple-600 dark:text-purple-400" />
+                                    </span>
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-[11px] leading-tight">AskUrSenior Plus</span>
+                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Active</span>
+                                    </div>
+                                </div>
+                                <span className="text-[9px] font-mono font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+                                    PLUS
+                                </span>
+                            </div>
+                        )}
+
+                        {/* My Profile — Login lock only */}
                         <button
                             type="button"
-                            onClick={() => handleItemClick('/profile')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
+                            onClick={() => handleItemClick(isAuthenticated ? '/profile' : '/login')}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
                                 isProfileActive
                                     ? isDark
                                         ? 'bg-purple-500/15 text-purple-300 font-semibold'
@@ -203,14 +257,18 @@ const UserMenu = ({ direction = 'down', align = 'right' }) => {
                                         : 'hover:bg-slate-100 hover:text-slate-900 text-slate-700'
                             }`}
                         >
-                            <UserRound size={16} className="text-purple-500 shrink-0" strokeWidth={1.75} />
-                            <span>My Profile</span>
+                            <div className="flex items-center gap-2.5">
+                                <UserRound size={16} className="text-purple-500 shrink-0" strokeWidth={1.75} />
+                                <span>My Profile</span>
+                            </div>
+                            {!isAuthenticated && <Lock size={12} className="text-slate-400 shrink-0" title="Login required" />}
                         </button>
 
+                        {/* Account — Login lock only */}
                         <button
                             type="button"
-                            onClick={() => handleItemClick('/account')}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
+                            onClick={() => handleItemClick(isAuthenticated ? '/account' : '/login')}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
                                 isAccountActive
                                     ? isDark
                                         ? 'bg-purple-500/15 text-purple-300 font-semibold'
@@ -220,24 +278,37 @@ const UserMenu = ({ direction = 'down', align = 'right' }) => {
                                         : 'hover:bg-slate-100 hover:text-slate-900 text-slate-700'
                             }`}
                         >
-                            <Settings2 size={16} className="text-purple-500 shrink-0" strokeWidth={1.75} />
-                            <span>Account</span>
+                            <div className="flex items-center gap-2.5">
+                                <Settings2 size={16} className="text-purple-500 shrink-0" strokeWidth={1.75} />
+                                <span>Account</span>
+                            </div>
+                            {!isAuthenticated && <Lock size={12} className="text-slate-400 shrink-0" title="Login required" />}
                         </button>
 
+                        {/* Bug Report — Login lock only */}
                         <button
                             type="button"
-                            onClick={handleOpenBugReport}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
+                            onClick={() => {
+                                if (!isAuthenticated) {
+                                    handleItemClick('/login');
+                                } else {
+                                    handleOpenBugReport();
+                                }
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left cursor-pointer ${
                                 isDark
                                     ? 'hover:bg-slate-800/70 hover:text-white text-slate-300'
                                     : 'hover:bg-slate-100 hover:text-slate-900 text-slate-700'
                             }`}
                         >
-                            <Bug size={16} className="text-purple-500 shrink-0" strokeWidth={1.75} />
-                            <span>Bug Report</span>
+                            <div className="flex items-center gap-2.5">
+                                <Bug size={16} className="text-purple-500 shrink-0" strokeWidth={1.75} />
+                                <span>Bug Report</span>
+                            </div>
+                            {!isAuthenticated && <Lock size={12} className="text-slate-400 shrink-0" title="Login required" />}
                         </button>
 
-                        {/* Theme Toggle (Light / Dark) */}
+                        {/* Theme Toggle (Light / Dark) — Free for all */}
                         <div className="px-3 py-1.5">
                             <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
@@ -277,6 +348,7 @@ const UserMenu = ({ direction = 'down', align = 'right' }) => {
                             </div>
                         </div>
 
+                        {/* Help & Support — Free for all */}
                         <button
                             type="button"
                             onClick={() => handleItemClick('/support')}
@@ -295,20 +367,22 @@ const UserMenu = ({ direction = 'down', align = 'right' }) => {
                         </button>
                     </div>
 
-                    {/* Divider */}
-                    <div className={`h-px my-1.5 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
-
-                    {/* Logout Button */}
-                    <button
-                        type="button"
-                        onClick={handleLogout}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left text-red-500 hover:bg-red-500/10 cursor-pointer ${
-                            isDark ? 'hover:text-red-400' : 'hover:text-red-600'
-                        }`}
-                    >
-                        <LogOut size={16} strokeWidth={1.75} className="shrink-0" />
-                        <span>Logout</span>
-                    </button>
+                    {/* Logout Button — Only shown when logged in */}
+                    {isAuthenticated && (
+                        <>
+                            <div className={`h-px my-1.5 ${isDark ? 'bg-slate-800' : 'bg-slate-100'}`} />
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left text-red-500 hover:bg-red-500/10 cursor-pointer ${
+                                    isDark ? 'hover:text-red-400' : 'hover:text-red-600'
+                                }`}
+                            >
+                                <LogOut size={16} strokeWidth={1.75} className="shrink-0" />
+                                <span>Logout</span>
+                            </button>
+                        </>
+                    )}
                 </motion.div>
             )}
         </div>

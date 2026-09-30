@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bug, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
+import { Bug, ArrowLeft, Loader2, CheckCircle2, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../services/api/apiClient';
 import Navbar from '../../components/navbar';
 
@@ -18,12 +19,22 @@ const PROBLEM_TYPES = [
 
 const BugReportPage = () => {
     const { isDark } = useTheme();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [problemType, setProblemType] = useState('Other');
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [contactEmail, setContactEmail] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+
+    const isPlusUser = Boolean(user?.access?.hasPlusAccess || user?.access?.plan === 'PLUS' || user?.isPlus);
+
+    useEffect(() => {
+        if (user?.email) {
+            setContactEmail(user.email);
+        }
+    }, [user]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -43,7 +54,8 @@ const BugReportPage = () => {
                 title: title.trim(),
                 description: description.trim(),
                 problemType,
-                pageUrl
+                pageUrl,
+                contactEmail: user ? user.email : (contactEmail.trim() || undefined)
             });
 
             setSubmitted(true);
@@ -164,6 +176,53 @@ const BugReportPage = () => {
                                     }`}
                                 />
                             </div>
+
+                            {/* Guest Email Field */}
+                            {!user && (
+                                <div>
+                                    <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                                        Your Email <span className="text-slate-400 font-normal">(optional, so we can reply to you)</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={contactEmail}
+                                        onChange={(e) => setContactEmail(e.target.value)}
+                                        placeholder="e.g. yourname@gmail.com"
+                                        maxLength={100}
+                                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border outline-none transition-all ${
+                                            isDark
+                                                ? 'bg-slate-900/80 border-slate-800 text-slate-100 focus:border-purple-500'
+                                                : 'bg-white border-slate-200 text-slate-900 focus:border-purple-600'
+                                        }`}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Logged in student badge */}
+                            {user && (
+                                <div className={`p-2.5 rounded-xl border text-[11px] flex items-center justify-between ${
+                                    isDark
+                                        ? 'bg-slate-900/50 border-slate-800/80 text-slate-400'
+                                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                                }`}>
+                                    <div className="flex items-center gap-1.5 truncate">
+                                        <span className="font-semibold text-slate-900 dark:text-slate-200 truncate">
+                                            {user.name || user.email}
+                                        </span>
+                                        {user.usn && <span className="text-slate-400">({user.usn})</span>}
+                                    </div>
+                                    {isPlusUser ? (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 shrink-0 flex items-center gap-1">
+                                            <Sparkles size={10} />
+                                            <span>Plus</span>
+                                        </span>
+                                    ) : (
+                                        <span className="px-1.5 py-0.5 rounded text-[9px] font-medium uppercase tracking-wider bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 shrink-0">
+                                            Student
+                                        </span>
+                                    )}
+                                </div>
+                            )}
 
                             <div>
                                 <label className={`block text-xs font-semibold mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>

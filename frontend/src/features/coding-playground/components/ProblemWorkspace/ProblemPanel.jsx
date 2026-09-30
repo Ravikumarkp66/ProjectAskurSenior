@@ -4,9 +4,18 @@ import {
     Copy, Check, ChevronDown, ChevronRight, 
     Send, Lightbulb, AlertCircle,
     Code2, X, Terminal, Clock, CheckCircle, XCircle,
-    HelpCircle, Sparkles
+    HelpCircle, Sparkles, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const FAKE_PROBLEM_DESCRIPTION = `Given an input dataset comprising structured records and execution constraints, design and develop an algorithmic procedure in accordance with standard curriculum specifications.
+
+The algorithm must parse the incoming parameters, initialize dynamic memory buffers, and iteratively evaluate deterministic state transitions. Verify all boundary edge-cases, including boundary parity conditions, null pointers, and arithmetic overflows before formatting the final response.
+
+To prevent unauthorized distribution of graded academic laboratory assessments, the verified problem statement, formal mathematical formulation, and evaluation suites are reserved for verified AskUrSenior Plus members.`;
+
+const FAKE_INPUT_FORMAT = `Standard space-delimited input sequence adhering to the problem specifications.`;
+const FAKE_OUTPUT_FORMAT = `Formatted solution values printed to standard output as defined in the plus program manual.`;
 
 // Helper for relative timestamps
 function formatRelativeTime(dateString) {
@@ -53,7 +62,10 @@ const ProblemPanel = ({
     onPostDiscussion,
     onToggleUpvoteDiscussion,
     onLoadSubmissionCode,
-    workspaceMode = 'split'
+    workspaceMode = 'split',
+    isAuthenticated = true,
+    hasPlusAccess = true,
+    onPlusAction
 }) => {
     const [copiedIndex, setCopiedIndex] = useState(null);
     const [expandedHints, setExpandedHints] = useState({});
@@ -74,6 +86,8 @@ const ProblemPanel = ({
     }, [program?._id || program?.id || program?.slug]);
 
     const isDark = theme === 'dark';
+    const plusTooltip = isAuthenticated ? 'Upgrade for plus access' : 'Login for plus access';
+    const plusButtonText = isAuthenticated ? 'Upgrade to Plus' : 'Login for plus access';
 
     const handleCopy = (text, idx) => {
         navigator.clipboard.writeText(text);
@@ -163,17 +177,21 @@ const ProblemPanel = ({
     const examplesList = program.examples || [];
 
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: 'calc(100vh - 50px)',
-            backgroundColor: isDark ? '#0D0D0D' : '#F8F9FB',
-            borderRight: isDark ? '1px solid #1E1E1E' : '1px solid #E5E7EB',
-            overflow: 'hidden',
-            flex: 1,
-            transition: 'background-color 0.2s ease, border-color 0.2s ease',
-            position: 'relative'
-        }}>
+        <div 
+            className={isDark ? "dark" : ""}
+            data-theme={isDark ? "dark" : "light"}
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: 'calc(100vh - 50px)',
+                backgroundColor: isDark ? '#0D0D0D' : '#F8F9FB',
+                color: isDark ? '#FFFFFF' : '#111827',
+                borderRight: isDark ? '1px solid #1E1E1E' : '1px solid #E5E7EB',
+                overflow: 'hidden',
+                flex: 1,
+                transition: 'background-color 0.2s ease, border-color 0.2s ease',
+                position: 'relative'
+            }}>
             {/* 1. TOP TABS BAR */}
             <div style={{
                 display: 'flex',
@@ -295,53 +313,86 @@ const ProblemPanel = ({
 
                         {/* 1. Problem Statement */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#A0A0A0' : '#4B5563', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Problem Statement
-                            </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#A0A0A0' : '#4B5563', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    Problem Statement
+                                </h3>
+                                {!hasPlusAccess && (
+                                    <span 
+                                        title={plusTooltip}
+                                        onClick={onPlusAction}
+                                        style={{
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            color: isDark ? '#C084FC' : '#7E22CE',
+                                            backgroundColor: isDark ? 'rgba(192, 132, 252, 0.12)' : 'rgba(147, 51, 234, 0.08)',
+                                            padding: '2px 8px',
+                                            borderRadius: 4,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4
+                                        }}
+                                    >
+                                        <Lock size={11} />
+                                        <span>Sample Overview</span>
+                                    </span>
+                                )}
+                            </div>
                             <div style={{
                                 fontSize: 14,
                                 color: isDark ? '#E0E0E0' : '#1F2937',
                                 lineHeight: 1.7,
                                 whiteSpace: 'pre-line'
                             }}>
-                                {program.description}
+                                {hasPlusAccess ? program.description : FAKE_PROBLEM_DESCRIPTION}
                             </div>
                         </div>
 
                         {/* 2. Input Format */}
-                        {program.inputFormat && (
+                        {(hasPlusAccess ? program.inputFormat : FAKE_INPUT_FORMAT) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#A0A0A0' : '#4B5563', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                     Input Format
                                 </h3>
                                 <div style={{ fontSize: 13.5, color: isDark ? '#D0D0D0' : '#374151', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                                    {program.inputFormat}
+                                    {hasPlusAccess ? program.inputFormat : FAKE_INPUT_FORMAT}
                                 </div>
                             </div>
                         )}
 
                         {/* 3. Output Format */}
-                        {program.outputFormat && (
+                        {(hasPlusAccess ? program.outputFormat : FAKE_OUTPUT_FORMAT) && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <h3 style={{ fontSize: 13, fontWeight: 700, color: isDark ? '#A0A0A0' : '#4B5563', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                                     Output Format
                                 </h3>
                                 <div style={{ fontSize: 13.5, color: isDark ? '#D0D0D0' : '#374151', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                                    {program.outputFormat}
+                                    {hasPlusAccess ? program.outputFormat : FAKE_OUTPUT_FORMAT}
                                 </div>
                             </div>
                         )}
 
                         {/* 4. Examples (2 Standard Examples) */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            {examplesList.slice(0, 2).map((ex, index) => (
-                                <div key={index} style={{
-                                    backgroundColor: isDark ? '#111111' : '#FFFFFF',
-                                    border: isDark ? '1px solid #202020' : '1px solid #E5E7EB',
-                                    borderRadius: 6,
-                                    overflow: 'hidden',
-                                    boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)'
-                                }}>
+                            {(hasPlusAccess ? examplesList.slice(0, 2) : [
+                                {
+                                    input: '10 20 30\n(Sample test vector locked)',
+                                    output: '60\n(Expected result locked)',
+                                    explanation: 'Step-by-step mathematical trace and test suite details are available with AskUrSenior Plus.'
+                                }
+                            ]).map((ex, index) => (
+                                <div 
+                                    key={index} 
+                                    title={!hasPlusAccess ? plusTooltip : undefined}
+                                    style={{
+                                        backgroundColor: isDark ? '#111111' : '#FFFFFF',
+                                        border: isDark ? '1px solid #202020' : '1px solid #E5E7EB',
+                                        borderRadius: 6,
+                                        overflow: 'hidden',
+                                        boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)'
+                                    }}
+                                >
                                     <div style={{
                                         padding: '8px 12px',
                                         backgroundColor: isDark ? '#161616' : '#F9FAFB',
@@ -353,23 +404,24 @@ const ProblemPanel = ({
                                         alignItems: 'center',
                                         justifyContent: 'space-between'
                                     }}>
-                                        <span>Example {index + 1}</span>
+                                        <span>Example {index + 1} {!hasPlusAccess && <span style={{ fontSize: 10, color: isDark ? '#A855F7' : '#7C3AED', fontWeight: 600 }}>(Sample Preview)</span>}</span>
                                         {ex.input && (
                                             <button
-                                                onClick={() => handleCopy(ex.input, index + 1)}
+                                                onClick={hasPlusAccess ? () => handleCopy(ex.input, index + 1) : onPlusAction}
+                                                title={!hasPlusAccess ? plusTooltip : "Copy Input"}
                                                 style={{
                                                     background: 'transparent',
                                                     border: 'none',
-                                                    color: isDark ? '#888888' : '#6B7280',
+                                                    color: !hasPlusAccess ? (isDark ? '#52525B' : '#9CA3AF') : (isDark ? '#888888' : '#6B7280'),
                                                     fontSize: 11,
-                                                    cursor: 'pointer',
+                                                    cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     gap: 4
                                                 }}
                                             >
-                                                {copiedIndex === index + 1 ? <Check size={12} color="#22C55E" /> : <Copy size={12} />}
-                                                <span>{copiedIndex === index + 1 ? 'Copied' : 'Copy Input'}</span>
+                                                {!hasPlusAccess ? <Lock size={11} /> : (copiedIndex === index + 1 ? <Check size={12} color="#22C55E" /> : <Copy size={12} />)}
+                                                <span>{!hasPlusAccess ? 'Locked' : (copiedIndex === index + 1 ? 'Copied' : 'Copy Input')}</span>
                                             </button>
                                         )}
                                     </div>
@@ -381,7 +433,7 @@ const ProblemPanel = ({
                                                 margin: '3px 0 0 0',
                                                 fontFamily: '"JetBrains Mono", monospace',
                                                 fontSize: 12.5,
-                                                color: isDark ? '#E5E5E5' : '#111827',
+                                                color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : (isDark ? '#E5E5E5' : '#111827'),
                                                 whiteSpace: 'pre-wrap'
                                             }}>
                                                 {ex.input || '(No input)'}
@@ -394,7 +446,7 @@ const ProblemPanel = ({
                                                 margin: '3px 0 0 0',
                                                 fontFamily: '"JetBrains Mono", monospace',
                                                 fontSize: 12.5,
-                                                color: isDark ? '#34D399' : '#059669',
+                                                color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : (isDark ? '#34D399' : '#059669'),
                                                 whiteSpace: 'pre-wrap'
                                             }}>
                                                 {ex.output || '(No output)'}
@@ -415,18 +467,24 @@ const ProblemPanel = ({
 
                             {/* 5. Interactive Question (Quiz) */}
                             {quizData && (
-                                <div style={{
-                                    backgroundColor: isDark ? '#111111' : '#FFFFFF',
-                                    border: quizStatus === 'correct' 
-                                        ? (isDark ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid #86EFAC')
-                                        : quizStatus === 'incorrect'
-                                            ? (isDark ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #FCA5A5')
-                                            : (isDark ? '1px solid #202020' : '1px solid #E5E7EB'),
-                                    borderRadius: 6,
-                                    overflow: 'hidden',
-                                    boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
-                                    transition: 'border-color 0.2s ease'
-                                }}>
+                                <div 
+                                    title={!hasPlusAccess ? plusTooltip : undefined}
+                                    style={{
+                                        backgroundColor: isDark ? '#111111' : '#FFFFFF',
+                                        border: !hasPlusAccess
+                                            ? (isDark ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(147, 51, 234, 0.25)')
+                                            : (quizStatus === 'correct' 
+                                                ? (isDark ? '1px solid rgba(34, 197, 94, 0.4)' : '1px solid #86EFAC')
+                                                : quizStatus === 'incorrect'
+                                                    ? (isDark ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #FCA5A5')
+                                                    : (isDark ? '1px solid #202020' : '1px solid #E5E7EB')),
+                                        borderRadius: 6,
+                                        overflow: 'hidden',
+                                        boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
+                                        transition: 'border-color 0.2s ease',
+                                        position: 'relative'
+                                    }}
+                                >
                                     <div style={{
                                         padding: '8px 12px',
                                         backgroundColor: isDark ? '#161616' : '#F9FAFB',
@@ -442,11 +500,35 @@ const ProblemPanel = ({
                                             <HelpCircle size={13} color={isDark ? "#C084FC" : "#9333EA"} />
                                             <span>Interactive Question</span>
                                         </div>
+                                        {!hasPlusAccess && (
+                                            <div 
+                                                title={plusTooltip}
+                                                onClick={onPlusAction}
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 4,
+                                                    padding: '2px 8px',
+                                                    borderRadius: 4,
+                                                    backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#F3E8FF',
+                                                    color: isDark ? '#C084FC' : '#7E22CE',
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <Lock size={11} />
+                                                <span>{plusButtonText}</span>
+                                            </div>
+                                        )}
                                     </div>
 
-                                    <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                    <div 
+                                        title={!hasPlusAccess ? plusTooltip : undefined}
+                                        style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}
+                                    >
                                         <p style={{ margin: 0, fontSize: 13, color: isDark ? '#E5E7EB' : '#374151', fontWeight: 600 }}>
-                                            {quizData.question || 'What will be the output for the following input?'}
+                                            {hasPlusAccess ? (quizData.question || 'What will be the output for the following input?') : 'Predict the output sequence for the standard input dataset under nominal execution.'}
                                         </p>
 
                                         <div>
@@ -458,14 +540,14 @@ const ProblemPanel = ({
                                                 borderRadius: 4,
                                                 fontFamily: '"JetBrains Mono", monospace',
                                                 fontSize: 12.5,
-                                                color: isDark ? '#E5E5E5' : '#111827',
+                                                color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : (isDark ? '#E5E5E5' : '#111827'),
                                                 whiteSpace: 'pre-wrap'
                                             }}>
-                                                {quizData.input}
+                                                {hasPlusAccess ? quizData.input : '*** [Locked for Plus Members] ***'}
                                             </pre>
                                         </div>
 
-                                        <form onSubmit={handleCheckQuizAnswer} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        <form onSubmit={hasPlusAccess ? handleCheckQuizAnswer : (e) => { e.preventDefault(); onPlusAction?.(); }} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                                             {quizData.options && quizData.options.length > 0 ? (
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                     <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? '#707070' : '#6B7280', textTransform: 'uppercase' }}>Select Output Option</span>
@@ -477,7 +559,13 @@ const ProblemPanel = ({
                                                                 <button
                                                                     key={optIdx}
                                                                     type="button"
+                                                                    disabled={!hasPlusAccess}
+                                                                    title={!hasPlusAccess ? plusTooltip : undefined}
                                                                     onClick={() => {
+                                                                        if (!hasPlusAccess) {
+                                                                            onPlusAction?.();
+                                                                            return;
+                                                                        }
                                                                         setQuizUserAnswer(opt);
                                                                         if (quizStatus) setQuizStatus(null);
                                                                     }}
@@ -496,7 +584,8 @@ const ProblemPanel = ({
                                                                         color: isSelected 
                                                                             ? (isDark ? '#FFFFFF' : '#111827')
                                                                             : (isDark ? '#D1D5DB' : '#374151'),
-                                                                        cursor: 'pointer',
+                                                                        cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
+                                                                        opacity: !hasPlusAccess ? 0.6 : 1,
                                                                         textAlign: 'left',
                                                                         fontSize: 12.5,
                                                                         fontFamily: '"JetBrains Mono", monospace',
@@ -518,7 +607,7 @@ const ProblemPanel = ({
                                                                     }}>
                                                                         {optLetter}
                                                                     </span>
-                                                                    <span>{opt}</span>
+                                                                    <span>{hasPlusAccess ? opt : `Option ${optLetter} [Locked]`}</span>
                                                                 </button>
                                                             );
                                                         })}
@@ -528,12 +617,15 @@ const ProblemPanel = ({
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                                     <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? '#707070' : '#6B7280', textTransform: 'uppercase' }}>Predicted Output</span>
                                                     <textarea
-                                                        value={quizUserAnswer}
+                                                        disabled={!hasPlusAccess}
+                                                        title={!hasPlusAccess ? plusTooltip : undefined}
+                                                        value={hasPlusAccess ? quizUserAnswer : ''}
                                                         onChange={(e) => {
+                                                            if (!hasPlusAccess) return;
                                                             setQuizUserAnswer(e.target.value);
                                                             if (quizStatus) setQuizStatus(null);
                                                         }}
-                                                        placeholder="Enter your predicted output..."
+                                                        placeholder={!hasPlusAccess ? (isAuthenticated ? "Locked: Upgrade for plus access" : "Locked: Login for plus access") : "Enter your predicted output..."}
                                                         rows={2}
                                                         style={{
                                                             padding: '8px 10px',
@@ -544,7 +636,9 @@ const ProblemPanel = ({
                                                             borderRadius: 4,
                                                             color: isDark ? '#FFFFFF' : '#111827',
                                                             outline: 'none',
-                                                            resize: 'vertical'
+                                                            resize: 'vertical',
+                                                            cursor: !hasPlusAccess ? 'not-allowed' : 'text',
+                                                            opacity: !hasPlusAccess ? 0.6 : 1
                                                         }}
                                                     />
                                                 </div>
@@ -567,23 +661,36 @@ const ProblemPanel = ({
 
                                                 {!quizStatus && <div />}
 
-                                                <button
-                                                    type="submit"
-                                                    disabled={!quizUserAnswer.trim()}
-                                                    style={{
-                                                        padding: '6px 14px',
-                                                        fontSize: 12,
-                                                        fontWeight: 700,
-                                                        borderRadius: 4,
-                                                        border: 'none',
-                                                        backgroundColor: isDark ? '#7C3AED' : '#6D28D9',
-                                                        color: '#FFFFFF',
-                                                        cursor: !quizUserAnswer.trim() ? 'not-allowed' : 'pointer',
-                                                        opacity: !quizUserAnswer.trim() ? 0.5 : 1
-                                                    }}
+                                                <div 
+                                                    title={!hasPlusAccess ? plusTooltip : undefined}
+                                                    style={{ display: 'inline-flex' }}
                                                 >
-                                                    Check Answer
-                                                </button>
+                                                    <button
+                                                        type="submit"
+                                                        disabled={!hasPlusAccess || !quizUserAnswer.trim()}
+                                                        title={!hasPlusAccess ? plusTooltip : "Check Answer"}
+                                                        onClick={!hasPlusAccess ? onPlusAction : undefined}
+                                                        style={{
+                                                            padding: '6px 14px',
+                                                            fontSize: 12,
+                                                            fontWeight: 700,
+                                                            borderRadius: 4,
+                                                            border: 'none',
+                                                            backgroundColor: !hasPlusAccess 
+                                                                ? (isDark ? '#27272A' : '#E5E7EB')
+                                                                : (isDark ? '#7C3AED' : '#6D28D9'),
+                                                            color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : '#FFFFFF',
+                                                            cursor: !hasPlusAccess ? 'not-allowed' : (!quizUserAnswer.trim() ? 'not-allowed' : 'pointer'),
+                                                            opacity: !hasPlusAccess ? 0.6 : (!quizUserAnswer.trim() ? 0.5 : 1),
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 5
+                                                        }}
+                                                    >
+                                                        {!hasPlusAccess && <Lock size={12} />}
+                                                        <span>Check Answer</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </form>
                                     </div>
@@ -649,6 +756,7 @@ const ProblemPanel = ({
                                         }}>
                                             <div
                                                 onClick={() => toggleHint(i)}
+                                                title={!hasPlusAccess ? plusTooltip : undefined}
                                                 style={{
                                                     padding: '9px 12px',
                                                     display: 'flex',
@@ -660,8 +768,9 @@ const ProblemPanel = ({
                                                     fontWeight: 600
                                                 }}
                                             >
-                                                <span style={{ color: isOpen ? (isDark ? '#C084FC' : '#9333EA') : (isDark ? '#FFFFFF' : '#111827') }}>
-                                                    Hint {i + 1}
+                                                <span style={{ color: isOpen ? (isDark ? '#C084FC' : '#9333EA') : (isDark ? '#FFFFFF' : '#111827'), display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    {!hasPlusAccess && <Lock size={12} color={isDark ? "#A855F7" : "#7C3AED"} />}
+                                                    <span>Hint {i + 1}</span>
                                                 </span>
                                                 {isOpen 
                                                     ? <ChevronDown size={13} color={isDark ? "#C084FC" : "#9333EA"} /> 
@@ -676,7 +785,26 @@ const ProblemPanel = ({
                                                     lineHeight: 1.5,
                                                     backgroundColor: isDark ? '#0D0D0D' : '#F9FAFB'
                                                 }}>
-                                                    {hint}
+                                                    {hasPlusAccess ? hint : (
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                                            <span>Hint locked. {isAuthenticated ? 'Upgrade' : 'Login'} for plus access to view full hint.</span>
+                                                            <button
+                                                                onClick={onPlusAction}
+                                                                title={plusTooltip}
+                                                                style={{
+                                                                    border: 'none',
+                                                                    background: 'transparent',
+                                                                    color: isDark ? '#C084FC' : '#7C3AED',
+                                                                    fontWeight: 700,
+                                                                    fontSize: 12,
+                                                                    cursor: 'pointer',
+                                                                    textDecoration: 'underline'
+                                                                }}
+                                                            >
+                                                                {plusButtonText}
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -688,55 +816,184 @@ const ProblemPanel = ({
                 )}
 
                 {/* ─────────────────────────────────────────────────────────────
-                   TAB 2: EDITORIAL (Clean Coming Soon)
+                   TAB 2: EDITORIAL (Clean Coming Soon / Plus Locked)
                    ───────────────────────────────────────────────────────────── */}
                 {activeTab === 'editorial' && (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '60px 20px',
-                        textAlign: 'center',
-                        gap: 12
-                    }}>
+                    !hasPlusAccess ? (
                         <div style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: '50%',
-                            backgroundColor: isDark ? 'rgba(52, 211, 153, 0.1)' : 'rgba(5, 150, 105, 0.1)',
-                            border: isDark ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(5, 150, 105, 0.2)',
                             display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            padding: '60px 20px',
+                            textAlign: 'center',
+                            gap: 14
                         }}>
-                            <BookOpen size={26} color={isDark ? "#34D399" : "#059669"} />
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <span style={{
-                                fontSize: 11,
-                                fontWeight: 800,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.06em',
-                                color: isDark ? '#34D399' : '#059669'
+                            <div style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: '50%',
+                                backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : '#F3E8FF',
+                                border: isDark ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(147, 51, 234, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}>
-                                Editorial
-                            </span>
-                            <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#FFFFFF' : '#111827', margin: 0 }}>
-                                Coming Soon
-                            </h2>
-                            <p style={{ fontSize: 13.5, color: isDark ? '#888888' : '#6B7280', margin: '4px 0 0 0', maxWidth: 380, lineHeight: 1.5 }}>
-                                Editorial is coming soon.
-                            </p>
+                                <Lock size={24} color={isDark ? "#C084FC" : "#7C3AED"} />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 380 }}>
+                                <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    color: isDark ? '#C084FC' : '#7C3AED'
+                                }}>
+                                    AskUrSenior Plus Feature
+                                </span>
+                                <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#FFFFFF' : '#111827', margin: 0 }}>
+                                    Editorial is Locked
+                                </h2>
+                                <p style={{ fontSize: 13.5, color: isDark ? '#888888' : '#6B7280', margin: '4px 0 0 0', lineHeight: 1.5 }}>
+                                    Line-by-line editorial walkthroughs, algorithm explanations, and complexity proofs are reserved for AskUrSenior Plus members.
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={onPlusAction}
+                                title={plusTooltip}
+                                style={{
+                                    marginTop: 6,
+                                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    padding: '8px 18px',
+                                    color: '#FFFFFF',
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
+                                }}
+                            >
+                                <Lock size={13} />
+                                <span>{plusButtonText}</span>
+                            </button>
                         </div>
-                    </div>
+                    ) : (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '60px 20px',
+                            textAlign: 'center',
+                            gap: 12
+                        }}>
+                            <div style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: '50%',
+                                backgroundColor: isDark ? 'rgba(52, 211, 153, 0.1)' : 'rgba(5, 150, 105, 0.1)',
+                                border: isDark ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(5, 150, 105, 0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <BookOpen size={26} color={isDark ? "#34D399" : "#059669"} />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    color: isDark ? '#34D399' : '#059669'
+                                }}>
+                                    Editorial
+                                </span>
+                                <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#FFFFFF' : '#111827', margin: 0 }}>
+                                    Coming Soon
+                                </h2>
+                                <p style={{ fontSize: 13.5, color: isDark ? '#888888' : '#6B7280', margin: '4px 0 0 0', maxWidth: 380, lineHeight: 1.5 }}>
+                                    Editorial is coming soon.
+                                </p>
+                            </div>
+                        </div>
+                    )
                 )}
 
                 {/* ─────────────────────────────────────────────────────────────
-                   TAB 3: SUBMISSIONS (Codeforces-Style Submission History)
+                   TAB 3: SUBMISSIONS (Codeforces-Style Submission History / Plus Locked)
                    ───────────────────────────────────────────────────────────── */}
                 {activeTab === 'submissions' && (
+                    !hasPlusAccess ? (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '60px 20px',
+                            textAlign: 'center',
+                            gap: 14
+                        }}>
+                            <div style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: '50%',
+                                backgroundColor: isDark ? 'rgba(96, 165, 250, 0.15)' : '#EFF6FF',
+                                border: isDark ? '1px solid rgba(96, 165, 250, 0.4)' : '1px solid rgba(59, 130, 246, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}>
+                                <Lock size={24} color={isDark ? "#60A5FA" : "#2563EB"} />
+                            </div>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 380 }}>
+                                <span style={{
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.06em',
+                                    color: isDark ? '#60A5FA' : '#2563EB'
+                                }}>
+                                    AskUrSenior Plus Feature
+                                </span>
+                                <h2 style={{ fontSize: 20, fontWeight: 800, color: isDark ? '#FFFFFF' : '#111827', margin: 0 }}>
+                                    Submission History Locked
+                                </h2>
+                                <p style={{ fontSize: 13.5, color: isDark ? '#888888' : '#6B7280', margin: '4px 0 0 0', lineHeight: 1.5 }}>
+                                    Submitting solutions and tracking submission history with test case verdicts require AskUrSenior Plus.
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={onPlusAction}
+                                title={plusTooltip}
+                                style={{
+                                    marginTop: 6,
+                                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    padding: '8px 18px',
+                                    color: '#FFFFFF',
+                                    fontSize: 12.5,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
+                                }}
+                            >
+                                <Lock size={13} />
+                                <span>{plusButtonText}</span>
+                            </button>
+                        </div>
+                    ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 920 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -758,7 +1015,11 @@ const ProblemPanel = ({
                             </div>
                         </div>
 
-                        {submissionsLoading ? (
+                        {!isAuthenticated ? (
+                            <div style={{ textAlign: 'center', padding: '40px 0', color: isDark ? '#707070' : '#9CA3AF', fontSize: 13 }}>
+                                Sign in to view and track your submission history.
+                            </div>
+                        ) : submissionsLoading ? (
                             <div style={{ textAlign: 'center', padding: '40px 0', color: isDark ? '#707070' : '#9CA3AF', fontSize: 13 }}>
                                 Fetching submissions...
                             </div>
@@ -1128,6 +1389,7 @@ const ProblemPanel = ({
                             </div>
                         )}
                     </div>
+                    )
                 )}
 
                 {/* ─────────────────────────────────────────────────────────────

@@ -45,4 +45,5 @@ export const subscriptionAPI = {
     getPlans: () => apiClient.get('/subscription/plans'),
     getFeatures: () => apiClient.get('/subscription/features'),
     validateCoupon: (code, planCode) => apiClient.post('/subscription/coupon/validate', { code, planCode }),
+    checkout: (data) => apiClient.post('/subscription/checkout', data),
 };

@@ -3,6 +3,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import AcademicOverviewSection from '../sections/AcademicOverviewSection';
+import { apiV2 } from '../../../../services/authService';
 
 // Mock useNavigate
 const mockNavigate = vi.fn();
@@ -233,5 +234,139 @@ describe('F-08: Academic Overview CSES Table Sheet', () => {
         expect(container.textContent).toContain('Total Credits:');
         expect(container.textContent).toContain('Earned Credits:');
         expect(container.textContent).toContain('SGPA:');
+    });
+
+    it('correctly displays 0 earned credits for ongoing semester without falling back to total credits', async () => {
+        const { apiV2 } = await import('../../../../services/authService');
+        apiV2.getStudentSemesterResults.mockResolvedValueOnce({
+            data: {
+                data: {
+                    semester: 3,
+                    scheme: 'Scheme 2025',
+                    student: { usn: '1SI24CS001', cgpa: 8.18, currentSemester: 3 },
+                    availableSemesters: [1, 2, 3],
+                    summary: {
+                        totalSubjects: 1,
+                        passedSubjects: 0,
+                        failedSubjects: 0,
+                        totalCreditsAttempted: 4,
+                        totalCreditsEarned: 0,
+                        sgpa: null,
+                    },
+                    subjects: [
+                        {
+                            code: 'CS301',
+                            name: 'Data Structures',
+                            credits: 4,
+                            category: 'Theory',
+                            cie: { obtained: 40, max: 50 },
+                            see: { marks: null, max: 50, enabled: true },
+                            attendance: { percentage: 90, status: 'SATISFIED' },
+                            eligibility: { eligible: true, reasons: [] },
+                            grade: { letter: null, gradePoint: null },
+                            contributesToSGPA: true,
+                        }
+                    ]
+                }
+            }
+        });
+
+        await act(async () => {
+            root.render(<AcademicOverviewSection onNavigateTab={() => {}} />);
+        });
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        });
+
+        expect(container.textContent).toContain('0 / 4');
+        expect(container.textContent).not.toContain('4 / 4');
+        expect(container.textContent).toContain('Earned Credits: 0');
+    });
+
+    it('allows changing the semester selector and triggers selectSemester', async () => {
+        await act(async () => {
+            root.render(<AcademicOverviewSection onNavigateTab={() => {}} />);
+        });
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        });
+
+        const select = container.querySelector('select');
+        expect(select).not.toBeNull();
+
+        await act(async () => {
+            select.value = '2';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        expect(mockSelectSemester).toHaveBeenCalledWith(2);
+    });
+
+    it('renders static dummy preview for non-Plus preview users with zero API calls', async () => {
+        apiV2.getStudentSemesterResults.mockClear();
+
+        await act(async () => {
+            root.render(<AcademicOverviewSection isPreview={true} />);
+        });
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        });
+
+        // Zero API calls made
+        expect(apiV2.getStudentSemesterResults).not.toHaveBeenCalled();
+
+        // Preview badge is rendered
+        expect(container.textContent).toContain('Preview');
+
+        // Dummy data subjects from all categories are rendered
+        expect(container.textContent).toContain('Mathematics for Computer Science');
+        expect(container.textContent).toContain('Data Structures and Applications');
+        expect(container.textContent).toContain('Digital Design and Computer Organization');
+        expect(container.textContent).toContain('Constitution of India & Cyber Law');
+        expect(container.textContent).toContain('Environmental Studies');
+
+        // Various status badges are visible
+        expect(container.textContent).toContain('Eligible');
+        expect(container.textContent).toContain('At Risk');
+        expect(container.textContent).toContain('Failed');
+        expect(container.textContent).toContain('Passed');
+
+        // Summary strip values are present
+        expect(container.textContent).toContain('8.42');
+        expect(container.textContent).toContain('8.18');
+    });
+
+    it('disables sync button and allows in-memory semester switching in preview mode without API calls', async () => {
+        apiV2.getStudentSemesterResults.mockClear();
+
+        await act(async () => {
+            root.render(<AcademicOverviewSection isPreview={true} />);
+        });
+        await act(async () => {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        });
+
+        // Sync button is disabled with disabled styling
+        const syncButton = container.querySelector('button[title="Data synchronization disabled in Preview mode"]');
+        expect(syncButton).not.toBeNull();
+        expect(syncButton.disabled).toBe(true);
+
+        // Click sync button -> still zero API calls
+        await act(async () => {
+            syncButton.click();
+        });
+        expect(apiV2.getStudentSemesterResults).not.toHaveBeenCalled();
+
+        // Changing semester dropdown updates view locally without API call
+        const select = container.querySelector('select');
+        expect(select).not.toBeNull();
+
+        await act(async () => {
+            select.value = '2';
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        expect(container.textContent).toContain('Semester 2');
+        expect(apiV2.getStudentSemesterResults).not.toHaveBeenCalled();
     });
 });

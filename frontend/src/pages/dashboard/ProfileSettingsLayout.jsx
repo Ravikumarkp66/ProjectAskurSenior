@@ -5,6 +5,7 @@ import { ArrowLeft, User, TrendingUp, Clock, Calendar, Bell, Loader2, BookOpen, 
 import toast from 'react-hot-toast';
 
 import { EditProfileProvider, useEditProfile } from '../../contexts/EditProfileContext';
+import { useAuth } from '../../utils/hooks';
 
 // ── Settings navigation (Basic Information only) ──────────────────────────────
 const desktopNavItems = [
@@ -40,7 +41,15 @@ const SettingsSkeleton = () => (
 const LayoutInner = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { isAuthenticated, loading } = useAuth();
     const { saving, isChanged, triggerSave } = useEditProfile();
+
+    // Redirect to login if user is not authenticated
+    useEffect(() => {
+        if (!loading && !isAuthenticated) {
+            navigate('/login', { replace: true, state: { from: location.pathname } });
+        }
+    }, [loading, isAuthenticated, navigate, location.pathname]);
 
     const currentPath = location.pathname;
 
@@ -90,97 +99,43 @@ const LayoutInner = () => {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
-                    style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '12px',
-                        padding: '16px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                        height: '100%',
-                        boxSizing: 'border-box'
-                    }}
-                    className="settings-left-col"
+                    className="settings-left-col rounded-2xl border p-4.5 backdrop-blur-xl flex flex-col gap-3 h-full box-border transition-all duration-200 bg-white dark:bg-[#0D111C] border-slate-200/80 dark:border-white/[0.08] shadow-sm dark:shadow-xl"
                 >
                     {/* Back to Profile link */}
                     <NavLink
                         to="/profile"
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            color: 'rgba(148, 163, 184, 0.65)',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textDecoration: 'none',
-                            transition: 'color 0.15s',
-                            cursor: 'pointer',
-                            alignSelf: 'flex-start'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)'}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer self-start mb-1"
                     >
-                        <ArrowLeft size={12} />
+                        <ArrowLeft size={13} />
                         <span>Back to Profile</span>
                     </NavLink>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
-                            Settings
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                            Profile Settings
                         </h2>
-                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.55)', fontWeight: 500 }}>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                             Configure your academic profile workspace
                         </span>
                     </div>
 
-                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
+                    <div className="h-px bg-slate-200/80 dark:bg-white/[0.08] my-1" />
 
                     {/* Navigation list */}
-                    <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                    <nav className="flex flex-col gap-1.5 flex-1">
                         {desktopNavItems.map((item) => {
                             const Icon = item.icon;
                             return (
                                 <NavLink
                                     key={item.path}
                                     to={item.path}
-                                    style={({ isActive }) => ({
-                                        padding: '9px 12px',
-                                        borderRadius: '8px',
-                                        color: isActive ? '#a78bfa' : 'rgba(148, 163, 184, 0.65)',
-                                        background: isActive
-                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
-                                            : 'transparent',
-                                        border: isActive
-                                            ? '1px solid rgba(139, 92, 246, 0.25)'
-                                            : '1px solid transparent',
-                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.08)' : 'none',
-                                        fontSize: '12.5px',
-                                        fontWeight: isActive ? 600 : 500,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        textDecoration: 'none',
-                                        transition: 'all 0.18s',
-                                        cursor: 'pointer'
-                                    })}
-                                    onMouseEnter={e => {
-                                        try { item.chunk(); } catch (err) {}
-                                        if (!e.currentTarget.style.background || e.currentTarget.style.background === 'transparent') {
-                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.85)';
-                                        }
-                                    }}
-                                    onMouseLeave={e => {
-                                        if (e.currentTarget.style.border === '1px solid transparent') {
-                                            e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)';
-                                        }
-                                    }}
+                                    className={({ isActive }) => `flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-all duration-150 text-left ${
+                                        isActive
+                                            ? 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-500/30 font-semibold shadow-xs'
+                                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.04] border border-transparent font-medium'
+                                    }`}
                                 >
-                                    <Icon size={14} />
+                                    <Icon size={15} />
                                     <span>{item.label}</span>
                                 </NavLink>
                             );
@@ -193,20 +148,7 @@ const LayoutInner = () => {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
-                    style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '12px',
-                        padding: '20px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
-                        minWidth: 0,
-                        height: '100%',
-                        overflowY: 'auto',
-                        overflowX: 'auto',
-                        boxSizing: 'border-box'
-                    }}
-                    className="settings-content-col"
+                    className="settings-content-col rounded-2xl border p-5 sm:p-7 min-w-0 h-full overflow-y-auto box-border transition-all duration-200 bg-white dark:bg-[#0D111C] border-slate-200/80 dark:border-white/[0.08] shadow-sm dark:shadow-xl text-slate-900 dark:text-white"
                 >
                     <Suspense fallback={<SettingsSkeleton />}>
                         <Outlet />
@@ -215,127 +157,59 @@ const LayoutInner = () => {
             </div>
 
             {/* ══════════════════════════════════════════════════════════════
-                MOBILE LAYOUT (< 768px) — 3-tab shell
+                MOBILE LAYOUT (< 768px) — Shell
             ══════════════════════════════════════════════════════════════ */}
             <div className="mobile-edit-shell">
 
                 {/* ── Mobile Header ─────────────────────────────────────── */}
                 {isDeepPage ? (
                     /* Deep sub-page header: contextual "← Back to [Tab]" */
-                    <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '14px 16px 12px',
-                        boxSizing: 'border-box',
-                        borderBottom: '1px solid rgba(255,255,255,0.06)'
-                    }}>
+                    <div className="flex items-center gap-2.5 p-3.5 px-4 border-b border-slate-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0D111C]/95 backdrop-blur-md">
                         <button
                             type="button"
                             onClick={() => navigate(deepPage.backTo)}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                background: 'rgba(139,92,246,0.08)',
-                                border: '1px solid rgba(139,92,246,0.2)',
-                                borderRadius: '8px',
-                                color: '#c4b5fd',
-                                fontSize: '12.5px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                padding: '5px 11px',
-                                outline: 'none',
-                                transition: 'all 0.15s',
-                                flexShrink: 0
-                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 cursor-pointer shrink-0"
                         >
                             <ArrowLeft size={13} />
                             <span>{deepPage.backLabel}</span>
                         </button>
-                        <span style={{
-                            flex: 1,
-                            textAlign: 'center',
-                            fontSize: '15px',
-                            fontWeight: 700,
-                            color: '#fff',
-                            letterSpacing: '-0.01em'
-                        }}>
+                        <span className="flex-1 text-center text-sm font-extrabold text-slate-900 dark:text-white">
                             {deepPage.label}
                         </span>
-                        {/* Spacer to balance the back pill */}
                         <div style={{ width: 68 }} />
                     </div>
                 ) : (
-                    /* Normal 3-tab header */
+                    /* Normal header */
                     <>
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            padding: '14px 16px 0',
-                            boxSizing: 'border-box'
-                        }}>
+                        <div className="flex items-center gap-2.5 p-3.5 px-4 border-b border-slate-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0D111C]/95 backdrop-blur-md">
                             <button
                                 type="button"
                                 onClick={() => navigate('/profile')}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '5px',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: 'rgba(148,163,184,0.75)',
-                                    fontSize: '13px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    padding: 0,
-                                    outline: 'none'
-                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 cursor-pointer shrink-0"
                             >
-                                <ArrowLeft size={15} />
+                                <ArrowLeft size={13} />
                                 <span>Back</span>
                             </button>
-                            <span style={{ flex: 1, textAlign: 'center', fontSize: '15px', fontWeight: 700, color: '#fff' }}>
+                            <span className="flex-1 text-center text-sm font-extrabold text-slate-900 dark:text-white">
                                 Edit Profile
                             </span>
-                            {/* Spacer */}
                             <div style={{ width: 48 }} />
                         </div>
 
                         {/* Mobile Tab Bar (only if multiple tabs) */}
                         {mobileTabs.length > 1 && (
-                            <div style={{
-                                display: 'flex',
-                                padding: '12px 16px 0',
-                                gap: '6px',
-                                boxSizing: 'border-box'
-                            }}>
+                            <div className="flex p-3 px-4 gap-1.5 bg-slate-50/50 dark:bg-white/[0.02] border-b border-slate-200/80 dark:border-white/[0.06]">
                                 {mobileTabs.map(tab => {
                                     const isActive = currentPath === tab.path || currentPath.startsWith(tab.path + '/');
                                     return (
                                         <NavLink
                                             key={tab.path}
                                             to={tab.path}
-                                            style={{
-                                                flex: 1,
-                                                textAlign: 'center',
-                                                padding: '8px 4px',
-                                                borderRadius: '8px',
-                                                fontSize: '13px',
-                                                fontWeight: isActive ? 700 : 500,
-                                                color: isActive ? '#fff' : 'rgba(148,163,184,0.55)',
-                                                background: isActive
-                                                    ? 'linear-gradient(135deg, rgba(124,58,237,0.22), rgba(99,102,241,0.18))'
-                                                    : 'rgba(255,255,255,0.03)',
-                                                border: isActive
-                                                    ? '1px solid rgba(139,92,246,0.35)'
-                                                    : '1px solid rgba(255,255,255,0.06)',
-                                                textDecoration: 'none',
-                                                transition: 'all 0.18s',
-                                                boxSizing: 'border-box',
-                                                letterSpacing: '-0.01em'
-                                            }}
+                                            className={`flex-1 text-center py-2 px-1 rounded-lg text-xs font-bold transition-all duration-150 ${
+                                                isActive
+                                                    ? 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shadow-xs'
+                                                    : 'bg-white dark:bg-white/[0.04] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/[0.06]'
+                                            }`}
                                         >
                                             {tab.label}
                                         </NavLink>
@@ -347,15 +221,12 @@ const LayoutInner = () => {
                 )}
 
                 {/* Scrollable content area */}
-                <div style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    overflowX: 'hidden',
-                    padding: '14px 16px',
-                    boxSizing: 'border-box',
-                    // leave room for sticky save button
-                    paddingBottom: showSaveButton ? '80px' : '24px'
-                }}>
+                <div
+                    style={{
+                        paddingBottom: showSaveButton ? '80px' : '24px'
+                    }}
+                    className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-5 box-border"
+                >
                     <Suspense fallback={<SettingsSkeleton />}>
                         <Outlet />
                     </Suspense>
@@ -363,46 +234,18 @@ const LayoutInner = () => {
 
                 {/* Sticky Save Button (hidden on Progress tab) */}
                 {showSaveButton && (
-                    <div style={{
-                        position: 'fixed',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        padding: '12px 16px',
-                        background: 'rgba(13,11,23,0.92)',
-                        backdropFilter: 'blur(16px)',
-                        WebkitBackdropFilter: 'blur(16px)',
-                        borderTop: '1px solid rgba(255,255,255,0.07)',
-                        zIndex: 60,
-                        boxSizing: 'border-box'
-                    }}>
+                    <div className="fixed bottom-0 left-0 right-0 p-3.5 px-4 bg-white/95 dark:bg-[#0D111C]/95 backdrop-blur-md border-t border-slate-200 dark:border-white/[0.08] z-50 box-border">
                         <button
                             type="button"
                             disabled={!isChanged || saving}
                             onClick={handleStickySave}
-                            style={{
-                                width: '100%',
-                                padding: '13px',
-                                borderRadius: '10px',
-                                border: 'none',
-                                outline: 'none',
-                                background: !isChanged
-                                    ? 'rgba(255,255,255,0.05)'
-                                    : 'linear-gradient(135deg, #7C3AED, #6366F1)',
-                                color: !isChanged ? 'rgba(255,255,255,0.25)' : '#fff',
-                                fontSize: '14px',
-                                fontWeight: 700,
-                                cursor: !isChanged || saving ? 'not-allowed' : 'pointer',
-                                boxShadow: isChanged && !saving ? '0 4px 20px rgba(124,58,237,0.35)' : 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                transition: 'all 0.2s',
-                                letterSpacing: '-0.01em'
-                            }}
+                            className={`w-full py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all duration-200 ${
+                                !isChanged
+                                    ? 'bg-slate-100 dark:bg-white/[0.05] text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-200/60 dark:border-white/[0.05]'
+                                    : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 hover:from-purple-500 hover:to-indigo-500 cursor-pointer active:scale-[0.99]'
+                            }`}
                         >
-                            {saving && <Loader2 size={15} className="animate-spin" />}
+                            {saving && <Loader2 size={16} className="animate-spin" />}
                             {saving ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>

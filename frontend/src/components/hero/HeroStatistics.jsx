@@ -26,30 +26,25 @@ const HeroStatistics = ({ stats = [] }) => {
     ] : DEFAULT_ITEMS;
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, delay: 0.32, ease: "easeOut" }}
-            className="w-full max-w-xl"
-        >
-            <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0D111C]/90 shadow-sm backdrop-blur-sm overflow-hidden">
-                <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-slate-800">
+        <div className="w-full max-w-xl">
+            <div className="rounded-lg border border-[#E5E7EB] dark:border-[#292E37] bg-white dark:bg-[#15181D] shadow-none overflow-hidden">
+                <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E5E7EB] dark:divide-[#292E37]">
                     {items.map((item, idx) => (
                         <div
                             key={idx}
                             className="px-3 py-3 sm:px-4 sm:py-3 flex flex-col items-center sm:items-start text-center sm:text-left"
                         >
-                            <span className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white font-outfit tracking-tight leading-none mb-1">
+                            <span className="text-lg sm:text-xl font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight leading-none mb-1 tabular-nums">
                                 {item.count}
                             </span>
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tracking-tight">
+                            <span className="text-xs font-medium text-[#6B7280] dark:text-[#71717A] tracking-tight">
                                 {item.label}
                             </span>
                         </div>
                     ))}
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 };
 

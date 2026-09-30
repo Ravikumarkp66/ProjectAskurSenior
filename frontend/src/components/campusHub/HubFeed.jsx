@@ -46,12 +46,12 @@ const HubFeed = ({ tab, search, sort, onSelect, refreshKey }) => {
         return (
             <div className="space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="rounded-lg bg-[#161B22] border border-[#21262D] p-3.5 flex gap-3 animate-pulse">
-                        <div className="w-9 h-9 rounded-lg bg-[#21262D] flex-shrink-0" />
+                    <div key={i} className="rounded-lg bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#21262D] p-3.5 flex gap-3 animate-pulse">
+                        <div className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-[#21262D] flex-shrink-0" />
                         <div className="flex-1 space-y-2 pt-1">
-                            <div className="h-3 bg-[#21262D] rounded w-3/4" />
-                            <div className="h-3 bg-[#21262D] rounded w-full" />
-                            <div className="h-3 bg-[#21262D] rounded w-1/2" />
+                            <div className="h-3 bg-slate-200 dark:bg-[#21262D] rounded w-3/4" />
+                            <div className="h-3 bg-slate-200 dark:bg-[#21262D] rounded w-full" />
+                            <div className="h-3 bg-slate-200 dark:bg-[#21262D] rounded w-1/2" />
                         </div>
                     </div>
                 ))}

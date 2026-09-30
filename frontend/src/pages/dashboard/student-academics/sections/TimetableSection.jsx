@@ -4,6 +4,7 @@ import {
     Building, BookOpen, AlertCircle, Coffee 
 } from 'lucide-react';
 import { useStudentAcademics } from '../../../../contexts/StudentAcademicsContext';
+import { useTheme } from '../../../../context/ThemeContext';
 
 const DAYS = [
     { key: 1, name: 'Monday', short: 'Mon' },
@@ -28,6 +29,7 @@ const PERIOD_TIMES = [
 ];
 
 const TimetableSection = () => {
+    const { isDark = true } = useTheme?.() || { isDark: true };
     const { 
         selectedSemester, 
         timetableData, 
@@ -65,23 +67,31 @@ const TimetableSection = () => {
     return (
         <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto">
             {/* Dead-Simple Header */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-transparent border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className={`p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm border ${
+                isDark 
+                    ? 'bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-transparent border-purple-500/20'
+                    : 'bg-gradient-to-r from-purple-50 via-purple-50/50 to-white border-purple-200'
+            }`}>
                 <div>
-                    <h2 className="text-lg font-bold text-white tracking-wide">
+                    <h2 className={`text-lg font-bold tracking-wide ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         Semester {selectedSemester}
                     </h2>
-                    <p className="text-xs text-purple-300 font-semibold mt-0.5">
+                    <p className={`text-xs font-semibold mt-0.5 ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
                         {branchCode} • {batchName} • Section {sectionName}
                     </p>
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 font-medium">
+                    <span className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 font-medium ${
+                        isDark ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    }`}>
                         <ShieldCheck size={13} />
                         Official College Timetable
                     </span>
                     {isHistorical && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                        <span className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 ${
+                            isDark ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' : 'bg-purple-50 text-purple-700 border-purple-200'
+                        }`}>
                             <Lock size={11} /> Historical
                         </span>
                     )}
@@ -90,15 +100,19 @@ const TimetableSection = () => {
 
             {/* If no published timetable for this section */}
             {!hasPublishedTimetable ? (
-                <div className="p-10 rounded-xl bg-[#0b061c] border border-purple-500/20 text-center flex flex-col items-center justify-center gap-3 shadow-lg">
-                    <div className="w-14 h-14 rounded-full bg-purple-600/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                <div className={`p-10 rounded-xl text-center flex flex-col items-center justify-center gap-3 shadow-sm border ${
+                    isDark ? 'bg-[#0b061c] border-purple-500/20' : 'bg-white border-slate-200'
+                }`}>
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center border ${
+                        isDark ? 'bg-purple-600/15 border-purple-500/30 text-purple-400' : 'bg-purple-100 border-purple-200 text-purple-700'
+                    }`}>
                         <Calendar size={28} />
                     </div>
                     <div>
-                        <h3 className="text-base font-bold text-white">
+                        <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                             No timetable has been published yet
                         </h3>
-                        <p className="text-xs text-slate-400 mt-1 max-w-md">
+                        <p className={`text-xs mt-1 max-w-md ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             No official timetable has been published yet for {branchCode} Section {sectionName} (Semester {selectedSemester}). Department administrators will publish your schedule once finalized.
                         </p>
                     </div>
@@ -113,10 +127,12 @@ const TimetableSection = () => {
                                 <button
                                     key={d.key}
                                     onClick={() => setActiveDay(d.key)}
-                                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all shrink-0 border ${
                                         isSelected
-                                            ? 'bg-purple-600 text-white shadow-md shadow-purple-900/40'
-                                            : 'bg-[#0b061c] text-slate-400 border border-purple-500/15 hover:text-white hover:border-purple-500/30'
+                                            ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-900/40'
+                                            : (isDark 
+                                                ? 'bg-[#0b061c] text-slate-400 border-purple-500/15 hover:text-white hover:border-purple-500/30'
+                                                : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:border-purple-300 shadow-xs')
                                     }`}
                                 >
                                     {d.name}
@@ -126,12 +142,16 @@ const TimetableSection = () => {
                     </div>
 
                     {/* Schedule List for Selected Day */}
-                    <div className="flex flex-col gap-2.5 bg-[#0b061c]/90 p-4 rounded-xl border border-purple-500/20 shadow-xl">
-                        <div className="flex items-center justify-between pb-2 border-b border-purple-500/15">
-                            <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    <div className={`flex flex-col gap-2.5 p-4 rounded-xl border shadow-sm ${
+                        isDark ? 'bg-[#0b061c]/90 border-purple-500/20' : 'bg-white border-slate-200'
+                    }`}>
+                        <div className={`flex items-center justify-between pb-2 border-b ${
+                            isDark ? 'border-purple-500/15' : 'border-slate-100'
+                        }`}>
+                            <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                 {DAYS.find(d => d.key === activeDay)?.name}
                             </span>
-                            <span className="text-[11px] text-slate-400">
+                            <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                                 08:00 AM — 03:45 PM
                             </span>
                         </div>
@@ -142,13 +162,17 @@ const TimetableSection = () => {
                                     return (
                                         <div
                                             key={`break-${idx}`}
-                                            className="px-4 py-2 rounded-lg bg-white/[0.02] border border-dashed border-white/10 flex items-center justify-between text-xs text-slate-400"
+                                            className={`px-4 py-2 rounded-lg border border-dashed flex items-center justify-between text-xs ${
+                                                isDark 
+                                                    ? 'bg-white/[0.02] border-white/10 text-slate-400' 
+                                                    : 'bg-amber-50/60 border-amber-200 text-amber-900'
+                                            }`}
                                         >
                                             <div className="flex items-center gap-2">
-                                                <Coffee size={13} className="text-amber-400" />
-                                                <span className="font-semibold text-slate-300">{p.label}</span>
+                                                <Coffee size={13} className="text-amber-500" />
+                                                <span className={`font-semibold ${isDark ? 'text-slate-300' : 'text-slate-800'}`}>{p.label}</span>
                                             </div>
-                                            <span className="font-mono text-[11px] text-slate-500">
+                                            <span className={`font-mono text-[11px] ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
                                                 {p.start} - {p.end}
                                             </span>
                                         </div>
@@ -167,12 +191,14 @@ const TimetableSection = () => {
                                         key={`period-${p.slot}`}
                                         className={`p-3.5 rounded-lg border transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                                             slot && subjectName
-                                                ? 'bg-purple-950/25 border-purple-500/30'
-                                                : 'bg-black/20 border-white/5 opacity-60'
+                                                ? (isDark ? 'bg-purple-950/25 border-purple-500/30' : 'bg-purple-50/60 border-purple-200')
+                                                : (isDark ? 'bg-black/20 border-white/5 opacity-60' : 'bg-slate-50 border-slate-200 opacity-80')
                                         }`}
                                     >
                                         <div className="flex items-start sm:items-center gap-3">
-                                            <div className="font-mono text-xs font-bold text-purple-300 w-28 shrink-0">
+                                            <div className={`font-mono text-xs font-bold w-28 shrink-0 ${
+                                                isDark ? 'text-purple-300' : 'text-purple-700'
+                                            }`}>
                                                 {p.start} - {p.end}
                                             </div>
 
@@ -180,27 +206,35 @@ const TimetableSection = () => {
                                                 {slot && subjectName ? (
                                                     <>
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-bold text-white">
+                                                            <span className={`text-xs font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                                                 {subjectName}
                                                             </span>
                                                             {subjectCode && (
-                                                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200">
+                                                                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                                                    isDark 
+                                                                        ? 'bg-purple-500/20 text-purple-200 border-purple-500/30' 
+                                                                        : 'bg-purple-100 text-purple-800 border-purple-200'
+                                                                }`}>
                                                                     {subjectCode}
                                                                 </span>
                                                             )}
-                                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                                                                isDark 
+                                                                    ? 'bg-white/5 text-slate-400 border-white/5' 
+                                                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                                            }`}>
                                                                 {slot.lectureType || 'Lecture'}
                                                             </span>
                                                         </div>
 
                                                         {facultyName && (
-                                                            <span className="text-[11px] text-slate-400 block mt-0.5">
+                                                            <span className={`text-[11px] block mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                                                                 {facultyName}
                                                             </span>
                                                         )}
                                                     </>
                                                 ) : (
-                                                    <span className="text-xs text-slate-500 italic">
+                                                    <span className={`text-xs italic ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
                                                         No class scheduled (Free Period)
                                                     </span>
                                                 )}
@@ -208,7 +242,9 @@ const TimetableSection = () => {
                                         </div>
 
                                         {roomName && (
-                                            <div className="self-start sm:self-auto px-2.5 py-1 rounded bg-black/40 border border-white/10 text-[11px] font-mono text-slate-300 shrink-0">
+                                            <div className={`self-start sm:self-auto px-2.5 py-1 rounded border text-[11px] font-mono shrink-0 ${
+                                                isDark ? 'bg-black/40 border-white/10 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+                                            }`}>
                                                 Room: {roomName}
                                             </div>
                                         )}
@@ -221,8 +257,10 @@ const TimetableSection = () => {
             )}
 
             {/* Read-Only Notice Footer */}
-            <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
-                <ShieldCheck size={16} className="text-purple-400 shrink-0" />
+            <div className={`p-3 rounded-lg border text-xs flex items-center gap-2.5 ${
+                isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+            }`}>
+                <ShieldCheck size={16} className={`${isDark ? 'text-purple-400' : 'text-purple-600'} shrink-0`} />
                 <span>
                     Official timetable is governed directly by department administrators. Attendance occurrences and lecture schedules are projected automatically.
                 </span>

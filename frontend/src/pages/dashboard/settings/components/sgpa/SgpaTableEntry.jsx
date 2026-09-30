@@ -71,7 +71,7 @@ const SgpaTableEntry = ({
                                                 {sub.cieMarks} / 50
                                             </span>
                                             <button
-                                                onClick={() => navigate('/home/cie')}
+                                                onClick={() => navigate('/plus/cie')}
                                                 className="text-[11px] font-semibold text-purple-300 hover:text-purple-200 flex items-center gap-1 opacity-80 hover:opacity-100"
                                             >
                                                 <span>View CIE</span>
@@ -82,7 +82,7 @@ const SgpaTableEntry = ({
                                         <div className="flex flex-col items-center gap-1">
                                             <span className="text-xs font-semibold text-amber-400">CIE Pending</span>
                                             <button
-                                                onClick={() => navigate('/home/cie')}
+                                                onClick={() => navigate('/plus/cie')}
                                                 className="text-[11px] font-bold text-indigo-400 hover:underline"
                                             >
                                                 Complete CIE →

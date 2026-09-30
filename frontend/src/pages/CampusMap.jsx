@@ -1,22 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-    Plus, Minus, RotateCcw, Landmark, Sun, Moon, Search
+    Plus, Minus, RotateCcw, Landmark, Sun, Moon, Search,
+    X, MapPin, Compass, Navigation, Layers, Info, Building2
 } from 'lucide-react';
+import { CAMPUS_LOCATIONS, MAP_CATEGORIES, MAP_LEGEND_ITEMS } from '../data/campusMapData';
 
 /* ═══════════════════════════════════════════════════════════════════
    SIT TUMKUR BASE REFRACTOR TEMPLATE
    Only contains the Administration Block and the Main Gate Road
    ═══════════════════════════════════════════════════════════════════ */
-const BUILDINGS = [
-    {
-        id: 'bvb',
-        name: 'Administration Block',
-        category: 'academic',
-        x: 600, y: 450, w: 120, h: 120, rx: 12,
-        color: '#e6e4de',
-        icon: Landmark
-    }
-];
 
 const LEFT_TREES = [
     { x: 545, y: 60 }, { x: 545, y: 100 }, { x: 545, y: 140 },
@@ -53,38 +45,11 @@ const STREET_LAMPS = [
     { x: 600, y: 70 }, { x: 600, y: 130 }, { x: 600, y: 190 }, { x: 600, y: 250 }
 ];
 
-const SEARCHABLE_LOCATIONS = [
-    { id: 'kc-library', name: 'KC Library', searchNames: ['library', 'kc library', 'books'], x: 324, y: 397 },
-    { id: 'mba-block', name: 'MBA Block', searchNames: ['mba', 'mba block', 'management'], x: 700, y: 105 },
-    { id: 'canteen', name: 'SIT College Canteen', searchNames: ['canteen', 'food', 'snacks', 'cafeteria', 'sit college canteen'], x: 980, y: 750 },
-    { id: 'birla-auditorium', name: 'Birla Auditorium', searchNames: ['birla auditorium', 'auditorium', 'hall'], x: 807, y: 447 },
-    { id: 'golden-jubilee', name: 'Golden Jubilee Building', searchNames: ['golden jubilee', 'jubilee', 'golden jubilee building'], x: 365, y: 650 },
-    { id: 'amenities', name: 'Amenities', searchNames: ['amenities', 'shops', 'services'], x: 360, y: 717 },
-    { id: 'civil-block', name: 'Civil Block', searchNames: ['civil', 'civil block', 'civil engineering'], x: 535, y: 606 },
-    { id: 'parking-civil', name: 'Parking (Civil Block)', searchNames: ['parking', 'parking lot', 'parking civil', 'car parking'], x: 527, y: 686 },
-    { id: 'science-lab', name: 'Physics and Chemistry Lab', searchNames: ['lab', 'science lab', 'physics lab', 'chemistry lab', 'physics and chemistry lab'], x: 750, y: 582 },
-    { id: 'chemistry-block', name: 'Chemistry Block', searchNames: ['chemistry block', 'chemistry'], x: 680, y: 622 },
-    { id: 'cse-block', name: 'CSE Block (Computer Science)', searchNames: ['cse', 'cse block', 'computer science', 'computer science building'], x: 718, y: 686 },
-    { id: 'media-centre', name: 'Media Centre', searchNames: ['media', 'media centre', 'news'], x: 718, y: 764 },
-    { id: 'mg-hostel', name: 'MG Block Hostel', searchNames: ['mg block hostel', 'hostel mg', 'mg hostel'], x: 717, y: 821 },
-    { id: 'bio-centre', name: 'Bio Centre', searchNames: ['bio centre', 'biology'], x: 360, y: 756 },
-    { id: 'bio-plant', name: 'Bio Plant', searchNames: ['bio plant'], x: 528, y: 769 },
-    { id: 'indoor-stadium', name: 'Sit Indoor Stadium', searchNames: ['indoor stadium', 'stadium', 'sports', 'gym'], x: 92, y: 425 },
-    { id: 'bio-tech', name: 'Bio Technology Block', searchNames: ['bio technology', 'bio tech', 'bio technology block'], x: 195, y: 364 },
-    { id: 'electrical-block', name: 'Electrical Block', searchNames: ['electrical', 'electrical block', 'eee'], x: 185, y: 522 },
-    { id: 'workshop', name: 'Workshop', searchNames: ['workshop', 'mech workshop'], x: 195, y: 707 },
-    { id: 'ece-block', name: 'Dept. of Electronics & Communication', searchNames: ['ece', 'ece block', 'electronics', 'communication', 'dept of electronics'], x: 195, y: 753 },
-    { id: 'health-centre', name: 'Sit Health Centre', searchNames: ['health centre', 'hospital', 'clinic', 'medical', 'sit health centre'], x: 1042, y: 666 },
-    { id: 'allamaprabhu-hostel', name: 'Allamaprabhu Block Hostel', searchNames: ['allamaprabhu', 'allamaprabhu block hostel', 'hostel allama'], x: 1175, y: 669 },
-    { id: 'basaveshwara-hostel', name: 'Basaveshwara Block Hostel', searchNames: ['basaveshwara', 'basaveshwara block hostel', 'hostel basava'], x: 1337, y: 564 },
-    { id: 'lbs-hostel', name: 'LBS Hostel', searchNames: ['lbs', 'lbs hostel', 'lbs hostel block'], x: 1475, y: 565 },
-    { id: 'admin-block', name: 'Administration Block', searchNames: ['admin', 'admin block', 'office', 'administration block'], x: 600, y: 475 },
-    { id: 'arch-mca-block', name: 'Architecture & MCA Block', searchNames: ['architecture', 'mca', 'mca block', 'architecture block', 'architecture and mca block'], x: 1025, y: 255 }
-];
-
 // Simple deterministic pseudo-random helper based on index and coordinates
 const getTreeStyle = (t, idx) => {
-    const val = Math.abs(Math.sin((t.x * 12.9898) + (t.y * 78.233) + (idx * 37)) * 43758.5453) % 1;
+    const tx = Number(t?.x) || 0;
+    const ty = Number(t?.y) || 0;
+    const val = Math.abs(Math.sin((tx * 12.9898) + (ty * 78.233) + ((idx || 0) * 37)) * 43758.5453) % 1 || 0.5;
     const size = 0.9 + (val * 0.2); // ±10%
     const rotate = Math.floor(val * 360);
     const offsetX = -4 + ((val * 99) % 8);
@@ -140,7 +105,9 @@ const renderTreeCanopy = (type) => {
 };
 
 export default function CampusMap() {
-    const [selectedBuildingId, setSelectedBuildingId] = useState(null);
+    const [selectedLocationId, setSelectedLocationId] = useState(null);
+    const [activeCategory, setActiveCategory] = useState('all');
+    const [showLegend, setShowLegend] = useState(false);
     const [theme, setTheme] = useState(() => localStorage.getItem('uiTheme') === 'light' ? 'light' : 'dark');
 
     useEffect(() => {
@@ -202,31 +169,39 @@ export default function CampusMap() {
         };
     }, []);
 
-    const handleSelectLocation = (loc) => {
-        setSearchQuery('');
-        setSuggestions([]);
+    const handleSelectLocationById = (id, preferredZoom = 2.2) => {
+        const loc = CAMPUS_LOCATIONS.find(l => l.id === id);
+        if (!loc) return;
 
-        const targetZoom = 2.2;
+        setSelectedLocationId(id);
+        setHighlightedLocationId(id);
+
+        const targetZoom = Math.max(zoom, preferredZoom);
         const wrapper = mapWrapperRef.current;
         const viewW = wrapper ? wrapper.clientWidth : 1600;
         const viewH = wrapper ? wrapper.clientHeight : 860;
-        
+        const isDesktop = viewW > 768;
+
         const targetPan = {
-            x: viewW / 2 - loc.x * targetZoom,
-            y: viewH / 2 - loc.y * targetZoom
+            x: (viewW / 2 + (isDesktop ? 100 : 0)) - loc.x * targetZoom,
+            y: (viewH / 2) - loc.y * targetZoom
         };
 
         setZoom(targetZoom);
         setPanOffset(targetPan);
 
-        setHighlightedLocationId(loc.id);
-        
         if (highlightTimeoutRef.current) {
             clearTimeout(highlightTimeoutRef.current);
         }
         highlightTimeoutRef.current = setTimeout(() => {
             setHighlightedLocationId(null);
-        }, 3000);
+        }, 4000);
+    };
+
+    const handleSelectLocation = (loc) => {
+        setSearchQuery('');
+        setSuggestions([]);
+        handleSelectLocationById(loc.id);
     };
 
     const handleSearchChange = (e) => {
@@ -239,23 +214,74 @@ export default function CampusMap() {
         }
 
         const normalizedQuery = query.toLowerCase().trim();
-        const filtered = SEARCHABLE_LOCATIONS.filter(loc => 
-            loc.name.toLowerCase().includes(normalizedQuery) ||
-            loc.searchNames.some(name => name.includes(normalizedQuery))
-        );
+        const filtered = CAMPUS_LOCATIONS.filter(loc => {
+            if (loc.name.toLowerCase().includes(normalizedQuery)) return true;
+            if (loc.shortCode && loc.shortCode.toLowerCase().includes(normalizedQuery)) return true;
+            if (loc.category && loc.category.toLowerCase().includes(normalizedQuery)) return true;
+            if (loc.department && loc.department.toLowerCase().includes(normalizedQuery)) return true;
+            if (loc.searchKeywords && loc.searchKeywords.some(name => name.toLowerCase().includes(normalizedQuery))) return true;
+            if (loc.labs && loc.labs.some(l => l.toLowerCase().includes(normalizedQuery))) return true;
+            if (loc.classrooms && loc.classrooms.some(c => c.toLowerCase().includes(normalizedQuery))) return true;
+            if (loc.offices && loc.offices.some(o => o.toLowerCase().includes(normalizedQuery))) return true;
+            return false;
+        });
         setSuggestions(filtered);
     };
 
+    const isLocationMatchingCategory = (loc) => {
+        if (!loc) return true;
+        if (activeCategory === 'all') return true;
+        return (loc.categories && loc.categories.includes(activeCategory)) || loc.category === activeCategory;
+    };
+
+    const getBuildingProps = (id, baseClasses = '') => {
+        const isSelected = selectedLocationId === id;
+        const isHighlighted = highlightedLocationId === id;
+        const loc = CAMPUS_LOCATIONS.find(l => l.id === id);
+        const matchesCategory = isLocationMatchingCategory(loc);
+
+        let classes = `building-card cursor-pointer ${baseClasses}`;
+        if (isSelected || isHighlighted) {
+            classes += ' highlight-glow';
+        }
+        if (activeCategory !== 'all' && !matchesCategory) {
+            classes += ' opacity-25 transition-opacity duration-300';
+        }
+
+        return {
+            className: classes.trim(),
+            onClick: (e) => {
+                e.stopPropagation();
+                handleSelectLocationById(id);
+            }
+        };
+    };
+
     const getBuildingClass = (id, baseClasses = 'building-card') => {
-        return `${baseClasses} ${highlightedLocationId === id ? 'highlight-glow' : ''}`;
+        const props = getBuildingProps(id, baseClasses);
+        return props.className;
     };
 
     const resetView = () => {
         setZoom(1);
         setPanOffset({ x: 0, y: 0 });
-        setSelectedBuildingId(null);
+        setSelectedLocationId(null);
         setHighlightedLocationId(null);
+        setActiveCategory('all');
+        setSearchQuery('');
+        setSuggestions([]);
     };
+
+    const filteredCount = useMemo(() => {
+        if (activeCategory === 'all') return CAMPUS_LOCATIONS.length;
+        return CAMPUS_LOCATIONS.filter(loc => 
+            (loc.categories && loc.categories.includes(activeCategory)) || loc.category === activeCategory
+        ).length;
+    }, [activeCategory]);
+
+    const selectedLoc = useMemo(() => {
+        return CAMPUS_LOCATIONS.find(l => l.id === selectedLocationId) || null;
+    }, [selectedLocationId]);
 
     const handleZoomIn = () => setZoom(z => Math.min(z + 0.15, 3));
     const handleZoomOut = () => setZoom(z => Math.max(z - 0.15, 0.7));
@@ -280,11 +306,16 @@ export default function CampusMap() {
 
     // Realistic architectural plan tree symbol with randomized size, rotation, offset, and type
     const renderRealisticTree = (t, idx) => {
+        if (!t || typeof t.x !== 'number' || typeof t.y !== 'number' || isNaN(t.x) || isNaN(t.y)) return null;
         const style = getTreeStyle(t, idx);
+        const posX = t.x + (Number(style.offsetX) || 0);
+        const posY = t.y + (Number(style.offsetY) || 0);
+        const scaleVal = Number(style.size) || 1;
+        const rotVal = Number(style.rotate) || 0;
         return (
             <g 
                 key={idx} 
-                transform={`translate(${t.x + style.offsetX}, ${t.y + style.offsetY}) scale(${style.size}) rotate(${style.rotate})`}
+                transform={`translate(${posX}, ${posY}) scale(${scaleVal}) rotate(${rotVal})`}
             >
                 {/* Soft ground shadow */}
                 <circle cx="2" cy="2" r="13" fill="#0f2a1d" opacity="0.15" />
@@ -294,7 +325,9 @@ export default function CampusMap() {
         );
     };
 
-    const activeLoc = highlightedLocationId ? SEARCHABLE_LOCATIONS.find(l => l.id === highlightedLocationId) : null;
+    const activeLoc = (highlightedLocationId || selectedLocationId) 
+        ? CAMPUS_LOCATIONS.find(l => l.id === (highlightedLocationId || selectedLocationId)) 
+        : null;
 
     return (
         <div className="w-full h-[calc(100vh-64px)] overflow-hidden font-sans select-none relative" style={{ backgroundColor: colors.bg }}>
@@ -893,7 +926,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 2. MBA Block - Compact & Space-saving */}
-                        <g className={getBuildingClass('mba-block', '')}>
+                        <g {...getBuildingProps('mba-block')}>
                             {/* Angled Building shape */}
                             <polygon points="665,79 735,90 725,132 675,124" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" />
                             {/* MBA block label */}
@@ -956,7 +989,7 @@ export default function CampusMap() {
                     {/* Side Campus Buildings & Sport Fields (Left/Right Sections) */}
                     <g className={`buildings-layer ${zoom >= 1.8 ? 'is-3d' : ''}`}>
                         {/* 1. KC Library Building */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('kc-library')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('kc-library')}>
                             <rect x="287" y="342" width="75" height="110" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Book icon */}
                             <text x="324" y="392" fill={isDark ? "#cbd5e1" : "#8d6e63"} fontSize="14" textAnchor="middle">📚</text>
@@ -994,7 +1027,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 3. Birla Auditorium */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('birla-auditorium')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('birla-auditorium')}>
                             <rect x="745" y="400" width="125" height="95" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Label */}
                             <text x="807" y="445" fill={colors.text} fontSize="9.5" fontWeight="900" textAnchor="middle" className="tracking-wide">
@@ -1006,7 +1039,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 4. Golden Jubilee Building */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('golden-jubilee')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('golden-jubilee')}>
                             <rect x="305" y="610" width="120" height="80" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Label */}
                             <text x="365" y="650" fill={colors.text} fontSize="8.5" fontWeight="900" textAnchor="middle">
@@ -1016,13 +1049,13 @@ export default function CampusMap() {
                         </g>
 
                         {/* 5. Amenities */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('amenities')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('amenities')}>
                             <rect x="318" y="705" width="85" height="25" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <text x="360" y="721" fill={colors.text} fontSize="7.5" fontWeight="900" textAnchor="middle">Amenities</text>
                         </g>
 
                         {/* 6. Civil Block */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('civil-block')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('civil-block')}>
                             <rect x="470" y="572" width="130" height="68" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             <text x="535" y="609" fill={colors.text} fontSize="9" fontWeight="900" textAnchor="middle">
                                 <tspan x="535" dy="0">Civil</tspan>
@@ -1031,7 +1064,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 7. Parking (Civil Block column) */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('parking-civil')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('parking-civil')}>
                             <rect x="470" y="645" width="115" height="82" fill={isDark ? "#1E293B" : "#e8edf5"} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <line x1="500" y1="647" x2="500" y2="725" stroke={isDark ? "#475569" : "#cbd5e1"} strokeWidth="0.8" />
                             <line x1="530" y1="647" x2="530" y2="725" stroke={isDark ? "#475569" : "#cbd5e1"} strokeWidth="0.8" />
@@ -1049,7 +1082,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* Physics and Chemistry Lab */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('science-lab')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('science-lab')}>
                             <rect x="625" y="565" width="250" height="34" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Label */}
                             <text x="750" y="586" fill={colors.text} fontSize="8.5" fontWeight="900" textAnchor="middle" className="tracking-wide">
@@ -1058,7 +1091,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 8. Chemistry Block */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('chemistry-block')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('chemistry-block')}>
                             <rect x="641" y="605" width="78" height="34" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             <text x="680" y="620" fill={colors.text} fontSize="8" fontWeight="900" textAnchor="middle">
                                 <tspan x="680" dy="0">Chemistry</tspan>
@@ -1067,7 +1100,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 9. CSE Block */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('cse-block')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('cse-block')}>
                             <rect x="641" y="645" width="155" height="82" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             <text x="718" y="687" fill={colors.text} fontSize="9" fontWeight="900" textAnchor="middle">
                                 <tspan x="718" dy="0">Computer</tspan>
@@ -1078,7 +1111,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 10. Media Centre */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('media-centre')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('media-centre')}>
                             <polygon points="680,742 750,737 765,767 725,789 675,779" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" strokeLinejoin="round" />
                             <text x="718" y="764" fill={colors.text} fontSize="8" fontWeight="900" textAnchor="middle">
                                 <tspan x="718" dy="0">Media</tspan>
@@ -1088,7 +1121,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 10b. MG Block Hostel */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('mg-hostel')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('mg-hostel')}>
                             <rect x="655" y="805" width="125" height="32" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Purple Hostel Icon Badge */}
                             <g transform="translate(672, 821)">
@@ -1100,13 +1133,13 @@ export default function CampusMap() {
                         </g>
 
                         {/* 12. Bio Centre */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('bio-centre')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('bio-centre')}>
                             <rect x="310" y="742" width="100" height="28" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <text x="360" y="759" fill={colors.text} fontSize="8" fontWeight="900" textAnchor="middle">Bio Centre</text>
                         </g>
 
                         {/* 13. Bio Plant */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('bio-plant')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('bio-plant')}>
                             <rect x="468" y="755" width="120" height="28" fill={isDark ? "#334155" : "#c5bfb5"} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <text x="528" y="772" fill={colors.text} fontSize="8" fontWeight="900" textAnchor="middle">Bio Plant</text>
                         </g>
@@ -1129,7 +1162,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* Sit Indoor Stadium */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('indoor-stadium')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('indoor-stadium')}>
                             <rect x="65" y="385" width="55" height="80" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Label */}
                             <text x="92" y="423" fill={colors.text} fontSize="7.5" fontWeight="900" textAnchor="middle">
@@ -1153,7 +1186,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* BG-1. Bio Technology Block */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('bio-tech')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('bio-tech')}>
                             <rect x="125" y="342" width="140" height="44" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <text x="195" y="362" fill={colors.text} fontSize="8" fontWeight="900" textAnchor="middle">
                                 <tspan x="195" dy="0">Bio Technology</tspan>
@@ -1162,7 +1195,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* BG-2. Electrical Block */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('electrical-block')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('electrical-block')}>
                             {/* Main Outer Outline Path */}
                             <path
                                 d="M 140,402 L 265,402 L 265,642 L 125,642 L 125,615 L 235,615 L 235,595 L 135,595 L 135,495 L 235,495 L 235,480 L 140,480 Z"
@@ -1190,13 +1223,13 @@ export default function CampusMap() {
                         </g>
 
                         {/* BG-3. Workshop */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('workshop')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('workshop')}>
                             <rect x="125" y="692" width="140" height="30" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <text x="195" y="711" fill={colors.text} fontSize="8" fontWeight="900" textAnchor="middle">Workshop</text>
                         </g>
 
                         {/* BG-4. Dept. of Electronics & Communication */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('ece-block')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('ece-block')}>
                             <rect x="125" y="738" width="140" height="30" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             <text x="195" y="753" fill={colors.text} fontSize="7.5" fontWeight="900" textAnchor="middle">
                                 <tspan x="195" dy="0">Dept. of Electronics</tspan>
@@ -1205,7 +1238,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 11a. Sit Health Centre */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('health-centre')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('health-centre')}>
                             <rect x="990" y="645" width="105" height="42" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             {/* Red Medical Icon Badge */}
                             <g transform="translate(1006, 666)">
@@ -1220,7 +1253,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 11b. Allamaprabhu Block Hostel */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('allamaprabhu-hostel')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('allamaprabhu-hostel')}>
                             <rect x="1110" y="645" width="130" height="48" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             {/* Purple Hostel Icon Badge */}
                             <g transform="translate(1127, 669)">
@@ -1235,7 +1268,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 11c. SIT College Canteen */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('canteen')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('canteen')}>
                             <polygon points="963,723 990,718 1011,735 1013,762 996,779 969,781 948,764 946,737" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" strokeLinejoin="round" />
                             {/* Canteen icon */}
                             <rect x="969" y="740" width="26" height="4" fill="#d4a843" rx="1" />
@@ -1250,7 +1283,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 11bb. Architecture & MCA Block */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('arch-mca-block')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('arch-mca-block')}>
                             <rect x="950" y="215" width="150" height="80" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Label */}
                             <text x="1025" y="255" fill={colors.text} fontSize="9" fontWeight="900" textAnchor="middle">
@@ -1274,7 +1307,7 @@ export default function CampusMap() {
                         <text x="1265" y="472" fill={colors.textMuted} fontSize="7.5" fontWeight="900" letterSpacing="0.5">LBS HOSTEL ROAD</text>
 
                         {/* 11e. Basaveshwara Block Hostel */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('basaveshwara-hostel')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('basaveshwara-hostel')}>
                             <rect x="1265" y="487" width="145" height="155" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2.5" rx="7" />
                             {/* Courtyards */}
                             <rect x="1283" y="505" width="38" height="118" fill={isDark ? "#1E293B" : "#f2efeb"} stroke={isDark ? "#334155" : "#c5bfb5"} strokeWidth="1.2" rx="2" />
@@ -1292,7 +1325,7 @@ export default function CampusMap() {
                         </g>
 
                         {/* 11f. LBS Hostel */}
-                        <g filter="url(#building-shadow)" className={getBuildingClass('lbs-hostel')}>
+                        <g filter="url(#building-shadow)" {...getBuildingProps('lbs-hostel')}>
                             {/* Main Top Horizontal Bar */}
                             <rect x="1420" y="487" width="115" height="28" fill={colors.buildingFill} stroke={colors.buildingStroke} strokeWidth="2" rx="7" />
                             {/* Central Vertical Wing */}
@@ -1615,23 +1648,21 @@ export default function CampusMap() {
                         </text>
                     </g>
 
-                    {/* Buildings */}
+                    {/* Administration Block */}
                     <g>
-                        {BUILDINGS.map((b) => {
-                            const isSelected = selectedBuildingId === b.id;
-                            const blockFill = isSelected ? (isDark ? '#1E293B' : '#ffffff') : (isDark ? '#1E293B' : b.color);
-                            const strokeColor = isSelected ? '#6c5ce7' : colors.buildingStroke;
-                            const textFillColor = isSelected ? '#6c5ce7' : colors.text;
+                        {(() => {
+                            const isSelected = selectedLocationId === 'admin-block';
+                            const blockFill = isSelected ? (isDark ? '#1E293B' : '#ffffff') : (isDark ? '#1E293B' : '#e6e4de');
+                            const strokeColor = isSelected ? '#2563eb' : colors.buildingStroke;
+                            const textFillColor = isSelected ? '#2563eb' : colors.text;
 
-                            // Administration Block (Tilted to the right)
                             return (
                                 <g 
-                                    key={b.id} 
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        setSelectedBuildingId(isSelected ? null : b.id);
+                                        handleSelectLocationById('admin-block');
                                     }} 
-                                    className={`cursor-pointer transition-all duration-300 admin-card ${highlightedLocationId === 'admin-block' ? 'highlight-glow' : ''}`}
+                                    className={`cursor-pointer transition-all duration-300 admin-card ${(highlightedLocationId === 'admin-block' || isSelected) ? 'highlight-glow' : ''}`}
                                     filter={isSelected ? 'url(#building-glow)' : 'url(#building-shadow)'}
                                 >
                                     {/* Left Wing (reduced size) */}
@@ -1711,7 +1742,7 @@ export default function CampusMap() {
                                     </text>
                                 </g>
                             );
-                        })}
+                        })()}
                     </g>
                     {/* Glowing pulse ring locator beacon for search highlight */}
                     {activeLoc && (

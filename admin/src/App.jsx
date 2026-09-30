@@ -16,6 +16,7 @@ import InterviewsPage from './pages/InterviewsPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
 import DashboardPage from './pages/DashboardPage';
 import FeaturesPage from './pages/FeaturesPage';
+import BugReportsPage from './pages/BugReportsPage';
 import SuperAdminRoute from './components/SuperAdminRoute';
 import SessionReplacedModal from './components/SessionReplacedModal';
 
@@ -46,6 +47,8 @@ export function App() {
           <Route path="interviews" element={<InterviewsPage />} />
           <Route path="announcements" element={<AnnouncementsPage />} />
           <Route path="features" element={<FeaturesPage />} />
+          <Route path="bugs" element={<BugReportsPage />} />
+          <Route path="bug-reports" element={<Navigate to="/bugs" replace />} />
           <Route
             path="admins"
             element={

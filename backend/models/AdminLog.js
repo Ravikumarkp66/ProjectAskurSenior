@@ -21,6 +21,8 @@ const adminLogSchema = new mongoose.Schema({
             "PAYMENT_RECORD_DELETED",
             "TEST_USER_ENABLED",
             "TEST_USER_DISABLED",
+            "MANUAL_PLUS_GRANTED",
+            "MANUAL_PLUS_REVOKED",
             "FEATURE_UPDATED",
             "ACCOUNT_SUSPENDED",
             "ACCOUNT_REACTIVATED"

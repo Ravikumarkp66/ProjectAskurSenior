@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../utils/hooks';
 import { apiV2 } from '../../../services/authService';
 import toast from 'react-hot-toast';
-import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, X, Settings, Info } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertTriangle, RefreshCw, X, Settings, Info, Lock } from 'lucide-react';
 
 import TimetableSetupView from './components/TimetableSetupView';
 import ConfigurationSummary from './components/ConfigurationSummary';
@@ -13,9 +13,128 @@ import TimetableEditorModal from './components/TimetableEditorModal';
 
 const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, hasPlusAccess } = useAuth();
     
     const targetSemester = semester || user?.semester || 1;
+
+    // ─── Lock redirect for non-Plus users ──────────────────────────────────────
+    const handleLockedAction = () => {
+        if (!user) {
+            navigate('/login?redirect=/plus/timetable');
+        } else {
+            navigate('/plus');
+        }
+    };
+
+    // ─── Static demo data shown to non-Plus / logged-out users ─────────────────
+    const DUMMY_CONFIG = {
+        semesterStartDate: '2026-07-16',
+        lastWorkingDate:   '2026-11-22',
+        collegeStartMinute: 480,   // 08:00 AM
+        collegeEndMinute:   1020,  // 05:00 PM
+        classDuration:  50,
+        labDuration:    100,
+        workingDays: { '1': 'Full Day', '2': 'Full Day', '3': 'Full Day', '4': 'Full Day', '5': 'Full Day', '6': 'Half Day', '7': 'Holiday' },
+        breaks: [
+            { name: 'Tea Break',   startMinute: 660, duration: 15 },
+            { name: 'Lunch Break', startMinute: 780, duration: 45 }
+        ],
+        version: 2,
+        hasBackup: false,
+        updatedAt: '2026-07-16T08:00:00.000Z'
+    };
+
+    // Subject palette for dummy slots
+    const DUMMY_SUBJECTS = [
+        { _id: 'ds1', name: 'Data Structures', code: 'CS301', category: 'Theory' },
+        { _id: 'ds2', name: 'Operating Systems', code: 'CS302', category: 'Theory' },
+        { _id: 'ds3', name: 'Database Systems', code: 'CS303', category: 'Theory' },
+        { _id: 'ds4', name: 'Computer Networks', code: 'CS304', category: 'Theory' },
+        { _id: 'ds5', name: 'DS Lab', code: 'CS301L', category: 'Lab' },
+        { _id: 'ds6', name: 'Maths IV', code: 'MA401', category: 'Theory' },
+    ];
+
+    // Helper: build a slot object
+    const mkSlot = (day, start, end, subjectId, type = 'Lecture', grpId = null) => ({
+        _id: `dummy-${day}-${start}`,
+        dayOfWeek: day,
+        startMinute: start,
+        endMinute: end,
+        subject: subjectId ? DUMMY_SUBJECTS.find(s => s._id === subjectId) || null : null,
+        lectureType: type,
+        room: type === 'Lab' ? 'CS Lab 2' : (subjectId ? 'Room 301' : ''),
+        faculty: subjectId ? 'Dr. Demo' : '',
+        status: 'Scheduled',
+        sessionGroupId: grpId
+    });
+
+    // One week of realistic-looking dummy slots (Mon–Sat, breaks included)
+    const DUMMY_SLOTS = [
+        // Monday
+        mkSlot(1, 480, 530, 'ds1'),
+        mkSlot(1, 530, 580, 'ds2'),
+        mkSlot(1, 580, 630, 'ds3'),
+        mkSlot(1, 630, 645, null, 'Break'),
+        mkSlot(1, 645, 695, 'ds6'),
+        mkSlot(1, 695, 745, 'ds4'),
+        mkSlot(1, 745, 795, null, 'Break'),
+        mkSlot(1, 795, 845, 'ds1'),
+        mkSlot(1, 845, 895, null),
+        // Tuesday
+        mkSlot(2, 480, 530, 'ds2'),
+        mkSlot(2, 530, 580, 'ds4'),
+        mkSlot(2, 580, 630, null),
+        mkSlot(2, 630, 645, null, 'Break'),
+        mkSlot(2, 645, 745, 'ds5', 'Lab', 'grp-tue-1'),
+        mkSlot(2, 745, 845, 'ds5', 'Lab', 'grp-tue-1'),
+        mkSlot(2, 845, 895, null),
+        // Wednesday
+        mkSlot(3, 480, 530, 'ds3'),
+        mkSlot(3, 530, 580, 'ds1'),
+        mkSlot(3, 580, 630, 'ds6'),
+        mkSlot(3, 630, 645, null, 'Break'),
+        mkSlot(3, 645, 695, 'ds2'),
+        mkSlot(3, 695, 745, null),
+        mkSlot(3, 745, 795, null, 'Break'),
+        mkSlot(3, 795, 895, null),
+        // Thursday
+        mkSlot(4, 480, 530, 'ds4'),
+        mkSlot(4, 530, 580, 'ds3'),
+        mkSlot(4, 580, 630, null),
+        mkSlot(4, 630, 645, null, 'Break'),
+        mkSlot(4, 645, 695, 'ds1'),
+        mkSlot(4, 695, 745, 'ds6'),
+        mkSlot(4, 745, 795, null, 'Break'),
+        mkSlot(4, 795, 845, null),
+        // Friday
+        mkSlot(5, 480, 530, 'ds6'),
+        mkSlot(5, 530, 630, 'ds5', 'Lab', 'grp-fri-1'),
+        mkSlot(5, 530, 630, 'ds5', 'Lab', 'grp-fri-1'),
+        mkSlot(5, 630, 645, null, 'Break'),
+        mkSlot(5, 645, 695, 'ds3'),
+        mkSlot(5, 695, 745, 'ds2'),
+        mkSlot(5, 745, 795, null, 'Break'),
+        mkSlot(5, 795, 845, 'ds4'),
+        // Saturday (Half Day)
+        mkSlot(6, 480, 530, 'ds1'),
+        mkSlot(6, 530, 580, 'ds3'),
+        mkSlot(6, 580, 630, null),
+    ];
+
+    const DUMMY_REGISTERED_SUBJECTS = DUMMY_SUBJECTS.filter(s => s.category === 'Theory' || s.category === 'Lab').map(s => ({
+        _id: `reg-${s._id}`,
+        subject: s,
+        subjectId: s._id,
+        customName: s.name,
+        customCode: s.code,
+        credits: s.category === 'Lab' ? 1 : 4,
+        category: s.category,
+        weeklyPlan: {
+            theory: { required: s.category === 'Theory' ? 3 : 0 },
+            lab:    { required: s.category === 'Lab'    ? 1 : 0 }
+        }
+    }));
+
 
     const [loading, setLoading] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -24,10 +143,10 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
     const [successMsg, setSuccessMsg] = useState('');
 
     // Database states
-    const [initialConfig, setInitialConfig] = useState(null);
-    const [initialSlots, setInitialSlots] = useState([]);
-    const [subjects, setSubjects] = useState([]);
-    const [registeredSubjects, setRegisteredSubjects] = useState([]);
+    const [initialConfig, setInitialConfig] = useState(() => !hasPlusAccess ? DUMMY_CONFIG : null);
+    const [initialSlots, setInitialSlots] = useState(() => !hasPlusAccess ? DUMMY_SLOTS : []);
+    const [subjects, setSubjects] = useState(() => !hasPlusAccess ? DUMMY_SUBJECTS : []);
+    const [registeredSubjects, setRegisteredSubjects] = useState(() => !hasPlusAccess ? DUMMY_REGISTERED_SUBJECTS : []);
 
     // Helper to get smart default dates based on the current season
     const getSmartDefaultDates = () => {
@@ -75,6 +194,20 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
 
     // Editable form states — pre-seed dates from localStorage for instant restore
     const [config, setConfig] = useState(() => {
+        if (!hasPlusAccess) {
+            return {
+                semesterStartDate: DUMMY_CONFIG.semesterStartDate,
+                lastWorkingDate:   DUMMY_CONFIG.lastWorkingDate,
+                collegeStartMinute: DUMMY_CONFIG.collegeStartMinute,
+                collegeEndMinute:   DUMMY_CONFIG.collegeEndMinute,
+                classDuration:  DUMMY_CONFIG.classDuration,
+                labDuration:    DUMMY_CONFIG.labDuration,
+                workingDays:    DUMMY_CONFIG.workingDays,
+                breaks:         DUMMY_CONFIG.breaks,
+                version:        DUMMY_CONFIG.version,
+                hasBackup:      DUMMY_CONFIG.hasBackup
+            };
+        }
         const defaults = getSmartDefaultDates();
         const localStart = localStorage.getItem('aus_semStartDate');
         const localEnd = localStorage.getItem('aus_semEndDate');
@@ -102,7 +235,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
             hasBackup: false
         };
     });
-    const [slots, setSlots] = useState([]);
+    const [slots, setSlots] = useState(() => !hasPlusAccess ? DUMMY_SLOTS : []);
 
     // Cell editor popup states
     const [selectedSlot, setSelectedSlot] = useState(null);
@@ -192,12 +325,34 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
     };
 
     useEffect(() => {
+        if (!hasPlusAccess) {
+            // Non-Plus: seed demo data, zero API calls
+            setInitialConfig(DUMMY_CONFIG);
+            setConfig({
+                semesterStartDate: DUMMY_CONFIG.semesterStartDate,
+                lastWorkingDate:   DUMMY_CONFIG.lastWorkingDate,
+                collegeStartMinute: DUMMY_CONFIG.collegeStartMinute,
+                collegeEndMinute:   DUMMY_CONFIG.collegeEndMinute,
+                classDuration:  DUMMY_CONFIG.classDuration,
+                labDuration:    DUMMY_CONFIG.labDuration,
+                workingDays:    DUMMY_CONFIG.workingDays,
+                breaks:         DUMMY_CONFIG.breaks,
+                version:        DUMMY_CONFIG.version,
+                hasBackup:      DUMMY_CONFIG.hasBackup
+            });
+            setInitialSlots(DUMMY_SLOTS);
+            setSlots(DUMMY_SLOTS);
+            setSubjects(DUMMY_SUBJECTS);
+            setRegisteredSubjects(DUMMY_REGISTERED_SUBJECTS);
+            return;
+        }
         if (user) {
             loadTimetableData();
         }
-    }, [user, semester]);
+    }, [user, semester, hasPlusAccess]);
 
     const handleUndoReset = async () => {
+        if (!hasPlusAccess) { handleLockedAction(); return; }
         setUndoingReset(true);
         try {
             const res = await apiV2.undoResetTimetable();
@@ -261,6 +416,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
 
     // Handle cell click from the grid layout
     const handleCellClick = (slotObj) => {
+        if (!hasPlusAccess) { handleLockedAction(); return; }
         setSelectedSlot(slotObj);
         setIsEditorOpen(true);
     };
@@ -477,6 +633,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
 
     // Unified settings drawer save changes button click
     const handleDrawerSave = async (draftRegistered) => {
+        if (!hasPlusAccess) { handleLockedAction(); return; }
         setSavingConfig(true);
         try {
             // 1. Save Registered Subjects First
@@ -522,6 +679,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
 
     // Save configuration and regenerate slots structure
     const handleRegenerateSave = async () => {
+        if (!hasPlusAccess) { handleLockedAction(); return; }
         setSavingConfig(true);
         try {
             const payload = {
@@ -562,6 +720,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
 
     // Onboarding setup config save
     const handleInitialSetupSave = async () => {
+        if (!hasPlusAccess) { handleLockedAction(); return; }
         if (!config.semesterStartDate || !config.lastWorkingDate) {
             toast.error('Please specify the semester start date and last working day.');
             return;
@@ -607,6 +766,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
     // Save slot assignments bulk update with progress checklist validation
     const handleSaveAssignments = async (e, forceSave = false) => {
         if (e) e.preventDefault();
+        if (!hasPlusAccess) { handleLockedAction(); return; }
         
         // 1. Run assignment progress validation
         if (!forceSave) {
@@ -697,14 +857,6 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
         });
     }, [initialConfig, initialSlots]);
 
-    if (!user) {
-        return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px' }}>
-                <Loader2 className="animate-spin" size={24} style={{ color: '#a78bfa' }} />
-            </div>
-        );
-    }
-
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
@@ -721,11 +873,23 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
                                 Syncing...
                             </span>
                         )}
+                        {!hasPlusAccess && (
+                            <span
+                                onClick={handleLockedAction}
+                                title="Upgrade to Plus to set up your own timetable"
+                                style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(167, 139, 250, 0.1)', padding: '2px 8px', borderRadius: '12px', border: '1px solid rgba(167, 139, 250, 0.2)', cursor: 'pointer' }}
+                            >
+                                <Lock size={10} />
+                                Demo
+                            </span>
+                        )}
                     </div>
                     <span style={{ fontSize: '12px', color: 'rgba(148, 163, 184, 0.55)' }}>
-                        {hasConfiguration 
-                            ? 'Manage your weekly schedule grid and class assignments' 
-                            : 'Configure your college working hours to generate your weekly schedule'
+                        {!hasPlusAccess
+                            ? 'Preview of how your weekly schedule looks — unlock with Plus to set up yours'
+                            : hasConfiguration
+                                ? 'Manage your weekly schedule grid and class assignments'
+                                : 'Configure your college working hours to generate your weekly schedule'
                         }
                     </span>
                 </div>
@@ -788,7 +952,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
                 {hasConfiguration ? (
                     <ConfigurationSummary 
                         config={config} 
-                        onEditClick={() => setIsDrawerOpen(true)} 
+                        onEditClick={() => !hasPlusAccess ? handleLockedAction() : setIsDrawerOpen(true)} 
                     />
                 ) : (
                     <div style={{
@@ -919,6 +1083,7 @@ const TimetableSettings = ({ isEmbedded = false, semester = null }) => {
                             registeredSubjects={registeredSubjects}
                             onCellClick={handleCellClick} 
                             user={user}
+                            isReadOnly={!hasPlusAccess}
                         />
 
                         {/* Last updated summary info at bottom */}

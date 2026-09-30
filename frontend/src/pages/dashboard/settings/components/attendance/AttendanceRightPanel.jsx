@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, XCircle, PauseCircle, Clock, ShieldCheck, AlertTriangle, AlertCircle, Lock, Target } from 'lucide-react';
+import { useTheme } from '../../../../../context/ThemeContext';
 import { getAttendanceState } from '../SubjectProgressList';
 
 const AttendanceRightPanel = ({
@@ -8,6 +9,8 @@ const AttendanceRightPanel = ({
     overallMetrics = null,
     progressList = []
 }) => {
+    const { isDark = true } = useTheme?.() || { isDark: true };
+
     // Calculate Day Summary numbers
     const totalDayClasses = dayClasses.length;
     const norm = (s) => (s ? String(s).trim().toUpperCase() : '');
@@ -55,31 +58,31 @@ const AttendanceRightPanel = ({
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            color: '#fff',
+            color: isDark ? '#fff' : '#0f172a',
             height: 'fit-content'
         }}>
             {/* DAY SUMMARY Card */}
             <div style={{
-                background: 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
+                background: isDark ? 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)' : '#FFFFFF',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid #E2E8F0',
                 borderRadius: '16px',
                 padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+                boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 1px 3px rgba(15, 23, 42, 0.06)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#a78bfa', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: isDark ? '#a78bfa' : '#6d28d9', letterSpacing: '0.05em' }}>
                         {formatDateLabel(selectedDate)}
                     </div>
                     <span style={{
                         fontSize: '11px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        background: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9',
+                        border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #E2E8F0',
                         padding: '2px 8px',
                         borderRadius: '12px',
-                        color: '#cbd5e1',
+                        color: isDark ? '#cbd5e1' : '#475569',
                         fontWeight: 600
                     }}>
                         {totalDayClasses} {totalDayClasses === 1 ? 'Class' : 'Classes'}
@@ -92,8 +95,8 @@ const AttendanceRightPanel = ({
                     gap: '8px'
                 }}>
                     <div style={{
-                        background: 'rgba(16, 185, 129, 0.06)',
-                        border: '1px solid rgba(16, 185, 129, 0.15)',
+                        background: isDark ? 'rgba(16, 185, 129, 0.06)' : '#ECFDF5',
+                        border: isDark ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid #A7F3D0',
                         borderRadius: '10px',
                         padding: '10px',
                         display: 'flex',
@@ -102,14 +105,14 @@ const AttendanceRightPanel = ({
                     }}>
                         <CheckCircle2 size={16} style={{ color: '#10b981' }} />
                         <div>
-                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#6ee7b7' }}>{presentCount}</div>
-                            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>Present</div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: isDark ? '#6ee7b7' : '#047857' }}>{presentCount}</div>
+                            <div style={{ fontSize: '10px', color: isDark ? '#94a3b8' : '#065F46', fontWeight: 500 }}>Present</div>
                         </div>
                     </div>
 
                     <div style={{
-                        background: 'rgba(239, 68, 68, 0.06)',
-                        border: '1px solid rgba(239, 68, 68, 0.15)',
+                        background: isDark ? 'rgba(239, 68, 68, 0.06)' : '#FFF1F2',
+                        border: isDark ? '1px solid rgba(239, 68, 68, 0.15)' : '1px solid #FECDD3',
                         borderRadius: '10px',
                         padding: '10px',
                         display: 'flex',
@@ -118,14 +121,14 @@ const AttendanceRightPanel = ({
                     }}>
                         <XCircle size={16} style={{ color: '#ef4444' }} />
                         <div>
-                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#fca5a5' }}>{absentCount}</div>
-                            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>Absent</div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: isDark ? '#fca5a5' : '#BE123C' }}>{absentCount}</div>
+                            <div style={{ fontSize: '10px', color: isDark ? '#94a3b8' : '#9F1239', fontWeight: 500 }}>Absent</div>
                         </div>
                     </div>
 
                     <div style={{
-                        background: 'rgba(245, 158, 11, 0.06)',
-                        border: '1px solid rgba(245, 158, 11, 0.15)',
+                        background: isDark ? 'rgba(245, 158, 11, 0.06)' : '#FFFBEB',
+                        border: isDark ? '1px solid rgba(245, 158, 11, 0.15)' : '1px solid #FDE68A',
                         borderRadius: '10px',
                         padding: '10px',
                         display: 'flex',
@@ -134,24 +137,24 @@ const AttendanceRightPanel = ({
                     }}>
                         <PauseCircle size={16} style={{ color: '#f59e0b' }} />
                         <div>
-                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#fcd34d' }}>{suspendedCount}</div>
-                            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>Suspended</div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: isDark ? '#fcd34d' : '#B45309' }}>{suspendedCount}</div>
+                            <div style={{ fontSize: '10px', color: isDark ? '#94a3b8' : '#92400E', fontWeight: 500 }}>Suspended</div>
                         </div>
                     </div>
 
                     <div style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.07)',
+                        background: isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid #E2E8F0',
                         borderRadius: '10px',
                         padding: '10px',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
                     }}>
-                        <Clock size={16} style={{ color: '#94a3b8' }} />
+                        <Clock size={16} style={{ color: isDark ? '#94a3b8' : '#64748B' }} />
                         <div>
-                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#e2e8f0' }}>{remainingCount}</div>
-                            <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>Remaining</div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: isDark ? '#e2e8f0' : '#0F172A' }}>{remainingCount}</div>
+                            <div style={{ fontSize: '10px', color: isDark ? '#94a3b8' : '#64748B', fontWeight: 500 }}>Remaining</div>
                         </div>
                     </div>
                 </div>
@@ -159,27 +162,27 @@ const AttendanceRightPanel = ({
 
             {/* ATTENDANCE OVERVIEW Card */}
             <div style={{
-                background: 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.07)',
+                background: isDark ? 'linear-gradient(145deg, #13111C 0%, #0F0D16 100%)' : '#FFFFFF',
+                border: isDark ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid #E2E8F0',
                 borderRadius: '16px',
                 padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+                boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.3)' : '0 1px 3px rgba(15, 23, 42, 0.06)'
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.05em' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, color: isDark ? '#94a3b8' : '#475569', letterSpacing: '0.05em' }}>
                         ATTENDANCE OVERVIEW
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '10px' }}>
-                        <span style={{ color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '3px' }} title="College Minimum">
-                            <Lock size={10} style={{ color: '#94a3b8' }} />
+                        <span style={{ color: isDark ? '#cbd5e1' : '#334155', display: 'flex', alignItems: 'center', gap: '3px' }} title="College Minimum">
+                            <Lock size={10} style={{ color: isDark ? '#94a3b8' : '#64748B' }} />
                             {collegeThreshold}%
                         </span>
                         {userThreshold !== collegeThreshold && (
-                            <span style={{ color: '#c4b5fd', display: 'flex', alignItems: 'center', gap: '3px' }} title="My Personal Target">
-                                <Target size={10} style={{ color: '#a78bfa' }} />
+                            <span style={{ color: isDark ? '#c4b5fd' : '#6D28D9', display: 'flex', alignItems: 'center', gap: '3px' }} title="My Personal Target">
+                                <Target size={10} style={{ color: isDark ? '#a78bfa' : '#7C3AED' }} />
                                 {userThreshold}%
                             </span>
                         )}
@@ -196,7 +199,7 @@ const AttendanceRightPanel = ({
                         }}>
                             {overallPct}%
                         </span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>overall</span>
+                        <span style={{ fontSize: '12px', color: isDark ? '#94a3b8' : '#64748B' }}>overall</span>
                     </div>
 
                     <span style={{
@@ -216,7 +219,7 @@ const AttendanceRightPanel = ({
                 <div style={{
                     width: '100%',
                     height: '8px',
-                    background: 'rgba(255, 255, 255, 0.08)',
+                    background: isDark ? 'rgba(255, 255, 255, 0.08)' : '#E2E8F0',
                     borderRadius: '4px',
                     overflow: 'visible',
                     position: 'relative'
@@ -239,7 +242,7 @@ const AttendanceRightPanel = ({
                             top: '-2px',
                             bottom: '-2px',
                             width: '2px',
-                            background: '#94a3b8',
+                            background: isDark ? '#94a3b8' : '#64748B',
                             zIndex: 2,
                             borderRadius: '1px'
                         }}
@@ -255,7 +258,7 @@ const AttendanceRightPanel = ({
                                 top: '-2px',
                                 bottom: '-2px',
                                 width: '2px',
-                                background: '#a78bfa',
+                                background: isDark ? '#a78bfa' : '#7C3AED',
                                 zIndex: 3,
                                 borderRadius: '1px'
                             }}
@@ -269,33 +272,33 @@ const AttendanceRightPanel = ({
                     flexDirection: 'column',
                     gap: '6px',
                     paddingTop: '6px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                    borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid #E2E8F0',
                     fontSize: '11px'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#6ee7b7' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isDark ? '#6ee7b7' : '#047857' }}>
                             <ShieldCheck size={12} />
                             <span>Safe (Target Met)</span>
                         </div>
-                        <span style={{ fontWeight: 700, color: '#6ee7b7' }}>{safeSubjectsCount}</span>
+                        <span style={{ fontWeight: 700, color: isDark ? '#6ee7b7' : '#047857' }}>{safeSubjectsCount}</span>
                     </div>
 
                     {userThreshold !== collegeThreshold && attentionSubjectsCount > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#fcd34d' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isDark ? '#fcd34d' : '#B45309' }}>
                                 <AlertTriangle size={12} />
                                 <span>Attention (Below Target)</span>
                             </div>
-                            <span style={{ fontWeight: 700, color: '#fcd34d' }}>{attentionSubjectsCount}</span>
+                            <span style={{ fontWeight: 700, color: isDark ? '#fcd34d' : '#B45309' }}>{attentionSubjectsCount}</span>
                         </div>
                     )}
 
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: criticalSubjectsCount > 0 ? '#fca5a5' : '#94a3b8' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: criticalSubjectsCount > 0 ? (isDark ? '#fca5a5' : '#BE123C') : (isDark ? '#94a3b8' : '#64748B') }}>
                             <AlertCircle size={12} />
                             <span>Critical (Below College)</span>
                         </div>
-                        <span style={{ fontWeight: 700, color: criticalSubjectsCount > 0 ? '#fca5a5' : '#94a3b8' }}>{criticalSubjectsCount}</span>
+                        <span style={{ fontWeight: 700, color: criticalSubjectsCount > 0 ? (isDark ? '#fca5a5' : '#BE123C') : (isDark ? '#94a3b8' : '#64748B') }}>{criticalSubjectsCount}</span>
                     </div>
                 </div>
             </div>

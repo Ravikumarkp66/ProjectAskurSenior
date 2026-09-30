@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Calculator,
     ShieldCheck,
@@ -7,10 +8,12 @@ import {
     Pencil,
     Check,
     AlertCircle,
-    RotateCcw
+    RotateCcw,
+    Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { apiV2 } from '../../../services/authService';
+import { useAuth } from '../../../context/AuthContext';
 import {
     getSubjectEvaluationConfig,
     calculateCieMarks,
@@ -23,6 +26,74 @@ import CIEResultSection from './CIEResultSection';
 import EligibilityAuditSection from './EligibilityAuditSection';
 import SEETargetCard from './SEETargetCard';
 import UnsavedChangesDialog from './UnsavedChangesDialog';
+
+// Realistic pre-filled demo subjects for free & non-logged-in users (Zero DB/API calls)
+const DUMMY_CIE_SUBJECTS = [
+    {
+        registeredSubjectId: 'demo-cie-1',
+        subjectId: 'demo-cie-1',
+        subjectCode: '21CS42',
+        subjectName: 'Design and Analysis of Algorithms',
+        category: 'Integrated Professional Core Course',
+        evaluationType: 'IPCC',
+        credits: 4,
+        semester: 4,
+        attendancePercentage: 84.8,
+        rawMarks: {
+            test1: 42,
+            test2: 44,
+            quiz1: 17,
+            quiz2: 18,
+            assignment1: 18,
+            assignment2: 19,
+            labRecord: 315,
+            labTest: 13.5
+        }
+    },
+    {
+        registeredSubjectId: 'demo-cie-2',
+        subjectId: 'demo-cie-2',
+        subjectCode: '21CS43',
+        subjectName: 'Operating Systems',
+        category: 'Theory Course',
+        evaluationType: 'THEORY_ONLY',
+        credits: 3,
+        semester: 4,
+        attendancePercentage: 88.0,
+        rawMarks: {
+            test1: 40,
+            test2: 43,
+            quiz1: 16,
+            quiz2: 19,
+            assignment1: 17,
+            assignment2: 18
+        }
+    },
+    {
+        registeredSubjectId: 'demo-cie-3',
+        subjectId: 'demo-cie-3',
+        subjectCode: '21CSL46',
+        subjectName: 'Microcontroller & Embedded Systems Lab',
+        category: 'Laboratory Course',
+        evaluationType: 'LAB_ONLY',
+        credits: 1.5,
+        semester: 4,
+        attendancePercentage: 92.0,
+        rawMarks: {
+            labRecord: 325,
+            labTest: 14.0
+        }
+    }
+];
+
+const DUMMY_ATTENDANCE_MAP = {
+    'demo-cie-1': 84.8,
+    '21cs42': 84.8,
+    'demo-cie-2': 88.0,
+    '21cs43': 88.0,
+    'demo-cie-3': 92.0,
+    '21csl46': 92.0
+};
 
 // Extract and normalize attendance map by ID, code, and subject name
 function extractAttendanceMap(source) {
@@ -73,29 +144,63 @@ export default function CIEEligibilityTool({
     initialSubjectId = null,
     initialSubjects = []
 }) {
+    const { user, hasPlusAccess, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const handleLockedAction = useCallback(() => {
+        if (!isAuthenticated) {
+            navigate('/login', { state: { from: location.pathname } });
+        } else {
+            navigate('/pricing');
+        }
+    }, [isAuthenticated, navigate, location]);
+
     // Pre-seed subjects if provided to guarantee INSTANT 0ms modal opening
-    const hasInitial = Array.isArray(initialSubjects) && initialSubjects.length > 0;
+    const hasInitial = hasPlusAccess && Array.isArray(initialSubjects) && initialSubjects.length > 0;
 
     // Top-level flow state
     const [step, setStep] = useState('entry'); // 'entry' | 'result'
-    const [isLoading, setIsLoading] = useState(!hasInitial);
+    const [isLoading, setIsLoading] = useState(!hasPlusAccess ? false : !hasInitial);
     const [isSaving, setIsSaving] = useState(false);
     const [loadError, setLoadError] = useState(null);
 
     // Subject data
-    const [subjects, setSubjects] = useState(hasInitial ? initialSubjects : []);
-    const [selectedSubject, setSelectedSubject] = useState(hasInitial ? initialSubjects[0] : null);
+    const [subjects, setSubjects] = useState(() => {
+        if (hasInitial) return initialSubjects;
+        if (!hasPlusAccess) return DUMMY_CIE_SUBJECTS;
+        return [];
+    });
+    const [selectedSubject, setSelectedSubject] = useState(() => {
+        if (hasInitial) return initialSubjects[0];
+        if (!hasPlusAccess) return DUMMY_CIE_SUBJECTS[0];
+        return null;
+    });
 
     // Pre-seed attendance map directly from Attendance Section persistent caches
-    const [attendanceMap, setAttendanceMap] = useState(getStoredAttendanceMap);
+    const [attendanceMap, setAttendanceMap] = useState(() => {
+        if (!hasPlusAccess) return DUMMY_ATTENDANCE_MAP;
+        return getStoredAttendanceMap();
+    });
     const [activeBacklogs, setActiveBacklogs] = useState(0);
 
     // Attendance verification state
     const [includeAttendance, setIncludeAttendance] = useState(true);
-    const [customAttendance, setCustomAttendance] = useState('');
+    const [customAttendance, setCustomAttendance] = useState(() => {
+        if (!hasPlusAccess) return '84.8';
+        return '';
+    });
 
     // Marks and validation state
-    const [rawMarks, setRawMarks] = useState(hasInitial && initialSubjects[0]?.rawMarks ? { ...initialSubjects[0].rawMarks } : {});
+    const [rawMarks, setRawMarks] = useState(() => {
+        if (hasInitial && initialSubjects[0]?.rawMarks) {
+            return { ...initialSubjects[0].rawMarks };
+        }
+        if (!hasPlusAccess) {
+            return { ...DUMMY_CIE_SUBJECTS[0].rawMarks };
+        }
+        return {};
+    });
     const [errors, setErrors] = useState({});
     const [isDirty, setIsDirty] = useState(false);
     const [showDiscardPrompt, setShowDiscardPrompt] = useState(false);
@@ -106,6 +211,25 @@ export default function CIEEligibilityTool({
 
     // Fetch initial data (instantaneous pre-seed + non-blocking background hydration)
     const loadAcademicData = useCallback(async () => {
+        if (!hasPlusAccess) {
+            setSubjects(DUMMY_CIE_SUBJECTS);
+            let target = DUMMY_CIE_SUBJECTS[0];
+            if (initialSubjectId) {
+                const match = DUMMY_CIE_SUBJECTS.find(
+                    (s) => s.registeredSubjectId === initialSubjectId || s.subjectId === initialSubjectId
+                );
+                if (match) target = match;
+            }
+            setSelectedSubject(target);
+            setRawMarks({ ...(target.rawMarks || {}) });
+            setAttendanceMap(DUMMY_ATTENDANCE_MAP);
+            setCustomAttendance(String(target.attendancePercentage || 84.8));
+            setIsLoading(false);
+            setLoadError(null);
+            setIsDirty(false);
+            return;
+        }
+
         const hasExisting = Array.isArray(initialSubjects) && initialSubjects.length > 0;
         if (!hasExisting) {
             setIsLoading(true);
@@ -125,8 +249,24 @@ export default function CIEEligibilityTool({
                 subjectList = initialSubjects;
             } else {
                 const regRes = await apiV2.getRegisteredSubjects().catch(() => null);
-                if (regRes?.data?.data && Array.isArray(regRes.data.data)) {
+                if (regRes?.data?.data && Array.isArray(regRes.data.data) && regRes.data.data.length > 0) {
                     subjectList = regRes.data.data;
+                }
+            }
+
+            // Fallback: Fetch authoritative curriculum subjects if no student-registered subjects found
+            if (subjectList.length === 0) {
+                const curRes = await apiV2.getAcademicSubjects(user?.semester).catch(() => null);
+                if (curRes?.data?.data && Array.isArray(curRes.data.data) && curRes.data.data.length > 0) {
+                    subjectList = curRes.data.data.map(s => ({
+                        ...s,
+                        subjectId: s._id || s.id,
+                        registeredSubjectId: s._id || s.id,
+                        subjectCode: s.code || s.subjectCode,
+                        subjectName: s.name || s.subjectName,
+                        credits: s.credits,
+                        category: s.category || s.type || 'Curriculum Subject'
+                    }));
                 }
             }
 
@@ -151,7 +291,7 @@ export default function CIEEligibilityTool({
         } catch (err) {
             console.error('[CIEEligibilityTool] Load error:', err);
             if (!hasExisting) {
-                setLoadError('Unable to load registered subjects. Please try again.');
+                setLoadError('Unable to load subjects. Please try again.');
             }
         } finally {
             setIsLoading(false);
@@ -407,21 +547,23 @@ export default function CIEEligibilityTool({
         // Transition to result view
         setStep('result');
 
-        // Persist to backend if registeredSubjectId exists
-        const regSubId = selectedSubject?.registeredSubjectId || selectedSubject?._id;
-        if (regSubId) {
-            setIsSaving(true);
-            try {
-                await apiV2.saveCieRecord({
-                    registeredSubjectId: regSubId,
-                    semester: selectedSubject.semester || 1,
-                    rawMarks
-                });
-                setIsDirty(false);
-            } catch (saveErr) {
-                console.warn('[CIEEligibilityTool] Auto-save skipped:', saveErr.message);
-            } finally {
-                setIsSaving(false);
+        // Persist to backend if registeredSubjectId exists and user has Plus
+        if (hasPlusAccess) {
+            const regSubId = selectedSubject?.registeredSubjectId || selectedSubject?._id;
+            if (regSubId) {
+                setIsSaving(true);
+                try {
+                    await apiV2.saveCieRecord({
+                        registeredSubjectId: regSubId,
+                        semester: selectedSubject.semester || 1,
+                        rawMarks
+                    });
+                    setIsDirty(false);
+                } catch (saveErr) {
+                    console.warn('[CIEEligibilityTool] Auto-save skipped:', saveErr.message);
+                } finally {
+                    setIsSaving(false);
+                }
             }
         }
     };
@@ -458,7 +600,7 @@ export default function CIEEligibilityTool({
                     <button
                         type="button"
                         onClick={handleRequestClose}
-                        className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors cursor-pointer"
+                        className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shadow-xs"
                     >
                         Cancel
                     </button>
@@ -476,7 +618,7 @@ export default function CIEEligibilityTool({
                                         ? 'Fix invalid marks before calculating'
                                         : 'Calculate CIE & Academic Eligibility'
                         }
-                        className="px-4 py-1.5 rounded text-xs font-mono font-bold text-slate-950 bg-slate-100 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        className="px-4 py-1.5 rounded text-xs font-mono font-bold text-white dark:text-slate-950 bg-purple-600 dark:bg-slate-100 hover:bg-purple-700 dark:hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                         <span>Calculate CIE & Eligibility</span>
                         <ArrowRight size={13} />
@@ -490,7 +632,7 @@ export default function CIEEligibilityTool({
                 <button
                     type="button"
                     onClick={() => setStep('entry')}
-                    className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                     <Pencil size={12} />
                     <span>Edit marks</span>
@@ -499,7 +641,7 @@ export default function CIEEligibilityTool({
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-1.5 rounded text-xs font-mono font-bold text-slate-950 bg-slate-100 hover:bg-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-1.5 rounded text-xs font-mono font-bold text-white dark:text-slate-950 bg-purple-600 dark:bg-slate-100 hover:bg-purple-700 dark:hover:bg-white transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                     <Check size={13} />
                     <span>Done</span>
@@ -523,8 +665,8 @@ export default function CIEEligibilityTool({
             >
                 {/* 1. Loading State */}
                 {isLoading && (
-                    <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-400 font-mono">
-                        <div className="w-6 h-6 rounded-full border-2 border-slate-600 border-t-slate-200 animate-spin" />
+                    <div className="py-16 flex flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400 font-mono">
+                        <div className="w-6 h-6 rounded-full border-2 border-slate-300 dark:border-slate-600 border-t-purple-600 dark:border-t-slate-200 animate-spin" />
                         <span className="text-xs">Loading course evaluation rules...</span>
                     </div>
                 )}
@@ -532,16 +674,16 @@ export default function CIEEligibilityTool({
                 {/* 2. Error State */}
                 {!isLoading && loadError && (
                     <div className="py-12 flex flex-col items-center justify-center gap-3 text-center px-4 font-mono">
-                        <div className="w-9 h-9 rounded bg-rose-950/40 border border-rose-500/50 flex items-center justify-center text-rose-400">
+                        <div className="w-9 h-9 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-500/50 flex items-center justify-center text-rose-600 dark:text-rose-400">
                             <AlertCircle size={18} />
                         </div>
-                        <p className="text-xs text-rose-300 max-w-sm m-0">
+                        <p className="text-xs text-rose-600 dark:text-rose-300 max-w-sm m-0">
                             {loadError}
                         </p>
                         <button
                             type="button"
                             onClick={loadAcademicData}
-                            className="mt-1 px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                            className="mt-1 px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                         >
                             <RefreshCw size={12} />
                             <span>Retry</span>
@@ -552,12 +694,12 @@ export default function CIEEligibilityTool({
                 {/* 3. Empty Subjects State */}
                 {!isLoading && !loadError && subjects.length === 0 && (
                     <div className="py-12 flex flex-col items-center justify-center gap-3 text-center px-4 font-mono">
-                        <div className="w-9 h-9 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
+                        <div className="w-9 h-9 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400">
                             <Calculator size={18} />
                         </div>
-                        <h4 className="text-xs font-bold text-slate-200 m-0 uppercase tracking-wide">No Registered Subjects</h4>
-                        <p className="text-xs text-slate-400 max-w-sm m-0 font-sans">
-                            Configure your enrolled subjects in Student Academics first to use CIE & Eligibility.
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 m-0 uppercase tracking-wide">No Subjects Found</h4>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm m-0 font-sans">
+                            No curriculum subjects found for your branch and semester. Please verify your academic profile details.
                         </p>
                     </div>
                 )}
@@ -587,6 +729,8 @@ export default function CIEEligibilityTool({
                                     attendanceValue={customAttendance}
                                     onChangeAttendance={handleAttendanceChange}
                                     attendanceThreshold={75}
+                                    readOnly={!hasPlusAccess}
+                                    onLockedClick={handleLockedAction}
                                 />
                             </div>
                         )}
@@ -610,6 +754,8 @@ export default function CIEEligibilityTool({
                                     currentCie={cieResult?.totalCie || 0}
                                     maxCie={cieResult?.maxCie || 50}
                                     hasSee={currentConfig?.hasSee !== false}
+                                    isLocked={!hasPlusAccess}
+                                    onLockedClick={handleLockedAction}
                                 />
                             </div>
                         )}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   ChevronDown, 
   ThumbsUp, 
@@ -9,17 +10,37 @@ import {
   MessageSquare, 
   Terminal, 
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import { interviewExperiencesAPI } from '../../services/api';
+import { useAuth } from '../../utils/hooks';
 
 const ExperienceCard = ({ data: initialData, isLightMode, defaultExpanded = true }) => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [data, setData] = useState(initialData);
   const [isOpen, setIsOpen] = useState(defaultExpanded);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [upvoteCount, setUpvoteCount] = useState(data.upvotes || 0);
   const [hasUpvoted, setHasUpvoted] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  React.useEffect(() => {
+    setData(initialData);
+    setUpvoteCount(initialData?.upvotes || 0);
+  }, [initialData]);
+
+  const isLocked = Boolean(data?.isLocked);
+
+  const handleUnlockAction = (e) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate('/login');
+    } else {
+      navigate('/plus');
+    }
+  };
 
   const handleCopy = (e) => {
     e.stopPropagation();
@@ -93,54 +114,69 @@ const ExperienceCard = ({ data: initialData, isLightMode, defaultExpanded = true
         </div>
 
         {/* Right: Actions + Chevron */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button 
-            type="button"
-            onClick={handleUpvote}
-            title="Upvote"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium transition-colors border ${
-              hasUpvoted 
-                ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' 
-                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <ThumbsUp size={12} fill={hasUpvoted ? "currentColor" : "none"} />
-            <span>{upvoteCount}</span>
-          </button>
-          
-          <button 
-            type="button"
-            onClick={handleBookmark}
-            title={isBookmarked ? "Bookmarked" : "Bookmark"}
-            className={`p-1.5 rounded transition-colors border ${
-              isBookmarked 
-                ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' 
-                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-purple-400'
-            }`}
-          >
-            <Bookmark size={13} fill={isBookmarked ? "currentColor" : "none"} />
-          </button>
-          
-          <button 
-            type="button"
-            onClick={handleCopy}
-            title="Copy Experience"
-            className={`p-1.5 rounded transition-colors border ${
-              isCopied 
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
-                : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {isCopied ? <Check size={13} /> : <Copy size={13} />}
-          </button>
-
-          <div className="pl-1 text-slate-400">
-            <ChevronDown 
-              size={16} 
-              className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-purple-400' : ''}`} 
-            />
+        {isLocked ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 flex items-center gap-1 px-2 py-0.5 rounded border border-zinc-200 dark:border-white/10 bg-zinc-100 dark:bg-white/[0.04]">
+              <Lock size={10} className="text-zinc-400 dark:text-zinc-500" />
+              <span>Locked</span>
+            </span>
+            <div className="pl-1 text-slate-400">
+              <ChevronDown 
+                size={16} 
+                className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-purple-400' : ''}`} 
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button 
+              type="button"
+              onClick={handleUpvote}
+              title="Upvote"
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium transition-colors border ${
+                hasUpvoted 
+                  ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' 
+                  : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <ThumbsUp size={12} fill={hasUpvoted ? "currentColor" : "none"} />
+              <span>{upvoteCount}</span>
+            </button>
+            
+            <button 
+              type="button"
+              onClick={handleBookmark}
+              title={isBookmarked ? "Bookmarked" : "Bookmark"}
+              className={`p-1.5 rounded transition-colors border ${
+                isBookmarked 
+                  ? 'bg-purple-500/15 border-purple-500/30 text-purple-400' 
+                  : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-purple-400'
+              }`}
+            >
+              <Bookmark size={13} fill={isBookmarked ? "currentColor" : "none"} />
+            </button>
+            
+            <button 
+              type="button"
+              onClick={handleCopy}
+              title="Copy Experience"
+              className={`p-1.5 rounded transition-colors border ${
+                isCopied 
+                  ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+                  : 'bg-white/[0.03] hover:bg-white/[0.08] border-white/[0.08] text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {isCopied ? <Check size={13} /> : <Copy size={13} />}
+            </button>
+
+            <div className="pl-1 text-slate-400">
+              <ChevronDown 
+                size={16} 
+                className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-purple-400' : ''}`} 
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Collapsed One-line Preview */}
@@ -149,13 +185,18 @@ const ExperienceCard = ({ data: initialData, isLightMode, defaultExpanded = true
           onClick={() => setIsOpen(true)}
           className="px-4 py-2.5 text-xs text-slate-400 hover:text-slate-300 line-clamp-1 italic cursor-pointer font-sans"
         >
-          {Array.isArray(data.overview) 
+          {isLocked ? (
+            <span className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400 not-italic">
+              <Lock size={11} className="text-zinc-400 shrink-0" />
+              <span>Interview experience locked · Click to preview topics</span>
+            </span>
+          ) : Array.isArray(data.overview) 
             ? (data.overview[0] || 'Click to expand overview & questions...') 
             : (data.overview || 'Click to expand overview & questions...')}
         </div>
       )}
 
-      {/* Expanded Structured Two-Column View */}
+      {/* Expanded View */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -165,6 +206,47 @@ const ExperienceCard = ({ data: initialData, isLightMode, defaultExpanded = true
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
+            {isLocked ? (
+              <div className="p-4 sm:p-5 font-sans space-y-4">
+                {/* Topics Covered Preview */}
+                {Array.isArray(data.topicsCovered) && data.topicsCovered.length > 0 && (
+                  <div>
+                    <div className="text-[11px] font-mono font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+                      Topics covered
+                    </div>
+                    <ul className="space-y-1.5 text-xs text-zinc-700 dark:text-zinc-300">
+                      {data.topicsCovered.map((topic, idx) => (
+                        <li key={idx} className="flex items-center gap-2">
+                          <span className="text-purple-500 dark:text-purple-400 font-bold select-none">•</span>
+                          <span>{topic}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Concise Locked Box */}
+                <div className="p-5 rounded-lg bg-zinc-50 dark:bg-[#121620] border border-zinc-200 dark:border-white/[0.08] text-center flex flex-col items-center justify-center">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-2.5">
+                    <Lock size={15} />
+                  </div>
+                  <h3 className="text-xs sm:text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Interview experience locked
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm mx-auto leading-relaxed">
+                    Detailed interview questions, round-by-round experiences and candidate insights are available with AskUrSenior Plus.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleUnlockAction}
+                    className="mt-3.5 px-4 py-2 rounded-[6px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-medium transition-colors inline-flex items-center gap-2 shadow-sm"
+                  >
+                    <Lock size={12} />
+                    <span>{!isAuthenticated ? "Login to Unlock" : "Unlock with Plus"}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-8 font-sans">
               {/* Left Column: Detailed Overview */}
               <div className="space-y-2.5">
@@ -248,6 +330,7 @@ const ExperienceCard = ({ data: initialData, isLightMode, defaultExpanded = true
                 )}
               </div>
             </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

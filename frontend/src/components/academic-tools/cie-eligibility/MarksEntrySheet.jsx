@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Lock } from 'lucide-react';
 
 export default function MarksEntrySheet({
     evalConfig,
@@ -11,7 +11,9 @@ export default function MarksEntrySheet({
     onToggleAttendance,
     attendanceValue = '',
     onChangeAttendance,
-    attendanceThreshold = 75
+    attendanceThreshold = 75,
+    readOnly = false,
+    onLockedClick
 }) {
     const inputRefs = useRef({});
 
@@ -59,42 +61,52 @@ export default function MarksEntrySheet({
 
     return (
         <div className="flex flex-col gap-4 font-sans">
-            {/* CSES Subheader Bar */}
-            <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+            {/* Subheader Bar */}
+            <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-200 uppercase tracking-wide">
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide flex items-center gap-1.5">
+                        {readOnly && <Lock size={12} className="text-slate-400" />}
                         CIE MARKS SHEET
                     </span>
-                    <span className="text-slate-500 font-mono">
+                    <span className="text-slate-500 dark:text-slate-400 font-mono">
                         [{evalConfig.userFacingName}]
                     </span>
+                    {readOnly && (
+                        <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
+                            Demo Mode
+                        </span>
+                    )}
                 </div>
 
-                <div className="font-mono text-[11px] text-slate-400">
-                    {remainingCount > 0 ? (
-                        <span className="text-amber-400 font-semibold">
+                <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                    {readOnly ? (
+                        <span className="text-slate-400 dark:text-slate-500 font-medium">
+                            Sample Marks Pre-filled
+                        </span>
+                    ) : remainingCount > 0 ? (
+                        <span className="text-amber-600 dark:text-amber-400 font-semibold">
                             {remainingCount} of {totalCount} remaining
                         </span>
                     ) : (
-                        <span className="text-emerald-400 font-semibold">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
                             All {totalCount} entered
                         </span>
                     )}
                 </div>
             </div>
 
-            {/* CSES Academic Spreadsheet Table */}
-            <div className="border border-slate-800 rounded bg-[#0b0c10] overflow-hidden">
+            {/* Academic Spreadsheet Table */}
+            <div className="border border-slate-200 dark:border-slate-800 rounded bg-white dark:bg-[#0b0c10] overflow-hidden shadow-xs">
                 <table className="w-full text-left border-collapse text-xs font-mono">
                     <thead>
-                        <tr className="border-b border-slate-800 bg-white/[0.03] text-slate-400 text-[11px] uppercase">
+                        <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-white/[0.03] text-slate-600 dark:text-slate-400 text-[11px] uppercase">
                             <th className="py-2.5 px-4 font-semibold tracking-wider">Component</th>
                             <th className="py-2.5 px-4 font-semibold tracking-wider text-center w-36">Obtained</th>
-                            <th className="py-2.5 px-3 font-semibold tracking-wider w-20 text-slate-500">Max</th>
+                            <th className="py-2.5 px-3 font-semibold tracking-wider w-20 text-slate-400 dark:text-slate-500">Max</th>
                             <th className="py-2.5 px-4 font-semibold tracking-wider text-right w-24 hidden sm:table-cell">Status</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/80">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                         {flatRows.map((row, idx) => {
                             const val = rawMarks[row.subId];
                             const isEntered = val !== undefined && val !== null && val !== '' && !isNaN(Number(val));
@@ -104,15 +116,15 @@ export default function MarksEntrySheet({
                                 <tr
                                     key={row.subId}
                                     className={`transition-colors ${
-                                        err ? 'bg-rose-950/20' : 'hover:bg-white/[0.02]'
+                                        err ? 'bg-rose-50/70 dark:bg-rose-950/20' : 'hover:bg-slate-50/80 dark:hover:bg-white/[0.02]'
                                     }`}
                                 >
                                     {/* Component Label */}
                                     <td className="py-2.5 px-4">
-                                        <span className="text-slate-200 font-medium font-sans block">
+                                        <span className="text-slate-900 dark:text-slate-200 font-medium font-sans block">
                                             {row.subName}
                                         </span>
-                                        <span className="text-[10px] text-slate-500 font-mono">
+                                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                                             {row.compName}
                                         </span>
                                     </td>
@@ -126,20 +138,25 @@ export default function MarksEntrySheet({
                                                 min="0"
                                                 max={row.maxRaw}
                                                 step="any"
+                                                readOnly={readOnly}
+                                                disabled={readOnly}
                                                 value={isEntered ? val : ''}
                                                 placeholder="—"
                                                 onKeyDown={(e) => handleKeyDown(e, idx)}
-                                                onChange={(e) => onChangeMark(row.subId, e.target.value, row.maxRaw)}
+                                                onChange={(e) => !readOnly && onChangeMark(row.subId, e.target.value, row.maxRaw)}
+                                                onClick={() => readOnly && onLockedClick?.()}
                                                 className={`w-24 text-center py-1 px-2 rounded-sm text-xs font-mono font-bold transition-colors outline-none ${
-                                                    err
-                                                        ? 'bg-rose-950/40 border border-rose-500 text-rose-200'
-                                                        : isEntered
-                                                            ? 'bg-slate-900 border border-slate-600 text-white focus:border-slate-400 focus:bg-slate-800'
-                                                            : 'bg-black/40 border border-slate-800 text-slate-400 placeholder-slate-600 focus:border-slate-500 focus:text-white'
+                                                    readOnly
+                                                        ? 'bg-slate-100/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 cursor-not-allowed select-none'
+                                                        : err
+                                                            ? 'bg-rose-50 dark:bg-rose-950/40 border border-rose-400 dark:border-rose-500 text-rose-700 dark:text-rose-200'
+                                                            : isEntered
+                                                                ? 'bg-white dark:bg-slate-900 border border-purple-400 dark:border-slate-600 text-slate-900 dark:text-white focus:border-purple-600 dark:focus:border-slate-400 focus:bg-purple-50/20 dark:focus:bg-slate-800 shadow-xs'
+                                                                : 'bg-slate-50 dark:bg-black/40 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 placeholder-slate-400 dark:placeholder-slate-600 focus:border-purple-500 dark:focus:border-slate-500 focus:bg-white dark:focus:bg-slate-900 focus:text-slate-900 dark:focus:text-white'
                                                 }`}
                                             />
                                             {err && (
-                                                <span className="text-[10px] text-rose-400 mt-0.5 flex items-center gap-0.5 font-sans">
+                                                <span className="text-[10px] text-rose-600 dark:text-rose-400 mt-0.5 flex items-center gap-0.5 font-sans">
                                                     <AlertCircle size={10} />
                                                     {err}
                                                 </span>
@@ -148,20 +165,25 @@ export default function MarksEntrySheet({
                                     </td>
 
                                     {/* Max Mark */}
-                                    <td className="py-2.5 px-3 text-slate-500 font-mono">
+                                    <td className="py-2.5 px-3 text-slate-400 dark:text-slate-500 font-mono">
                                         / {row.maxRaw}
                                     </td>
 
                                     {/* Status Column */}
                                     <td className="py-2.5 px-4 text-right hidden sm:table-cell font-mono text-[11px]">
-                                        {err ? (
-                                            <span className="text-rose-400 font-bold">
+                                        {readOnly ? (
+                                            <span className="text-slate-400 dark:text-slate-500 font-medium flex items-center justify-end gap-1">
+                                                <Lock size={10} />
+                                                <span>DEMO</span>
+                                            </span>
+                                        ) : err ? (
+                                            <span className="text-rose-600 dark:text-rose-400 font-bold">
                                                 {err === 'Required' ? 'REQ' : 'FAIL'}
                                             </span>
                                         ) : isEntered ? (
-                                            <span className="text-emerald-400 font-medium">✓ OK</span>
+                                            <span className="text-emerald-600 dark:text-emerald-400 font-medium">✓ OK</span>
                                         ) : (
-                                            <span className="text-slate-600">—</span>
+                                            <span className="text-slate-400 dark:text-slate-600">—</span>
                                         )}
                                     </td>
                                 </tr>
@@ -172,19 +194,20 @@ export default function MarksEntrySheet({
             </div>
 
             {/* Attendance Threshold Toggle Section */}
-            <div className="border border-slate-800 rounded p-3 bg-[#0e1017] flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+            <div className="border border-slate-200 dark:border-slate-800 rounded p-3 bg-slate-50 dark:bg-[#0e1017] flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
                 <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input
                         type="checkbox"
                         checked={includeAttendance}
-                        onChange={(e) => onToggleAttendance(e.target.checked)}
-                        className="w-4 h-4 rounded-sm accent-slate-300 bg-slate-900 border-slate-700 cursor-pointer"
+                        disabled={readOnly}
+                        onChange={(e) => !readOnly && onToggleAttendance(e.target.checked)}
+                        className={`w-4 h-4 rounded-sm accent-purple-600 dark:accent-slate-300 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 ${readOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                     />
                     <div>
-                        <span className="text-xs font-semibold text-slate-200 block font-sans">
+                        <span className="text-xs font-semibold text-slate-900 dark:text-slate-200 block font-sans">
                             Include Attendance Verification
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                             Verifies required autonomous minimum (≥ {attendanceThreshold}%) for SEE clearance
                         </span>
                     </div>
@@ -192,23 +215,28 @@ export default function MarksEntrySheet({
 
                 {includeAttendance && (
                     <div className="flex items-center gap-2 self-start sm:self-auto pl-6 sm:pl-0">
-                        <span className="text-xs text-slate-400 font-mono">Attendance:</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">Attendance:</span>
                         <div className="flex items-center gap-1">
                             <input
                                 type="number"
                                 min="0"
                                 max="100"
                                 step="0.1"
+                                readOnly={readOnly}
+                                disabled={readOnly}
                                 value={attendanceValue}
-                                onChange={(e) => onChangeAttendance(e.target.value)}
+                                onChange={(e) => !readOnly && onChangeAttendance(e.target.value)}
+                                onClick={() => readOnly && onLockedClick?.()}
                                 placeholder="85.0"
-                                className={`w-18 py-1 px-2 rounded-sm bg-slate-900 border text-xs font-mono font-bold text-white text-center focus:border-slate-400 focus:bg-slate-800 outline-none ${
-                                    includeAttendance && (attendanceValue === '' || isNaN(Number(attendanceValue)) || Number(attendanceValue) < 0 || Number(attendanceValue) > 100)
-                                        ? 'border-amber-500/70 text-amber-200'
-                                        : 'border-slate-700'
+                                className={`w-18 py-1 px-2 rounded-sm text-xs font-mono font-bold text-center outline-none ${
+                                    readOnly
+                                        ? 'bg-slate-100/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 cursor-not-allowed'
+                                        : includeAttendance && (attendanceValue === '' || isNaN(Number(attendanceValue)) || Number(attendanceValue) < 0 || Number(attendanceValue) > 100)
+                                            ? 'border-amber-500 text-amber-700 dark:text-amber-200 bg-white dark:bg-slate-900'
+                                            : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:border-purple-500 dark:focus:border-slate-400'
                                 }`}
                             />
-                            <span className="text-xs font-mono text-slate-400">%</span>
+                            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">%</span>
                         </div>
                     </div>
                 )}

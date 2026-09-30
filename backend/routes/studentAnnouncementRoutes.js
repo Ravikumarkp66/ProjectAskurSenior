@@ -4,12 +4,26 @@ const auth    = require('../middleware/auth');
 const { requirePlusAccess } = require('../middleware/plusAccess');
 const svc     = require('../services/plusAnnouncementService');
 
-// All Plus announcement routes: authenticated + Plus access
-router.use(auth, requirePlusAccess);
+const jwt     = require('jsonwebtoken');
+
+// Soft auth middleware to optionally resolve userId for GET requests without failing if unauthenticated
+const optionalAuth = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+    if (token) {
+        try {
+            const decoded = jwt.verify(
+                token,
+                process.env.JWT_SECRET || 'fallback_secret_ask_ur_senior'
+            );
+            req.userId = decoded.userId || decoded.id || decoded._id;
+        } catch (_) {}
+    }
+    next();
+};
 
 // ── Student feed ──────────────────────────────────────────────────────────────
 
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
     try {
         const { page, limit, category } = req.query;
         const userId = req.userId || req.user?._id;
@@ -23,7 +37,7 @@ router.get('/', async (req, res) => {
 
 // ── Mark as read ──────────────────────────────────────────────────────────────
 
-router.post('/:id/read', async (req, res) => {
+router.post('/:id/read', auth, async (req, res) => {
     try {
         const userId = req.userId || req.user?._id;
         if (!userId) return res.status(401).json({ success: false, error: 'Authentication required.' });

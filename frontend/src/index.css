@@ -592,13 +592,13 @@ html:not(.dark) [class*="bg-slate-700\/"] {
 /* ── Text colours: light mode text adaptation (preserving white text on buttons, badges, and dark fills) ── */
 
 /* Convert light text to dark ONLY when on light backgrounds (not inside buttons, badges, or dark/gradient fills) */
-html:not(.dark) p:not(button *):not(.badge *):not([class*="bg-purple"] *):not([class*="bg-emerald"] *):not([class*="bg-indigo"] *):not([class*="bg-blue"] *):not([class*="bg-gradient"] *),
-html:not(.dark) h1:not(button *):not([class*="bg-gradient"] *),
-html:not(.dark) h2:not(button *):not([class*="bg-gradient"] *),
-html:not(.dark) h3:not(button *):not([class*="bg-gradient"] *),
-html:not(.dark) h4:not(button *),
-html:not(.dark) h5:not(button *),
-html:not(.dark) h6:not(button *) {
+html:not(.dark) p:not(button *):not(.badge *):not([class*="bg-purple"] *):not([class*="bg-emerald"] *):not([class*="bg-indigo"] *):not([class*="bg-blue"] *):not([class*="bg-gradient"] *):not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h1:not(button *):not([class*="bg-gradient"] *):not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h2:not(button *):not([class*="bg-gradient"] *):not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h3:not(button *):not([class*="bg-gradient"] *):not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h4:not(button *):not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h5:not(button *):not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h6:not(button *):not(.dark *):not([data-theme="dark"] *) {
     color: var(--text-primary) !important;
 }
 
@@ -627,12 +627,12 @@ html:not(.dark) [class*="bg-gradient-"] > h2 {
 }
 
 /* Heading text */
-html:not(.dark) h1,
-html:not(.dark) h2,
-html:not(.dark) h3,
-html:not(.dark) h4,
-html:not(.dark) h5,
-html:not(.dark) h6 {
+html:not(.dark) h1:not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h2:not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h3:not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h4:not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h5:not(.dark *):not([data-theme="dark"] *),
+html:not(.dark) h6:not(.dark *):not([data-theme="dark"] *) {
     color: #0f172a !important;
 }
 

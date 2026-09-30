@@ -90,10 +90,10 @@ function detectMaterialType(filename) {
   if (!filename) return 'Notes';
   const lower = filename.toLowerCase();
 
-  if (/pyq|question[\s_\-]*paper|prev[\s_\-]*year|exam[\s_\-]*paper|model[\s_\-]*paper|see[\s_\-]*paper/i.test(lower)) {
+  if (/pyq|question[\s_-]*paper|prev[\s_-]*year|exam[\s_-]*paper|model[\s_-]*paper|see[\s_-]*paper/i.test(lower)) {
     return 'PYQs';
   }
-  if (/qb|question[\s_\-]*bank|important[\s_\-]*questions|questions/i.test(lower)) {
+  if (/qb|question[\s_-]*bank|important[\s_-]*questions|questions/i.test(lower)) {
     return 'Question Banks';
   }
   if (/syllabus|curriculum|scheme/i.test(lower)) {
@@ -102,7 +102,7 @@ function detectMaterialType(filename) {
   if (/lab|manual|experiment|viva/i.test(lower)) {
     return 'Lab Manuals';
   }
-  if (/textbook|book|reference[\s_\-]*book/i.test(lower)) {
+  if (/textbook|book|reference[\s_-]*book/i.test(lower)) {
     return 'Textbooks';
   }
   if (/notes|module|unit|lecture|handwritten/i.test(lower)) {

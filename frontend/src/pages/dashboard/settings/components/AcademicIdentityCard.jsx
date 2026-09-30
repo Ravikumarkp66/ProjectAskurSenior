@@ -6,37 +6,14 @@ import SectionChangeModal from '../../../../modules/profile/components/SectionCh
 import { Lock, AlertCircle, CheckCircle2, Send, RefreshCw, Edit2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const inputStyle = {
-    width: '100%',
-    padding: '9px 12px',
-    borderRadius: '6px',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    background: 'rgba(255, 255, 255, 0.02)',
-    color: 'rgba(255, 255, 255, 0.65)',
-    fontSize: '13px',
-    outline: 'none',
-    boxSizing: 'border-box'
-};
+const lockedInputClass = "w-full px-3 py-2 rounded-lg text-sm bg-slate-100/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none box-border";
+const editableInputClass = "w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all box-border";
+const selectClass = "w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-[#18191C] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white outline-none cursor-pointer box-border";
+const labelClass = "text-xs font-semibold text-slate-700 dark:text-slate-300 m-0";
 
-const selectStyle = {
-    width: '100%',
-    padding: '9px 12px',
-    borderRadius: '6px',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    background: '#18191C',
-    color: '#fff',
-    fontSize: '13px',
-    outline: 'none',
-    cursor: 'pointer',
-    boxSizing: 'border-box'
-};
-
-const labelStyle = {
-    fontSize: '12px',
-    fontWeight: 600,
-    color: 'rgba(148, 163, 184, 0.8)',
-    margin: 0
-};
+const inputStyle = {};
+const selectStyle = {};
+const labelStyle = {};
 
 const AcademicIdentityCard = () => {
     const { user, updateUser } = useAuth();
@@ -288,34 +265,17 @@ const AcademicIdentityCard = () => {
     };
 
     return (
-        <div id="academic-identity" style={{
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '18px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxSizing: 'border-box'
-        }}>
+        <div id="academic-identity" className="rounded-xl border p-4 sm:p-5 bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] flex flex-col gap-4 box-border">
             {/* Bold Heading only */}
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: '0 0 -4px 0' }}>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white m-0">
                 Academic Identity
             </h3>
 
             {/* USN Card */}
-            <div style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                borderRadius: '8px',
-                padding: '14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px'
-            }}>
+            <div className="rounded-xl border p-4 bg-white dark:bg-white/[0.02] border-slate-200 dark:border-white/[0.06] flex flex-col gap-2.5">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                             University Seat Number (USN)
                         </span>
                         {user?.usnVerified && user?.usnType === 'PERMANENT' ? (
@@ -355,19 +315,7 @@ const AcademicIdentityCard = () => {
                         <button
                             type="button"
                             onClick={handleStartEditUsn}
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                padding: '3px 8px',
-                                borderRadius: '5px',
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                color: '#c084fc',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                cursor: 'pointer'
-                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/25 text-purple-700 dark:text-purple-300 text-xs font-semibold cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors"
                         >
                             <Edit2 size={11} /> Edit
                         </button>
@@ -376,10 +324,10 @@ const AcademicIdentityCard = () => {
 
                 {!isEditingUsn ? (
                     <div>
-                        <div style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.04em', color: '#f8fafc' }}>
-                            {user?.usn || <span style={{ color: 'rgba(148, 163, 184, 0.6)', fontStyle: 'italic', fontWeight: 400, fontSize: '13px' }}>Not Set</span>}
+                        <div className="text-base font-bold tracking-wider text-slate-900 dark:text-white">
+                            {user?.usn || <span className="text-slate-400 dark:text-slate-500 italic font-normal text-xs">Not Set</span>}
                         </div>
-                        <p style={{ fontSize: '11.5px', color: 'rgba(148, 163, 184, 0.65)', margin: '4px 0 0 0' }}>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-0">
                             {isUsnLocked 
                                 ? 'Institutional verification complete. Permanent USN is locked.'
                                 : 'Verify with your institutional email to lock your permanent USN and unlock automated academic records.'}
@@ -389,7 +337,7 @@ const AcademicIdentityCard = () => {
                     /* Inline USN Edit Form */
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                 University Seat Number
                             </label>
                             <input
@@ -398,28 +346,18 @@ const AcademicIdentityCard = () => {
                                 onChange={(e) => setUsnInput(e.target.value.toUpperCase())}
                                 placeholder="e.g. 1SI23IS080"
                                 maxLength={10}
-                                style={{
-                                    ...inputStyle,
-                                    color: '#fff',
-                                    fontWeight: 600
-                                }}
+                                className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all font-semibold uppercase tracking-wider box-border"
                             />
                         </div>
 
                         {!otpStep && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 <div style={{ display: 'flex', gap: '10px' }}>
-                                    <label style={{
-                                        flex: 1,
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: '8px',
-                                        padding: '10px',
-                                        borderRadius: '6px',
-                                        background: usnMode === 'TEMPORARY' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                                        border: usnMode === 'TEMPORARY' ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
-                                        cursor: 'pointer'
-                                    }}>
+                                    <label className={`flex-1 flex items-start gap-2 p-2.5 rounded-lg cursor-pointer border transition-colors ${
+                                        usnMode === 'TEMPORARY'
+                                            ? 'bg-amber-500/10 border-amber-500/30'
+                                            : 'bg-slate-50/50 dark:bg-white/[0.02] border-slate-200 dark:border-white/5'
+                                    }`}>
                                         <input
                                             type="radio"
                                             name="usnMode"
@@ -432,23 +370,17 @@ const AcademicIdentityCard = () => {
                                             <div style={{ fontSize: '12px', fontWeight: 600, color: '#fbbf24' }}>
                                                 Temporary USN
                                             </div>
-                                            <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.8)', marginTop: '2px' }}>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                 Update immediately without email verification.
                                             </div>
                                         </div>
                                     </label>
 
-                                    <label style={{
-                                        flex: 1,
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: '8px',
-                                        padding: '10px',
-                                        borderRadius: '6px',
-                                        background: usnMode === 'PERMANENT' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                                        border: usnMode === 'PERMANENT' ? '1px solid rgba(139, 92, 246, 0.35)' : '1px solid rgba(255, 255, 255, 0.05)',
-                                        cursor: 'pointer'
-                                    }}>
+                                    <label className={`flex-1 flex items-start gap-2 p-2.5 rounded-lg cursor-pointer border transition-colors ${
+                                        usnMode === 'PERMANENT'
+                                            ? 'bg-purple-500/15 border-purple-500/30'
+                                            : 'bg-slate-50/50 dark:bg-white/[0.02] border-slate-200 dark:border-white/5'
+                                    }`}>
                                         <input
                                             type="radio"
                                             name="usnMode"
@@ -461,7 +393,7 @@ const AcademicIdentityCard = () => {
                                             <div style={{ fontSize: '12px', fontWeight: 600, color: '#c084fc' }}>
                                                 Permanent (Verified)
                                             </div>
-                                            <div style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.8)', marginTop: '2px' }}>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                                 Verify via institutional email ({collegeDomain}).
                                             </div>
                                         </div>
@@ -472,15 +404,7 @@ const AcademicIdentityCard = () => {
                                     <button
                                         type="button"
                                         onClick={handleCancelEditUsn}
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: '6px',
-                                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                                            background: 'transparent',
-                                            color: 'rgba(255, 255, 255, 0.65)',
-                                            fontSize: '12px',
-                                            cursor: 'pointer'
-                                        }}
+                                        className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-slate-600 dark:text-slate-400 text-xs font-semibold cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                                     >
                                         Cancel
                                     </button>
@@ -533,19 +457,12 @@ const AcademicIdentityCard = () => {
 
                         {usnMode === 'PERMANENT' && otpStep && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{
-                                    fontSize: '12px',
-                                    color: 'rgba(226, 232, 240, 0.9)',
-                                    background: 'rgba(16, 185, 129, 0.08)',
-                                    padding: '8px 10px',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(16, 185, 129, 0.2)'
-                                }}>
-                                    An OTP has been sent to: <strong style={{ color: '#34d399' }}>{targetEmail || derivedEmailPreview}</strong>
+                                <div className="text-xs text-slate-800 dark:text-slate-200 bg-emerald-50 dark:bg-emerald-950/20 p-2.5 rounded-lg border border-emerald-200 dark:border-emerald-500/20">
+                                    An OTP has been sent to: <strong className="text-emerald-600 dark:text-emerald-400">{targetEmail || derivedEmailPreview}</strong>
                                 </div>
 
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                    <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                         Enter 6-digit Verification Code
                                     </label>
                                     <input
@@ -554,15 +471,7 @@ const AcademicIdentityCard = () => {
                                         value={otpInput}
                                         onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                                         placeholder="123456"
-                                        style={{
-                                            ...inputStyle,
-                                            border: '1px solid rgba(139, 92, 246, 0.4)',
-                                            color: '#fff',
-                                            fontSize: '15px',
-                                            letterSpacing: '0.25em',
-                                            textAlign: 'center',
-                                            fontWeight: 700
-                                        }}
+                                        className="w-full px-3 py-2 rounded-lg text-base tracking-widest text-center font-bold bg-white dark:bg-white/[0.03] border border-purple-400/50 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-purple-500/20 box-border"
                                     />
                                 </div>
 
@@ -590,15 +499,7 @@ const AcademicIdentityCard = () => {
                                         <button
                                             type="button"
                                             onClick={() => setOtpStep(false)}
-                                            style={{
-                                                padding: '5px 10px',
-                                                borderRadius: '6px',
-                                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                background: 'transparent',
-                                                color: 'rgba(255, 255, 255, 0.65)',
-                                                fontSize: '12px',
-                                                cursor: 'pointer'
-                                            }}
+                                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-transparent text-slate-600 dark:text-slate-400 text-xs font-semibold cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                                         >
                                             Back
                                         </button>
@@ -628,18 +529,14 @@ const AcademicIdentityCard = () => {
             </div>
 
             {/* ── Form Grid matching AcademicInformationCard ── */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '16px'
-            }} className="academic-identity-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Branch */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={labelStyle}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className={labelClass}>
                             Branch
                         </label>
-                        <span title="Branch record is locked" style={{ color: 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center' }}>
+                        <span title="Branch record is locked" className="text-slate-400 dark:text-slate-500 flex items-center">
                             <Lock size={12} />
                         </span>
                     </div>
@@ -647,17 +544,17 @@ const AcademicIdentityCard = () => {
                         type="text"
                         value={branchName}
                         readOnly
-                        style={{ ...inputStyle, cursor: 'not-allowed' }}
+                        className={lockedInputClass}
                     />
                 </div>
 
                 {/* Semester */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={labelStyle}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className={labelClass}>
                             Semester
                         </label>
-                        <span title="Semester is auto-resolved from official academic schedule" style={{ color: 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center' }}>
+                        <span title="Semester is auto-resolved from official academic schedule" className="text-slate-400 dark:text-slate-500 flex items-center">
                             <Lock size={12} />
                         </span>
                     </div>
@@ -665,34 +562,21 @@ const AcademicIdentityCard = () => {
                         type="text"
                         value={semesterDisplay}
                         readOnly
-                        style={{
-                            ...inputStyle,
-                            color: isSemesterUnconfigured ? 'rgba(251, 191, 36, 0.75)' : inputStyle.color,
-                            cursor: 'not-allowed'
-                        }}
+                        className={lockedInputClass}
                     />
                 </div>
 
                 {/* ── Section Field ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={labelStyle}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className={labelClass}>
                             Section
                         </label>
                         {isSectionLocked ? (
                             <button
                                 type="button"
                                 onClick={() => setShowSectionModal(true)}
-                                style={{
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    color: '#c084fc',
-                                    background: 'rgba(192, 132, 252, 0.08)',
-                                    border: '1px solid rgba(192, 132, 252, 0.25)',
-                                    borderRadius: '5px',
-                                    padding: '2px 8px',
-                                    cursor: 'pointer'
-                                }}
+                                className="text-[11px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/25 rounded-md px-2 py-0.5 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-500/20 transition-colors"
                             >
                                 Request Section Change
                             </button>
@@ -704,27 +588,27 @@ const AcademicIdentityCard = () => {
                             type="text"
                             value="Loading sections..."
                             readOnly
-                            style={{ ...inputStyle, color: 'rgba(148, 163, 184, 0.6)', cursor: 'wait' }}
+                            className={lockedInputClass}
                         />
                     ) : isSectionLocked ? (
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <div className="relative flex items-center">
                             <input
                                 type="text"
                                 value={sectionName ? `Section ${sectionName}` : 'Section Not Assigned'}
                                 readOnly
-                                style={{ ...inputStyle, cursor: 'not-allowed' }}
+                                className={lockedInputClass}
                             />
-                            <Lock size={12} style={{ position: 'absolute', right: '12px', color: 'rgba(148, 163, 184, 0.4)' }} />
+                            <Lock size={12} className="absolute right-3 text-slate-400 dark:text-slate-500" />
                         </div>
                     ) : (
                         <select
                             value={selectedSectionId}
                             onChange={(e) => setSelectedSectionId(e.target.value)}
-                            style={selectStyle}
+                            className={selectClass}
                         >
                             <option value="" disabled>Select Section</option>
                             {availableSections.map(sec => (
-                                <option key={sec.id} value={sec.id} style={{ background: '#18191C', color: '#fff' }}>
+                                <option key={sec.id} value={sec.id} className="bg-white dark:bg-[#18191C] text-slate-900 dark:text-white">
                                     Section {sec.name}
                                 </option>
                             ))}
@@ -733,13 +617,13 @@ const AcademicIdentityCard = () => {
                 </div>
 
                 {/* ── Lab Batch Field ── */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={labelStyle}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className={labelClass}>
                             {isSectionLocked ? 'Lab Batch' : 'Belong to any batch here? Select here!'}
                         </label>
                         {isSectionLocked && (
-                            <span title="Lab batch locked with your section" style={{ color: 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center' }}>
+                            <span title="Lab batch locked with your section" className="text-slate-400 dark:text-slate-500 flex items-center">
                                 <Lock size={12} />
                             </span>
                         )}
@@ -750,28 +634,24 @@ const AcademicIdentityCard = () => {
                             type="text"
                             value="Loading batch..."
                             readOnly
-                            style={{ ...inputStyle, color: 'rgba(148, 163, 184, 0.6)', cursor: 'wait' }}
+                            className={lockedInputClass}
                         />
                     ) : isSectionLocked ? (
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <div className="relative flex items-center">
                             <input
                                 type="text"
                                 value={labBatch ? `Batch ${labBatch}` : 'Batch B1'}
                                 readOnly
-                                style={{ ...inputStyle, cursor: 'not-allowed' }}
+                                className={lockedInputClass}
                             />
-                            <Lock size={12} style={{ position: 'absolute', right: '12px', color: 'rgba(148, 163, 184, 0.4)' }} />
+                            <Lock size={12} className="absolute right-3 text-slate-400 dark:text-slate-500" />
                         </div>
                     ) : (
                         <select
                             value={selectedLabBatch}
                             onChange={(e) => setSelectedLabBatch(e.target.value)}
                             disabled={!selectedSectionId}
-                            style={{
-                                ...selectStyle,
-                                opacity: !selectedSectionId ? 0.5 : 1,
-                                cursor: !selectedSectionId ? 'not-allowed' : 'pointer'
-                            }}
+                            className={selectClass}
                         >
                             {!selectedSectionId ? (
                                 <option value="">Select Section first</option>
@@ -788,23 +668,12 @@ const AcademicIdentityCard = () => {
 
             {/* Unlocked Placement Save Button */}
             {!isSectionLocked && !loadingAcademic && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '4px' }}>
+                <div className="flex justify-end pt-1">
                     <button
                         type="button"
                         onClick={handleConfirmPlacement}
                         disabled={savingPlacement || !selectedSectionId}
-                        style={{
-                            padding: '8px 18px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: '#8b5cf6',
-                            color: '#fff',
-                            fontWeight: 600,
-                            fontSize: '13px',
-                            cursor: savingPlacement || !selectedSectionId ? 'not-allowed' : 'pointer',
-                            opacity: savingPlacement || !selectedSectionId ? 0.6 : 1,
-                            transition: 'all 0.15s'
-                        }}
+                        className="px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-semibold text-xs shadow-md shadow-purple-500/20 hover:from-purple-500 hover:to-indigo-500 cursor-pointer disabled:opacity-50 transition-all"
                     >
                         {savingPlacement ? 'Saving Placement...' : 'Save Placement'}
                     </button>

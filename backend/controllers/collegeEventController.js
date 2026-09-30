@@ -226,9 +226,18 @@ async function autoSeedIfEmpty(collegeId) {
         const docs = sourceItems.map(it => {
             const eventType = determineEventType(it);
             const isSemesterScope = Boolean(it.semester && mongoose.Types.ObjectId.isValid(it.semester));
+            const title = (it.title || 'Untitled Event').trim();
+            const isFullDay = it.classImpact === 'FULL_DAY' || it.kind === 'HOLIDAY' || it.holidayCategory === 'GOVERNMENT' || /holiday|closure|vacation|preparation.*holiday/i.test(title);
+            const isTimeRange = it.classImpact === 'TIME_RANGE';
+            const isNone = it.classImpact === 'NONE';
+            const isTestOrExam = eventType === 'Exam' || /test[-\s]?\d+|cie[-\s]?\d+|exam|see\b/i.test(title);
+
+            const classesSuspended = isFullDay || isTimeRange || (isTestOrExam && !isNone);
+            const suspensionType = isFullDay ? 'full_day' : (isTimeRange ? 'time_range' : ((isTestOrExam && !isNone) ? 'full_day' : 'none'));
+
             return {
                 college: collegeId,
-                title: (it.title || 'Untitled Event').trim(),
+                title,
                 description: it.description || (eventType === 'Holiday / Closure' ? 'Government Public Holiday' : ''),
                 eventType,
                 scope: isSemesterScope ? 'SEMESTER' : 'GLOBAL',
@@ -238,6 +247,8 @@ async function autoSeedIfEmpty(collegeId) {
                 allDay: it.isAllDay !== false,
                 startTime: it.startTime || null,
                 endTime: it.endTime || null,
+                classesSuspended,
+                suspensionType,
                 status: it.status === 'Archived' ? 'ARCHIVED' : 'ACTIVE'
             };
         });
@@ -471,6 +482,14 @@ exports.createEvent = async (req, res) => {
             metadata: { eventId: event._id, eventType: event.eventType, scope: event.scope }
         }).catch(() => {});
 
+        // Invalidate cached student expected schedules so affected schedules regenerate dynamically
+        try {
+            const StudentExpectedSchedule = require('../models/StudentExpectedSchedule');
+            await StudentExpectedSchedule.deleteMany({});
+        } catch (schedErr) {
+            console.warn('[CollegeEventController] Failed to clear StudentExpectedSchedule:', schedErr.message);
+        }
+
         return res.status(201).json({
             success: true,
             message: 'Event created successfully',
@@ -592,6 +611,14 @@ exports.updateEvent = async (req, res) => {
             metadata: { eventId: existingEvent._id }
         }).catch(() => {});
 
+        // Invalidate cached student expected schedules
+        try {
+            const StudentExpectedSchedule = require('../models/StudentExpectedSchedule');
+            await StudentExpectedSchedule.deleteMany({});
+        } catch (schedErr) {
+            console.warn('[CollegeEventController] Failed to clear StudentExpectedSchedule:', schedErr.message);
+        }
+
         return res.status(200).json({
             success: true,
             message: 'Event updated successfully',
@@ -621,6 +648,14 @@ exports.deleteEvent = async (req, res) => {
         const event = await CollegeEvent.findById(id);
         if (!event) {
             return res.status(404).json({ success: false, error: 'Event not found' });
+        }
+
+        // Invalidate cached student expected schedules
+        try {
+            const StudentExpectedSchedule = require('../models/StudentExpectedSchedule');
+            await StudentExpectedSchedule.deleteMany({});
+        } catch (schedErr) {
+            console.warn('[CollegeEventController] Failed to clear StudentExpectedSchedule:', schedErr.message);
         }
 
         // Check if event is archived or cancelled, or if hard deletion requested

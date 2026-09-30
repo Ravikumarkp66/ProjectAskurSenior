@@ -442,17 +442,17 @@ const DashboardSidebar = () => {
             {/* Nav Items */}
             {(() => {
                 const isMaterials = location.pathname.includes('/materials');
-                const isInterviews = location.pathname.includes('/interview-experiences');
+                const isInterviews = location.pathname.includes('/interview');
                 const isLostFound = location.pathname.includes('/lost-and-found');
                 const isMarketplace = location.pathname.includes('/marketplace');
                 const isHomeExact = location.pathname === '/home' || location.pathname === '/home/';
                 const isRoadmaps = location.pathname.includes('/roadmaps');
                 const isAnnouncements = location.pathname.includes('/announcements');
-                const isPlusRoute = (location.pathname === '/plus' || location.pathname.startsWith('/plus/')) && !isAnnouncements && !isRoadmaps;
                 const isAttendance = location.pathname.includes('/attendance');
                 const isCie = location.pathname.includes('/cie');
                 const isSgpa = location.pathname.includes('/sgpa') || location.pathname.includes('/cgpa');
-                const isFacultyInsights = location.pathname.startsWith('/faculty-insights');
+                const isFacultyInsights = location.pathname.includes('/faculty');
+                const isPlusRoute = (location.pathname === '/plus' || location.pathname.startsWith('/plus/')) && !isAnnouncements && !isRoadmaps && !isAttendance && !isCie && !isSgpa && !isFacultyInsights && !isInterviews;
 
                 return (
                     <nav
@@ -498,7 +498,7 @@ const DashboardSidebar = () => {
                             )}
                             label="Faculty"
                             isActive={isFacultyInsights}
-                            onClick={() => navigate('/faculty-insights')}
+                            onClick={() => navigate(location.pathname.startsWith('/plus') ? '/plus/faculty-insights' : '/faculty-insights')}
                         />
 
                         {(isAttendance || isCie || isSgpa || isRoadmaps) && (
@@ -515,7 +515,7 @@ const DashboardSidebar = () => {
                                         )}
                                         label="Attendance"
                                         isActive={isAttendance}
-                                        onClick={() => navigate('/home/attendance')}
+                                        onClick={() => navigate('/plus/attendance')}
                                     />
                                 )}
                                 {isCie && (
@@ -523,7 +523,7 @@ const DashboardSidebar = () => {
                                         icon={({ hovered }) => <CieIcon filled={true} hovered={hovered} />}
                                         label="CIE"
                                         isActive={true}
-                                        onClick={() => navigate('/home/cie')}
+                                        onClick={() => navigate('/plus/cie')}
                                     />
                                 )}
                                 {isSgpa && (
@@ -557,7 +557,7 @@ const DashboardSidebar = () => {
                                 icon={({ hovered }) => <MaterialsIcon filled={isMaterials} hovered={hovered} />}
                                 label="Notes"
                                 isActive={isMaterials}
-                                onClick={() => navigate('/home/materials')}
+                                onClick={() => navigate(location.pathname.startsWith('/plus') ? '/plus/materials' : '/home/materials')}
                             />
                         )}
 
@@ -566,7 +566,7 @@ const DashboardSidebar = () => {
                                 icon={({ hovered }) => <InterviewsIcon filled={isInterviews} hovered={hovered} />}
                                 label="Careers"
                                 isActive={isInterviews}
-                                onClick={() => navigate('/home/interview-experiences')}
+                                onClick={() => navigate(location.pathname.startsWith('/plus') ? '/plus/interview' : '/home/interview')}
                             />
                         )}
 

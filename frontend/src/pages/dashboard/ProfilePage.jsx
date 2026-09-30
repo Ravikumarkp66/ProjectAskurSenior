@@ -4,6 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../utils/hooks';
 import { useTheme } from '../../context/ThemeContext';
 import {
+    useProfileEntitlements
+} from '../../features/profile/utils/profileEntitlements';
+import { DEMO_STUDENT_PROFILE } from '../../features/profile/config/profileDemoData';
+import { ProfileStateBanner } from '../../features/profile/components/ProfileStateBanner';
+import {
     ProfileBasicCard,
     CgpaProgressCard,
     AttendanceOverviewCard,
@@ -11,20 +16,18 @@ import {
     AcademicJourneyCard,
     BasicInformation,
 } from '../../modules/profile';
-import AcademicProfileCompletionBanner from '../../modules/profile/components/AcademicProfileCompletionBanner';
 
 // ─── Mobile Profile Card Component (< 768px) ──────────────────────────
-const MobileProfileCard = () => {
-    const { user } = useAuth();
+const MobileProfileCard = ({ student, isAnonymous }) => {
     const { isDark } = useTheme();
     const navigate = useNavigate();
     const [imgError, setImgError] = useState(false);
 
-    if (!user) return null;
+    if (!student) return null;
 
-    const initials = user.name
-        ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-        : user.email?.[0]?.toUpperCase() || '?';
+    const initials = student.name
+        ? student.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+        : student.email?.[0]?.toUpperCase() || '?';
 
     const getProfilePicUrl = (pic) => {
         if (!pic) return '';
@@ -33,7 +36,8 @@ const MobileProfileCard = () => {
             return `https://d2mh2rnmjqdkgx.cloudfront.net/profiles/${key}`;
         }
         if (pic.startsWith('http')) return pic;
-        return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${pic}`;
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        return `${baseUrl}${pic.startsWith('/') ? '' : '/'}${pic}`;
     };
 
     const getYearLabel = (sem) => {
@@ -45,69 +49,74 @@ const MobileProfileCard = () => {
         return `${yr}${suf} Year`;
     };
 
-    const usernameStr = user.username 
-        ? (user.username.startsWith('@') ? user.username : `@${user.username}`)
-        : `@${user.email?.split('@')[0] || 'student'}`;
+    const usernameStr = student.username 
+        ? (student.username.startsWith('@') ? student.username : `@${student.username}`)
+        : (student.usn ? `@${student.usn.toLowerCase()}` : '@student');
 
-    const branchStr = typeof user.branch === 'object' 
-        ? (user.branch?.shortName || user.branch?.name) 
-        : (user.branch || 'ISE');
+    const branchStr = typeof student.branch === 'object' 
+        ? (student.branch?.shortName || student.branch?.name) 
+        : (student.branch || 'ISE');
 
     const handleShare = () => {
         if (navigator.share) {
             navigator.share({
-                title: `${user.name} - AskUrSenior Profile`,
+                title: `${student.name} - AskUrSenior Profile`,
                 url: window.location.href,
             }).catch(() => {});
-        } else {
+        } else if (navigator.clipboard) {
             navigator.clipboard.writeText(window.location.href);
             alert('Profile link copied to clipboard!');
         }
     };
 
-    const cardBg = isDark ? '#0D111C' : '#FFFFFF';
-    const cardBorder = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
-    const cardShadow = isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 1px 3px rgba(15,23,42,0.06)';
-    const nameColor = isDark ? '#F1F5F9' : '#0F172A';
-    const subColor = isDark ? '#94A3B8' : '#64748B';
-    const dividerColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)';
+    const handleEdit = () => {
+        if (isAnonymous) {
+            navigate('/login', { state: { from: '/profile/edit/basic' } });
+        } else {
+            navigate('/profile/edit/basic');
+        }
+    };
+
+    const cardBg = isDark ? '#0F1115' : '#FFFFFF';
+    const cardBorder = isDark ? '#292E37' : '#E5E7EB';
+    const nameColor = isDark ? '#F3F4F6' : '#111827';
+    const subColor = isDark ? '#A1A1AA' : '#6B7280';
+    const dividerColor = isDark ? '#292E37' : '#E5E7EB';
 
     return (
         <div style={{
-            borderRadius: '16px',
+            borderRadius: '8px',
             background: cardBg,
             border: `1px solid ${cardBorder}`,
-            boxShadow: cardShadow,
             padding: '20px 16px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             textAlign: 'center',
-            fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
+            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
         }}>
             {/* Centered Avatar */}
             <div style={{
-                width: '76px',
-                height: '76px',
-                borderRadius: '50%',
-                border: '2px solid rgba(139, 92, 246, 0.4)',
+                width: '72px',
+                height: '72px',
+                borderRadius: '8px',
+                border: isDark ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid rgba(37, 99, 235, 0.25)',
                 background: isDark
-                    ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))'
-                    : 'linear-gradient(135deg, rgba(124, 58, 237, 0.12), rgba(99, 102, 241, 0.08))',
-                color: isDark ? '#c4b5fd' : '#7c3aed',
-                fontSize: '24px',
+                    ? 'rgba(30, 58, 138, 0.25)'
+                    : 'rgba(239, 246, 255, 0.9)',
+                color: isDark ? '#93C5FD' : '#2563EB',
+                fontSize: '22px',
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
-                marginBottom: '12px',
-                boxShadow: '0 8px 24px rgba(124, 58, 237, 0.15)'
+                marginBottom: '12px'
             }}>
-                {user.profilePicture && !imgError ? (
+                {student.profilePicture && !imgError ? (
                     <img 
-                        src={getProfilePicUrl(user.profilePicture)} 
-                        alt={user.name} 
+                        src={getProfilePicUrl(student.profilePicture)} 
+                        alt={student.name} 
                         onError={() => setImgError(true)}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />
@@ -118,24 +127,39 @@ const MobileProfileCard = () => {
 
             {/* Full Name */}
             <h2 style={{
-                fontSize: '18px',
-                fontWeight: 800,
+                fontSize: '17px',
+                fontWeight: 700,
                 color: nameColor,
                 margin: '0 0 2px 0',
-                letterSpacing: '0.02em'
+                letterSpacing: '-0.01em'
             }}>
-                {user.name?.toUpperCase() || 'STUDENT NAME'}
+                {student.name || 'AskUrSenior Student'}
             </h2>
 
-            {/* Username */}
-            <p style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#F97316',
-                margin: '0 0 8px 0'
-            }}>
-                {usernameStr}
-            </p>
+            {/* Username + Demo Indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <span style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#EA580C'
+                }}>
+                    {usernameStr}
+                </span>
+                {isAnonymous && (
+                    <span style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
+                        color: isDark ? '#93C5FD' : '#2563EB',
+                        border: isDark ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid #DBEAFE',
+                        textTransform: 'uppercase'
+                    }}>
+                        Demo
+                    </span>
+                )}
+            </div>
 
             {/* Branch */}
             <p style={{
@@ -151,46 +175,46 @@ const MobileProfileCard = () => {
             <p style={{
                 fontSize: '12px',
                 fontWeight: 600,
-                color: isDark ? '#A78BFA' : '#7C3AED',
+                color: isDark ? '#93C5FD' : '#2563EB',
                 margin: 0
             }}>
-                {getYearLabel(user.semester)} • {user.graduationYear || '2027'}
+                {getYearLabel(student.semester)} • {student.graduationYear || '2027'}
             </p>
 
             {/* Horizontal Divider */}
             <div style={{ width: '100%', height: '1px', background: dividerColor, margin: '16px 0' }} />
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '12px', width: '100%', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'center' }}>
                 <button 
-                    onClick={() => navigate('/settings')}
+                    onClick={handleEdit}
                     style={{
                         flex: 1,
                         maxWidth: '140px',
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        background: isDark ? 'rgba(124, 58, 237, 0.25)' : '#7C3AED',
-                        border: isDark ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid #7C3AED',
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        background: isDark ? '#2563EB' : '#2563EB',
+                        border: '1px solid #1D4ED8',
                         color: '#FFFFFF',
-                        fontSize: '13px',
+                        fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease'
                     }}
                 >
-                    Edit Profile
+                    {isAnonymous ? 'Edit (Login)' : 'Edit Profile'}
                 </button>
                 <button 
                     onClick={handleShare}
                     style={{
                         flex: 1,
                         maxWidth: '140px',
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#F1F5F9',
-                        border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid #E2E8F0',
-                        color: isDark ? '#CBD5E1' : '#334155',
-                        fontSize: '13px',
+                        padding: '8px 14px',
+                        borderRadius: '6px',
+                        background: isDark ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.12)' : '1px solid #D1D5DB',
+                        color: isDark ? '#F1F5F9' : '#374151',
+                        fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
                         transition: 'all 0.15s ease'
@@ -205,15 +229,18 @@ const MobileProfileCard = () => {
 
 const ProfilePage = () => {
     const [selectedDate, setSelectedDate] = useState(null);
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const { isDark } = useTheme();
+    const { userState, isAnonymous } = useProfileEntitlements();
+
+    const activeStudent = isAnonymous ? DEMO_STUDENT_PROFILE : user;
 
     const mobileCardStyle = {
-        borderRadius: '16px',
-        background: isDark ? '#0D111C' : '#FFFFFF',
-        border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)'}`,
+        borderRadius: '8px',
+        background: isDark ? '#0F1115' : '#FFFFFF',
+        border: `1px solid ${isDark ? '#292E37' : '#E5E7EB'}`,
         padding: '16px',
-        boxShadow: isDark ? '0 2px 8px rgba(0,0,0,0.35)' : '0 1px 3px rgba(15,23,42,0.06)',
+        boxShadow: 'none',
     };
 
     return (
@@ -222,19 +249,19 @@ const ProfilePage = () => {
             height: 'calc(100vh - 32px)',
             overflowY: 'auto',
             boxSizing: 'border-box',
-            fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
+            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
         }}>
             {/* ── MOBILE LAYOUT (< 768px): Dedicated Single Column Stack ── */}
             <div className="mobile-profile-stack">
-                {/* 0. Academic Profile Completion Banner */}
-                <AcademicProfileCompletionBanner student={user} />
+                {/* 0. State Banner (State 1: Demo preview banner / State 2 & 3: Completion banner) */}
+                <ProfileStateBanner userState={userState} student={activeStudent} />
 
                 {/* 1. Profile Card */}
-                <MobileProfileCard />
+                <MobileProfileCard student={activeStudent} isAnonymous={isAnonymous} />
 
                 {/* 2. Basic Information Card */}
                 <div style={mobileCardStyle}>
-                    <BasicInformation student={user} />
+                    <BasicInformation student={activeStudent} isAnonymous={isAnonymous} />
                 </div>
 
                 {/* 3. Academic Journey Card */}
@@ -250,10 +277,10 @@ const ProfilePage = () => {
                 <TodayClassesCard selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
             </div>
 
-            {/* ── DESKTOP & TABLET LAYOUT (≥ 768px): 100% UNCHANGED ── */}
+            {/* ── DESKTOP & TABLET LAYOUT (≥ 768px) ── */}
             <div
                 style={{
-                    gridTemplateColumns: '360px 1fr',
+                    gridTemplateColumns: '390px 1fr',
                     gap: '12px',
                     width: '100%',
                     height: '100%',
@@ -262,19 +289,19 @@ const ProfilePage = () => {
             >
                 {/* ── Left: Permanent Identity Card (no scroll) ─────────── */}
                 <motion.div
-                    initial={{ opacity: 0, x: -12 }}
+                    initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3 }}
-                    style={{ width: '360px', height: '100%' }}
+                    transition={{ duration: 0.2 }}
+                    style={{ width: '390px', height: '100%' }}
                 >
                     <ProfileBasicCard />
                 </motion.div>
 
                 {/* ── Right: Scrollable Analytics Column ────────────────── */}
                 <motion.div
-                    initial={{ opacity: 0, y: 12 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: 0.15 }}
+                    transition={{ duration: 0.2, delay: 0.1 }}
                     style={{
                         display: 'flex',
                         flexDirection: 'column',
@@ -283,13 +310,13 @@ const ProfilePage = () => {
                         height: '100%',
                         overflowY: 'auto',
                         overflowX: 'hidden',
-                        paddingRight: '4px',       // breathing room from scrollbar
-                        paddingBottom: '16px',     // comfortable bottom margin
+                        paddingRight: '4px',
+                        paddingBottom: '16px',
                     }}
                     className="profile-scroll-col"
                 >
-                    {/* Academic Profile Completion Banner */}
-                    <AcademicProfileCompletionBanner student={user} />
+                    {/* Top State Banner */}
+                    <ProfileStateBanner userState={userState} student={activeStudent} />
 
                     {/* Row 1 — Summary Cards */}
                     <div
@@ -318,7 +345,7 @@ const ProfilePage = () => {
                     .mobile-profile-stack {
                         display: flex !important;
                         flex-direction: column !important;
-                        gap: 24px !important;
+                        gap: 20px !important;
                         width: 100% !important;
                         padding-bottom: 40px !important;
                     }
@@ -347,7 +374,6 @@ const ProfilePage = () => {
                         grid-template-columns: 1fr !important;
                     }
                 }
-                /* Thin custom scrollbar for the analytics column */
                 .profile-scroll-col::-webkit-scrollbar {
                     width: 4px;
                 }

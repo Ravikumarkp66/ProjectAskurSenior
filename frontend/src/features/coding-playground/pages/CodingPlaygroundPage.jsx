@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import PlaygroundHeader from '../components/PlaygroundHeader';
 import LabSidebar from '../components/Sidebar/LabSidebar';
 import ProblemPanel from '../components/ProblemWorkspace/ProblemPanel';
 import CodeEditorPanel from '../components/CodeEditor/CodeEditorPanel';
 import ShortcutsModal from '../components/Modals/ShortcutsModal';
+import { useTheme } from '../../../context/ThemeContext';
+import { useAuth } from '../../../context/AuthContext';
 import { 
     fetchPlaygroundTree, 
     fetchProblemDetails, 
@@ -31,6 +33,16 @@ const getExecutableLanguage = (slug) => {
 
 const CodingPlaygroundPage = () => {
     const [searchParams, setSearchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const { isAuthenticated, hasPlusAccess, user } = useAuth();
+
+    const handlePlusAction = () => {
+        if (!isAuthenticated) {
+            navigate('/login');
+        } else {
+            navigate('/pricing');
+        }
+    };
 
     // Query params or default state
     const urlLang = searchParams.get('lang') || '';
@@ -64,7 +76,8 @@ const CodingPlaygroundPage = () => {
     const [isRunning, setIsRunning] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [executionResult, setExecutionResult] = useState(null);
-    const [theme, setTheme] = useState('dark');
+    const { isDark, toggleTheme } = useTheme();
+    const theme = isDark ? 'dark' : 'light';
 
     // Timer states
     const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -79,6 +92,11 @@ const CodingPlaygroundPage = () => {
     }, [isTimerRunning]);
 
     const handleToggleTimer = () => {
+        if (!hasPlusAccess) {
+            toast.error(isAuthenticated ? 'Please upgrade for plus access' : 'Please login for plus access');
+            handlePlusAction();
+            return;
+        }
         setIsTimerRunning(prev => !prev);
     };
 
@@ -215,7 +233,12 @@ const CodingPlaygroundPage = () => {
                 setCode(''); // COMPLETELY EMPTY
             }
 
-            loadProblemSubmissions(problemSlugOrId);
+            if (isAuthenticated) {
+                loadProblemSubmissions(problemSlugOrId);
+            } else {
+                setSubmissions([]);
+            }
+
             loadProblemDiscussions(problemSlugOrId);
         } catch (err) {
             console.error('Failed to load problem data:', err);
@@ -223,7 +246,7 @@ const CodingPlaygroundPage = () => {
         } finally {
             setIsProblemLoading(false);
         }
-    }, [codeCache]);
+    }, [codeCache, isAuthenticated]);
 
     // 3. Load Submissions
     const loadProblemSubmissions = async (problemSlugOrId) => {
@@ -324,6 +347,12 @@ const CodingPlaygroundPage = () => {
 
     // Execute Code against Database-Driven Test Cases (Milestone 5 - Run creates ZERO submissions)
     const handleRunCode = async () => {
+        if (!hasPlusAccess) {
+            toast.error(isAuthenticated ? 'Please upgrade for plus access to run code' : 'Please login for plus access to run code');
+            handlePlusAction();
+            return;
+        }
+
         if (!code || !code.trim()) {
             toast.error('Please enter some code before running');
             return;
@@ -388,6 +417,12 @@ const CodingPlaygroundPage = () => {
 
     // Submit Code to Database (Codeforces flow: evaluate, persist, auto-navigate to Submissions tab)
     const handleSubmitCode = async () => {
+        if (!hasPlusAccess) {
+            toast.error(isAuthenticated ? 'Please upgrade for plus access to submit code' : 'Please login for plus access to submit code');
+            handlePlusAction();
+            return;
+        }
+
         if (!code || !code.trim()) {
             toast.error('Please write some code before submitting');
             return;
@@ -504,27 +539,42 @@ const CodingPlaygroundPage = () => {
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    handleSubmitCode();
+                    if (!hasPlusAccess) {
+                        toast.error(isAuthenticated ? 'Please upgrade for plus access to submit code' : 'Please login for plus access to submit code');
+                        handlePlusAction();
+                    } else {
+                        handleSubmitCode();
+                    }
                 } else if (e.key === "'" || e.key === '"' || e.code === 'Quote') {
                     e.preventDefault();
-                    handleRunCode();
+                    if (!hasPlusAccess) {
+                        toast.error(isAuthenticated ? 'Please upgrade for plus access to run code' : 'Please login for plus access to run code');
+                        handlePlusAction();
+                    } else {
+                        handleRunCode();
+                    }
                 }
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [code, activeProblemId, activeLanguageSlug, isRunning, isSubmitting]);
+    }, [code, activeProblemId, activeLanguageSlug, isRunning, isSubmitting, isAuthenticated, hasPlusAccess]);
 
     return (
-        <div style={{
-            display: 'flex',
-            height: '100vh',
-            width: '100vw',
-            backgroundColor: theme === 'dark' ? '#070707' : '#F6F7F9',
-            transition: 'background-color 0.2s ease',
-            overflow: 'hidden'
-        }}>
+        <div 
+            className={isDark ? 'dark' : ''}
+            data-theme={theme}
+            style={{
+                display: 'flex',
+                height: '100vh',
+                width: '100vw',
+                backgroundColor: isDark ? '#070707' : '#F6F7F9',
+                color: isDark ? '#FFFFFF' : '#111827',
+                transition: 'background-color 0.2s ease',
+                overflow: 'hidden'
+            }}
+        >
             {/* 1. LEFT SIDEBAR: FULL TOP-TO-BOTTOM HEIGHT (100vh) */}
             {(isDesktop || mobileActiveView === 'sidebar') && (
                 <LabSidebar
@@ -537,9 +587,7 @@ const CodingPlaygroundPage = () => {
                     onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
                     isLoading={isTreeLoading}
                     theme={theme}
-                    onToggleTheme={() => {
-                        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-                    }}
+                    onToggleTheme={toggleTheme}
                 />
             )}
 
@@ -558,12 +606,22 @@ const CodingPlaygroundPage = () => {
                     secondsElapsed={secondsElapsed}
                     isTimerRunning={isTimerRunning}
                     onToggleTimer={handleToggleTimer}
-                    onResetTimer={() => { setIsTimerRunning(false); setSecondsElapsed(0); }}
-                    onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+                    onResetTimer={() => { if (!hasPlusAccess) return; setIsTimerRunning(false); setSecondsElapsed(0); }}
+                    onOpenShortcuts={() => {
+                        if (!hasPlusAccess) {
+                            toast.error(isAuthenticated ? 'Please upgrade for plus access' : 'Please login for plus access');
+                            handlePlusAction();
+                            return;
+                        }
+                        setIsShortcutsModalOpen(true);
+                    }}
                     onRunCode={handleRunCode}
                     onSubmitCode={handleSubmitCode}
                     isRunning={isRunning}
                     isSubmitting={isSubmitting}
+                    isAuthenticated={isAuthenticated}
+                    hasPlusAccess={hasPlusAccess}
+                    onPlusAction={handlePlusAction}
                 />
 
                 {/* Mobile View Toggle Bar */}
@@ -645,6 +703,9 @@ const CodingPlaygroundPage = () => {
                                 }}
                                 workspaceMode={workspaceMode}
                                 onToggleExpandProblem={handleToggleExpandProblem}
+                                isAuthenticated={isAuthenticated}
+                                hasPlusAccess={hasPlusAccess}
+                                onPlusAction={handlePlusAction}
                             />
                         </div>
                     )}
@@ -708,6 +769,10 @@ const CodingPlaygroundPage = () => {
                                 submissions={submissions}
                                 lastSubmittedCode={submissions?.[0]?.code || ''}
                                 onFetchLastSubmittedCode={async () => {
+                                    if (!isAuthenticated) {
+                                        toast.error('Please sign in to view last submission');
+                                        return null;
+                                    }
                                     const subs = await fetchProblemSubmissions(activeProblemId);
                                     setSubmissions(subs);
                                     return subs?.[0]?.code || null;
@@ -727,6 +792,9 @@ const CodingPlaygroundPage = () => {
                                 executionResult={executionResult}
                                 workspaceMode={workspaceMode}
                                 onToggleExpandEditor={handleToggleExpandEditor}
+                                hasPlusAccess={hasPlusAccess}
+                                isAuthenticated={isAuthenticated}
+                                onPlusAction={handlePlusAction}
                             />
                         </div>
                     )}

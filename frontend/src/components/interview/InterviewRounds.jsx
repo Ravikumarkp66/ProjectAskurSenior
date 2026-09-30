@@ -11,13 +11,20 @@ const InterviewRounds = ({ groupedRounds = {}, isLightMode = false }) => {
   }, [groupedRounds]);
 
   const totalStories = useMemo(() => {
-    return roundNumbers.reduce((acc, r) => acc + (groupedRounds[r]?.length || 0), 0);
+    return roundNumbers.reduce((acc, r) => {
+      const first = groupedRounds[r]?.[0];
+      return acc + (first?.totalStoriesInRound || groupedRounds[r]?.length || 0);
+    }, 0);
   }, [groupedRounds, roundNumbers]);
 
   // Track expanded rounds - default: expand all rounds initially so students see content immediately
   const [expandedRounds, setExpandedRounds] = useState(() => {
     return new Set(roundNumbers);
   });
+
+  React.useEffect(() => {
+    setExpandedRounds(new Set(roundNumbers));
+  }, [roundNumbers]);
 
   // Unified single page state across all or per filtered round
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,7 +142,7 @@ const InterviewRounds = ({ groupedRounds = {}, isLightMode = false }) => {
                 All ({totalStories})
               </button>
               {roundNumbers.map((r) => {
-                const count = groupedRounds[r]?.length || 0;
+                const count = groupedRounds[r]?.[0]?.totalStoriesInRound || groupedRounds[r]?.length || 0;
                 const isSelected = String(selectedRoundFilter) === String(r);
                 return (
                   <button
@@ -179,7 +186,7 @@ const InterviewRounds = ({ groupedRounds = {}, isLightMode = false }) => {
       <div className="space-y-3">
         {pageRoundNumbers.map((roundNum) => {
           const experiencesInPage = pageGroupedByRound[roundNum] || [];
-          const totalInThisRound = groupedRounds[roundNum]?.length || experiencesInPage.length;
+          const totalInThisRound = experiencesInPage[0]?.totalStoriesInRound || groupedRounds[roundNum]?.length || experiencesInPage.length;
           const isExpanded = expandedRounds.has(roundNum);
           const representativeType = experiencesInPage[0]?.roundType || 'Round Details';
 

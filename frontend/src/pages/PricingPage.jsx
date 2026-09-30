@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    Sparkles, Check, ShieldCheck, HelpCircle, ArrowRight, BookOpen, 
-    Briefcase, Star, MapPin, Calculator, LayoutDashboard, UserCheck, 
-    BarChart3, Compass, Users, ChevronDown, Tag, Heart, MessageSquareQuote, 
-    CheckCircle2, XCircle, AlertCircle, Info, Lock
+    Check, ShieldCheck, ArrowRight, ChevronDown, Sparkles, Zap
 } from 'lucide-react';
 
 import Navbar from '../components/navbar';
@@ -12,19 +8,76 @@ import Footer from '../components/Footer';
 import SubscriptionModal from '../components/pricing/SubscriptionModal';
 import { subscriptionAPI } from '../services/api';
 
-const defaultTestimonials = [
-    { name: 'Vishal K.', branch: 'Computer Science', review: 'AskUrSenior Plus saved my 3rd sem CIE test preparation. The Ask+ AI and organized branch PYQs are insanely accurate.' },
-    { name: 'R. Gajendra', branch: 'Mechanical Engineering', review: 'The attendance tracker and CIE analyzer keep me from getting N-Co warnings. Totally worth ₹199 for the semester.' },
-    { name: 'Patil Shubham', branch: 'Information Science', review: 'Everything built natively for SIT. No random irrelevant materials like other apps.' }
-];
-
 const defaultPricingFaqs = [
-    { question: 'Why is AskUrSenior Plus sold on a per-semester basis?', answer: 'Engineering is a semester-based journey where academic requirements change every 5-6 months. Rather than charging expensive lifetime fees, we offer affordable semester plans so you only pay while you actively benefit.' },
-    { question: 'What happens after my semester plan ends?', answer: 'Your account automatically reverts to AskUrSenior Free. You will never lose access to your study materials, saved notes, or core calculators.' },
-    { question: 'Is there any auto-renewal charge on my bank account?', answer: 'No. We do not use hidden auto-debits or forced recurring subscriptions. You decide if and when you want to manually renew your pass.' },
-    { question: 'What features are included in the current V3 version?', answer: 'You get immediate access to all existing V3 features: Personalized Dashboard, Attendance Tracker, Timetable, Ask+ AI RAG assistant, Roadmaps, CIE Analyzer, and Senior Mentorship.' },
-    { question: 'Can I apply student discount coupons?', answer: 'Yes! Freshers, campus ambassadors, and festival offer codes can be applied in the coupon box to get instant discounts.' },
-    { question: 'Is there a refund policy?', answer: 'Yes, we offer a 3-day hassle-free refund guarantee if you encounter any technical issues with your Plus activation.' }
+    // ── FEATURE FAQS (Academic Utilities) ──
+    {
+        category: 'features',
+        categoryLabel: 'Academic Utilities',
+        question: 'What do I get in Smart Attendance, Section Timetables & Daily Schedule?',
+        answer: 'You get full section-wise timetable synchronization and lab-batch filtering (B1/B2/B3). It automatically enforces SIT\'s 85% attendance rule, calculates your safe bunk count ("Can Miss"), runs a shortage recovery equation planner, displays today\'s upcoming classes in real-time, and tracks your daily subject attendance streaks.'
+    },
+    {
+        category: 'features',
+        categoryLabel: 'Academic Utilities',
+        question: 'How do the CIE Analyzer and SEE Target Mark Forecaster work?',
+        answer: 'The CIE Analyzer handles autonomous 50-mark normalization using Best-of-N test calculations and IPCC theory/lab split ratios. It then calculates the exact SEE exam marks required to achieve your target semester grades (O, A+, A, B) alongside credit-weighted SGPA and CGPA calculators.'
+    },
+    {
+        category: 'features',
+        categoryLabel: 'Academic Utilities',
+        question: 'What do the Branch Change Predictor, Eligibility Checker & Year-Back Auditor provide?',
+        answer: 'The Branch Change Predictor analyzes your current CGPA against official SIT branch cutoffs to calculate statistical shift odds and live CGPA gap (Δ). The Eligibility Checker audits your pre-exam dual compliance (85% attendance + 20 CIE marks), flags year-back risks, and generates credit deficit recovery pathways.'
+    },
+    {
+        category: 'features',
+        categoryLabel: 'Academic Utilities',
+        question: 'What is included in the Coding Playground & College Labset Environment?',
+        answer: 'An in-browser Monaco IDE environment supporting C, C++, Java, and Python. It includes official college lab manual problem sets with automated test case validation, optimal reference implementations, custom inputs/outputs, and an interactive lab exam countdown timer.'
+    },
+    {
+        category: 'features',
+        categoryLabel: 'Academic Utilities',
+        question: 'What study materials, solved PYQs, and 1-credit subject quizzes are included?',
+        answer: 'You receive curated SIT & VTU subject lecture notes, solved Previous Year Questions (PYQs) with senior editorial proofs and KaTeX mathematical formulas, module completion checklists, quizzes for 1-credit NCMC and AEC subjects, and curated engineering roadmaps.'
+    },
+    {
+        category: 'features',
+        categoryLabel: 'Academic Utilities',
+        question: 'How do Senior Placement Experiences, Campus Map & the 4-Year Journey work?',
+        answer: 'You gain access to verified senior placement interview experiences with company-specific OA patterns and round breakdowns, an interactive SIT campus map with building and room locators, and a 4-year academic contribution heatmap on your personalized command dashboard.'
+    },
+
+    // ── PLATFORM & ACCESS FAQS ──
+    {
+        category: 'platform',
+        categoryLabel: 'Platform & Access',
+        question: 'What is the duration of my AskUrSenior Plus plan?',
+        answer: 'Your plan provides full access to all Plus features for the entire duration of the active semester from the day of activation.'
+    },
+    {
+        category: 'platform',
+        categoryLabel: 'Platform & Access',
+        question: 'Is Plus access a one-time semester payment or a recurring subscription?',
+        answer: 'Your Plus access is a one-time payment for your semester. There are zero automatic renewals, zero recurring credit card charges, and no hidden fees. You always decide manually if and when you wish to purchase for future semesters.'
+    },
+    {
+        category: 'platform',
+        categoryLabel: 'Platform & Access',
+        question: 'What happens when my Plus semester access ends?',
+        answer: 'Your account seamlessly returns to AskUrSenior Free. Your free study materials, solved PYQs, notes, and WhatsApp Community access remain active forever with zero loss of saved notes.'
+    },
+    {
+        category: 'platform',
+        categoryLabel: 'Platform & Access',
+        question: 'Are new features added during the semester included in my active plan?',
+        answer: 'Yes. Important new features and academic improvements introduced to AskUrSenior Plus during your active semester are automatically included at no additional cost.'
+    },
+    {
+        category: 'platform',
+        categoryLabel: 'Platform & Access',
+        question: 'Is the WhatsApp Community included with Free or Plus?',
+        answer: 'The WhatsApp Community is open to all students for academic doubt-solving and peer discussions. Both Free and Plus users can freely participate in the community.'
+    }
 ];
 
 const PricingPage = () => {
@@ -33,13 +86,9 @@ const PricingPage = () => {
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Coupon state
-    const [couponInput, setCouponInput] = useState('');
-    const [activeCoupon, setActiveCoupon] = useState(null);
-    const [couponMsg, setCouponMsg] = useState('');
-
-    // FAQ Accordion state
+    // FAQ state
     const [openFaqIndex, setOpenFaqIndex] = useState(0);
+    const [faqCategory, setFaqCategory] = useState('all');
 
     useEffect(() => {
         let isMounted = true;
@@ -64,24 +113,6 @@ const PricingPage = () => {
         };
     }, []);
 
-    const handleApplyCoupon = async (e) => {
-        e.preventDefault();
-        if (!couponInput.trim()) return;
-
-        const currentPlanCode = pageData?.plans?.[0]?.code || 'SEM_1';
-
-        try {
-            const res = await subscriptionAPI.validateCoupon(couponInput, currentPlanCode);
-            if (res.data?.success && res.data?.data) {
-                setActiveCoupon(res.data.data);
-                setCouponMsg(`✅ ${res.data.data.code} applied! Saved ₹${res.data.data.discountAmount}`);
-            }
-        } catch (err) {
-            setActiveCoupon(null);
-            setCouponMsg(`❌ ${err.response?.data?.message || 'Invalid coupon code'}`);
-        }
-    };
-
     const openCheckoutModal = (plan) => {
         setSelectedPlan(plan || pageData?.plans?.[0] || { name: 'AskUrSenior Plus', price: 199, code: 'SEM_1' });
         setIsModalOpen(true);
@@ -91,504 +122,558 @@ const PricingPage = () => {
         ? pageData.plans 
         : [{ code: 'SEM_1', name: 'AskUrSenior Plus', price: 199, originalPrice: 399, currency: 'INR', duration: 1, durationUnit: 'semester', badge: 'Recommended', isPopular: true }];
 
-    const features = pageData?.features || [];
-    const freeFeatures = features.filter(f => f.tier === 'free' || f.tier === 'both');
-    const plusFeatures = features.filter(f => f.tier === 'plus' || f.tier === 'both');
+    const scrollToPricing = (e) => {
+        e.preventDefault();
+        const element = document.getElementById('pricing');
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const filteredFaqs = faqCategory === 'all'
+        ? defaultPricingFaqs
+        : defaultPricingFaqs.filter(faq => faq.category === faqCategory);
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#030712] font-outfit text-slate-200">
+        <div className="flex flex-col min-h-screen bg-white dark:bg-[#0F1115] text-[#111827] dark:text-[#F3F4F6] font-sans antialiased transition-colors duration-150">
             <Navbar />
 
-            <main className="flex-1 relative z-10">
+            <main className="flex-1">
                 
                 {/* ─────────────────────────────────────────────────────────
-                    SECTION 1 — HERO
+                    SECTION 1 — HERO SECTION (ASKURSENIOR STRIKE LAUNCH)
                 ───────────────────────────────────────────────────────── */}
-                <section className="py-20 sm:py-28 px-6 relative overflow-hidden text-center">
-                    <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-600/10 rounded-full blur-[160px] pointer-events-none" />
+                <section className="pt-20 pb-16 sm:pt-24 sm:pb-20 px-4 sm:px-6 text-center">
+                    <div className="max-w-3xl mx-auto space-y-6">
+                        
+                        {/* Launch Status Badge */}
+                        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#7C3AED] dark:text-[#A78BFA] text-[12px] font-semibold tracking-wide uppercase">
+                            <Zap size={13} className="text-[#7C3AED] dark:text-[#A78BFA] fill-current" />
+                            <span>ASKURSENIOR STRIKE • PLUS LAUNCH</span>
+                        </div>
 
-                    <div className="max-w-4xl mx-auto space-y-6 relative z-10">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-wider"
-                        >
-                            <Sparkles size={14} />
-                            <span>Transparent Academic Membership</span>
-                        </motion.div>
+                        {/* Page Heading: Strike Launch */}
+                        <h1 className="text-[32px] sm:text-[42px] md:text-[48px] leading-[38px] sm:leading-[50px] font-extrabold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
+                            AskUrSenior Strike Launches <span className="text-[#7C3AED] dark:text-[#A78BFA]">Plus Features</span>
+                        </h1>
 
-                        <motion.h1
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.1 }}
-                            className="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight leading-tight"
-                        >
-                            Invest in Your <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-purple-300 to-indigo-400">College Journey.</span>
-                        </motion.h1>
+                        {/* Subtitle */}
+                        <p className="text-[15px] sm:text-[17px] leading-[24px] sm:leading-[28px] text-[#4B5563] dark:text-[#9CA3AF] max-w-2xl mx-auto font-normal">
+                            AskUrSenior Strike brings together your complete academic toolkit for SIT. Manage attendance, calculate CIE & target SEE marks, practice lab coding, and navigate branch changes with confidence.
+                        </p>
 
-                        <motion.p
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.2 }}
-                            className="text-slate-400 text-base sm:text-xl max-w-2xl mx-auto font-normal leading-relaxed"
-                        >
-                            AskUrSenior Plus is designed for students who want a smarter, more organized and personalized academic experience throughout their engineering journey at SIT.
-                        </motion.p>
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.3 }}
-                            className="flex flex-wrap items-center justify-center gap-4 pt-4"
-                        >
-                            <button
-                                onClick={() => openCheckoutModal(plans[0])}
-                                className="px-8 py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-base shadow-xl shadow-purple-600/30 hover:shadow-purple-500/50 transition-all flex items-center gap-2 group"
+                        {/* CTAs */}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2 max-w-xs sm:max-w-none mx-auto">
+                            <a
+                                href="#pricing"
+                                onClick={scrollToPricing}
+                                className="w-full sm:w-auto h-11 px-7 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-[14px] flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer shadow-none hover:translate-y-[-1px]"
                             >
-                                <span>Unlock AskUrSenior Plus</span>
-                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                            </button>
+                                <span>Explore Plus</span>
+                                <ArrowRight size={16} />
+                            </a>
 
                             <a
-                                href="#comparison"
-                                className="px-8 py-4 rounded-2xl bg-white/[0.04] border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 font-bold text-base transition-all"
+                                href="#pricing"
+                                onClick={scrollToPricing}
+                                className="w-full sm:w-auto h-11 px-7 rounded-[6px] bg-white dark:bg-[#15181D] border border-[#D1D5DB] dark:border-[#292E37] text-[#111827] dark:text-[#F3F4F6] hover:bg-[#F8FAFC] dark:hover:bg-[#1B1F26] hover:border-[#9CA3AF] dark:hover:border-[#4B5563] font-medium text-[14px] flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer shadow-none"
                             >
-                                Compare Free vs Plus
+                                <span>See What's Free</span>
+                                <ChevronDown size={16} className="text-[#6B7280] dark:text-[#9CA3AF]" />
                             </a>
-                        </motion.div>
+                        </div>
+
+                        {/* Trust Badges with Micro-Chips */}
+                        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-4 text-[12px] text-[#6B7280] dark:text-[#9CA3AF]">
+                            <div className="flex items-center gap-1.5 font-medium">
+                                <ShieldCheck size={14} className="text-[#7C3AED] dark:text-[#A78BFA] shrink-0" />
+                                <span>Built specifically for SIT curriculum</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 font-medium">
+                                <Check size={14} className="text-[#7C3AED] dark:text-[#A78BFA] shrink-0" />
+                                <span>One semester full access</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 font-medium">
+                                <Check size={14} className="text-[#7C3AED] dark:text-[#A78BFA] shrink-0" />
+                                <span>Zero automatic renewals</span>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
                 {/* ─────────────────────────────────────────────────────────
-                    SECTION 2 — OUR PROMISE
+                    SECTION 2 — TWO-COLUMN PRICING & COMPARISON BLOCK
                 ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-6xl mx-auto space-y-12">
-                        <div className="text-center max-w-3xl mx-auto space-y-3">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-                                "Our Promise Will Never Change"
+                <section id="pricing" className="py-16 sm:py-20 px-4 sm:px-6">
+                    <div className="max-w-5xl mx-auto space-y-10">
+                        
+                        {/* Section Header */}
+                        <div className="text-center max-w-2xl mx-auto space-y-2">
+                            <span className="text-[12px] font-bold tracking-wider text-[#7C3AED] dark:text-[#A78BFA] uppercase">
+                                THE ACADEMIC COMPARISON
+                            </span>
+                            <h2 className="text-[24px] sm:text-[28px] leading-[32px] font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
+                                Start Free. Upgrade When You Need More.
                             </h2>
-                            <p className="text-purple-400 font-semibold text-base sm:text-lg">
-                                Every student deserves access to essential academic resources.
+                            <p className="text-[14px] sm:text-[15px] leading-[22px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                Free gives you the community and essential resources. Plus provides the complete academic toolkit to actively manage your semester.
                             </p>
                         </div>
 
-                        <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-6">
-                            <h3 className="text-xl font-bold text-white text-center flex items-center justify-center gap-2">
-                                <CheckCircle2 className="text-emerald-400" size={22} />
-                                <span>Always Free Core Features</span>
-                            </h3>
-
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-                                {[
-                                    'Study Materials', 'Interview Experiences', 'Faculty Ratings',
-                                    'Campus Explorer', 'Marketplace', 'Lost & Found',
-                                    'CGPA Calculator', 'SGPA Calculator', 'Blogs'
-                                ].map((item, idx) => (
-                                    <div key={idx} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
-                                            <Check size={16} />
+                        {/* 2-Column Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                            
+                            {/* LEFT COLUMN: ASKURSENIOR FREE (5 Cols on LG) */}
+                            <div className="lg:col-span-5 p-6 rounded-lg bg-white dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] flex flex-col justify-between space-y-6 shadow-none">
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-[20px] font-bold text-[#111827] dark:text-[#F3F4F6]">
+                                                AskUrSenior Free
+                                            </h3>
+                                            <span className="inline-flex px-2.5 py-0.5 rounded-full bg-[#F8FAFC] dark:bg-[#1B1F26] text-[#4B5563] dark:text-[#A1A1AA] border border-[#E5E7EB] dark:border-[#292E37] text-[11px] font-semibold uppercase tracking-wide">
+                                                Always Free
+                                            </span>
                                         </div>
-                                        <span className="text-sm font-semibold text-slate-200">{item}</span>
+                                        <p className="text-[13px] leading-[20px] text-[#6B7280] dark:text-[#9CA3AF]">
+                                            Essential study resources and campus network accessible to every student at SIT.
+                                        </p>
                                     </div>
-                                ))}
-                            </div>
 
-                            <p className="text-center text-slate-400 text-sm font-medium pt-2">
-                                These core academic resources will always remain 100% free for every student at SIT.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 3 — WHY ASKURSENIOR PLUS EXISTS
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-4xl mx-auto space-y-8">
-                        <div className="text-center space-y-3">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-                                Why Introduce AskUrSenior Plus?
-                            </h2>
-                            <p className="text-slate-400 text-base max-w-xl mx-auto">
-                                Building a sustainable, high-quality platform requires long-term commitment.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            {[
-                                { title: 'Server Infrastructure', desc: 'Fast, secure hosting & database bandwidth.' },
-                                { title: 'AI Services', desc: 'Ask+ RAG query credits & custom model fine-tuning.' },
-                                { title: 'Resource QA', desc: 'Verifying study materials & senior interview logs.' },
-                                { title: 'Community Support', desc: 'Weekly senior sessions & feature maintenance.' }
-                            ].map((pillar, idx) => (
-                                <div key={idx} className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
-                                    <h4 className="font-bold text-white text-base">{pillar.title}</h4>
-                                    <p className="text-xs text-slate-400">{pillar.desc}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="p-6 rounded-2xl bg-purple-950/20 border border-purple-500/20 text-center">
-                            <p className="text-purple-300 text-sm sm:text-base font-semibold">
-                                "We introduced Plus not to lock learning. We introduced it so we can sustainably build better tools for students."
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 4 — FREE vs PLUS COMPARISON
-                ───────────────────────────────────────────────────────── */}
-                <section id="comparison" className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-5xl mx-auto space-y-12">
-                        <div className="text-center space-y-3">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-                                Free vs AskUrSenior Plus
-                            </h2>
-                            <p className="text-slate-400 text-sm sm:text-base">
-                                Choose the tier that matches your academic goals.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Card 1: Free */}
-                            <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col justify-between space-y-8">
-                                <div className="space-y-4">
-                                    <div className="inline-flex px-3 py-1 rounded-full bg-slate-800 text-slate-300 text-xs font-bold uppercase">
-                                        AskUrSenior Free
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white">Essential Resources</h3>
-                                    <p className="text-xs text-slate-400">Perfect for students who need essential academic resources.</p>
-                                    <div className="pt-4 space-y-2 text-sm text-slate-300">
-                                        {[
-                                            'Study Materials & PYQs', 'Interview Experiences', 'Faculty Ratings',
-                                            'Campus Explorer', 'Marketplace & Lost & Found', 'CGPA & SGPA Calculator', 'Blog Guides'
-                                        ].map((item, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <Check size={16} className="text-slate-400 shrink-0" />
-                                                <span>{item}</span>
+                                    {/* Free Features List with Clean Typography */}
+                                    <div className="space-y-3.5 pt-1">
+                                        <div className="flex items-start gap-3 p-2.5 rounded-[6px] bg-[#F8FAFC] dark:bg-[#1B1F26] border border-[#E5E7EB]/70 dark:border-[#292E37]">
+                                            <div className="w-5 h-5 rounded-full bg-[#F0FDF4] dark:bg-[#16A34A]/20 text-[#16A34A] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={13} strokeWidth={2.5} />
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Card 2: Plus */}
-                            <div className="p-8 rounded-3xl bg-gradient-to-b from-purple-900/20 via-white/[0.03] to-purple-950/30 border border-purple-500/40 relative shadow-2xl flex flex-col justify-between space-y-8">
-                                <div className="space-y-4">
-                                    <div className="inline-flex px-3 py-1 rounded-full bg-purple-600 text-white text-xs font-bold uppercase">
-                                        AskUrSenior Plus (Recommended)
-                                    </div>
-                                    <h3 className="text-2xl font-bold text-white">Complete Companion</h3>
-                                    <p className="text-xs text-slate-300">Perfect for students who want a complete academic companion.</p>
-
-                                    <div className="pt-4 space-y-2 text-sm text-slate-200">
-                                        {[
-                                            'Everything in Free Plan',
-                                            'Personalized Dashboard & Timetable',
-                                            'SIT 85% Attendance Tracker',
-                                            'Ask+ AI Assistant (SIT RAG)',
-                                            'Academic Roadmaps & Contribution Heatmap',
-                                            'CIE Analyzer & Year Back Predictor',
-                                            'Senior Mentorship & Weekly Sessions',
-                                            'Leaderboards, Streaks & Daily Tasks'
-                                        ].map((item, i) => (
-                                            <div key={i} className="flex items-center gap-2">
-                                                <Check size={16} className="text-purple-400 shrink-0" />
-                                                <span className="font-semibold">{item}</span>
+                                            <div>
+                                                <div className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6]">Study Materials & Notes</div>
+                                                <div className="text-[12px] text-[#6B7280] dark:text-[#9CA3AF]">Official syllabus notes & reference PDFs</div>
                                             </div>
-                                        ))}
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-2.5 rounded-[6px] bg-[#F8FAFC] dark:bg-[#1B1F26] border border-[#E5E7EB]/70 dark:border-[#292E37]">
+                                            <div className="w-5 h-5 rounded-full bg-[#F0FDF4] dark:bg-[#16A34A]/20 text-[#16A34A] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={13} strokeWidth={2.5} />
+                                            </div>
+                                            <div>
+                                                <div className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6]">Solved Previous Year Questions (PYQs)</div>
+                                                <div className="text-[12px] text-[#6B7280] dark:text-[#9CA3AF]">Previous exam papers with step-by-step solutions</div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-start gap-3 p-2.5 rounded-[6px] bg-[#F8FAFC] dark:bg-[#1B1F26] border border-[#E5E7EB]/70 dark:border-[#292E37]">
+                                            <div className="w-5 h-5 rounded-full bg-[#F0FDF4] dark:bg-[#16A34A]/20 text-[#16A34A] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={13} strokeWidth={2.5} />
+                                            </div>
+                                            <div>
+                                                <div className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6]">WhatsApp Community & Doubt Solving</div>
+                                                <div className="text-[12px] text-[#6B7280] dark:text-[#9CA3AF]">Peer discussions and academic help from seniors</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={() => openCheckoutModal(plans[0])}
-                                    className="w-full py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <span>Get Plus Access (₹{plans[0]?.price || 199})</span>
-                                    <ArrowRight size={16} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 5 — PREMIUM FEATURES EXPLAINED
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-6xl mx-auto space-y-12">
-                        <div className="text-center max-w-3xl mx-auto space-y-3">
-                            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-                                Why Each Feature Exists
-                            </h2>
-                            <p className="text-slate-400 text-sm sm:text-base">
-                                We build features to solve real engineering student problems at SIT.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {features.map((feat, idx) => (
-                                <div key={feat.code || idx} className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-purple-500/20 transition-all space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="font-bold text-white text-base">{feat.title}</h3>
-                                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                            feat.tier === 'free' ? 'bg-slate-800 text-slate-400' : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                                        }`}>
-                                            {feat.tier === 'free' ? 'Free' : 'Plus'}
+                                <div className="space-y-3 pt-4 border-t border-[#E5E7EB] dark:border-[#292E37]">
+                                    {/* Free Price Hero */}
+                                    <div className="p-3.5 rounded-[6px] bg-[#F8FAFC] dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] flex items-center justify-between">
+                                        <div className="flex items-baseline gap-1.5">
+                                            <span className="text-[26px] font-bold text-[#111827] dark:text-[#F3F4F6]">₹0</span>
+                                            <span className="text-[12px] text-[#6B7280] dark:text-[#9CA3AF] font-normal">/ forever</span>
+                                        </div>
+                                        <span className="text-[12px] text-[#16A34A] font-semibold">
+                                            No payment required
                                         </span>
                                     </div>
 
-                                    <div className="space-y-2 text-xs">
-                                        <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300">
-                                            <span className="font-bold">Problem: </span>{feat.problem}
-                                        </div>
-                                        <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300">
-                                            <span className="font-bold">Solution: </span>{feat.solution}
-                                        </div>
-                                        <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                                            <span className="font-bold">Benefit: </span>{feat.benefit}
-                                        </div>
+                                    <div className="w-full py-2.5 px-3 rounded-[6px] bg-[#F8FAFC] dark:bg-[#1B1F26] text-[#6B7280] dark:text-[#9CA3AF] text-[12px] font-medium text-center border border-[#E5E7EB] dark:border-[#292E37]">
+                                        Default access for all registered students
                                     </div>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* RIGHT COLUMN: ASKURSENIOR PLUS (7 Cols on LG — Modern SaaS Presentation) */}
+                            <div className="lg:col-span-7 p-6 rounded-lg bg-white dark:bg-[#15181D] border-2 border-[#7C3AED] dark:border-[#8B5CF6] flex flex-col justify-between space-y-6 shadow-none relative">
+                                <div className="space-y-5">
+                                    {/* Header & Recommended Badge */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <h3 className="text-[22px] font-bold text-[#111827] dark:text-[#F3F4F6] flex items-center gap-2">
+                                                <span>AskUrSenior Plus</span>
+                                            </h3>
+                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7C3AED] text-white text-[11px] font-semibold uppercase tracking-wider">
+                                                <Sparkles size={12} />
+                                                <span>Recommended</span>
+                                            </span>
+                                        </div>
+                                        <p className="text-[13px] font-semibold text-[#7C3AED] dark:text-[#A78BFA]">
+                                            Your complete academic toolkit for your semester
+                                        </p>
+                                    </div>
+
+                                    {/* 16 Features — Modern SaaS Grouped Grid with High Contrast */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                        
+                                        {/* Item 1 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Attendance Tracker with Timetable for Each Section & Analysis
+                                            </span>
+                                        </div>
+
+                                        {/* Item 2 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Today's Classes Tracking
+                                            </span>
+                                        </div>
+
+                                        {/* Item 3 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Streaks for All Subjects & Days
+                                            </span>
+                                        </div>
+
+                                        {/* Item 4 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                CIE Analyzer
+                                            </span>
+                                        </div>
+
+                                        {/* Item 5 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Branch Change Predictor
+                                            </span>
+                                        </div>
+
+                                        {/* Item 6 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Year Back Predictor
+                                            </span>
+                                        </div>
+
+                                        {/* Item 7 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Eligibility Checker
+                                            </span>
+                                        </div>
+
+                                        {/* Item 8 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                CGPA / SGPA Calculator
+                                            </span>
+                                        </div>
+
+                                        {/* Item 9 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Coding Playground for College Labset Programs (C, C++, Java, Python)
+                                            </span>
+                                        </div>
+
+                                        {/* Item 10 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Roadmaps
+                                            </span>
+                                        </div>
+
+                                        {/* Item 11 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Quiz for 1-Credit Subjects
+                                            </span>
+                                        </div>
+
+                                        {/* Item 12 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Senior Interview Experiences
+                                            </span>
+                                        </div>
+
+                                        {/* Item 13 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Campus Map
+                                            </span>
+                                        </div>
+
+                                        {/* Item 14 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                4 Years Journey Heatmap
+                                            </span>
+                                        </div>
+
+                                        {/* Item 15 */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <span className="text-[13px] font-semibold text-[#111827] dark:text-[#F3F4F6] leading-tight">
+                                                Personalized Dashboard
+                                            </span>
+                                        </div>
+
+                                        {/* Item 16 & Free Bundle */}
+                                        <div className="flex items-start gap-2 p-1.5 rounded-[4px] hover:bg-[#FAF5FF]/60 dark:hover:bg-[#1B1F26] transition-colors sm:col-span-2 pt-2 border-t border-[#E5E7EB] dark:border-[#292E37]">
+                                            <div className="w-4 h-4 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/30 text-[#7C3AED] dark:text-[#A78BFA] flex items-center justify-center shrink-0 mt-0.5">
+                                                <Check size={11} strokeWidth={3} />
+                                            </div>
+                                            <div className="text-[13px] leading-tight">
+                                                <span className="font-bold text-[#111827] dark:text-[#F3F4F6]">Plus Everything in Free: </span>
+                                                <span className="text-[#4B5563] dark:text-[#9CA3AF] font-normal">Materials, Solved PYQs & WhatsApp Community</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* The Important Promise Banner with Distinct SaaS Look */}
+                                    <div className="p-3 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#6D28D9] dark:text-[#DDD6FE] flex items-start gap-2.5 leading-relaxed">
+                                        <Sparkles size={15} className="text-[#7C3AED] dark:text-[#A78BFA] shrink-0 mt-0.5" />
+                                        <span className="font-medium">
+                                            Important new features added to AskUrSenior Plus during your active plan are included at no extra cost.
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Plus Price & CTA Section (BELOW FEATURES) */}
+                                <div className="pt-4 border-t border-[#E5E7EB] dark:border-[#292E37] space-y-3">
+                                    {/* Primary Price Focal Point (The ONLY prominent price on the page) */}
+                                    <div className="p-4 rounded-[6px] bg-[#F8FAFC] dark:bg-[#1B1F26] border border-[#E5E7EB] dark:border-[#292E37] flex flex-col sm:flex-row items-center justify-between gap-2">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-[32px] sm:text-[36px] font-extrabold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
+                                                ₹{plans[0]?.price || 199}
+                                            </span>
+                                            <span className="text-[#6B7280] dark:text-[#9CA3AF] font-semibold text-[14px]">
+                                                / {plans[0]?.durationUnit?.toLowerCase() || 'semester'}
+                                            </span>
+                                        </div>
+                                        <div className="text-right text-[12px] text-[#4B5563] dark:text-[#9CA3AF] font-semibold">
+                                            One semester access • Zero auto-renewal
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => openCheckoutModal(plans[0])}
+                                        className="w-full h-11 px-5 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-[14px] flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer shadow-none hover:translate-y-[-1px]"
+                                    >
+                                        <span>Unlock AskUrSenior Plus</span>
+                                        <ArrowRight size={16} />
+                                    </button>
+                                    <p className="text-center text-[12px] text-[#6B7280] dark:text-[#9CA3AF] font-medium">
+                                        Everything currently available in Plus is included.
+                                    </p>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 </section>
 
                 {/* ─────────────────────────────────────────────────────────
-                    SECTION 6 & 7 — TRANSPARENCY & VERSION COMMITMENT
+                    SECTION 3 — TRUST, ACCESS & PLAN TERMS
                 ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-5xl mx-auto space-y-12">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <section className="py-16 sm:py-20 px-4 sm:px-6">
+                    <div className="max-w-5xl mx-auto space-y-10">
+                        
+                        {/* Section Header */}
+                        <div className="text-center max-w-2xl mx-auto space-y-2">
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/20 text-[#7C3AED] dark:text-[#A78BFA] text-[12px] font-semibold uppercase border border-[#E9D5FF] dark:border-[#7C3AED]/30">
+                                <ShieldCheck size={14} className="text-[#7C3AED] dark:text-[#A78BFA]" />
+                                <span>YOUR PLAN, CLEARLY EXPLAINED</span>
+                            </div>
+                            <h2 className="text-[24px] sm:text-[28px] leading-[32px] font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
+                                Simple Terms. No Surprises.
+                            </h2>
+                            <p className="text-[14px] sm:text-[15px] leading-[22px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                Everything you need to know about your semester access, renewal terms, and account transition.
+                            </p>
+                        </div>
+
+                        {/* 4 Value Cards Grid with Modern SaaS Look */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             
-                            {/* Complete Transparency */}
-                            <div className="p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6">
-                                <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                                    <ShieldCheck className="text-purple-400" size={24} />
-                                    <span>What You're Paying For</span>
-                                </h3>
-                                <p className="text-xs text-slate-300 leading-relaxed">
-                                    Every premium feature shown on this page already exists, already works, already has been built, and is available immediately after purchase.
+                            <div className="p-5 rounded-lg bg-white dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] space-y-2.5 shadow-none">
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/20 text-[12px] font-bold text-[#7C3AED] dark:text-[#A78BFA] border border-[#E9D5FF] dark:border-[#7C3AED]/30">
+                                    01
+                                </span>
+                                <h3 className="font-bold text-[#111827] dark:text-[#F3F4F6] text-[15px]">One Semester Access</h3>
+                                <p className="text-[13px] leading-[20px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                    Your semester plan fee covers your complete semester toolkit from activation to semester completion.
                                 </p>
-
-                                <div className="space-y-4 text-xs">
-                                    <div className="space-y-2">
-                                        <span className="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">Included:</span>
-                                        {['Existing Premium V3 Features', 'Bug Fixes & Maintenance', 'Performance Optimization', 'Server Stability Updates'].map((inc, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-slate-200">
-                                                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                                                <span>{inc}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    <div className="space-y-2 pt-2 border-t border-white/5">
-                                        <span className="font-bold text-rose-400 uppercase tracking-wider text-[11px]">Not Included:</span>
-                                        {['Future Major Versions (V4, V5)', 'Future Major Standalone Modules', 'Unbuilt Features'].map((exc, i) => (
-                                            <div key={i} className="flex items-center gap-2 text-slate-400">
-                                                <XCircle size={14} className="text-rose-400 shrink-0" />
-                                                <span>{exc}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             </div>
 
-                            {/* Version Commitment */}
-                            <div className="p-8 rounded-3xl bg-white/[0.03] border border-white/5 space-y-6 flex flex-col justify-between">
-                                <div className="space-y-4">
-                                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                                        <Lock className="text-purple-400" size={24} />
-                                        <span>Our Version Commitment</span>
-                                    </h3>
-                                    <p className="text-xs text-slate-300 leading-relaxed">
-                                        When students subscribe, they purchase access to the premium features available in the current version (V3).
-                                    </p>
-                                    <p className="text-xs text-slate-400 leading-relaxed">
-                                        Future major versions (V4, V5) may introduce entirely new capabilities and updated pricing. We believe students should pay for software that already exists today—not promises about unbuilt software.
-                                    </p>
-                                </div>
+                            <div className="p-5 rounded-lg bg-white dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] space-y-2.5 shadow-none">
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/20 text-[12px] font-bold text-[#7C3AED] dark:text-[#A78BFA] border border-[#E9D5FF] dark:border-[#7C3AED]/30">
+                                    02
+                                </span>
+                                <h3 className="font-bold text-[#111827] dark:text-[#F3F4F6] text-[15px]">Zero Auto-Renewal</h3>
+                                <p className="text-[13px] leading-[20px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                    No recurring credit card charges or hidden subscriptions. You decide when to purchase.
+                                </p>
+                            </div>
 
-                                <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
-                                    🔒 Clear commitment: 100% honest software delivery.
-                                </div>
+                            <div className="p-5 rounded-lg bg-white dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] space-y-2.5 shadow-none">
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/20 text-[12px] font-bold text-[#7C3AED] dark:text-[#A78BFA] border border-[#E9D5FF] dark:border-[#7C3AED]/30">
+                                    03
+                                </span>
+                                <h3 className="font-bold text-[#111827] dark:text-[#F3F4F6] text-[15px]">Free Resources Stay Free</h3>
+                                <p className="text-[13px] leading-[20px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                    When your Plus semester ends, your notes, PYQs, and WhatsApp Community access remain active.
+                                </p>
+                            </div>
+
+                            <div className="p-5 rounded-lg bg-white dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] space-y-2.5 shadow-none">
+                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/20 text-[12px] font-bold text-[#7C3AED] dark:text-[#A78BFA] border border-[#E9D5FF] dark:border-[#7C3AED]/30">
+                                    04
+                                </span>
+                                <h3 className="font-bold text-[#111827] dark:text-[#F3F4F6] text-[15px]">Manual Renewal</h3>
+                                <p className="text-[13px] leading-[20px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                    You can manually purchase Plus again for subsequent semesters whenever you need it.
+                                </p>
                             </div>
 
                         </div>
-                    </div>
-                </section>
 
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 8 & 9 — SEMESTER PLAN & FUTURE PHILOSOPHY
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-5xl mx-auto space-y-8 text-center">
-                        <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
-                            Why Don't We Offer Lifetime Plans?
-                        </h2>
-
-                        <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 max-w-3xl mx-auto space-y-4 text-left">
-                            <p className="text-slate-300 text-sm leading-relaxed">
-                                Engineering is a semester-based journey where academic requirements change every semester. Most premium tools are only valuable during active college semesters.
-                            </p>
-                            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                                Rather than selling expensive lifetime plans that students may never fully use after graduation, we provide affordable semester-wise plans (₹199 / semester). You only pay for the period in which you genuinely benefit.
+                        {/* Reassurance Callout Box */}
+                        <div className="max-w-2xl mx-auto p-4 rounded-[6px] bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-center">
+                            <p className="text-[13px] sm:text-[14px] font-semibold text-[#6D28D9] dark:text-[#DDD6FE]">
+                                No hidden recurring charges. You have 100% control over when to renew.
                             </p>
                         </div>
                     </div>
                 </section>
 
                 {/* ─────────────────────────────────────────────────────────
-                    SECTION 10 — PRICING PLAN CARD
+                    SECTION 4 — CATEGORIZED FAQ ACCORDION (SECTION-WISE)
                 ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-xl mx-auto">
-                        <div className="p-8 rounded-3xl bg-gradient-to-b from-purple-900/30 via-white/[0.04] to-purple-950/40 border-2 border-purple-500/50 shadow-2xl text-center space-y-6">
-                            <span className="px-3.5 py-1 rounded-full bg-purple-600 text-white text-xs font-bold uppercase tracking-wider">
-                                {plans[0]?.badge || 'Best Value for SIT Students'}
+                <section className="py-16 sm:py-20 px-4 sm:px-6">
+                    <div className="max-w-3xl mx-auto space-y-8">
+                        
+                        {/* Section Header */}
+                        <div className="text-center space-y-2">
+                            <span className="text-[12px] font-bold tracking-wider text-[#7C3AED] dark:text-[#A78BFA] uppercase">
+                                FREQUENTLY ASKED QUESTIONS
                             </span>
-
-                            <div>
-                                <h3 className="text-3xl font-extrabold text-white">{plans[0]?.name || 'AskUrSenior Plus'}</h3>
-                                <div className="pt-4 flex items-baseline justify-center gap-2">
-                                    <span className="text-5xl font-black text-white">₹{plans[0]?.price || 199}</span>
-                                    <span className="text-slate-400 text-sm">/ {plans[0]?.durationUnit || 'Semester'}</span>
-                                </div>
-                                {plans[0]?.originalPrice && (
-                                    <p className="text-xs text-slate-500 line-through pt-1">Regular Price ₹{plans[0].originalPrice}</p>
-                                )}
-                            </div>
-
-                            <button
-                                onClick={() => openCheckoutModal(plans[0])}
-                                className="w-full py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-base shadow-xl shadow-purple-600/30 transition-all flex items-center justify-center gap-2"
-                            >
-                                <span>Unlock AskUrSenior Plus</span>
-                                <ArrowRight size={18} />
-                            </button>
-
-                            <p className="text-xs text-slate-400 font-medium">
-                                Instant access to all current V3 premium features.
+                            <h2 className="text-[24px] sm:text-[28px] leading-[32px] font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
+                                Everything You Need to Know
+                            </h2>
+                            <p className="text-[14px] leading-[22px] text-[#4B5563] dark:text-[#9CA3AF]">
+                                Detailed answers regarding academic tools, platform capabilities, and semester access.
                             </p>
                         </div>
-                    </div>
-                </section>
 
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 11 — DISCOUNTS & COUPONS
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-16 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-3xl mx-auto p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-6 text-center">
-                        <h3 className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                            <Tag className="text-purple-400" size={20} />
-                            <span>Student Discounts & Coupons</span>
-                        </h3>
-                        <p className="text-slate-400 text-xs sm:text-sm">
-                            Eligible students can apply launch, referral, or campus ambassador coupon codes.
-                        </p>
-
-                        <form onSubmit={handleApplyCoupon} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                            <input
-                                type="text"
-                                value={couponInput}
-                                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                                placeholder="Enter coupon code (e.g. SITFIRSTYEAR)"
-                                className="flex-1 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 text-sm font-mono uppercase focus:outline-none focus:border-purple-500"
-                            />
+                        {/* Category Filter Tabs */}
+                        <div className="flex items-center justify-center gap-2 p-1 max-w-md mx-auto rounded-[8px] bg-[#F8FAFC] dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37]">
                             <button
-                                type="submit"
-                                className="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-all"
+                                onClick={() => { setFaqCategory('all'); setOpenFaqIndex(0); }}
+                                className={`flex-1 py-1.5 px-3 rounded-[6px] text-[12px] font-semibold transition-all cursor-pointer ${
+                                    faqCategory === 'all'
+                                        ? 'bg-white dark:bg-[#1B1F26] text-[#7C3AED] dark:text-[#A78BFA] shadow-sm border border-[#E5E7EB] dark:border-[#7C3AED]/30'
+                                        : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
+                                }`}
                             >
-                                Validate
+                                All FAQs
                             </button>
-                        </form>
-
-                        {couponMsg && (
-                            <p className={`text-xs font-semibold ${activeCoupon ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {couponMsg}
-                            </p>
-                        )}
-                    </div>
-                </section>
-
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 12 — FOUNDER NOTE
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-4xl mx-auto p-8 sm:p-12 rounded-3xl bg-white/[0.02] border border-white/5 space-y-8">
-                        <div className="flex flex-col sm:flex-row items-center gap-6">
-                            <img
-                                src="https://auction-platform-kp.s3.ap-south-1.amazonaws.com/creator-section/DocScanner+Apr+20%2C+2022+9-12+AM_LE_upscale_prime_cleanup.jpg"
-                                alt="Ravikumar KP"
-                                className="w-20 h-20 rounded-2xl object-cover border-2 border-purple-500/30 shrink-0"
-                            />
-                            <div className="text-center sm:text-left space-y-1">
-                                <h3 className="text-2xl font-bold text-white">A Note From the Founder</h3>
-                                <p className="text-purple-400 text-xs font-semibold">Ravikumar KP • Founder, AskUrSenior</p>
-                            </div>
+                            <button
+                                onClick={() => { setFaqCategory('features'); setOpenFaqIndex(0); }}
+                                className={`flex-1 py-1.5 px-3 rounded-[6px] text-[12px] font-semibold transition-all cursor-pointer ${
+                                    faqCategory === 'features'
+                                        ? 'bg-white dark:bg-[#1B1F26] text-[#7C3AED] dark:text-[#A78BFA] shadow-sm border border-[#E5E7EB] dark:border-[#7C3AED]/30'
+                                        : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
+                                }`}
+                            >
+                                Feature FAQs
+                            </button>
+                            <button
+                                onClick={() => { setFaqCategory('platform'); setOpenFaqIndex(0); }}
+                                className={`flex-1 py-1.5 px-3 rounded-[6px] text-[12px] font-semibold transition-all cursor-pointer ${
+                                    faqCategory === 'platform'
+                                        ? 'bg-white dark:bg-[#1B1F26] text-[#7C3AED] dark:text-[#A78BFA] shadow-sm border border-[#E5E7EB] dark:border-[#7C3AED]/30'
+                                        : 'text-[#6B7280] dark:text-[#9CA3AF] hover:text-[#111827] dark:hover:text-white'
+                                }`}
+                            >
+                                Platform FAQs
+                            </button>
                         </div>
 
-                        <div className="space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed font-normal border-t border-white/5 pt-6">
-                            <p>Hi, I'm Ravikumar KP, an Information Science and Engineering student at Siddaganga Institute of Technology.</p>
-                            <p>The platform was built to solve the exact problems I personally faced during engineering—scattered study notes, unclear exam requirements, and lack of senior guidance.</p>
-                            <p>For two years, the platform has remained free. <strong className="text-white">The essentials will always remain free.</strong></p>
-                            <p>AskUrSenior Plus exists to help us continue building better tools while staying completely transparent about what students receive. Every feature you pay for already exists. Every promise we make is one we keep.</p>
-                        </div>
-                    </div>
-                </section>
-
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 13 — STUDENT TESTIMONIALS
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-6xl mx-auto space-y-10">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl font-extrabold text-white">What SIT Students Say</h2>
-                            <p className="text-slate-400 text-xs sm:text-sm">Real reviews from engineering students at Siddaganga Institute of Technology.</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {defaultTestimonials.map((t, i) => (
-                                <div key={i} className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 space-y-3">
-                                    <p className="text-xs text-slate-300 italic">"{t.review}"</p>
-                                    <div className="pt-2 border-t border-white/5 text-xs">
-                                        <div className="font-bold text-white">{t.name}</div>
-                                        <div className="text-slate-500">{t.branch}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                {/* ─────────────────────────────────────────────────────────
-                    SECTION 14 — PRICING FAQ ACCORDION
-                ───────────────────────────────────────────────────────── */}
-                <section className="py-20 px-6 relative bg-[#030712] overflow-hidden">
-                    <div className="max-w-4xl mx-auto space-y-10">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-3xl font-extrabold text-white">Subscription FAQs</h2>
-                            <p className="text-slate-400 text-xs sm:text-sm">Answers to common questions about AskUrSenior Plus.</p>
-                        </div>
-
-                        <div className="space-y-4">
-                            {defaultPricingFaqs.map((faq, idx) => {
-                                const isOpen = openFaqIndex === idx;
+                        {/* FAQ List */}
+                        <div className="space-y-3">
+                            {filteredFaqs.map((faq, index) => {
+                                const isOpen = openFaqIndex === index;
                                 return (
-                                    <div key={idx} className="rounded-2xl bg-white/[0.03] border border-white/5 overflow-hidden">
+                                    <div 
+                                        key={index}
+                                        className="rounded-[6px] border border-[#E5E7EB] dark:border-[#292E37] bg-white dark:bg-[#15181D] overflow-hidden transition-colors duration-150 hover:border-[#7C3AED]/30 dark:hover:border-[#8B5CF6]/30"
+                                    >
                                         <button
-                                            onClick={() => setOpenFaqIndex(isOpen ? -1 : idx)}
-                                            className="w-full p-5 flex items-center justify-between text-left font-semibold text-white text-sm sm:text-base"
+                                            onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                                            className="w-full py-4 px-5 text-left flex items-start justify-between gap-4 font-bold text-[#111827] dark:text-[#F3F4F6] text-[14px] sm:text-[15px] hover:bg-[#FAF5FF]/40 dark:hover:bg-[#1B1F26] transition-colors duration-150 cursor-pointer"
                                         >
-                                            <span>{faq.question}</span>
-                                            <ChevronDown size={16} className={`transition-transform duration-300 ${isOpen ? 'rotate-180 text-purple-400' : 'text-slate-500'}`} />
+                                            <div className="space-y-1 pr-2">
+                                                <span className="inline-block text-[10.5px] font-bold uppercase tracking-wider text-[#7C3AED] dark:text-[#A78BFA] mb-0.5">
+                                                    {faq.categoryLabel}
+                                                </span>
+                                                <div className={`leading-snug ${isOpen ? 'text-[#7C3AED] dark:text-[#A78BFA]' : ''}`}>
+                                                    {faq.question}
+                                                </div>
+                                            </div>
+                                            <ChevronDown 
+                                                size={16} 
+                                                className={`text-[#6B7280] dark:text-[#9CA3AF] shrink-0 mt-1 transition-transform duration-150 ${isOpen ? 'rotate-180 text-[#7C3AED] dark:text-[#A78BFA]' : ''}`} 
+                                            />
                                         </button>
                                         {isOpen && (
-                                            <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-300 border-t border-white/5">
+                                            <div className="px-5 pb-4 pt-1 text-[13px] sm:text-[14px] leading-[22px] text-[#4B5563] dark:text-[#9CA3AF] border-t border-[#E5E7EB] dark:border-[#292E37] bg-[#FAF5FF]/20 dark:bg-[#1B1F26]/40 font-normal">
                                                 {faq.answer}
                                             </div>
                                         )}
@@ -600,35 +685,51 @@ const PricingPage = () => {
                 </section>
 
                 {/* ─────────────────────────────────────────────────────────
-                    SECTION 15 — FINAL CTA
+                    SECTION 5 — FINAL CTA SECTION
                 ───────────────────────────────────────────────────────── */}
-                <section className="py-24 px-6 relative bg-[#030712] text-center overflow-hidden">
-                    <div className="max-w-3xl mx-auto space-y-6">
-                        <h2 className="text-4xl sm:text-5xl font-extrabold text-white">
-                            Ready to Make Your College Journey Smarter?
+                <section className="py-16 sm:py-20 px-4 sm:px-6 text-center">
+                    <div className="max-w-2xl mx-auto space-y-5">
+                        
+                        <span className="text-[12px] font-bold tracking-wider text-[#7C3AED] dark:text-[#A78BFA] uppercase">
+                            ASKURSENIOR PLUS
+                        </span>
+
+                        <h2 className="text-[28px] sm:text-[34px] md:text-[38px] leading-[34px] sm:leading-[42px] font-extrabold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
+                            Ready to Make Your Semester Easier?
                         </h2>
-                        <p className="text-slate-400 text-sm sm:text-base">
-                            Join students who want a smarter, more organized and personalized academic journey.
+
+                        <p className="text-[15px] leading-[24px] text-[#4B5563] dark:text-[#9CA3AF] max-w-lg mx-auto">
+                            Get the complete AskUrSenior Plus toolkit for your semester, built around the way SIT students actually study and manage academics.
                         </p>
-                        <button
-                            onClick={() => openCheckoutModal(plans[0])}
-                            className="px-8 py-4 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-base shadow-xl shadow-purple-600/30 transition-all inline-flex items-center gap-2"
-                        >
-                            <span>Unlock AskUrSenior Plus</span>
-                            <ArrowRight size={18} />
-                        </button>
+
+                        <div className="pt-2 flex flex-col items-center justify-center gap-2">
+                            <button
+                                onClick={() => openCheckoutModal(plans[0])}
+                                className="h-11 px-8 rounded-[6px] bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold text-[14px] flex items-center justify-center gap-2 transition-all duration-150 cursor-pointer shadow-none hover:translate-y-[-1px]"
+                            >
+                                <span>Unlock AskUrSenior Plus</span>
+                                <ArrowRight size={16} />
+                            </button>
+                            <p className="text-[12px] text-[#6B7280] dark:text-[#9CA3AF] font-medium">
+                                No automatic renewal. You decide when to renew.
+                            </p>
+                        </div>
                     </div>
                 </section>
 
             </main>
 
+            {/* Footer Component */}
             <Footer />
 
-            {/* Subscription Confirmation Modal */}
+            {/* Dynamic Checkout & Subscription Modal */}
             <SubscriptionModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 plan={selectedPlan}
+                onSuccess={() => {
+                    window.location.reload();
+                }}
             />
         </div>
     );

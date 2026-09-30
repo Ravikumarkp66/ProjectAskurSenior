@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Settings, X, Check, AlertCircle, ShieldCheck, Sparkles, Flame } from 'lucide-react';
+import { Search, Settings, X, Check, AlertCircle, ShieldCheck, Sparkles, Flame, Lock } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../../../../../context/ThemeContext';
 import { apiV2 } from '../../../../../services/authService';
@@ -208,6 +208,8 @@ const AttendanceSummaryView = ({
     overallMetrics = null,
     onOpenBaselineModal,
     readOnly,
+    isLocked = false,
+    onLockedClick,
     selectedSemester = 1,
     onTargetUpdated
 }) => {
@@ -259,6 +261,11 @@ const AttendanceSummaryView = ({
 
     // Handle Saving Target
     const handleSaveTarget = async () => {
+        if (isLocked) {
+            onLockedClick?.();
+            return;
+        }
+
         const val = parseFloat(targetInput);
         if (isNaN(val) || val < collegeThreshold) {
             setTargetError(`Your target must be at least the college minimum of ${collegeThreshold}%.`);
@@ -451,7 +458,11 @@ const AttendanceSummaryView = ({
                             transition: 'all 0.15s',
                         }}
                     >
-                        <Settings size={13} style={{ color: isSettingsOpen ? t.accent : t.textMuted }} />
+                        {isLocked ? (
+                            <Lock size={12} style={{ color: t.textMuted }} />
+                        ) : (
+                            <Settings size={13} style={{ color: isSettingsOpen ? t.accent : t.textMuted }} />
+                        )}
                         <span>Attendance Settings</span>
                     </button>
 
@@ -481,9 +492,12 @@ const AttendanceSummaryView = ({
                                 }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${t.borderSubtle}`, paddingBottom: 8 }}>
-                                    <span style={{ fontSize: 11.5, fontWeight: 700, color: t.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                        Attendance Planning
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ fontSize: 11.5, fontWeight: 700, color: t.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            Attendance Planning
+                                        </span>
+                                        {isLocked && <Lock size={11} style={{ color: t.textMuted }} />}
+                                    </div>
                                     <button
                                         onClick={() => setIsSettingsOpen(false)}
                                         style={{ background: 'none', border: 'none', color: t.textFaint, cursor: 'pointer', padding: 2 }}
@@ -491,6 +505,42 @@ const AttendanceSummaryView = ({
                                         <X size={14} />
                                     </button>
                                 </div>
+
+                                {isLocked && (
+                                    <div style={{
+                                        padding: '8px 10px',
+                                        borderRadius: 8,
+                                        background: isDark ? 'rgba(124, 58, 237, 0.12)' : '#F5F3FF',
+                                        border: isDark ? '1px solid rgba(139, 92, 246, 0.25)' : '1px solid #DDD6FE',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: 8
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <Lock size={12} style={{ color: '#8b5cf6' }} />
+                                            <span style={{ fontSize: 11, color: isDark ? '#c4b5fd' : '#6d28d9', fontWeight: 600 }}>
+                                                Plus Feature
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={onLockedClick}
+                                            style={{
+                                                background: '#7c3aed',
+                                                color: '#fff',
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                padding: '3px 8px',
+                                                fontSize: 10.5,
+                                                fontWeight: 700,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            Unlock
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* College Minimum (Read-only) */}
                                 <div>
@@ -521,30 +571,35 @@ const AttendanceSummaryView = ({
                                             type="number"
                                             min={collegeThreshold}
                                             max={100}
+                                            readOnly={isLocked}
+                                            disabled={isLocked}
                                             value={targetInput}
                                             onChange={e => {
+                                                if (isLocked) return;
                                                 setTargetInput(e.target.value);
                                                 setTargetError('');
                                             }}
+                                            onClick={() => isLocked && onLockedClick?.()}
                                             style={{
                                                 width: 70,
                                                 padding: '6px 10px',
-                                                background: t.inputBg,
+                                                background: isLocked ? (isDark ? 'rgba(255,255,255,0.02)' : '#F1F5F9') : t.inputBg,
                                                 border: targetError ? '1px solid #f43f5e' : `1px solid ${t.inputBorder}`,
                                                 borderRadius: 8,
-                                                color: t.text,
+                                                color: isLocked ? t.textMuted : t.text,
                                                 fontSize: 13,
                                                 fontWeight: 700,
                                                 textAlign: 'center',
                                                 fontFamily: 'monospace',
-                                                outline: 'none'
+                                                outline: 'none',
+                                                cursor: isLocked ? 'not-allowed' : 'text'
                                             }}
                                         />
                                         <span style={{ color: t.textMuted, fontWeight: 700 }}>%</span>
                                         <button
                                             type="button"
-                                            onClick={handleSaveTarget}
-                                            disabled={isSavingTarget}
+                                            onClick={isLocked ? onLockedClick : handleSaveTarget}
+                                            disabled={!isLocked && isSavingTarget}
                                             style={{
                                                 marginLeft: 'auto',
                                                 padding: '6px 14px',
@@ -554,12 +609,24 @@ const AttendanceSummaryView = ({
                                                 borderRadius: 8,
                                                 fontSize: 11.5,
                                                 fontWeight: 600,
-                                                cursor: isSavingTarget ? 'not-allowed' : 'pointer',
-                                                opacity: isSavingTarget ? 0.6 : 1,
-                                                transition: 'all 0.15s'
+                                                cursor: (!isLocked && isSavingTarget) ? 'not-allowed' : 'pointer',
+                                                opacity: (!isLocked && isSavingTarget) ? 0.6 : 1,
+                                                transition: 'all 0.15s',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 4
                                             }}
                                         >
-                                            {isSavingTarget ? 'Saving...' : 'Save'}
+                                            {isLocked ? (
+                                                <>
+                                                    <Lock size={11} />
+                                                    <span>Unlock</span>
+                                                </>
+                                            ) : isSavingTarget ? (
+                                                'Saving...'
+                                            ) : (
+                                                'Save'
+                                            )}
                                         </button>
                                     </div>
                                     {targetError && (
@@ -579,20 +646,27 @@ const AttendanceSummaryView = ({
                                             type="number"
                                             min={1}
                                             max={50}
+                                            readOnly={isLocked}
+                                            disabled={isLocked}
                                             value={simulateN}
-                                            onChange={e => setSimulateN(Math.max(1, parseInt(e.target.value) || 1))}
+                                            onChange={e => {
+                                                if (isLocked) return;
+                                                setSimulateN(Math.max(1, parseInt(e.target.value) || 1));
+                                            }}
+                                            onClick={() => isLocked && onLockedClick?.()}
                                             style={{
                                                 width: 70,
                                                 padding: '6px 10px',
-                                                background: t.inputBg,
+                                                background: isLocked ? (isDark ? 'rgba(255,255,255,0.02)' : '#F1F5F9') : t.inputBg,
                                                 border: `1px solid ${t.inputBorder}`,
                                                 borderRadius: 8,
-                                                color: t.text,
+                                                color: isLocked ? t.textMuted : t.text,
                                                 fontSize: 13,
                                                 fontWeight: 700,
                                                 textAlign: 'center',
                                                 fontFamily: 'monospace',
-                                                outline: 'none'
+                                                outline: 'none',
+                                                cursor: isLocked ? 'not-allowed' : 'text'
                                             }}
                                         />
                                         <span style={{ fontSize: 12, color: t.textMuted }}>classes?</span>

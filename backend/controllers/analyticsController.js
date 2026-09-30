@@ -11,7 +11,7 @@ const PDFDocument = require("pdfkit");
 const reportService = require("../services/reportService");
 const csvExportService = require("../services/csvExportService");
 const pdfExportService = require("../services/pdfExportService");
-const { resolvePlusAccess, setTestUserStatus } = require("../services/plusAccessService");
+const { resolvePlusAccess, setTestUserStatus, grantManualPlusAccess, revokeManualPlusAccess } = require("../services/plusAccessService");
 
 /**
  * GET /admin/analytics/overview
@@ -327,10 +327,19 @@ exports.getUserListAnalytics = async (req, res) => {
             ]
         };
 
+        const manualPlusCondition = {
+            "plusGrant.isActive": true,
+            $or: [
+                { "plusGrant.validUntil": { $gt: now } },
+                { "plusGrant.validUntil": null }
+            ]
+        };
+
         const plusCondition = {
             $or: [
                 ...adminCondition.$or,
-                ...testUserCondition.$or
+                ...testUserCondition.$or,
+                manualPlusCondition
             ]
         };
 
@@ -341,7 +350,13 @@ exports.getUserListAnalytics = async (req, res) => {
                 { isAdmin: { $ne: true } },
                 { email: { $ne: CANONICAL_ADMIN_EMAIL } },
                 { isTestUser: { $ne: true } },
-                { isTestAccount: { $ne: true } }
+                { isTestAccount: { $ne: true } },
+                {
+                    $or: [
+                        { "plusGrant.isActive": { $ne: true } },
+                        { "plusGrant.validUntil": { $lte: now } }
+                    ]
+                }
             ]
         };
 
@@ -399,6 +414,17 @@ exports.getUserListAnalytics = async (req, res) => {
                 };
             } else {
                 Object.assign(query, testUserCondition);
+            }
+        } else if (filter === "manual" || filter === "manualGrants" || filter === "manualPlus") {
+            if (query.$or) {
+                query = {
+                    $and: [
+                        { $or: query.$or },
+                        manualPlusCondition
+                    ]
+                };
+            } else {
+                Object.assign(query, manualPlusCondition);
             }
         }
 
@@ -468,7 +494,8 @@ exports.getUserListAnalytics = async (req, res) => {
             neverActiveCount,
             plusCount,
             freeCount,
-            testUserCount
+            testUserCount,
+            manualCount
         ] = await Promise.all([
             StudentAccount.aggregate(pipeline),
             StudentAccount.aggregate([...countPipeline, { $count: "count" }]),
@@ -478,7 +505,8 @@ exports.getUserListAnalytics = async (req, res) => {
             StudentAccount.countDocuments({ ...baseScope, ...neverActiveCondition }),
             StudentAccount.countDocuments({ ...baseScope, ...plusCondition }),
             StudentAccount.countDocuments({ ...baseScope, ...freeCondition }),
-            StudentAccount.countDocuments({ ...baseScope, ...testUserCondition })
+            StudentAccount.countDocuments({ ...baseScope, ...testUserCondition }),
+            StudentAccount.countDocuments({ ...baseScope, ...manualPlusCondition })
         ]);
 
         const total = totalResult.length > 0 ? totalResult[0].count : 0;
@@ -503,6 +531,7 @@ exports.getUserListAnalytics = async (req, res) => {
                 totalUsers: totalUsersCount,
                 plusCount,
                 freeCount,
+                manualCount,
                 testUserCount,
                 liveUsers,
                 recentlyActiveCount,
@@ -514,6 +543,197 @@ exports.getUserListAnalytics = async (req, res) => {
     } catch (err) {
         console.error("Error fetching users:", err);
         res.status(500).json({ error: "Failed to fetch users" });
+    }
+};
+
+/**
+ * PATCH /admin/users/:userId/manual-plus
+ * POST /admin/users/:userId/manual-plus
+ * Grant or extend manual Plus access with start date, expiry date, and admin rationale
+ */
+exports.grantUserManualPlusAccess = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { validFrom, validUntil, reason } = req.body;
+
+        const mongoose = require("mongoose");
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: "Invalid user ID format" });
+        }
+
+        if (!validUntil) {
+            return res.status(400).json({ error: "Expiry Date (validUntil) is required for manual Plus grants." });
+        }
+
+        const untilDate = new Date(validUntil);
+        if (isNaN(untilDate.getTime())) {
+            return res.status(400).json({ error: "Invalid Expiry Date format." });
+        }
+
+        const fromDate = validFrom ? new Date(validFrom) : new Date();
+        if (isNaN(fromDate.getTime())) {
+            return res.status(400).json({ error: "Invalid Start Date format." });
+        }
+
+        if (untilDate <= fromDate) {
+            return res.status(400).json({ error: "Expiry Date must be after Start Date." });
+        }
+
+        // Department security check for scoped department admins
+        if (req.departmentScope && req.departmentScope.id) {
+            const targetStudent = await StudentAccount.findById(userId);
+            if (!targetStudent) return res.status(404).json({ error: "User not found" });
+            if (String(targetStudent.branch) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: "You cannot manage users outside your assigned department." });
+            }
+        }
+
+        const targetStudent = await StudentAccount.findById(userId) || await User.findById(userId);
+        if (!targetStudent) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const previousAccess = resolvePlusAccess(targetStudent);
+
+        const adminId = req.admin?._id || req.userId || null;
+        const adminName = req.admin?.name || req.user?.name || "Administrator";
+
+        const grantResult = await grantManualPlusAccess(userId, {
+            validFrom: fromDate,
+            validUntil: untilDate,
+            reason: reason || "Manual Admin Grant",
+            adminId,
+            adminName
+        });
+
+        if (!grantResult.updated) {
+            return res.status(404).json({ error: "Failed to apply manual Plus grant" });
+        }
+
+        // Audit log
+        try {
+            await AdminLog.create({
+                adminId,
+                action: "MANUAL_PLUS_GRANTED",
+                targetUserId: targetStudent._id,
+                details: {
+                    targetUserName: targetStudent.name,
+                    targetUserEmail: targetStudent.email,
+                    targetUserUsn: targetStudent.usn,
+                    adminName,
+                    adminEmail: req.admin?.email || req.user?.email,
+                    adminRole: req.admin?.role || (req.isSuperAdmin ? "SUPER_ADMIN" : "ADMIN"),
+                    validFrom: fromDate,
+                    validUntil: untilDate,
+                    reason: reason || "Manual Admin Grant",
+                    source: "MANUAL",
+                    previousState: previousAccess,
+                    newState: grantResult.access
+                }
+            });
+        } catch (logErr) {
+            console.error("Failed to write AdminLog for manual plus grant:", logErr.message);
+        }
+
+        res.json({
+            success: true,
+            message: "Manual Plus access granted successfully",
+            user: {
+                _id: targetStudent._id,
+                name: targetStudent.name,
+                email: targetStudent.email,
+                usn: targetStudent.usn,
+                access: grantResult.access,
+                plusGrant: grantResult.user?.plusGrant
+            }
+        });
+    } catch (err) {
+        console.error("Error granting manual plus access:", err);
+        res.status(500).json({ error: "Failed to grant manual Plus access" });
+    }
+};
+
+/**
+ * DELETE /admin/users/:userId/manual-plus
+ * POST /admin/users/:userId/revoke-manual-plus
+ * Revoke manual Plus access for a student
+ */
+exports.revokeUserManualPlusAccess = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { reason } = req.body || {};
+
+        const mongoose = require("mongoose");
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: "Invalid user ID format" });
+        }
+
+        // Department security check
+        if (req.departmentScope && req.departmentScope.id) {
+            const targetStudent = await StudentAccount.findById(userId);
+            if (!targetStudent) return res.status(404).json({ error: "User not found" });
+            if (String(targetStudent.branch) !== String(req.departmentScope.id)) {
+                return res.status(403).json({ error: "You cannot manage users outside your assigned department." });
+            }
+        }
+
+        const targetStudent = await StudentAccount.findById(userId) || await User.findById(userId);
+        if (!targetStudent) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const previousAccess = resolvePlusAccess(targetStudent);
+        const adminId = req.admin?._id || req.userId || null;
+        const adminName = req.admin?.name || req.user?.name || "Administrator";
+
+        const revokeResult = await revokeManualPlusAccess(userId, {
+            adminId,
+            adminName,
+            reason: reason || "Manual Plus access revoked by admin"
+        });
+
+        if (!revokeResult.updated) {
+            return res.status(404).json({ error: "Failed to revoke manual Plus access" });
+        }
+
+        // Audit log
+        try {
+            await AdminLog.create({
+                adminId,
+                action: "MANUAL_PLUS_REVOKED",
+                targetUserId: targetStudent._id,
+                details: {
+                    targetUserName: targetStudent.name,
+                    targetUserEmail: targetStudent.email,
+                    targetUserUsn: targetStudent.usn,
+                    adminName,
+                    adminEmail: req.admin?.email || req.user?.email,
+                    adminRole: req.admin?.role || (req.isSuperAdmin ? "SUPER_ADMIN" : "ADMIN"),
+                    reason: reason || "Manual Plus access revoked by admin",
+                    source: "MANUAL",
+                    previousState: previousAccess,
+                    newState: revokeResult.access
+                }
+            });
+        } catch (logErr) {
+            console.error("Failed to write AdminLog for manual plus revoke:", logErr.message);
+        }
+
+        res.json({
+            success: true,
+            message: "Manual Plus access revoked successfully",
+            user: {
+                _id: targetStudent._id,
+                name: targetStudent.name,
+                email: targetStudent.email,
+                usn: targetStudent.usn,
+                access: revokeResult.access,
+                plusGrant: revokeResult.user?.plusGrant
+            }
+        });
+    } catch (err) {
+        console.error("Error revoking manual plus access:", err);
+        res.status(500).json({ error: "Failed to revoke manual Plus access" });
     }
 };
 

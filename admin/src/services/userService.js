@@ -73,6 +73,32 @@ export const userService = {
       }
       throw err;
     }
+  },
+
+  grantManualPlusAccess: async (userId, { validFrom, validUntil, reason }) => {
+    try {
+      const response = await apiClient.patch(`/admin/users/${userId}/manual-plus`, { validFrom, validUntil, reason });
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 404) {
+        const fallbackRes = await apiClient.patch(`/admin/analytics/users/${userId}/manual-plus`, { validFrom, validUntil, reason });
+        return fallbackRes.data;
+      }
+      throw err;
+    }
+  },
+
+  revokeManualPlusAccess: async (userId, { reason } = {}) => {
+    try {
+      const response = await apiClient.delete(`/admin/users/${userId}/manual-plus`, { data: { reason } });
+      return response.data;
+    } catch (err) {
+      if (err.response?.status === 404) {
+        const fallbackRes = await apiClient.delete(`/admin/analytics/users/${userId}/manual-plus`, { data: { reason } });
+        return fallbackRes.data;
+      }
+      throw err;
+    }
   }
 };
 

@@ -26,6 +26,41 @@ function minutesToTimeString(minutes) {
     return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 }
 
+function resolveEventSuspension(e) {
+    if (!e) return { classesSuspended: false, suspensionType: 'none' };
+    const title = (e.title || '').trim();
+    const eventType = (e.eventType || e.type || e.kind || '').trim();
+    const isHoliday = eventType === 'Holiday / Closure' || eventType === 'HOLIDAY' || eventType === 'Government Holiday' || eventType === 'Vacation' || /vacation|holiday|closure|preparation.*holiday/i.test(title);
+    const isTestOrExam = eventType === 'Exam' || eventType === 'EXAM' || eventType === 'CIE / Test' || /test[-\s]?\d+|cie[-\s]?\d+|exam|midterm|see\b/i.test(title);
+    
+    // Explicit classImpact from AcademicCalendarItem
+    if (e.classImpact === 'NONE' || (/evening/i.test(title) && e.classesSuspended === false)) {
+        return { classesSuspended: false, suspensionType: 'none' };
+    }
+    if (e.classImpact === 'FULL_DAY') {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+    if (e.classImpact === 'TIME_RANGE') {
+        return { classesSuspended: true, suspensionType: 'time_range' };
+    }
+
+    if (e.classesSuspended === true) {
+        return { classesSuspended: true, suspensionType: e.suspensionType || 'full_day' };
+    }
+    if (e.suspensionType && e.suspensionType !== 'none') {
+        return { classesSuspended: true, suspensionType: e.suspensionType };
+    }
+
+    if (isHoliday) {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+    if (isTestOrExam && e.classesSuspended !== false) {
+        return { classesSuspended: true, suspensionType: 'full_day' };
+    }
+
+    return { classesSuspended: false, suspensionType: 'none' };
+}
+
 /**
  * Generates and caches the expected teaching schedule for a student and semester
  */
@@ -157,38 +192,58 @@ async function generateAndCacheExpectedSchedule(studentId, semester) {
             endDate: { $gte: startDate }
         });
 
-        // Fetch Public / Institutional Holidays from CollegeEvent (canonical source of truth)
+        // Fetch Public / Institutional Holidays & College Events from CollegeEvent (canonical source of truth)
         const CollegeEvent = require('../models/CollegeEvent');
         const AcademicCalendarItem = require('../models/AcademicCalendarItem');
-        let calendarHolidays = [];
+        let collegeEvents = [];
+        const effectiveSemesterId = officialSemester?._id || student?.academicSemester;
         try {
-            calendarHolidays = await CollegeEvent.find({
-                eventType: 'Holiday / Closure',
+            const collegeEventFilter = {
                 status: { $ne: 'ARCHIVED' },
                 startDate: { $lte: endDate },
-                endDate: { $gte: startDate }
-            }).lean();
+                endDate: { $gte: startDate },
+                $or: [
+                    { scope: 'GLOBAL' },
+                    ...(effectiveSemesterId ? [{
+                        scope: 'SEMESTER',
+                        academicSemesterId: effectiveSemesterId
+                    }] : [{ scope: 'SEMESTER' }])
+                ]
+            };
+            if (student?.college) {
+                collegeEventFilter.college = student.college;
+            }
+            collegeEvents = await CollegeEvent.find(collegeEventFilter).lean();
         } catch (calErr) {
-            calendarHolidays = [];
+            collegeEvents = [];
         }
 
         // Fallback to legacy AcademicCalendarItem if no college events found
-        if ((!calendarHolidays || calendarHolidays.length === 0) && AcademicCalendarItem) {
+        if ((!collegeEvents || collegeEvents.length === 0) && AcademicCalendarItem) {
             try {
                 const legacyHolidays = await AcademicCalendarItem.find({
-                    kind: 'HOLIDAY',
-                    observedByCollege: true,
                     status: 'Published',
                     startDate: { $lte: endDate },
                     endDate: { $gte: startDate }
                 }).lean();
                 if (legacyHolidays && legacyHolidays.length > 0) {
-                    calendarHolidays = legacyHolidays;
+                    collegeEvents = legacyHolidays.map(h => ({
+                        ...h,
+                        classesSuspended: h.observedByCollege || h.classesSuspended || h.kind === 'HOLIDAY',
+                        suspensionType: h.suspensionType || 'full_day'
+                    }));
                 }
             } catch (legErr) {
                 // Ignore fallback error
             }
         }
+
+        const parseTimeToMinutes = (t) => {
+            if (typeof t === 'number') return t;
+            if (!t || typeof t !== 'string' || !t.includes(':')) return 0;
+            const [h, m] = t.split(':').map(Number);
+            return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+        };
 
         // 5. Generate Schedule
         const generatedClasses = [];
@@ -204,9 +259,8 @@ async function generateAndCacheExpectedSchedule(studentId, semester) {
             const dayConfig = (workingDaysMap.get ? workingDaysMap.get(String(dayOfWeek)) : workingDaysMap[String(dayOfWeek)]) || 'Full Day';
             const isManualHoliday = dayConfig === 'Holiday';
 
-            // Check public / institutional holidays
-            const effectiveSemesterId = officialSemester?._id || student?.academicSemester;
-            const isCalendarHoliday = calendarHolidays.some(h => {
+            // Filter college events active on this specific date
+            const activeCollegeEvents = collegeEvents.filter(h => {
                 if (h.scope === 'SEMESTER' && effectiveSemesterId && h.academicSemesterId && h.academicSemesterId.toString() !== effectiveSemesterId.toString()) {
                     return false;
                 }
@@ -218,92 +272,129 @@ async function generateAndCacheExpectedSchedule(studentId, semester) {
                 return hStart <= dateStr && dateStr <= hEnd;
             });
 
-            // Filter events active on this specific date
-            const activeEvents = academicEvents.filter(e => {
+            // Filter student personal events active on this specific date
+            const activeStudentEvents = academicEvents.filter(e => {
                 const startStr = formatDate(e.startDate);
                 const endStr = formatDate(e.endDate);
                 return startStr <= dateStr && dateStr <= endStr;
             });
 
-            if (!isManualHoliday && !isCalendarHoliday) {
-                // Find timetable slots for this weekday
-                const daySlots = slots.filter(s => s.dayOfWeek === dayOfWeek && s.lectureType !== 'Break' && s.lectureType !== 'Free Period');
+            // Unified day events
+            const dayEvents = [
+                ...activeCollegeEvents.map(e => {
+                    const susp = resolveEventSuspension(e);
+                    return {
+                        title: e.title,
+                        eventType: e.eventType,
+                        classesSuspended: susp.classesSuspended,
+                        suspensionType: susp.suspensionType,
+                        suspensionStartMinute: parseTimeToMinutes(e.suspensionStartTime || e.startTime),
+                        suspensionEndMinute: parseTimeToMinutes(e.suspensionEndTime || e.endTime),
+                        affectedSubjects: e.affectedSubjects || []
+                    };
+                }),
+                ...activeStudentEvents.map(e => {
+                    const susp = resolveEventSuspension(e);
+                    return {
+                        title: e.title,
+                        eventType: e.eventType,
+                        classesSuspended: susp.classesSuspended,
+                        suspensionType: susp.suspensionType,
+                        suspensionStartMinute: e.suspensionStartMinute || parseTimeToMinutes(e.startTime),
+                        suspensionEndMinute: e.suspensionEndMinute || parseTimeToMinutes(e.endTime),
+                        affectedSubjects: e.affectedSubjects || []
+                    };
+                })
+            ];
 
-                for (const slot of daySlots) {
-                    let activeSlot = slot;
-                    if (personalSlots && personalSlots.length > 0) {
-                        const override = personalSlots.find(ps => 
-                            ps.dayOfWeek === dayOfWeek && 
-                            Number(ps.startMinute) === Number(slot.startMinute)
-                        );
-                        if (override && override.isPersonalChange) {
-                            const isEffective = !override.effectiveDate || override.effectiveDate <= dateStr;
-                            if (isEffective) {
-                                activeSlot = override;
-                            }
+            const fullDaySuspension = dayEvents.find(e => 
+                e.classesSuspended && (e.suspensionType === 'full_day' || !e.suspensionType || e.suspensionType === 'none')
+            );
+
+            if (isManualHoliday || fullDaySuspension) {
+                // Whole day is suspended (Holiday, Test-01, Test-02, Exam, etc.)!
+                // Generate zero classes for today — automatically reduces remaining classes count.
+                tempDate.setDate(tempDate.getDate() + 1);
+                continue;
+            }
+
+            // Find timetable slots for this weekday
+            const daySlots = slots.filter(s => s.dayOfWeek === dayOfWeek && s.lectureType !== 'Break' && s.lectureType !== 'Free Period');
+
+            for (const slot of daySlots) {
+                let activeSlot = slot;
+                if (personalSlots && personalSlots.length > 0) {
+                    const override = personalSlots.find(ps => 
+                        ps.dayOfWeek === dayOfWeek && 
+                        Number(ps.startMinute) === Number(slot.startMinute)
+                    );
+                    if (override && override.isPersonalChange) {
+                        const isEffective = !override.effectiveDate || override.effectiveDate <= dateStr;
+                        if (isEffective) {
+                            activeSlot = override;
                         }
                     }
+                }
 
-                    if (activeSlot.lectureType === 'Free Period' || activeSlot.lectureType === 'Break') {
+                if (activeSlot.lectureType === 'Free Period' || activeSlot.lectureType === 'Break') {
+                    continue;
+                }
+
+                // Check if subject is assigned
+                const subjectIdStr = (activeSlot.subject?._id || activeSlot.subject)?.toString();
+                if (!subjectIdStr) {
+                    continue;
+                }
+
+                // Saturday Half Day or other Half Day check: only allow slots within maxPeriods
+                if (dayConfig === 'Half Day') {
+                    const maxAllowed = maxPeriodsMap ? maxPeriodsMap.get(String(dayOfWeek)) : 4;
+                    if (maxAllowed !== undefined && slot.periodNumber && slot.periodNumber > maxAllowed) {
                         continue;
                     }
-
-                    // Check if subject is assigned
-                    const subjectIdStr = (activeSlot.subject?._id || activeSlot.subject)?.toString();
-                    if (!subjectIdStr) {
+                    if (!maxPeriodsMap && slot.endMinute > 780) {
                         continue;
                     }
+                }
 
-                    // Saturday Half Day or other Half Day check: only allow slots within maxPeriods
-                    if (dayConfig === 'Half Day') {
-                        const maxAllowed = maxPeriodsMap ? maxPeriodsMap.get(String(dayOfWeek)) : 4;
-                        if (maxAllowed !== undefined && slot.periodNumber && slot.periodNumber > maxAllowed) {
-                            continue;
-                        }
-                        if (!maxPeriodsMap && slot.endMinute > 780) {
-                            continue;
-                        }
-                    }
-
-                    // Check dynamic event suspensions
-                    let isSuspended = false;
-                    for (const event of activeEvents) {
-                        if (event.classesSuspended) {
-                            // Check affected subjects list
-                            if (event.affectedSubjects && event.affectedSubjects.length > 0) {
-                                if (!event.affectedSubjects.some(subId => subId.toString() === subjectIdStr)) {
-                                    continue; // Subject not affected by this event
-                                }
+                // Check dynamic event suspensions for this slot (e.g. time-range suspension)
+                let isSuspended = false;
+                for (const event of dayEvents) {
+                    if (event.classesSuspended) {
+                        // Check affected subjects list
+                        if (event.affectedSubjects && event.affectedSubjects.length > 0) {
+                            if (!event.affectedSubjects.some(subId => subId.toString() === subjectIdStr)) {
+                                continue; // Subject not affected by this event
                             }
+                        }
 
-                            if (event.suspensionType === 'full_day') {
+                        if (event.suspensionType === 'full_day') {
+                            isSuspended = true;
+                            break;
+                        } else if (event.suspensionType === 'time_range' && event.suspensionStartMinute < event.suspensionEndMinute) {
+                            const overlap = slot.startMinute < event.suspensionEndMinute && slot.endMinute > event.suspensionStartMinute;
+                            if (overlap) {
                                 isSuspended = true;
                                 break;
-                            } else if (event.suspensionType === 'time_range') {
-                                const overlap = slot.startMinute < event.suspensionEndMinute && slot.endMinute > event.suspensionStartMinute;
-                                if (overlap) {
-                                    isSuspended = true;
-                                    break;
-                                }
                             }
                         }
                     }
-
-                    if (isSuspended) {
-                        continue;
-                    }
-
-                    const timeSlotStr = `${minutesToTimeString(slot.startMinute)}-${minutesToTimeString(slot.endMinute)}`;
-
-                    generatedClasses.push({
-                        date: dateStr,
-                        timeSlot: timeSlotStr,
-                        subject: activeSlot.subject?._id || activeSlot.subject,
-                        lectureType: activeSlot.lectureType || 'Lecture',
-                        dayOfWeek,
-                        periodNumber: slot.periodNumber
-                    });
                 }
+
+                if (isSuspended) {
+                    continue;
+                }
+
+                const timeSlotStr = `${minutesToTimeString(slot.startMinute)}-${minutesToTimeString(slot.endMinute)}`;
+
+                generatedClasses.push({
+                    date: dateStr,
+                    timeSlot: timeSlotStr,
+                    subject: activeSlot.subject?._id || activeSlot.subject,
+                    lectureType: activeSlot.lectureType || 'Lecture',
+                    dayOfWeek,
+                    periodNumber: slot.periodNumber
+                });
             }
 
             tempDate.setDate(tempDate.getDate() + 1);

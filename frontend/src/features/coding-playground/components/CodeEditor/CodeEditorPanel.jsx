@@ -3,8 +3,8 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import { 
     Play, RotateCcw, Copy, Check, Plus, X,
     ChevronDown, ChevronUp, CheckCircle, XCircle, 
-    Clock, Terminal, Loader2, Sparkles, FileCode,
-    History, Wand2, DownloadCloud
+    Clock, Terminal, Loader2, FileCode,
+    History, Wand2, DownloadCloud, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -26,15 +26,96 @@ const CodeEditorPanel = ({
     isRunning = false,
     isSubmitting = false,
     executionResult = null,
-    workspaceMode = 'split'
+    workspaceMode = 'split',
+    hasPlusAccess = true,
+    isAuthenticated = true,
+    onPlusAction
 }) => {
     const isDark = theme === 'dark';
     const monaco = useMonaco();
     const editorRef = useRef(null);
 
+    const plusTooltip = isAuthenticated ? "Upgrade for plus access" : "Login for plus access";
+    const plusActionLabel = isAuthenticated ? "Upgrade to Plus" : "Login for Plus";
+
     const isPython = activeLanguageSlug === 'python';
-    const monacoLanguage = isPython ? 'python' : 'c';
-    const defaultFileName = isPython ? 'main.py' : 'main.c';
+    const isCpp = activeLanguageSlug === 'cpp';
+    const isJava = activeLanguageSlug === 'java';
+    const monacoLanguage = isPython ? 'python' : (isCpp ? 'cpp' : (isJava ? 'java' : 'c'));
+    const defaultFileName = !hasPlusAccess
+        ? (isPython ? 'demo.py' : (isCpp ? 'demo.cpp' : (isJava ? 'Demo.java' : 'demo.c')))
+        : (isPython ? 'main.py' : (isCpp ? 'main.cpp' : (isJava ? 'Main.java' : 'main.c')));
+
+    // Demo code generator for non-plus users
+    const getDemoCode = (langSlug) => {
+        const actionVerb = isAuthenticated ? 'Upgrade to Plus' : 'Login with Plus Access';
+        switch (langSlug) {
+            case 'python':
+                return `# ==========================================
+# 🔒 DEMO MODE (Plus Access Required)
+# ==========================================
+# ${actionVerb} to unlock live code editing,
+# interactive compiling, full test runs, and submissions.
+
+def solve():
+    # Sample demo template
+    print("Welcome to AskUrSenior Coding Playground")
+    # Your solution goes here once unlocked!
+
+if __name__ == '__main__':
+    solve()
+`;
+            case 'cpp':
+                return `// ==========================================
+// 🔒 DEMO MODE (Plus Access Required)
+// ==========================================
+// ${actionVerb} to unlock live code editing,
+// interactive compiling, full test runs, and submissions.
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    // Sample demo template
+    cout << "Welcome to AskUrSenior Coding Playground" << endl;
+    // Your solution goes here once unlocked!
+    return 0;
+}
+`;
+            case 'java':
+                return `// ==========================================
+// 🔒 DEMO MODE (Plus Access Required)
+// ==========================================
+// ${actionVerb} to unlock live code editing,
+// interactive compiling, full test runs, and submissions.
+
+public class Main {
+    public static void main(String[] args) {
+        // Sample demo template
+        System.out.println("Welcome to AskUrSenior Coding Playground");
+        // Your solution goes here once unlocked!
+    }
+}
+`;
+            case 'c':
+            default:
+                return `// ==========================================
+// 🔒 DEMO MODE (Plus Access Required)
+// ==========================================
+// ${actionVerb} to unlock live code editing,
+// interactive compiling, full test runs, and submissions.
+
+#include <stdio.h>
+
+int main() {
+    // Sample demo template
+    printf("Welcome to AskUrSenior Coding Playground\\n");
+    // Your solution goes here once unlocked!
+    return 0;
+}
+`;
+        }
+    };
 
     // ─────────────────────────────────────────────────────────────
     // 1. MULTIPLE TABS IN CODE EDITOR + RELIABLE LOCALSTORAGE RESTORE
@@ -89,6 +170,7 @@ const CodeEditorPanel = ({
     // Auto-save debounce effect (saves to localStorage automatically as user types)
     const saveTimerRef = useRef(null);
     const handleCodeChangeWithAutoSave = (newVal) => {
+        if (!hasPlusAccess) return;
         const val = newVal || '';
         setIsSaved(false);
 
@@ -174,6 +256,10 @@ const CodeEditorPanel = ({
 
     // Reset Code
     const handleResetActiveTab = () => {
+        if (!hasPlusAccess) {
+            if (onPlusAction) onPlusAction();
+            return;
+        }
         handleCodeChangeWithAutoSave('');
         if (onResetCode) onResetCode();
         toast('Editor reset to blank');
@@ -181,6 +267,10 @@ const CodeEditorPanel = ({
 
     // Format Code Action
     const handleFormatCode = () => {
+        if (!hasPlusAccess) {
+            if (onPlusAction) onPlusAction();
+            return;
+        }
         if (!editorRef.current) return;
         try {
             const formatAction = editorRef.current.getAction('editor.action.formatDocument');
@@ -197,6 +287,10 @@ const CodeEditorPanel = ({
 
     // Fetch / Load Last Submitted Code Action
     const handleFetchLastSubmittedCode = async () => {
+        if (!hasPlusAccess) {
+            if (onPlusAction) onPlusAction();
+            return;
+        }
         try {
             let targetCode = lastSubmittedCode;
             if (!targetCode && onFetchLastSubmittedCode) {
@@ -222,10 +316,12 @@ const CodeEditorPanel = ({
     // ─────────────────────────────────────────────────────────────
     const onRunRef = useRef(onRunCode);
     const onSubmitRef = useRef(onSubmitCode);
+    const hasPlusAccessRef = useRef(hasPlusAccess);
     useEffect(() => {
         onRunRef.current = onRunCode;
         onSubmitRef.current = onSubmitCode;
-    }, [onRunCode, onSubmitCode]);
+        hasPlusAccessRef.current = hasPlusAccess;
+    }, [onRunCode, onSubmitCode, hasPlusAccess]);
 
     const handleEditorDidMount = (editor, monacoInstance) => {
         editorRef.current = editor;
@@ -235,11 +331,19 @@ const CodeEditorPanel = ({
 
         // Run Code Shortcut: Ctrl + ' (or Cmd + ')
         editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Quote, () => {
+            if (!hasPlusAccessRef.current) {
+                if (onPlusAction) onPlusAction();
+                return;
+            }
             if (onRunRef.current) onRunRef.current();
         });
 
         // Submit Code Shortcut: Ctrl + Enter (or Cmd + Enter)
         editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.Enter, () => {
+            if (!hasPlusAccessRef.current) {
+                if (onPlusAction) onPlusAction();
+                return;
+            }
             if (onSubmitRef.current) onSubmitRef.current();
         });
     };
@@ -298,6 +402,10 @@ const CodeEditorPanel = ({
     }, [isDraggingConsole, isTestPanelCollapsed]);
 
     const handleCopyCode = () => {
+        if (!hasPlusAccess) {
+            if (onPlusAction) onPlusAction();
+            return;
+        }
         navigator.clipboard.writeText(currentCode);
         setCopiedCode(true);
         toast.success('Code copied to clipboard');
@@ -383,7 +491,7 @@ const CodeEditorPanel = ({
                     })}
 
                     {/* Add Tab Button (Max 3) */}
-                    {tabs.length < 3 && (
+                    {hasPlusAccess && tabs.length < 3 && (
                         <button
                             onClick={handleAddTab}
                             title="New Tab (up to 3)"
@@ -405,134 +513,202 @@ const CodeEditorPanel = ({
                     )}
                 </div>
 
-                {/* Right Actions: Auto-Save Status, Language Badge, Format, Fetch Last Submission, Reset, Copy */}
+                {/* Right Actions: Auto-Save Status, Format, Fetch Last Submission, Reset, Copy */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {/* Auto-save indicator */}
-                    <span style={{
-                        fontSize: 11,
-                        color: isSaved ? (isDark ? '#34D399' : '#059669') : (isDark ? '#F59E0B' : '#D97706'),
-                        fontFamily: 'monospace',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4,
-                        marginRight: 2
-                    }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: isSaved ? '#22C55E' : '#F59E0B' }} />
-                        {isSaved ? 'Saved' : 'Saving...'}
-                    </span>
+                    {!hasPlusAccess ? (
+                        <span style={{
+                            fontSize: 11,
+                            color: isDark ? '#A855F7' : '#7C3AED',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            marginRight: 2,
+                            fontWeight: 600
+                        }}>
+                            <Lock size={10} />
+                            Demo Mode
+                        </span>
+                    ) : (
+                        <span style={{
+                            fontSize: 11,
+                            color: isSaved ? (isDark ? '#34D399' : '#059669') : (isDark ? '#F59E0B' : '#D97706'),
+                            fontFamily: 'monospace',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            marginRight: 2
+                        }}>
+                            <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: isSaved ? '#22C55E' : '#F59E0B' }} />
+                            {isSaved ? 'Saved' : 'Saving...'}
+                        </span>
+                    )}
 
                     {/* Format Code Button */}
-                    <button
-                        onClick={handleFormatCode}
-                        title="Format Code"
-                        style={{
-                            background: 'transparent',
-                            border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
-                            color: isDark ? '#D1D5DB' : '#374151',
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontSize: 11,
-                            fontWeight: 600
-                        }}
-                    >
-                        <Wand2 size={11} color={isDark ? "#C084FC" : "#7C3AED"} />
-                        <span>Format</span>
-                    </button>
+                    <div title={!hasPlusAccess ? plusTooltip : "Format Code"} style={{ display: 'inline-flex' }}>
+                        <button
+                            onClick={hasPlusAccess ? handleFormatCode : onPlusAction}
+                            disabled={!hasPlusAccess}
+                            title={!hasPlusAccess ? plusTooltip : "Format Code"}
+                            style={{
+                                background: 'transparent',
+                                border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
+                                color: !hasPlusAccess ? (isDark ? '#52525B' : '#9CA3AF') : (isDark ? '#D1D5DB' : '#374151'),
+                                padding: '3px 8px',
+                                borderRadius: 4,
+                                cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
+                                opacity: !hasPlusAccess ? 0.5 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: 11,
+                                fontWeight: 600
+                            }}
+                        >
+                            <Wand2 size={11} color={!hasPlusAccess ? (isDark ? '#52525B' : '#9CA3AF') : (isDark ? "#C084FC" : "#7C3AED")} />
+                            <span>Format</span>
+                        </button>
+                    </div>
 
                     {/* Fetch Last Submitted Code Button */}
-                    <button
-                        onClick={handleFetchLastSubmittedCode}
-                        title="Fetch & load last submitted code into active editor tab"
-                        style={{
-                            background: isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(37, 99, 235, 0.08)',
-                            border: isDark ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(37, 99, 235, 0.25)',
-                            color: isDark ? '#60A5FA' : '#2563EB',
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontSize: 11,
-                            fontWeight: 600
-                        }}
-                    >
-                        <DownloadCloud size={11} />
-                        <span>Last Submission</span>
-                    </button>
+                    <div title={!hasPlusAccess ? plusTooltip : "Fetch & load last submitted code into active editor tab"} style={{ display: 'inline-flex' }}>
+                        <button
+                            onClick={hasPlusAccess ? handleFetchLastSubmittedCode : onPlusAction}
+                            disabled={!hasPlusAccess}
+                            title={!hasPlusAccess ? plusTooltip : "Fetch & load last submitted code into active editor tab"}
+                            style={{
+                                background: !hasPlusAccess ? 'transparent' : (isDark ? 'rgba(59, 130, 246, 0.1)' : 'rgba(37, 99, 235, 0.08)'),
+                                border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
+                                color: !hasPlusAccess ? (isDark ? '#52525B' : '#9CA3AF') : (isDark ? '#60A5FA' : '#2563EB'),
+                                padding: '3px 8px',
+                                borderRadius: 4,
+                                cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
+                                opacity: !hasPlusAccess ? 0.5 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: 11,
+                                fontWeight: 600
+                            }}
+                        >
+                            <DownloadCloud size={11} />
+                            <span>Last Submission</span>
+                        </button>
+                    </div>
 
                     {/* Reset Button */}
-                    <button
-                        onClick={handleResetActiveTab}
-                        title="Reset Active Editor"
-                        style={{
-                            background: 'transparent',
-                            border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
-                            color: isDark ? '#888888' : '#6B7280',
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontSize: 11,
-                            fontWeight: 600
-                        }}
-                    >
-                        <RotateCcw size={11} />
-                        <span>Reset</span>
-                    </button>
+                    <div title={!hasPlusAccess ? plusTooltip : "Reset Active Editor"} style={{ display: 'inline-flex' }}>
+                        <button
+                            onClick={hasPlusAccess ? handleResetActiveTab : onPlusAction}
+                            disabled={!hasPlusAccess}
+                            title={!hasPlusAccess ? plusTooltip : "Reset Active Editor"}
+                            style={{
+                                background: 'transparent',
+                                border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
+                                color: !hasPlusAccess ? (isDark ? '#52525B' : '#9CA3AF') : (isDark ? '#888888' : '#6B7280'),
+                                padding: '3px 8px',
+                                borderRadius: 4,
+                                cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
+                                opacity: !hasPlusAccess ? 0.5 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: 11,
+                                fontWeight: 600
+                            }}
+                        >
+                            <RotateCcw size={11} />
+                            <span>Reset</span>
+                        </button>
+                    </div>
 
                     {/* Copy Code Button */}
-                    <button
-                        onClick={handleCopyCode}
-                        title="Copy Code"
-                        style={{
-                            background: 'transparent',
-                            border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
-                            color: isDark ? '#888888' : '#6B7280',
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontSize: 11
-                        }}
-                    >
-                        {copiedCode ? <Check size={11} color="#22C55E" /> : <Copy size={11} />}
-                        <span>{copiedCode ? 'Copied' : 'Copy'}</span>
-                    </button>
+                    <div title={!hasPlusAccess ? plusTooltip : "Copy Code"} style={{ display: 'inline-flex' }}>
+                        <button
+                            onClick={hasPlusAccess ? handleCopyCode : onPlusAction}
+                            disabled={!hasPlusAccess}
+                            title={!hasPlusAccess ? plusTooltip : "Copy Code"}
+                            style={{
+                                background: 'transparent',
+                                border: isDark ? '1px solid #222222' : '1px solid #D1D5DB',
+                                color: !hasPlusAccess ? (isDark ? '#52525B' : '#9CA3AF') : (isDark ? '#888888' : '#6B7280'),
+                                padding: '3px 8px',
+                                borderRadius: 4,
+                                cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
+                                opacity: !hasPlusAccess ? 0.5 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                fontSize: 11
+                            }}
+                        >
+                            {copiedCode ? <Check size={11} color="#22C55E" /> : <Copy size={11} />}
+                            <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* 2. MONACO CODE EDITOR */}
-            <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                <Editor
-                    height="100%"
-                    language={monacoLanguage}
-                    theme={isDark ? 'vs-dark' : 'light'}
-                    value={currentCode}
-                    onChange={handleCodeChangeWithAutoSave}
-                    onMount={handleEditorDidMount}
-                    options={{
-                        fontSize: 13.5,
-                        fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                        fontLigatures: true,
-                        minimap: { enabled: false },
-                        scrollBeyondLastLine: false,
-                        automaticLayout: true,
-                        tabSize: 4,
-                        renderLineHighlight: 'all',
-                        lineNumbers: 'on',
-                        bracketPairColorization: { enabled: true },
-                        padding: { top: 12, bottom: 12 }
-                    }}
-                />
+            <div style={{ flex: 1, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {!hasPlusAccess && (
+                    <div style={{
+                        backgroundColor: isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(124, 58, 237, 0.06)',
+                        borderBottom: isDark ? '1px solid rgba(168, 85, 247, 0.2)' : '1px solid rgba(124, 58, 237, 0.15)',
+                        padding: '6px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: 12,
+                        color: isDark ? '#D8B4FE' : '#6B21A8',
+                        zIndex: 5
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Lock size={13} />
+                            <span>Editor is locked in Demo Mode. {isAuthenticated ? 'Upgrade' : 'Login'} for plus access to edit and run code.</span>
+                        </div>
+                        <button
+                            onClick={onPlusAction}
+                            style={{
+                                background: 'linear-gradient(135deg, #7C3AED 0%, #9333EA 100%)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                borderRadius: 4,
+                                padding: '3px 9px',
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            {plusActionLabel}
+                        </button>
+                    </div>
+                )}
+                <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                    <Editor
+                        height="100%"
+                        language={monacoLanguage}
+                        theme={isDark ? 'vs-dark' : 'light'}
+                        value={hasPlusAccess ? currentCode : getDemoCode(activeLanguageSlug)}
+                        onChange={handleCodeChangeWithAutoSave}
+                        onMount={handleEditorDidMount}
+                        options={{
+                            fontSize: 13.5,
+                            fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+                            fontLigatures: true,
+                            minimap: { enabled: false },
+                            scrollBeyondLastLine: false,
+                            automaticLayout: true,
+                            tabSize: 4,
+                            renderLineHighlight: 'all',
+                            lineNumbers: 'on',
+                            bracketPairColorization: { enabled: true },
+                            padding: { top: 12, bottom: 12 },
+                            readOnly: !hasPlusAccess,
+                            domReadOnly: !hasPlusAccess
+                        }}
+                    />
+                </div>
             </div>
 
             {/* DRAGGABLE VERTICAL SPLITTER FOR TEST CONSOLE */}
@@ -590,6 +766,28 @@ const CodeEditorPanel = ({
                         <span style={{ fontSize: 11, fontWeight: 700, color: isDark ? '#707070' : '#9CA3AF', textTransform: 'uppercase', marginRight: 4 }}>
                             Test Cases
                         </span>
+                        {!hasPlusAccess && (
+                            <div 
+                                title={plusTooltip}
+                                onClick={onPlusAction}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    color: isDark ? '#C084FC' : '#7E22CE',
+                                    backgroundColor: isDark ? 'rgba(192, 132, 252, 0.12)' : 'rgba(147, 51, 234, 0.08)',
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    cursor: 'pointer',
+                                    marginRight: 4
+                                }}
+                            >
+                                <Lock size={10} />
+                                <span>Locked</span>
+                            </div>
+                        )}
 
                         {/* First 2 Test Cases Tabs */}
                         {firstTwoCases.map((tc, idx) => {
@@ -719,9 +917,10 @@ const CodeEditorPanel = ({
                                     Standard Input (stdin)
                                 </span>
                                 <textarea
-                                    value={customInput}
-                                    onChange={(e) => setCustomInput(e.target.value)}
-                                    placeholder="Enter custom input arguments for your program..."
+                                    value={!hasPlusAccess ? '' : customInput}
+                                    onChange={(e) => hasPlusAccess && setCustomInput(e.target.value)}
+                                    disabled={!hasPlusAccess}
+                                    placeholder={!hasPlusAccess ? (isAuthenticated ? "Upgrade for plus access to use custom input arguments..." : "Login for plus access to use custom input arguments...") : "Enter custom input arguments for your program..."}
                                     rows={4}
                                     style={{
                                         padding: '8px 10px',
@@ -732,11 +931,17 @@ const CodeEditorPanel = ({
                                         fontSize: 12,
                                         color: isDark ? '#E5E7EB' : '#111827',
                                         outline: 'none',
-                                        resize: 'vertical'
+                                        resize: 'vertical',
+                                        opacity: !hasPlusAccess ? 0.6 : 1,
+                                        cursor: !hasPlusAccess ? 'not-allowed' : 'text'
                                     }}
                                 />
                                 <span style={{ fontSize: 11, color: isDark ? '#666666' : '#9CA3AF' }}>
-                                    Press <strong>Run (Ctrl + ')</strong> to test against test cases.
+                                    {!hasPlusAccess ? (
+                                        <span>Standard input testing requires Plus access. {isAuthenticated ? "Upgrade to Plus." : "Login for Plus access."}</span>
+                                    ) : (
+                                        <>Press <strong>Run (Ctrl + ')</strong> to test against test cases.</>
+                                    )}
                                 </span>
                             </div>
                         ) : currentCase ? (
@@ -764,7 +969,7 @@ const CodeEditorPanel = ({
                                     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                                     gap: 10
                                 }}>
-                                    <div>
+                                    <div title={!hasPlusAccess ? plusTooltip : undefined}>
                                         <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#707070' : '#6B7280', textTransform: 'uppercase' }}>INPUT</span>
                                         <pre style={{
                                             margin: '3px 0 0 0',
@@ -774,14 +979,14 @@ const CodeEditorPanel = ({
                                             borderRadius: 4,
                                             fontFamily: '"JetBrains Mono", monospace',
                                             fontSize: 12,
-                                            color: isDark ? '#E5E7EB' : '#111827',
+                                            color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : (isDark ? '#E5E7EB' : '#111827'),
                                             whiteSpace: 'pre-wrap'
                                         }}>
-                                            {currentCase.input || '(No input)'}
+                                            {hasPlusAccess ? (currentCase.input || '(No input)') : '*** [Locked for Plus Members] ***'}
                                         </pre>
                                     </div>
 
-                                    <div>
+                                    <div title={!hasPlusAccess ? plusTooltip : undefined}>
                                         <span style={{ fontSize: 10, fontWeight: 700, color: isDark ? '#707070' : '#6B7280', textTransform: 'uppercase' }}>EXPECTED OUTPUT</span>
                                         <pre style={{
                                             margin: '3px 0 0 0',
@@ -791,10 +996,10 @@ const CodeEditorPanel = ({
                                             borderRadius: 4,
                                             fontFamily: '"JetBrains Mono", monospace',
                                             fontSize: 12,
-                                            color: isDark ? '#34D399' : '#059669',
+                                            color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : (isDark ? '#34D399' : '#059669'),
                                             whiteSpace: 'pre-wrap'
                                         }}>
-                                            {currentCase.expectedOutput || '(Empty)'}
+                                            {hasPlusAccess ? (currentCase.expectedOutput || '(Empty)') : '*** [Locked for Plus Members] ***'}
                                         </pre>
                                     </div>
 

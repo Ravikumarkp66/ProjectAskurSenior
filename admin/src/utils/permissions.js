@@ -109,3 +109,12 @@ export const canManageAnnouncements = (admin) => {
     canArchive: hasPermission(admin, 'announcements', 'archive')
   };
 };
+
+export const canManageBugs = (admin) => {
+  return {
+    canView: hasPermission(admin, 'bugs', 'view'),
+    canUpdate: hasPermission(admin, 'bugs', 'update'),
+    canDelete: hasPermission(admin, 'bugs', 'delete')
+  };
+};
+

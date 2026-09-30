@@ -5,6 +5,21 @@ const authMiddleware = require('../middleware/auth');
 const adminMiddleware = require('../middleware/admin');
 const Announcement = require('../models/Announcement');
 const MarketplaceListing = require('../models/MarketplaceListing');
+const jwt = require('jsonwebtoken');
+
+const optionalAuth = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+    if (token) {
+        try {
+            const decoded = jwt.verify(
+                token,
+                process.env.JWT_SECRET || 'fallback_secret_ask_ur_senior'
+            );
+            req.userId = decoded.userId || decoded.id || decoded._id;
+        } catch (_) {}
+    }
+    next();
+};
 
 const escapeRegExp = (str) => str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
 
@@ -20,7 +35,7 @@ const timeAgo = (date) => {
 };
 
 /* ─── GET /api/campus-hub/feed ────────────────────────────────────── */
-router.get('/feed', authMiddleware, async (req, res) => {
+router.get('/feed', optionalAuth, async (req, res) => {
     try {
         const { tab = 'all', sort = 'newest', search = '', page = 1, limit = 20 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);

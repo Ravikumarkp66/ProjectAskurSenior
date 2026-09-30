@@ -1,25 +1,15 @@
-/**
- * AcademicJourneyCard — Profile page widget.
- *
- * Domain-specific consumer of the shared <HeatmapGrid /> engine.
- * Responsible only for:
- *   · Deriving the student's academic years from their USN
- *   · Providing academic palette, activity map, and tooltip logic
- *   · Rendering the card chrome (header, nav, legend, dividers)
- *
- * In future phases, replace the activities map with real data from:
- *   - Attendance module  → status: 'academic' | 'absent'
- *   - Exam module        → status: 'exam'
- *   - Holiday module     → status: 'holiday'
- * The HeatmapGrid itself needs zero changes.
- */
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, ChevronLeft, ChevronRight, Lock, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import HeatmapGrid from '../../../components/HeatmapGrid';
 import { useAuth } from '../../../utils/hooks';
 import { apiV2 } from '../../../services/authService';
 import { useTheme } from '../../../context/ThemeContext';
+import {
+    useProfileEntitlements,
+    PROFILE_FEATURES
+} from '../../../features/profile/utils/profileEntitlements';
+import { ProfileLockBadge } from '../../../features/profile/components/ProfileLockedPreview';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function isoKey(date) {
@@ -29,7 +19,6 @@ function isoKey(date) {
     return `${y}-${m}-${d}`;
 }
 
-/** Extract joining year from VTU USN, e.g. "1SI23IS080" → 2023 */
 function usn2year(usn) {
     if (!usn) return null;
     const m = usn.match(/[A-Za-z]{2,3}(\d{2})[A-Za-z]/);
@@ -54,10 +43,10 @@ const NavBtn = ({ onClick, disabled, isDark, children }) => (
         onClick={onClick}
         disabled={disabled}
         style={{
-            background:     disabled ? 'transparent' : (isDark ? 'rgba(255,255,255,0.04)' : '#F1F5F9'),
-            border:         isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
-            borderRadius:   '6px',
-            color:          disabled ? (isDark ? 'rgba(148,163,184,0.2)' : '#CBD5E1') : (isDark ? 'rgba(148,163,184,0.65)' : '#475569'),
+            background:     disabled ? 'transparent' : (isDark ? '#15181D' : '#F8FAFC'),
+            border:         isDark ? '1px solid #292E37' : '1px solid #E5E7EB',
+            borderRadius:   '4px',
+            color:          disabled ? (isDark ? '#52525B' : '#D1D5DB') : (isDark ? '#A1A1AA' : '#4B5563'),
             cursor:         disabled ? 'not-allowed' : 'pointer',
             display:        'flex',
             alignItems:     'center',
@@ -68,12 +57,6 @@ const NavBtn = ({ onClick, disabled, isDark, children }) => (
             outline:        'none',
             transition:     'background 0.15s, color 0.15s',
         }}
-        onMouseEnter={e => {
-            if (!disabled) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0';
-        }}
-        onMouseLeave={e => {
-            if (!disabled) e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.04)' : '#F1F5F9';
-        }}
     >
         {children}
     </button>
@@ -82,42 +65,42 @@ const NavBtn = ({ onClick, disabled, isDark, children }) => (
 // ─── Main Card ────────────────────────────────────────────────────────────────
 const AcademicJourneyCard = ({ onSelectDate }) => {
     const { isDark } = useTheme();
+    const navigate = useNavigate();
     const { user } = useAuth();
+    const { isPlus, isFree, isAnonymous } = useProfileEntitlements();
 
     const academicPalette = useMemo(() => ({
-        'none':                 { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15, 23, 42, 0.05)', border: isDark ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(15, 23, 42, 0.08)' },
-        'attendance-100':       { bg: isDark ? 'rgba(22, 163, 74, 0.95)' : '#16a34a',  border: 'none' },
-        'attendance-75':        { bg: isDark ? 'rgba(34, 197, 94, 0.80)' : '#22c55e',  border: 'none' },
-        'attendance-50':        { bg: isDark ? 'rgba(74, 222, 128, 0.65)' : '#4ade80',  border: 'none' },
-        'attendance-1':         { bg: isDark ? 'rgba(134, 239, 172, 0.45)' : '#86efac',  border: 'none' },
-        'attendance-absent':    { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15, 23, 42, 0.05)', border: isDark ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(15, 23, 42, 0.08)' },
-        'holiday':              { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(234, 179, 8, 0.08)',  border: isDark ? '1.5px solid #eab308' : '1.5px solid #d97706' },
-        'exam':                 { bg: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(239, 68, 68, 0.08)',  border: '1.5px solid #ef4444' },
+        'none':                 { bg: isDark ? '#15181D' : '#F1F5F9', border: isDark ? '1px solid #292E37' : '1px solid #E5E7EB' },
+        'attendance-100':       { bg: isDark ? '#16A34A' : '#16A34A', border: 'none' },
+        'attendance-75':        { bg: isDark ? '#22C55E' : '#22C55E', border: 'none' },
+        'attendance-50':        { bg: isDark ? '#4ADE80' : '#4ADE80', border: 'none' },
+        'attendance-1':         { bg: isDark ? '#86EFAC' : '#86EFAC', border: 'none' },
+        'attendance-absent':    { bg: isDark ? '#15181D' : '#F1F5F9', border: isDark ? '1px solid #292E37' : '1px solid #E5E7EB' },
+        'holiday':              { bg: isDark ? '#1B1F26' : '#FEF3C7', border: isDark ? '1.5px solid #F59E0B' : '1.5px solid #D97706' },
+        'exam':                 { bg: isDark ? '#1B1F26' : '#FEE2E2', border: '1.5px solid #EF4444' },
     }), [isDark]);
 
     const legendConfig = useMemo(() => [
-        { label: 'Attendance',     bg: isDark ? 'rgba(34, 197, 94, 0.80)' : '#22c55e',  border: 'none' },
-        { label: 'Holiday',        bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: isDark ? '1.5px solid #eab308' : '1.5px solid #d97706' },
-        { label: 'Exam / CIE',     bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #ef4444' },
-        { label: 'Event',          bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: isDark ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(15, 23, 42, 0.15)', dot: true },
-        { label: 'Semester Start', bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #a855f7' },
-        { label: 'Semester End',   bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #ec4899' },
-        { label: 'Today',          bg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(15, 23, 42, 0.04)', border: '1.5px solid #06b6d4', shadow: '0 0 6px #06b6d4' }
+        { label: 'Attendance',     bg: isDark ? '#22C55E' : '#22C55E',  border: 'none' },
+        { label: 'Holiday',        bg: isDark ? '#15181D' : '#FEF3C7',  border: isDark ? '1.5px solid #F59E0B' : '1.5px solid #D97706' },
+        { label: 'Exam / CIE',     bg: isDark ? '#15181D' : '#FEE2E2',  border: '1.5px solid #EF4444' },
+        { label: 'Event',          bg: isDark ? '#15181D' : '#F8FAFC',  border: isDark ? '1px solid #3F3F46' : '1px solid #D1D5DB', dot: true },
+        { label: 'Semester Start', bg: isDark ? '#15181D' : '#F8FAFC',  border: '1.5px solid #8B5CF6' },
+        { label: 'Semester End',   bg: isDark ? '#15181D' : '#F8FAFC',  border: '1.5px solid #EC4899' },
+        { label: 'Today',          bg: isDark ? '#15181D' : '#F8FAFC',  border: '1.5px solid #06B6D4' }
     ], [isDark]);
 
-    // Derive joining year from USN (e.g. 1SI23IS080 → 2023)
+    // Derive joining year
     const joiningYear = useMemo(() => (
         usn2year(user?.usn)
         ?? usn2year(user?.username)
         ?? user?.academicProfile?.joiningYear
-        ?? new Date().getFullYear() - 1
+        ?? 2023
     ), [user?.usn, user?.username, user?.academicProfile?.joiningYear]);
 
-    // 4-year BE programme bounds
     const minYear = joiningYear;
     const maxYear = joiningYear + 3;
 
-    // Default to current calendar year, clamped within student's 4-year programme bounds
     const defaultYear = useMemo(() => {
         const current = new Date().getFullYear();
         return Math.max(minYear, Math.min(maxYear, current));
@@ -125,32 +108,19 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
 
     const [activeYear, setActiveYear] = useState(defaultYear);
 
-    // Sync activeYear if defaultYear updates dynamically
     useEffect(() => {
         setActiveYear(defaultYear);
     }, [defaultYear]);
+
     const prev = useCallback(() => setActiveYear(y => Math.max(y - 1, minYear)), [minYear]);
     const next = useCallback(() => setActiveYear(y => Math.min(y + 1, maxYear)), [maxYear]);
 
-    // Calendar year date range fed into HeatmapGrid (Jan 1 to Dec 31)
     const startDate = useMemo(() => new Date(activeYear, 0, 1),  [activeYear]);
     const endDate   = useMemo(() => new Date(activeYear, 11, 31), [activeYear]);
 
-    // Calendar events loaded from the DB single source of truth
-    // Calendar events loaded from canonical CollegeEvent API
-    const cacheKey = `aus_heatmap_v2_${activeYear}_${user?.usn || user?.username || 'user'}`;
-    const cachedData = useMemo(() => {
-        try {
-            const raw = sessionStorage.getItem(cacheKey);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) {
-            return null;
-        }
-    }, [cacheKey]);
-
-    const [calendarEvents, setCalendarEvents] = useState(cachedData?.calendarEvents || []);
-    const [officialSemester, setOfficialSemester] = useState(cachedData?.officialSemester || null);
-    const [attendanceTimeline, setAttendanceTimeline] = useState(cachedData?.attendanceTimeline || []);
+    const [calendarEvents, setCalendarEvents] = useState([]);
+    const [officialSemester, setOfficialSemester] = useState(null);
+    const [attendanceTimeline, setAttendanceTimeline] = useState([]);
 
     useEffect(() => {
         let active = true;
@@ -159,75 +129,73 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 const startStr = isoKey(startDate);
                 const endStr = isoKey(endDate);
 
-                // Determine active semesters in this calendar year
-                const activeSemesters = getSemestersForYear(activeYear, joiningYear);
-                const currentSem = Number(user?.semester || 1);
-                if (currentSem && !activeSemesters.includes(currentSem)) {
-                    activeSemesters.push(currentSem);
-                }
+                // For Plus users: fetch canonical calendar AND student attendance
+                if (isPlus) {
+                    const activeSemesters = getSemestersForYear(activeYear, joiningYear);
+                    const currentSem = Number(user?.semester || 1);
+                    if (currentSem && !activeSemesters.includes(currentSem)) {
+                        activeSemesters.push(currentSem);
+                    }
 
-                // Canonical: Single unified calendar query + student attendance
-                const [calendarRes, ...attendanceResList] = await Promise.all([
-                    apiV2.getStudentAcademicsCalendar({ startDate: startStr, endDate: endStr })
-                        .catch(err => {
-                            console.error('Failed to fetch canonical calendar:', err);
-                            return null;
-                        }),
-                    ...activeSemesters.map(sem =>
-                        apiV2.getAttendanceDashboard(sem)
-                            .then(res => res.data?.success ? res.data.data : null)
-                            .catch(err => {
-                                console.error(`Failed to fetch attendance for semester ${sem}:`, err);
-                                return null;
-                            })
-                    )
-                ]);
+                    const [calendarRes, ...attendanceResList] = await Promise.all([
+                        apiV2.getStudentAcademicsCalendar({ startDate: startStr, endDate: endStr })
+                            .catch(() => null),
+                        ...activeSemesters.map(sem =>
+                            apiV2.getAttendanceDashboard(sem)
+                                .then(res => res.data?.success ? res.data.data : null)
+                                .catch(() => null)
+                        )
+                    ]);
 
-                if (active) {
-                    const newCalendar = calendarRes?.data?.success && Array.isArray(calendarRes.data.data) 
-                        ? calendarRes.data.data 
-                        : [];
-                    const newOfficialSem = calendarRes?.data?.officialSemester || null;
+                    if (active) {
+                        const newCalendar = calendarRes?.data?.success && Array.isArray(calendarRes.data.data) 
+                            ? calendarRes.data.data 
+                            : [];
+                        const newOfficialSem = calendarRes?.data?.officialSemester || null;
 
-                    // Process attendance responses
-                    const mergedTimeline = [];
-                    attendanceResList.forEach(data => {
-                        if (data?.groupedTimeline) {
-                            mergedTimeline.push(...data.groupedTimeline);
-                        }
-                    });
+                        const mergedTimeline = [];
+                        attendanceResList.forEach(data => {
+                            if (data?.groupedTimeline) {
+                                mergedTimeline.push(...data.groupedTimeline);
+                            }
+                        });
 
-                    setCalendarEvents(newCalendar);
-                    setOfficialSemester(newOfficialSem);
-                    setAttendanceTimeline(mergedTimeline);
+                        setCalendarEvents(newCalendar);
+                        setOfficialSemester(newOfficialSem);
+                        setAttendanceTimeline(mergedTimeline);
+                    }
+                } else {
+                    // For Free & Anonymous users: ONLY fetch public calendar events
+                    const calendarRes = await apiV2.getStudentAcademicsCalendar({ startDate: startStr, endDate: endStr })
+                        .catch(() => null);
 
-                    // Cache results for instant rendering on subsequent refreshes
-                    try {
-                        sessionStorage.setItem(cacheKey, JSON.stringify({
-                            calendarEvents: newCalendar,
-                            officialSemester: newOfficialSem,
-                            attendanceTimeline: mergedTimeline
-                        }));
-                    } catch (e) {
-                        // Safe storage fallback
+                    if (active) {
+                        const newCalendar = calendarRes?.data?.success && Array.isArray(calendarRes.data.data) 
+                            ? calendarRes.data.data 
+                            : [];
+                        const newOfficialSem = calendarRes?.data?.officialSemester || null;
+
+                        setCalendarEvents(newCalendar);
+                        setOfficialSemester(newOfficialSem);
+                        setAttendanceTimeline([]);
                     }
                 }
             } catch (err) {
-                console.error('Failed to fetch academic journey data:', err);
+                console.error('[AcademicJourneyCard] Failed to fetch calendar:', err);
             }
         };
+
         fetchEvents();
         return () => { active = false; };
-    }, [startDate, endDate, activeYear, joiningYear, user?.semester, cacheKey]);
+    }, [startDate, endDate, activeYear, joiningYear, user?.semester, isPlus]);
 
-    // ─── Processed Contribution Calendar Generator ───────────────────────────
+    // Contribution Calendar Generator
     const activities = useMemo(() => {
         const map = {};
         const cur = new Date(startDate);
         const todayObj = new Date();
         const todayKey = isoKey(todayObj);
 
-        // Authoritative semester start & end from OfficialSemester
         const semStartKey = officialSemester?.startDate ? isoKey(new Date(officialSemester.startDate)) : null;
         const semEndKey = officialSemester?.endDate ? isoKey(new Date(officialSemester.endDate)) : null;
 
@@ -239,7 +207,6 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
             let overlays = [];
             let metadata = {};
 
-            // 1. Overlays: Today, Semester Start, Semester End
             if (dKey === todayKey) {
                 overlays.push('today');
             }
@@ -252,9 +219,9 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 metadata.semesterEndLabel = `Semester ${officialSemester.number || ''} Ended`;
             }
 
-            // 2. Attendance Layer (Never overwritten by events)
+            // Attendance Layer (Plus only)
             let hasAttendance = false;
-            if (dKey <= todayKey) {
+            if (isPlus && dKey <= todayKey) {
                 const attEntry = attendanceTimeline.find(entry => entry.date === dKey);
                 if (attEntry && attEntry.expectedClasses > 0) {
                     hasAttendance = true;
@@ -269,9 +236,16 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                     metadata.attendedClasses = present;
                     metadata.absentClasses = absent;
                 }
+            } else if (!isPlus && dKey <= todayKey && cur.getDay() !== 0 && cur.getDay() !== 6) {
+                // Background subtle placeholder pattern for preview
+                const dayNum = cur.getDate();
+                if (dayNum % 7 !== 0) {
+                    hasAttendance = true;
+                    attendanceValue = (dayNum % 3 === 0) ? 75 : 100;
+                }
             }
 
-            // 3. Canonical Events Layer (CollegeEvent)
+            // Canonical Events Layer
             const dayEvents = calendarEvents.filter(e => {
                 if (!e.startDate) return false;
                 const startKey = isoKey(new Date(e.startDate));
@@ -279,7 +253,6 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 return dKey >= startKey && dKey <= endKey;
             });
 
-            // Store all events (including cancelled) in metadata for rich tooltips
             metadata.events = dayEvents.map(e => ({
                 title: e.title,
                 eventType: e.eventType,
@@ -291,7 +264,6 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 isCancelled: e.status === 'CANCELLED'
             }));
 
-            // Active events (non-cancelled) drive visual indicators
             const activeEvents = dayEvents.filter(e => e.status !== 'CANCELLED');
             const hasExam = activeEvents.some(e => e.eventType === 'Exam');
             const hasHoliday = activeEvents.some(e => e.eventType === 'Holiday / Closure');
@@ -312,15 +284,10 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                 overlays.push('eventDot');
             }
 
-            // 4. Determine Cell Fill Status:
-            // Attendance percentage dictates the green intensity.
-            // Events NEVER overwrite the attendance color fill!
             let status = 'none';
             if (hasAttendance) {
                 baseState = 'attendance';
-                if (metadata.attendedClasses === 0 && metadata.expectedClasses > 0) {
-                    status = 'attendance-absent';
-                } else if (attendanceValue === 100) {
+                if (attendanceValue === 100) {
                     status = 'attendance-100';
                 } else if (attendanceValue >= 75) {
                     status = 'attendance-75';
@@ -352,10 +319,11 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
             cur.setDate(cur.getDate() + 1);
         }
         return map;
-    }, [startDate, endDate, calendarEvents, officialSemester, attendanceTimeline]);
+    }, [startDate, endDate, calendarEvents, officialSemester, attendanceTimeline, isPlus]);
 
-    // Layered Tooltip Builder
     const getCellTitle = useCallback((date, activity) => {
+        if (!isPlus) return '';
+
         const dateStr = date.toLocaleDateString('en-IN', {
             day: 'numeric', month: 'long', year: 'numeric'
         });
@@ -364,96 +332,120 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
 
         const lines = [dateStr];
 
-        // 1. Semester Milestones
         if (activity.overlays?.includes('semesterStart')) {
             lines.push(activity.metadata?.semesterStartLabel || 'Semester Started');
-            lines.push('');
         }
         if (activity.overlays?.includes('semesterEnd')) {
             lines.push(activity.metadata?.semesterEndLabel || 'Semester Ended');
-            lines.push('');
         }
 
-        // 2. Canonical Events Layer (CollegeEvent)
         if (activity.metadata?.events?.length > 0) {
             activity.metadata.events.forEach(ev => {
                 const timeStr = !ev.allDay && ev.startTime ? ` (${ev.startTime}${ev.endTime ? ` - ${ev.endTime}` : ''})` : '';
                 const cancelledStr = ev.isCancelled ? ' [Cancelled]' : '';
                 lines.push(`${ev.eventType}: ${ev.title}${timeStr}${cancelledStr}`);
-                if (ev.description && ev.description !== ev.title) {
-                    lines.push(`  ${ev.description}`);
-                }
             });
         }
 
-        // 3. Attendance Layer
         if (activity.metadata?.attendancePercentage !== undefined) {
             lines.push(`Attendance: ${activity.metadata.attendancePercentage}% (${activity.metadata.attendedClasses}/${activity.metadata.expectedClasses} classes attended)`);
         }
 
-        // Empty tile indicator
-        if ((!activity.metadata?.events || activity.metadata.events.length === 0) && activity.metadata?.attendancePercentage === undefined) {
-            lines.push('No Academic Activity');
-        }
-
         return lines.filter(line => line !== '').join('\n');
-    }, []);
+    }, [isPlus]);
 
+    const handleAction = () => {
+        if (isAnonymous) {
+            navigate('/login', { state: { from: '/profile' } });
+        } else {
+            navigate('/pricing');
+        }
+    };
+
+    const cardBg = isDark ? '#0F1115' : '#FFFFFF';
+    const cardBorder = isDark ? '#292E37' : '#E5E7EB';
+    const titleColor = isDark ? '#F3F4F6' : '#111827';
+    const labelColor = isDark ? '#A1A1AA' : '#6B7280';
     const yearLabel = String(activeYear);
 
     return (
         <div style={{
-            background:           isDark ? 'rgba(13, 17, 28, 0.85)' : '#FFFFFF',
-            border:               isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
-            borderRadius:         '16px',
-            padding:              '12px 14px',
-            boxShadow:            isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
-            backdropFilter:       'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
+            background:           cardBg,
+            border:               `1px solid ${cardBorder}`,
+            borderRadius:         '8px',
+            padding:              '14px 16px',
             width:                '100%',
             display:              'flex',
             flexDirection:        'column',
             boxSizing:            'border-box',
-            fontFamily:           "'Outfit', 'Plus Jakarta Sans', sans-serif",
+            fontFamily:           'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+            position:             'relative'
         }}>
 
-            {/* ── Compact Header (Minimal Vertical Space) ─────────────────── */}
+            {/* ── Compact Header ─────────────────────────────────────────── */}
             <div style={{
                 display:        'flex',
                 alignItems:     'center',
                 justifyContent: 'space-between',
-                marginBottom:   '4px',
+                marginBottom:   '6px',
                 flexShrink:     0,
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <BookOpen size={13} color={isDark ? '#a78bfa' : '#7c3aed'} />
-                    <span style={{ fontSize: '12.5px', fontWeight: 700, color: isDark ? '#f8fafc' : '#0f172a', letterSpacing: '-0.01em' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <BookOpen size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: titleColor, letterSpacing: '-0.01em' }}>
                         Academic Journey
                     </span>
+                    {!isPlus && <ProfileLockBadge isAnonymous={isAnonymous} />}
                 </div>
 
-                {/* Compact Year Navigator */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <NavBtn onClick={prev} disabled={activeYear <= minYear} isDark={isDark}>
-                        <ChevronLeft size={12} />
-                    </NavBtn>
-                    <span style={{
-                        fontSize:      '11px',
-                        fontWeight:    700,
-                        color:         isDark ? '#c4b5fd' : '#7c3aed',
-                        minWidth:      '44px',
-                        textAlign:     'center',
-                        letterSpacing: '0.02em',
-                    }}>
-                        {yearLabel}
-                    </span>
-                    <NavBtn onClick={next} disabled={activeYear >= maxYear} isDark={isDark}>
-                        <ChevronRight size={12} />
-                    </NavBtn>
+                {/* Right: Year Navigator + CTA */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {!isPlus && (
+                        <button
+                            type="button"
+                            onClick={handleAction}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 10px',
+                                borderRadius: '6px',
+                                background: isDark ? 'rgba(59, 130, 246, 0.12)' : 'rgba(37, 99, 235, 0.08)',
+                                border: isDark ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid rgba(37, 99, 235, 0.2)',
+                                color: isDark ? '#93C5FD' : '#2563EB',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                outline: 'none'
+                            }}
+                        >
+                            <Lock size={10} />
+                            <span>{isAnonymous ? 'Sign In' : 'Unlock with Plus'}</span>
+                        </button>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <NavBtn onClick={prev} disabled={activeYear <= minYear} isDark={isDark}>
+                            <ChevronLeft size={12} />
+                        </NavBtn>
+                        <span style={{
+                            fontSize:      '11px',
+                            fontWeight:    600,
+                            color:         isDark ? '#93C5FD' : '#2563EB',
+                            minWidth:      '40px',
+                            textAlign:     'center',
+                            letterSpacing: '0.02em',
+                        }}>
+                            {yearLabel}
+                        </span>
+                        <NavBtn onClick={next} disabled={activeYear >= maxYear} isDark={isDark}>
+                            <ChevronRight size={12} />
+                        </NavBtn>
+                    </div>
                 </div>
             </div>
 
-            {/* ── Heatmap Grid (Primary Focus ~85-90% of Card) ──────────── */}
+            {/* ── Heatmap Grid Container ──────────────────────────────────── */}
             <div 
                 style={{ 
                     flex: '1 1 auto', 
@@ -462,27 +454,132 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                     WebkitOverflowScrolling: 'touch',
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '2px 0'
+                    padding: '2px 0',
+                    position: 'relative'
                 }} 
                 className="scrollbar-none touch-pan-x"
             >
-                <div style={{ minWidth: '1180px', width: '100%' }}>
+                <div style={{
+                    minWidth: '1180px',
+                    width: '100%',
+                    filter: !isPlus ? (isDark ? 'blur(2.5px) opacity(0.35)' : 'blur(2px) opacity(0.4)') : 'none',
+                    pointerEvents: !isPlus ? 'none' : 'auto',
+                    transition: 'filter 0.2s ease, opacity 0.2s ease'
+                }}>
                     <HeatmapGrid
                         startDate={startDate}
                         endDate={endDate}
                         activities={activities}
                         palette={academicPalette}
                         defaultStatus="none"
-                        cellGap={4}
-                        monthGap={12}
+                        cellGap={3}
+                        monthGap={10}
                         getCellTitle={getCellTitle}
-                        onCellClick={onSelectDate}
+                        onCellClick={isPlus ? onSelectDate : undefined}
                     />
                 </div>
+
+                {/* ── Prominent Lock Overlay for Non-Logged & Non-Plus Users ── */}
+                {!isPlus && (
+                    <div
+                        onClick={handleAction}
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '6px',
+                            background: isDark
+                                ? 'rgba(15, 17, 21, 0.65)'
+                                : 'rgba(255, 255, 255, 0.7)',
+                            backdropFilter: 'blur(2px)',
+                            WebkitBackdropFilter: 'blur(2px)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            zIndex: 10,
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                        }}
+                    >
+                        {/* Lock SVG Icon Circle */}
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: isDark ? 'rgba(59, 130, 246, 0.15)' : '#EFF6FF',
+                            border: isDark ? '1px solid rgba(59, 130, 246, 0.35)' : '1px solid #BFDBFE',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: isDark ? '#93C5FD' : '#2563EB',
+                            boxShadow: isDark ? '0 0 16px rgba(59, 130, 246, 0.2)' : '0 2px 8px rgba(37, 99, 235, 0.1)'
+                        }}>
+                            <Lock size={18} strokeWidth={2.2} />
+                        </div>
+
+                        <div style={{ textAlign: 'center', maxWidth: '320px', padding: '0 12px' }}>
+                            <p style={{
+                                margin: 0,
+                                fontSize: '13px',
+                                fontWeight: 700,
+                                color: titleColor,
+                                letterSpacing: '-0.01em'
+                            }}>
+                                Academic Journey Heatmap
+                            </p>
+                            <p style={{
+                                margin: '3px 0 0',
+                                fontSize: '11.5px',
+                                color: labelColor,
+                                lineHeight: 1.35
+                            }}>
+                                {isAnonymous
+                                    ? 'Sign in with your institutional account to track your daily academic streaks'
+                                    : 'Unlock your personal 365-day attendance heatmap & streaks with AskUrSenior Plus'}
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleAction();
+                            }}
+                            style={{
+                                marginTop: '2px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                background: '#2563EB',
+                                border: '1px solid #1D4ED8',
+                                color: '#FFFFFF',
+                                fontSize: '11.5px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
+                            }}
+                        >
+                            <span>{isAnonymous ? 'Sign in to Personalize' : 'Unlock with Plus'}</span>
+                            <ArrowRight size={12} strokeWidth={2.2} />
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* ── Micro Bottom Legend (Minimal Vertical Space) ───────────── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', flexShrink: 0, marginTop: '4px', paddingTop: '6px', borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(15, 23, 42, 0.06)' }}>
+            {/* ── Bottom Legend ──────────────────────────────────────────── */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                flexWrap: 'wrap',
+                flexShrink: 0,
+                marginTop: '4px',
+                paddingTop: '6px',
+                borderTop: isDark ? '1px solid #292E37' : '1px solid #E5E7EB'
+            }}>
                 {legendConfig.map(({ label, bg, border, shadow, dot }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <div style={{
@@ -500,15 +597,14 @@ const AcademicJourneyCard = ({ onSelectDate }) => {
                         }}>
                             {dot && (
                                 <span style={{
-                                    width:        '2.5px',
-                                    height:       '2.5px',
+                                    width:        '2px',
+                                    height:       '2px',
                                     borderRadius: '50%',
-                                    background:   isDark ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.8)',
-                                    boxShadow:    isDark ? '0 0 2px rgba(255, 255, 255, 0.6)' : 'none',
+                                    background:   isDark ? '#FFFFFF' : '#0F172A',
                                 }} />
                             )}
                         </div>
-                        <span style={{ fontSize: '9.5px', fontWeight: 500, color: isDark ? 'rgba(148, 163, 184, 0.65)' : '#64748b' }}>
+                        <span style={{ fontSize: '9.5px', fontWeight: 500, color: labelColor }}>
                             {label}
                         </span>
                     </div>

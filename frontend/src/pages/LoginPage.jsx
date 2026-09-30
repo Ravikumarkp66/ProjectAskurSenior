@@ -274,6 +274,19 @@ const LoginPage = () => {
     const { login, isAuthenticated, loading: authLoading, user } = useAuth();
     const { isDark, toggleTheme } = useTheme();
 
+    // ── Post-login redirect destination ─────────────────────────────
+    // Priority: ?redirect= query param > router state.from > '/'
+    const getPostLoginPath = (userData) => {
+        if (userData?.registrationComplete === false) return '/complete-profile';
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const redirectParam = params.get('redirect');
+            if (redirectParam) return decodeURIComponent(redirectParam);
+        } catch { /* ignore */ }
+        // Check router state (set by navigate('/login', { state: { from: pathname } }))
+        return '/';
+    };
+
     const [step,           setStep]           = useState('email'); // 'email' | 'otp'
     const [email,          setEmail]          = useState('');
     const [otp,            setOtp]            = useState(['', '', '', '', '', '']);
@@ -294,7 +307,7 @@ const LoginPage = () => {
         if (hasPendingReg) return; // Do not auto-redirect if user has pending profile registration
 
         if (!authLoading && isAuthenticated) {
-            navigate(user?.registrationComplete === false ? '/complete-profile' : '/');
+            navigate(getPostLoginPath(user));
         }
     }, [navigate, isAuthenticated, authLoading, user]);
 
@@ -329,9 +342,7 @@ const LoginPage = () => {
         setIsSuccess(true);
         setSuccessMessage(message || 'Welcome!');
         login(userData, token);
-        setTimeout(() => navigate(
-            userData?.registrationComplete === false ? '/complete-profile' : '/'
-        ), 1400);
+        setTimeout(() => navigate(getPostLoginPath(userData)), 1400);
     };
 
     /* ── OTP input handlers ── */

@@ -113,7 +113,7 @@ const Logo = React.memo(({
             {isTextVisible && (
                 <span
                     style={{
-                        fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+                        fontFamily: "'Inter', sans-serif",
                         fontWeight: 700,
                         letterSpacing: '-0.025em',
                         lineHeight: 1,

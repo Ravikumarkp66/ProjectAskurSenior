@@ -2,29 +2,16 @@ import React from 'react';
 
 const PersonalInformationCard = ({ formData, onChange, isGoogleUser }) => {
     return (
-        <div style={{
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '18px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxSizing: 'border-box'
-        }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: '0 0 -4px 0' }}>
+        <div className="rounded-xl border p-4 sm:p-5 bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] flex flex-col gap-4 box-border">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white m-0">
                 Personal Information
             </h3>
 
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '16px'
-            }} className="personal-info-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 {/* Full Name */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label htmlFor="name" style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                <div className="flex flex-col gap-1.5">
+                    <label htmlFor="name" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Full Name *
                     </label>
                     <input
@@ -34,30 +21,13 @@ const PersonalInformationCard = ({ formData, onChange, isGoogleUser }) => {
                         value={formData.name || ''}
                         onChange={onChange}
                         required
-                        style={{
-                            padding: '9px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            background: 'rgba(255,255,255,0.01)',
-                            color: '#fff',
-                            fontSize: '13px',
-                            outline: 'none',
-                            transition: 'border-color 0.15s, box-shadow 0.15s'
-                        }}
-                        onFocus={e => {
-                            e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)';
-                            e.currentTarget.style.boxShadow = '0 0 8px rgba(139,92,246,0.15)';
-                        }}
-                        onBlur={e => {
-                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
+                        className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all box-border"
                     />
                 </div>
 
                 {/* Username */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label htmlFor="username" style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                <div className="flex flex-col gap-1.5">
+                    <label htmlFor="username" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Username *
                     </label>
                     <input
@@ -67,30 +37,13 @@ const PersonalInformationCard = ({ formData, onChange, isGoogleUser }) => {
                         value={formData.username || ''}
                         onChange={onChange}
                         required
-                        style={{
-                            padding: '9px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            background: 'rgba(255,255,255,0.01)',
-                            color: '#fff',
-                            fontSize: '13px',
-                            outline: 'none',
-                            transition: 'border-color 0.15s, box-shadow 0.15s'
-                        }}
-                        onFocus={e => {
-                            e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)';
-                            e.currentTarget.style.boxShadow = '0 0 8px rgba(139,92,246,0.15)';
-                        }}
-                        onBlur={e => {
-                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
+                        className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all box-border"
                     />
                 </div>
 
                 {/* Email Address (read-only for all users) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label htmlFor="email" style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                <div className="flex flex-col gap-1.5">
+                    <label htmlFor="email" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Email Address
                     </label>
                     <input
@@ -100,23 +53,13 @@ const PersonalInformationCard = ({ formData, onChange, isGoogleUser }) => {
                         value={formData.email || ''}
                         onChange={onChange}
                         readOnly={true}
-                        style={{
-                            padding: '9px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            background: 'rgba(255,255,255,0.02)',
-                            color: 'rgba(255,255,255,0.45)',
-                            cursor: 'not-allowed',
-                            fontSize: '13px',
-                            outline: 'none',
-                            transition: 'border-color 0.15s, box-shadow 0.15s'
-                        }}
+                        className="w-full px-3 py-2 rounded-lg text-sm bg-slate-100/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 cursor-not-allowed outline-none box-border"
                     />
                 </div>
 
                 {/* Phone Number */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label htmlFor="phone" style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.8)' }}>
+                <div className="flex flex-col gap-1.5">
+                    <label htmlFor="phone" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Phone Number
                     </label>
                     <input
@@ -125,36 +68,11 @@ const PersonalInformationCard = ({ formData, onChange, isGoogleUser }) => {
                         name="phone"
                         value={formData.phone || ''}
                         onChange={onChange}
-                        style={{
-                            padding: '9px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            background: 'rgba(255,255,255,0.01)',
-                            color: '#fff',
-                            fontSize: '13px',
-                            outline: 'none',
-                            transition: 'border-color 0.15s, box-shadow 0.15s'
-                        }}
-                        onFocus={e => {
-                            e.currentTarget.style.borderColor = 'rgba(139,92,246,0.5)';
-                            e.currentTarget.style.boxShadow = '0 0 8px rgba(139,92,246,0.15)';
-                        }}
-                        onBlur={e => {
-                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
+                        placeholder="e.g. +91 9876543210"
+                        className="w-full px-3 py-2 rounded-lg text-sm bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all box-border"
                     />
                 </div>
             </div>
-
-
-            <style dangerouslySetInnerHTML={{__html: `
-                @media (max-width: 576px) {
-                    .personal-info-grid {
-                        grid-template-columns: 1fr !important;
-                    }
-                }
-            `}} />
         </div>
     );
 };

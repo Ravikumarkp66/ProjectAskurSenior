@@ -87,11 +87,11 @@ const HubCard = ({ item, onClick }) => {
         <button
             onClick={() => onClick(item)}
             className={[
-                'w-full text-left rounded-lg bg-[#161B22] border transition-all duration-150 group',
-                'hover:border-[#7C3AED]/40 hover:bg-[#161B22]/80',
+                'w-full text-left rounded-lg bg-white dark:bg-[#161B22] border transition-all duration-150 group shadow-xs',
+                'hover:border-[#7C3AED]/40 hover:bg-slate-50 dark:hover:bg-[#161B22]/80',
                 isPinned
-                    ? 'border-l-2 border-l-[#7C3AED] border-[#21262D] rounded-l-none'
-                    : 'border-[#21262D]',
+                    ? 'border-l-2 border-l-[#7C3AED] border-slate-200 dark:border-[#21262D] rounded-l-none'
+                    : 'border-slate-200 dark:border-[#21262D]',
             ].join(' ')}
         >
             <div className="flex items-start gap-3 p-3.5">
@@ -105,7 +105,7 @@ const HubCard = ({ item, onClick }) => {
                     <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {isPinned && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#A78BFA] bg-[#7C3AED]/10 border border-[#7C3AED]/20 rounded px-1.5 py-0.5">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 dark:text-[#A78BFA] bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5">
                                     <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
                                     </svg>
@@ -117,17 +117,17 @@ const HubCard = ({ item, onClick }) => {
                             )}
                         </div>
                         {hasPrice && (
-                            <span className="flex-shrink-0 text-sm font-bold text-[#34D399]">
+                            <span className="flex-shrink-0 text-sm font-bold text-emerald-600 dark:text-[#34D399]">
                                 ₹{item.price.toLocaleString()}
                             </span>
                         )}
                     </div>
 
-                    <p className="text-sm font-semibold text-[#E6EDF3] leading-snug truncate mt-0.5">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-[#E6EDF3] leading-snug truncate mt-0.5">
                         {item.title}
                     </p>
 
-                    <p className="text-xs text-[#8B949E] mt-1 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-slate-500 dark:text-[#8B949E] mt-1 line-clamp-2 leading-relaxed">
                         {item.description}
                     </p>
 
@@ -137,12 +137,12 @@ const HubCard = ({ item, onClick }) => {
                             {style.label}
                         </span>
                         {categoryLabel && (
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${CATEGORY_COLORS[categoryLabel] || 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${CATEGORY_COLORS[categoryLabel] || 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'}`}>
                                 {categoryLabel}
                             </span>
                         )}
-                        <span className="text-[10px] text-[#8B949E]">{timeAgo(item.createdAt)}</span>
-                        <span className="text-[10px] text-[#8B949E]">· {createdByName}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-[#8B949E]">{timeAgo(item.createdAt)}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-[#8B949E]">· {createdByName}</span>
                     </div>
                 </div>
             </div>

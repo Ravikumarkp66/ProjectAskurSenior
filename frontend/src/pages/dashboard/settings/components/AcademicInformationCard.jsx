@@ -25,129 +25,78 @@ const AcademicInformationCard = ({ formData = {} }) => {
     const graduationYear = formData.graduationYear || '2027';
 
     return (
-        <div style={{
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '18px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxSizing: 'border-box'
-        }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0 }}>
+        <div className="rounded-xl border p-4 sm:p-5 bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] flex flex-col gap-4 box-border">
+            <div className="flex flex-col gap-1">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white m-0">
                     Academic Information
                 </h3>
-                <span style={{ fontSize: '11.5px', color: 'rgba(148, 163, 184, 0.65)' }}>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                     Authoritative institutional records managed by college administration (read-only).
                 </span>
             </div>
 
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '16px'
-            }} className="academic-info-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 
                 {/* College (Read-only / Locked) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.85)', margin: 0 }}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 m-0">
                             College
                         </label>
-                        <span title="College record is locked" style={{ color: 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center' }}>
+                        <span title="College record is locked" className="text-slate-400 dark:text-slate-500 flex items-center">
                             <Lock size={12} />
                         </span>
                     </div>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <div className="relative flex items-center">
                         <input
                             type="text"
                             value={collegeName}
                             readOnly
-                            style={{
-                                width: '100%',
-                                padding: '9px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                background: 'rgba(255, 255, 255, 0.02)',
-                                color: 'rgba(255, 255, 255, 0.65)',
-                                cursor: 'not-allowed',
-                                fontSize: '13px',
-                                outline: 'none'
-                            }}
+                            className="w-full px-3 py-2 rounded-lg text-sm bg-slate-100/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none box-border"
                         />
                     </div>
                 </div>
 
                 {/* Scheme (Read-only / Locked) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.85)', margin: 0 }}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 m-0">
                             Scheme
                         </label>
-                        <span title="Academic scheme is locked" style={{ color: 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center' }}>
+                        <span title="Academic scheme is locked" className="text-slate-400 dark:text-slate-500 flex items-center">
                             <Lock size={12} />
                         </span>
                     </div>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <div className="relative flex items-center">
                         <input
                             type="text"
                             value={schemeName}
                             readOnly
-                            style={{
-                                width: '100%',
-                                padding: '9px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                background: 'rgba(255, 255, 255, 0.02)',
-                                color: 'rgba(255, 255, 255, 0.65)',
-                                cursor: 'not-allowed',
-                                fontSize: '13px',
-                                outline: 'none'
-                            }}
+                            className="w-full px-3 py-2 rounded-lg text-sm bg-slate-100/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none box-border"
                         />
                     </div>
                 </div>
 
                 {/* Graduation Year (Read-only / Locked) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(148, 163, 184, 0.85)', margin: 0 }}>
+                <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 m-0">
                             Graduation Year
                         </label>
-                        <span title="Graduation year is locked" style={{ color: 'rgba(148, 163, 184, 0.5)', display: 'flex', alignItems: 'center' }}>
+                        <span title="Graduation year is locked" className="text-slate-400 dark:text-slate-500 flex items-center">
                             <Lock size={12} />
                         </span>
                     </div>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <div className="relative flex items-center">
                         <input
                             type="text"
                             value={graduationYear}
                             readOnly
-                            style={{
-                                width: '100%',
-                                padding: '9px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                background: 'rgba(255, 255, 255, 0.02)',
-                                color: 'rgba(255, 255, 255, 0.65)',
-                                cursor: 'not-allowed',
-                                fontSize: '13px',
-                                outline: 'none'
-                            }}
+                            className="w-full px-3 py-2 rounded-lg text-sm bg-slate-100/70 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.06] text-slate-600 dark:text-slate-300 cursor-not-allowed outline-none box-border"
                         />
                     </div>
                 </div>
             </div>
-
-            <style dangerouslySetInnerHTML={{__html: `
-                @media (max-width: 768px) {
-                    .academic-info-grid {
-                        grid-template-columns: 1fr !important;
-                    }
-                }
-            `}} />
         </div>
     );
 };

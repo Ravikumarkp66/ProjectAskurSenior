@@ -58,7 +58,11 @@ const DashboardLayout = () => {
     const isInterviewRoute = location.pathname.includes('interview-experiences') || location.pathname.includes('/interview');
     const isAcademicSummaryRoute = location.pathname.includes('academic-summary') || location.pathname.includes('academic-overview');
     const isRoadmapsRoute = location.pathname.includes('roadmaps');
-    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute && !isInterviewRoute && !isAcademicSummaryRoute && !isRoadmapsRoute;
+    const isFacultyRoute = location.pathname.includes('faculty');
+    const isCampusRoute = location.pathname.includes('campus');
+    const isSubjectsRoute = location.pathname.includes('subjects') || location.pathname.includes('library') || location.pathname.includes('academic-calendar');
+    const isMaterialsRoute = location.pathname.includes('materials');
+    const showRightPanel = isHomeOrPlusRoute && !isSubjectRoute && !isMySubjectsRoute && !isSubjectRegistrationRoute && !isAttendanceRoute && !isStudentAcademicsRoute && !isInterviewRoute && !isAcademicSummaryRoute && !isRoadmapsRoute && !isFacultyRoute && !isCampusRoute && !isSubjectsRoute && !isMaterialsRoute;
     
     // Active navigation states
     const isHomeActive = location.pathname === '/plus' || location.pathname === '/home';
@@ -396,13 +400,13 @@ const DashboardLayout = () => {
 
                 {/* Mobile Segmented Navigation (< 768px) - ONLY ON HOME & PLUS MAIN PAGES */}
                 {isMobile && isMainDashboardRoute && (
-                    <div className="fixed top-14 left-0 right-0 z-20 bg-[#07050f]/95 backdrop-blur-md border-b border-white/10 px-4 py-2 flex items-center justify-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold">
+                    <div className="fixed top-14 left-0 right-0 z-20 bg-white/95 dark:bg-[#07050f]/95 backdrop-blur-md border-b border-slate-200 dark:border-white/10 px-4 py-2 flex items-center justify-center gap-2 overflow-x-auto scrollbar-none text-xs font-semibold">
                         <button
                             onClick={() => setActiveMobileTab('home')}
                             className={`px-4 py-1.5 rounded-full transition-all shrink-0 active:scale-95 ${
                                 activeMobileTab === 'home'
-                                    ? 'bg-purple-600/40 border border-purple-500/60 text-purple-100 font-bold shadow-lg shadow-purple-900/30'
-                                    : 'bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300'
+                                    ? 'bg-purple-600/20 dark:bg-purple-600/40 border border-purple-500/60 text-purple-700 dark:text-purple-100 font-bold shadow-lg shadow-purple-900/10 dark:shadow-purple-900/30'
+                                    : 'bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300'
                             }`}
                         >
                             Home
@@ -411,8 +415,8 @@ const DashboardLayout = () => {
                             onClick={() => setActiveMobileTab('planner')}
                             className={`px-4 py-1.5 rounded-full transition-all shrink-0 active:scale-95 ${
                                 activeMobileTab === 'planner'
-                                    ? 'bg-purple-600/40 border border-purple-500/60 text-purple-100 font-bold shadow-lg shadow-purple-900/30'
-                                    : 'bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300'
+                                    ? 'bg-purple-600/20 dark:bg-purple-600/40 border border-purple-500/60 text-purple-700 dark:text-purple-100 font-bold shadow-lg shadow-purple-900/10 dark:shadow-purple-900/30'
+                                    : 'bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300'
                             }`}
                         >
                             Planner
@@ -421,8 +425,8 @@ const DashboardLayout = () => {
                             onClick={() => setActiveMobileTab('overview')}
                             className={`px-4 py-1.5 rounded-full transition-all shrink-0 active:scale-95 ${
                                 activeMobileTab === 'overview'
-                                    ? 'bg-purple-600/40 border border-purple-500/60 text-purple-100 font-bold shadow-lg shadow-purple-900/30'
-                                    : 'bg-white/5 border border-white/10 hover:bg-white/10 text-slate-300'
+                                    ? 'bg-purple-600/20 dark:bg-purple-600/40 border border-purple-500/60 text-purple-700 dark:text-purple-100 font-bold shadow-lg shadow-purple-900/10 dark:shadow-purple-900/30'
+                                    : 'bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300'
                             }`}
                         >
                             Overview
@@ -451,8 +455,8 @@ const DashboardLayout = () => {
                     {isSubjectRoute && currentYearStr !== 'first' && (
                         <div style={{
                             flexShrink: 0,
-                            borderBottom: '1px solid rgba(139,92,246,0.12)',
-                            background: 'rgba(7,5,15,0.98)',
+                            borderBottom: isDark ? '1px solid rgba(139,92,246,0.12)' : '1px solid rgba(139,92,246,0.2)',
+                            background: isDark ? 'rgba(7,5,15,0.98)' : 'rgba(255,255,255,0.98)',
                             backdropFilter: 'blur(20px)',
                             WebkitBackdropFilter: 'blur(20px)',
                             position: 'sticky',
@@ -473,7 +477,7 @@ const DashboardLayout = () => {
                                         <h1 style={{
                                             fontSize: 15,
                                             fontWeight: 700,
-                                            color: '#f1f5f9',
+                                            color: isDark ? '#f1f5f9' : '#0f172a',
                                             letterSpacing: '-0.025em',
                                             margin: 0,
                                             lineHeight: 1,
@@ -484,7 +488,7 @@ const DashboardLayout = () => {
                                     {/* Subtitle: semester range */}
                                     <p style={{
                                         fontSize: 11,
-                                        color: 'rgba(148,163,184,0.7)',
+                                        color: isDark ? 'rgba(148,163,184,0.7)' : 'rgba(100,116,139,0.9)',
                                         margin: 0,
                                         letterSpacing: '0.01em',
                                         paddingLeft: 24,
@@ -494,7 +498,7 @@ const DashboardLayout = () => {
                                     {/* Personalized context line */}
                                     <p style={{
                                         fontSize: 11,
-                                        color: 'rgba(167,139,250,0.55)',
+                                        color: isDark ? 'rgba(167,139,250,0.55)' : '#7c3aed',
                                         margin: '1px 0 0',
                                         letterSpacing: '0.005em',
                                         paddingLeft: 24,
@@ -513,8 +517,8 @@ const DashboardLayout = () => {
                                         gap: 6,
                                         padding: '0 12px',
                                         borderRadius: 20,
-                                        background: 'rgba(139,92,246,0.07)',
-                                        border: '1px solid rgba(139,92,246,0.2)',
+                                        background: isDark ? 'rgba(139,92,246,0.07)' : 'rgba(139,92,246,0.08)',
+                                        border: isDark ? '1px solid rgba(139,92,246,0.2)' : '1px solid rgba(139,92,246,0.3)',
                                         cursor: 'pointer',
                                         height: 32,
                                         minWidth: 130,
@@ -526,7 +530,7 @@ const DashboardLayout = () => {
                                             style={{ color: 'rgba(139,92,246,0.7)', flexShrink: 0, pointerEvents: 'none' }}
                                         />
                                         <span style={{
-                                            color: '#c4b5fd',
+                                            color: isDark ? '#c4b5fd' : '#6d28d9',
                                             fontSize: 11,
                                             fontWeight: 600,
                                             letterSpacing: '0.01em',
@@ -546,7 +550,7 @@ const DashboardLayout = () => {
                                             onChange={e => handleSchemeChange(e.target.value)}
                                             style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                                         >
-                                            {SCHEMES.map(s => <option key={s} value={s} style={{ background: '#0f0a1e', color: '#e2e8f0' }}>{s}</option>)}
+                                            {SCHEMES.map(s => <option key={s} value={s} style={{ background: isDark ? '#0f0a1e' : '#ffffff', color: isDark ? '#e2e8f0' : '#0f172a' }}>{s}</option>)}
                                         </select>
                                     </div>
 
@@ -558,8 +562,8 @@ const DashboardLayout = () => {
                                         gap: 6,
                                         padding: '0 12px',
                                         borderRadius: 20,
-                                        background: 'rgba(139,92,246,0.07)',
-                                        border: '1px solid rgba(139,92,246,0.2)',
+                                        background: isDark ? 'rgba(139,92,246,0.07)' : 'rgba(139,92,246,0.08)',
+                                        border: isDark ? '1px solid rgba(139,92,246,0.2)' : '1px solid rgba(139,92,246,0.3)',
                                         cursor: 'pointer',
                                         height: 32,
                                         minWidth: 130,
@@ -571,7 +575,7 @@ const DashboardLayout = () => {
                                             style={{ color: 'rgba(139,92,246,0.7)', flexShrink: 0, pointerEvents: 'none' }}
                                         />
                                         <span style={{
-                                            color: '#c4b5fd',
+                                            color: isDark ? '#c4b5fd' : '#6d28d9',
                                             fontSize: 11,
                                             fontWeight: 600,
                                             letterSpacing: '0.01em',
@@ -591,7 +595,7 @@ const DashboardLayout = () => {
                                             onChange={e => handleBranchChange(e.target.value)}
                                             style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                                         >
-                                            {branchesList.map(b => <option key={b.code} value={b.code} style={{ background: '#0f0a1e', color: '#e2e8f0' }}>{b.code} – {b.name}</option>)}
+                                            {branchesList.map(b => <option key={b.code} value={b.code} style={{ background: isDark ? '#0f0a1e' : '#ffffff', color: isDark ? '#e2e8f0' : '#0f172a' }}>{b.code} – {b.name}</option>)}
                                         </select>
                                     </div>
                                 </div>

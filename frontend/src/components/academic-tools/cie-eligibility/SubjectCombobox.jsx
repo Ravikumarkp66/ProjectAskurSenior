@@ -52,7 +52,7 @@ export default function SubjectCombobox({
 
     return (
         <div className="relative w-full" ref={containerRef}>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Subject
             </label>
 
@@ -66,48 +66,48 @@ export default function SubjectCombobox({
                         setTimeout(() => inputRef.current?.focus(), 50);
                     }
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded bg-[#161b22] border text-left transition-colors ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded bg-white dark:bg-[#161b22] border text-left transition-colors ${
                     isOpen
-                        ? 'border-slate-500'
-                        : 'border-slate-800 hover:border-slate-700'
-                } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        ? 'border-purple-500 dark:border-slate-500'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} shadow-xs`}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
                 {selectedSubject ? (
                     <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-6 h-6 rounded bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0">
+                        <div className="w-6 h-6 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-700 dark:text-slate-300 shrink-0">
                             <BookOpen size={13} />
                         </div>
                         <div className="min-w-0">
-                            <div className="text-xs font-semibold text-slate-100 truncate font-sans">
+                            <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate font-sans">
                                 {selectedName}
                             </div>
-                            <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 font-mono">
-                                <span className="text-slate-200 font-semibold">{selectedCode}</span>
-                                <span className="text-slate-600">•</span>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex items-center gap-1.5 font-mono">
+                                <span className="text-slate-800 dark:text-slate-200 font-semibold">{selectedCode}</span>
+                                <span className="text-slate-300 dark:text-slate-600">•</span>
                                 <span>{selectedCredits} {selectedCredits === 1 ? 'Credit' : 'Credits'}</span>
-                                <span className="text-slate-600">•</span>
-                                <span className="text-slate-400">[{getSubjectTypeBadge(selectedSubject)}]</span>
+                                <span className="text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-slate-500 dark:text-slate-400">[{getSubjectTypeBadge(selectedSubject)}]</span>
                             </div>
                         </div>
                     </div>
                 ) : (
-                    <span className="text-xs font-mono text-slate-400">Select a course...</span>
+                    <span className="text-xs font-mono text-slate-400 dark:text-slate-400">Select a course...</span>
                 )}
 
                 <ChevronDown
                     size={15}
-                    className={`text-slate-400 shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
+                    className={`text-slate-500 dark:text-slate-400 shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
                 />
             </button>
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded bg-[#161b22] border border-slate-700 shadow-xl overflow-hidden animate-in fade-in duration-100">
+                <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded bg-white dark:bg-[#161b22] border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden animate-in fade-in duration-100">
                     {/* Search Input Bar */}
-                    <div className="p-2 border-b border-slate-800 bg-[#0d1117]">
-                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-black/40 border border-slate-700 focus-within:border-slate-500">
+                    <div className="p-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#0d1117]">
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-white dark:bg-black/40 border border-slate-300 dark:border-slate-700 focus-within:border-purple-500 dark:focus-within:border-slate-500 shadow-xs">
                             <Search size={13} className="text-slate-400 shrink-0" />
                             <input
                                 ref={inputRef}
@@ -115,13 +115,13 @@ export default function SubjectCombobox({
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Filter course by code or name..."
-                                className="w-full bg-transparent text-xs font-mono text-slate-100 placeholder-slate-500 outline-none"
+                                className="w-full bg-transparent text-xs font-mono text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none"
                             />
                             {searchQuery && (
                                 <button
                                     type="button"
                                     onClick={() => setSearchQuery('')}
-                                    className="text-[10px] font-mono text-slate-400 hover:text-white px-1"
+                                    className="text-[10px] font-mono text-slate-400 hover:text-slate-700 dark:hover:text-white px-1"
                                 >
                                     clear
                                 </button>
@@ -132,7 +132,7 @@ export default function SubjectCombobox({
                     {/* Subject List */}
                     <div className="max-h-56 overflow-y-auto p-1 space-y-0.5 custom-scrollbar" role="listbox">
                         {filteredSubjects.length === 0 ? (
-                            <div className="py-5 text-center text-xs font-mono text-slate-500">
+                            <div className="py-5 text-center text-xs font-mono text-slate-400 dark:text-slate-500">
                                 No course matched "{searchQuery}"
                             </div>
                         ) : (
@@ -157,25 +157,25 @@ export default function SubjectCombobox({
                                         }}
                                         className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
                                             isSelected
-                                                ? 'bg-slate-800 border-l-2 border-emerald-400 text-slate-100'
-                                                : 'hover:bg-slate-800/60 text-slate-300'
+                                                ? 'bg-purple-50 dark:bg-slate-800 border-l-2 border-purple-600 dark:border-emerald-400 text-purple-950 dark:text-slate-100'
+                                                : 'hover:bg-slate-100 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
                                         }`}
                                     >
                                         <div className="min-w-0 pr-2">
-                                            <div className="text-xs font-medium text-slate-200 truncate font-sans">
+                                            <div className="text-xs font-medium text-slate-900 dark:text-slate-200 truncate font-sans">
                                                 {name}
                                             </div>
-                                            <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
-                                                <span className="text-slate-100 font-semibold">{code}</span>
-                                                <span className="text-slate-600">•</span>
+                                            <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-mono">
+                                                <span className="text-slate-800 dark:text-slate-100 font-semibold">{code}</span>
+                                                <span className="text-slate-300 dark:text-slate-600">•</span>
                                                 <span>{credits} Cr</span>
-                                                <span className="text-slate-600">•</span>
-                                                <span className="text-slate-400">[{typeLabel}]</span>
+                                                <span className="text-slate-300 dark:text-slate-600">•</span>
+                                                <span className="text-slate-500 dark:text-slate-400">[{typeLabel}]</span>
                                             </div>
                                         </div>
 
                                         {isSelected && (
-                                            <span className="text-[11px] font-mono font-bold text-emerald-400">
+                                            <span className="text-[11px] font-mono font-bold text-purple-600 dark:text-emerald-400">
                                                 [SELECTED]
                                             </span>
                                         )}

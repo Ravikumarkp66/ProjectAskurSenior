@@ -22,6 +22,9 @@ export const GRADE_POINTS_MAP = {
     'B': 6,
     'C': 5,
     'P': 4,
+    'PP': 0,
+    'NP': 0,
+    'NE': 0,
     'F': 0,
 };
 
@@ -56,7 +59,7 @@ export const calculateSGPA = (subjects) => {
         const grade = sub.grade || 'O';
         const points = GRADE_POINTS_MAP[grade] ?? 0;
 
-        if (grade === 'F') {
+        if (grade === 'F' || grade === 'NP' || grade === 'NE') {
             hasFailingGrade = true;
         }
 

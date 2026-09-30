@@ -142,8 +142,16 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  const hasPlusAccess = user?.access?.plan === 'PLUS';
-  const access = user?.access || { plan: 'FREE', source: 'NONE' };
+  const hasPlusAccess = Boolean(
+    user?.access?.plan === 'PLUS' ||
+    user?.isPlus ||
+    user?.plan === 'plus' ||
+    user?.plan === 'PLUS' ||
+    user?.subscription === 'plus' ||
+    user?.isAdmin ||
+    user?.isTestUser
+  );
+  const access = user?.access || { plan: hasPlusAccess ? 'PLUS' : 'FREE', source: 'NONE' };
 
   const value = useMemo(
     () => ({

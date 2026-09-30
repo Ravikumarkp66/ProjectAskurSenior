@@ -8,30 +8,39 @@ const getBreadcrumb = (pathname) => {
     return { group: 'Overview', title: 'Dashboard' };
   }
   if (pathname.startsWith('/users')) {
-    return { group: 'Users', title: 'Student Accounts' };
+    return { group: 'Students & Access', title: 'Student Directory' };
+  }
+  if (pathname.startsWith('/features')) {
+    return { group: 'Students & Access', title: 'Feature Flags & Plus' };
   }
   if (pathname.startsWith('/admins')) {
-    return { group: 'Users', title: 'Administrators' };
+    return { group: 'Students & Access', title: 'Administrators' };
   }
   if (pathname.startsWith('/structure')) {
-    return { group: 'Academic', title: 'Academic Structure' };
+    return { group: 'Academic Management', title: 'Academic Structure' };
   }
   if (pathname.startsWith('/subjects')) {
-    return { group: 'Academic', title: 'Subjects Directory' };
+    return { group: 'Academic Management', title: 'Subjects Directory' };
+  }
+  if (pathname.startsWith('/evaluation-groups')) {
+    return { group: 'Academic Management', title: 'Evaluation Groups' };
+  }
+  if (pathname.startsWith('/evaluation-rules')) {
+    return { group: 'Academic Management', title: 'Evaluation Rules' };
   }
   if (pathname.startsWith('/materials')) {
-    return { group: 'Content', title: 'Study Materials' };
+    return { group: 'Content & Community', title: 'Study Materials' };
   }
   if (pathname.startsWith('/interviews')) {
-    return { group: 'Content', title: 'Interview Experiences' };
+    return { group: 'Content & Community', title: 'Interview Experiences' };
   }
   if (pathname.startsWith('/announcements')) {
-    return { group: 'Content', title: 'Announcements' };
+    return { group: 'Content & Community', title: 'Announcements' };
   }
   if (pathname.startsWith('/security')) {
-    return { group: 'System', title: 'Security & Access' };
+    return { group: 'Security & Audit', title: 'Security Logs & Access' };
   }
-  return { group: 'Admin', title: 'Control Center' };
+  return { group: 'Admin Console', title: 'Control Center' };
 };
 
 export const AdminHeader = ({
@@ -48,7 +57,7 @@ export const AdminHeader = ({
 
   return (
     <header className="h-14 w-full sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 bg-white/90 dark:bg-[#0c0c0e]/90 backdrop-blur border-b border-gray-200 dark:border-zinc-800/80 select-none">
-      {/* Left: Mobile Toggle & Breadcrumbs */}
+      {/* Left: Mobile Menu Toggle & Navigation Breadcrumbs */}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -70,9 +79,9 @@ export const AdminHeader = ({
         </nav>
       </div>
 
-      {/* Right: Quick Operator Actions */}
+      {/* Right: Quick Operator Actions & Session Controls */}
       <div className="flex items-center gap-2 sm:gap-3 text-xs">
-        {/* Active Sessions Audit Trigger */}
+        {/* Active Administrative Sessions Audit Trigger */}
         <button
           type="button"
           onClick={onOpenSecurityDrawer}
@@ -116,12 +125,12 @@ export const AdminHeader = ({
           )}
         </div>
 
-        {/* Logout Link */}
+        {/* Logout Quick Trigger */}
         <button
           type="button"
           onClick={onLogout}
           className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
-          title="Sign out"
+          title="Sign out of Admin Portal"
         >
           <LogOut className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Logout</span>

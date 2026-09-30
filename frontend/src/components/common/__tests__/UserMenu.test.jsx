@@ -19,6 +19,7 @@ const mockLogout = vi.fn();
 vi.mock('../../../context/AuthContext', () => ({
     useAuth: () => ({
         user: { name: 'Test Student', email: 'test@askursenior.edu' },
+        isAuthenticated: true,
         logout: mockLogout,
     }),
 }));

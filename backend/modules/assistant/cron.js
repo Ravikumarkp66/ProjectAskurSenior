@@ -11,14 +11,27 @@ const sendNightWrapUp = async () => ({ success: false });
  * Minute-by-Minute Job: Check for classes that just ended
  */
 cron.schedule('* * * * *', async () => {
-  const now = new Date();
-  const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  const currentTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-
   try {
-    const users = await User.find({ whatsappEnabled: true, phone: { $ne: null } });
+    // Early-exit: skip heavy work if no WhatsApp-enabled users exist (O(1) count query)
+    const enabledCount = await User.countDocuments({ whatsappEnabled: true, phone: { $ne: null } });
+    if (enabledCount === 0) return;
+
+    const now = new Date();
+    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const currentTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+    // Use lean() for lighter memory footprint; only fetch needed fields
+    const users = await User.find({ whatsappEnabled: true, phone: { $ne: null } })
+      .select('_id phone email')
+      .lean();
+
+    // Fetch all timetables in a single batched query instead of N serial queries
+    const userIds = users.map(u => u._id);
+    const timetables = await Timetable.find({ userId: { $in: userIds } }).lean();
+    const timetableByUser = Object.fromEntries(timetables.map(t => [String(t.userId), t]));
+
     for (const user of users) {
-      const timetable = await Timetable.findOne({ userId: user._id });
+      const timetable = timetableByUser[String(user._id)];
       if (!timetable || !timetable[dayName]) continue;
 
       const classes = timetable[dayName];

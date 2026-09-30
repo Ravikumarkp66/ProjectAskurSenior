@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarDays, ArrowRight, MapPin, Edit2 } from 'lucide-react';
+import { CalendarDays, ArrowRight, MapPin, Edit2, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiV2 } from '../../../services/authService';
 import { useTheme } from '../../../context/ThemeContext';
+import {
+    useProfileEntitlements,
+    PROFILE_FEATURES
+} from '../../../features/profile/utils/profileEntitlements';
+import { DEMO_TODAY_CLASSES } from '../../../features/profile/config/profileDemoData';
+import { ProfileLockBadge } from '../../../features/profile/components/ProfileLockedPreview';
 
 function getOffsetDateString(date) {
     const y = date.getFullYear();
@@ -18,17 +24,17 @@ const TimetableEmptyState = ({ label, message, isDark }) => (
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '8px',
-        border: isDark ? '1px dashed rgba(52, 211, 153, 0.2)' : '1px dashed rgba(16, 185, 129, 0.25)',
-        borderRadius: '10px',
-        background: isDark ? 'rgba(52, 211, 153, 0.03)' : 'rgba(16, 185, 129, 0.02)'
+        gap: '6px',
+        border: isDark ? '1px dashed #292E37' : '1px dashed #E5E7EB',
+        borderRadius: '6px',
+        background: isDark ? '#15181D' : '#F8FAFC'
     }}>
-        <CalendarDays size={22} color={isDark ? 'rgba(52, 211, 153, 0.45)' : 'rgba(16, 185, 129, 0.5)'} />
+        <CalendarDays size={20} color={isDark ? '#71717A' : '#9CA3AF'} />
         <p style={{
             margin: 0,
             fontSize: '12px',
             fontWeight: 600,
-            color: isDark ? '#94a3b8' : '#334155',
+            color: isDark ? '#F3F4F6' : '#111827',
             textAlign: 'center'
         }}>
             {message || `No classes scheduled for ${label}`}
@@ -39,10 +45,13 @@ const TimetableEmptyState = ({ label, message, isDark }) => (
 const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
     const { isDark } = useTheme();
     const navigate = useNavigate();
+    const { isPlus, isFree, isAnonymous } = useProfileEntitlements();
+
     const cacheKeyClasses = `aus_classes_${getOffsetDateString(selectedDate || new Date())}`;
     const cacheKeyConfig = 'aus_timetable_config';
 
     const [slots, setSlots] = useState(() => {
+        if (!isPlus) return DEMO_TODAY_CLASSES;
         try {
             const raw = sessionStorage.getItem(cacheKeyClasses);
             return raw ? JSON.parse(raw) : [];
@@ -51,9 +60,15 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
         }
     });
 
-    const [loading, setLoading] = useState(() => slots.length === 0);
+    const [loading, setLoading] = useState(() => {
+        if (!isPlus) return false;
+        return slots.length === 0;
+    });
+
     const [editingSlots, setEditingSlots] = useState({});
+    const [suspensionInfo, setSuspensionInfo] = useState(null);
     const [timetableConfig, setTimetableConfig] = useState(() => {
+        if (!isPlus) return null;
         try {
             const raw = sessionStorage.getItem(cacheKeyConfig);
             return raw ? JSON.parse(raw) : null;
@@ -62,7 +77,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
         }
     });
 
-    // Keep track of the current time in minutes since midnight
+    // Current time in minutes since midnight
     const [currentMinutes, setCurrentMinutes] = useState(() => {
         const now = new Date();
         return now.getHours() * 60 + now.getMinutes();
@@ -72,11 +87,14 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
         const interval = setInterval(() => {
             const now = new Date();
             setCurrentMinutes(now.getHours() * 60 + now.getMinutes());
-        }, 15000); // check every 15s
+        }, 15000);
         return () => clearInterval(interval);
     }, []);
 
+    // Fetch config for Plus users only
     useEffect(() => {
+        if (!isPlus) return;
+
         const fetchConfig = async () => {
             try {
                 const res = await apiV2.getTimetableConfig();
@@ -91,9 +109,11 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
             }
         };
         fetchConfig();
-    }, []);
+    }, [isPlus]);
 
     const fetchTodayAttendance = async () => {
+        if (!isPlus) return;
+
         try {
             const targetDate = selectedDate || new Date();
             const targetDateStr = getOffsetDateString(targetDate);
@@ -101,6 +121,11 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
             if (res.data?.success) {
                 const newSlots = res.data.data || [];
                 setSlots(newSlots);
+                setSuspensionInfo(res.data.classesSuspended ? {
+                    classesSuspended: true,
+                    title: res.data.activeEvent?.title || res.data.message || 'Classes Suspended',
+                    eventType: res.data.activeEvent?.eventType || 'Event'
+                } : null);
                 try {
                     sessionStorage.setItem(cacheKeyClasses, JSON.stringify(newSlots));
                 } catch (e) {}
@@ -111,26 +136,35 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
     };
 
     useEffect(() => {
+        if (!isPlus) {
+            setSlots(DEMO_TODAY_CLASSES);
+            setLoading(false);
+            return;
+        }
+
         const initFetch = async () => {
             if (slots.length === 0) setLoading(true);
             await fetchTodayAttendance();
             setLoading(false);
         };
         initFetch();
-    }, [selectedDate]);
+    }, [selectedDate, isPlus]);
 
     useEffect(() => {
+        if (!isPlus) return;
+
         const handleUpdate = () => {
             fetchTodayAttendance();
         };
         window.addEventListener('attendance-updated', handleUpdate);
         return () => window.removeEventListener('attendance-updated', handleUpdate);
-    }, [selectedDate]);
+    }, [selectedDate, isPlus]);
 
-    // Optimistic UI Mutation for instant click interaction (< 10ms)
+    // Attendance marking (Only available for Plus users)
     const markAttendance = async (slot, status) => {
+        if (!isPlus) return;
+
         const prevSlots = [...slots];
-        // 1. Instantly update UI locally
         setSlots(prev => prev.map(s => s._id === slot._id ? { ...s, status } : s));
         setEditingSlots(prev => ({ ...prev, [slot._id]: false }));
 
@@ -147,12 +181,20 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                 status: status
             });
 
-            // 2. Refresh background attendance
             window.dispatchEvent(new CustomEvent('attendance-updated'));
         } catch (err) {
-            console.error('[TodayClassesCard] Attendance update failed, rolling back:', err);
-            // Rollback on failure
+            console.error('[TodayClassesCard] Attendance update failed:', err);
             setSlots(prevSlots);
+        }
+    };
+
+    const handleAction = () => {
+        if (isAnonymous) {
+            navigate('/login', { state: { from: '/profile' } });
+        } else if (isFree) {
+            navigate('/pricing');
+        } else {
+            navigate('/profile/edit/timetable');
         }
     };
 
@@ -160,7 +202,6 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
     const targetDate = selectedDate || new Date();
     const isToday = targetDate.toDateString() === new Date().toDateString();
     
-    // Check if targetDate is in the future
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const startOfTarget = new Date(targetDate);
@@ -168,7 +209,6 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
     const isFuture = startOfTarget > startOfToday;
     const isPast = startOfTarget < startOfToday;
 
-    // Check if targetDate is outside semester range
     let isOutsideSemesterRange = false;
     if (timetableConfig?.semesterStartDate && timetableConfig?.lastWorkingDate) {
         const start = new Date(timetableConfig.semesterStartDate);
@@ -176,30 +216,33 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
         const end = new Date(timetableConfig.lastWorkingDate);
         end.setHours(23, 59, 59, 999);
         const current = new Date(targetDate);
-        current.setHours(12, 0, 0, 0); // avoid time zone shift
+        current.setHours(12, 0, 0, 0);
         isOutsideSemesterRange = current < start || current > end;
     }
 
     const formattedDateStr = targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     const headerTitle = isToday ? "Today's Classes" : `Classes on ${formattedDateStr}`;
-    const dividerColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.06)';
+
+    const cardBg = isDark ? '#0F1115' : '#FFFFFF';
+    const cardBorder = isDark ? '#292E37' : '#E5E7EB';
+    const dividerColor = isDark ? '#292E37' : '#E5E7EB';
+    const titleColor = isDark ? '#F3F4F6' : '#111827';
+    const labelColor = isDark ? '#A1A1AA' : '#6B7280';
 
     return (
         <div style={{
-            background: isDark ? 'rgba(13, 17, 28, 0.85)' : '#FFFFFF',
-            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(15, 23, 42, 0.08)',
-            borderRadius: '16px',
+            background: cardBg,
+            border: `1px solid ${cardBorder}`,
+            borderRadius: '8px',
             padding: '16px',
-            boxShadow: isDark ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px -2px rgba(15, 23, 42, 0.04)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
             flexDirection: 'column',
             gap: '0px',
             height: '300px',
             width: '100%',
             boxSizing: 'border-box',
-            fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
+            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+            position: 'relative'
         }}>
             {/* Header */}
             <div style={{
@@ -212,26 +255,27 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <h2 style={{
-                        fontSize: '15px',
-                        fontWeight: 700,
-                        color: isDark ? '#F8FAFC' : '#0F172A',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: titleColor,
                         margin: 0,
                         letterSpacing: '-0.01em'
                     }}>
                         {headerTitle}
                     </h2>
-                    {!isToday && (
+                    {!isPlus && <ProfileLockBadge isAnonymous={isAnonymous} />}
+                    {!isToday && isPlus && (
                         <button
                             onClick={() => setSelectedDate(null)}
                             style={{
-                                background: isDark ? 'rgba(255,255,255,0.05)' : '#F1F5F9',
-                                border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(15,23,42,0.08)',
+                                background: isDark ? '#15181D' : '#F1F5F9',
+                                border: isDark ? '1px solid #292E37' : '1px solid #E2E8F0',
                                 borderRadius: '4px',
-                                color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+                                color: labelColor,
                                 fontSize: '9px',
-                                padding: '2px 6px',
+                                padding: '1px 5px',
                                 cursor: 'pointer',
-                                fontWeight: 700,
+                                fontWeight: 600,
                                 outline: 'none'
                             }}
                         >
@@ -239,8 +283,10 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                         </button>
                     )}
                 </div>
+
                 <button
-                    onClick={() => navigate('/profile/edit/timetable')}
+                    type="button"
+                    onClick={handleAction}
                     style={{
                         background: 'transparent',
                         border: 'none',
@@ -248,17 +294,19 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                         cursor: 'pointer',
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: isDark ? 'rgba(148,163,184,0.7)' : '#64748B',
+                        color: isDark ? '#93C5FD' : '#2563EB',
                         padding: 0,
                         display: 'flex',
                         alignItems: 'center',
                         gap: '3px',
-                        transition: 'color 0.2s'
+                        transition: 'opacity 0.15s'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.color = isDark ? '#6ee7b7' : '#059669'}
-                    onMouseLeave={e => e.currentTarget.style.color = isDark ? 'rgba(148,163,184,0.7)' : '#64748B'}
+                    onMouseEnter={e => e.currentTarget.style.opacity = '0.8'}
+                    onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                 >
-                    View Timetable <ArrowRight size={11} />
+                    {!isPlus && <Lock size={10} />}
+                    <span>{isPlus ? 'Timetable' : (isAnonymous ? 'Sign in' : 'Unlock')}</span>
+                    <ArrowRight size={11} />
                 </button>
             </div>
 
@@ -267,9 +315,11 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
 
             {/* Body */}
             {loading ? (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(15,23,42,0.4)' }}>
-                    Loading...
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: labelColor }}>
+                    Loading…
                 </div>
+            ) : suspensionInfo ? (
+                <TimetableEmptyState message={`${suspensionInfo.title} · Classes Suspended`} isDark={isDark} />
             ) : isOutsideSemesterRange ? (
                 <TimetableEmptyState message="No classes allotted" isDark={isDark} />
             ) : !hasData ? (
@@ -279,7 +329,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                     flex: 1,
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
+                    gap: '6px',
                     overflowY: 'auto',
                     paddingRight: '4px',
                     minHeight: 0
@@ -297,16 +347,18 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                             showActions = false;
                             showStatusBadge = false;
                             displayLabel = 'Break';
+                        } else if (!isPlus) {
+                            // Free / Anonymous users preview timetable details without active mutation
+                            showActions = false;
+                            showStatusBadge = false;
+                            displayLabel = slot.lectureType || 'Theory';
                         } else if (isFuture) {
-                            // Tomorrow/Future: show details only, no actions
                             showActions = false;
                             showStatusBadge = false;
                         } else if (isPast) {
-                            // Yesterday/Past: show actions for unmarked, badge for marked
                             showActions = !isMarked || isEditing;
                             showStatusBadge = isMarked && !isEditing;
                         } else {
-                            // Today: check class timing bounds
                             const isOver = currentMinutes >= slot.endMinute;
                             if (isOver) {
                                 showActions = !isMarked || isEditing;
@@ -324,90 +376,82 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                             }
                         }
 
-                        // Strike styling based on marked status (only when not break/future)
                         let textDec = 'none';
                         let decColor = 'transparent';
                         let itemOpacity = 1;
-                        let statusColor = isDark ? '#94a3b8' : '#64748b';
+                        let statusColor = labelColor;
 
-                        if (isMarked && !isEditing && !isBreak && !isFuture) {
+                        if (isPlus && isMarked && !isEditing && !isBreak && !isFuture) {
                             textDec = 'line-through';
-                            itemOpacity = isDark ? 0.35 : 0.45;
+                            itemOpacity = isDark ? 0.4 : 0.5;
                             if (slot.status === 'Present') {
-                                decColor = isDark ? '#10b981' : '#059669';
-                                statusColor = isDark ? '#10b981' : '#059669';
+                                decColor = isDark ? '#22C55E' : '#16A34A';
+                                statusColor = isDark ? '#22C55E' : '#16A34A';
                             } else if (slot.status === 'Absent') {
-                                decColor = isDark ? '#ef4444' : '#dc2626';
-                                statusColor = isDark ? '#ef4444' : '#dc2626';
-                            } else { // Cancelled / Suspended
-                                decColor = isDark ? '#94a3b8' : '#64748b';
-                                statusColor = isDark ? '#64748b' : '#64748b';
+                                decColor = isDark ? '#EF4444' : '#DC2626';
+                                statusColor = isDark ? '#EF4444' : '#DC2626';
+                            } else {
+                                decColor = labelColor;
+                                statusColor = labelColor;
                             }
                         }
 
-                        // Time display
                         const timeParts = slot.timeSlot.split('-');
                         const timeStartStr = timeParts[0] || '';
                         const timeEndStr = timeParts[1] || '';
 
-                        const itemBg = isBreak
-                            ? (isDark ? 'rgba(255,255,255,0.01)' : 'rgba(15,23,42,0.02)')
-                            : (isDark ? 'rgba(255,255,255,0.02)' : '#F8FAFC');
-                        const itemBorder = isBreak
-                            ? (isDark ? '1px solid rgba(255,255,255,0.03)' : '1px solid rgba(15,23,42,0.04)')
-                            : (isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(15,23,42,0.06)');
+                        const itemBg = isDark ? '#15181D' : '#F8FAFC';
+                        const itemBorder = isDark ? '1px solid #292E37' : '1px solid #E5E7EB';
 
                         return (
                             <div
                                 key={slot._id || index}
                                 style={{
                                     display: 'grid',
-                                    gridTemplateColumns: '70px 1fr auto',
+                                    gridTemplateColumns: '64px 1fr auto',
                                     alignItems: 'center',
-                                    gap: '12px',
+                                    gap: '10px',
                                     background: itemBg,
                                     border: itemBorder,
-                                    borderRadius: '10px',
-                                    padding: '8px 12px',
-                                    opacity: isBreak ? 0.5 : 1,
+                                    borderRadius: '6px',
+                                    padding: '6px 10px',
+                                    opacity: isBreak ? 0.6 : 1,
                                     transition: 'all 0.15s ease'
                                 }}
                             >
-                                {/* Left: Time slot stacked */}
+                                {/* Left: Time */}
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    color: isDark ? 'rgba(255,255,255,0.7)' : '#334155',
-                                    borderRight: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,23,42,0.06)',
-                                    paddingRight: '10px',
+                                    fontSize: '10.5px',
+                                    fontWeight: 600,
+                                    color: labelColor,
+                                    borderRight: isDark ? '1px solid #292E37' : '1px solid #E5E7EB',
+                                    paddingRight: '8px',
                                     textAlign: 'center',
-                                    lineHeight: 1.3
+                                    lineHeight: 1.2
                                 }}>
                                     <span>{timeStartStr}</span>
-                                    <span style={{ fontSize: '9px', opacity: 0.4, margin: '1px 0' }}>-</span>
                                     <span>{timeEndStr}</span>
                                 </div>
 
-                                {/* Middle: Class Details */}
+                                {/* Middle: Subject & Room */}
                                 <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    gap: '2px',
+                                    gap: '1px',
                                     opacity: itemOpacity,
                                     textDecoration: textDec,
                                     textDecorationColor: decColor,
-                                    textDecorationThickness: '2px',
-                                    transition: 'all 0.2s ease',
+                                    textDecorationThickness: '1.5px',
                                     overflow: 'hidden'
                                 }}>
                                     <span style={{
-                                        fontSize: '12px',
-                                        fontWeight: 700,
-                                        color: isBreak ? (isDark ? '#94a3b8' : '#64748b') : (isDark ? '#f1f5f9' : '#0f172a'),
+                                        fontSize: '11.5px',
+                                        fontWeight: 600,
+                                        color: isBreak ? labelColor : titleColor,
                                         whiteSpace: 'nowrap',
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis'
@@ -417,7 +461,7 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                     {slot.room && !isBreak && (
                                         <span style={{
                                             fontSize: '10px',
-                                            color: isDark ? 'rgba(255,255,255,0.45)' : '#64748b',
+                                            color: labelColor,
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '3px'
@@ -428,53 +472,25 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                     )}
                                 </div>
 
-                                {/* Right: Actions, Status or Type */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {/* Right: Action buttons or status badge */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     {isBreak ? (
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: isDark ? 'rgba(255,255,255,0.3)' : '#94a3b8', textTransform: 'uppercase' }}>
+                                        <span style={{ fontSize: '9.5px', fontWeight: 600, color: labelColor, textTransform: 'uppercase' }}>
                                             Break
                                         </span>
-                                    ) : isFuture ? (
-                                        <span style={{
-                                            fontSize: '9px',
-                                            fontWeight: 600,
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            background: slot.lectureType === 'Lab'
-                                                ? (isDark ? 'rgba(167, 139, 250, 0.1)' : 'rgba(124, 58, 237, 0.08)')
-                                                : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(15,23,42,0.04)'),
-                                            border: slot.lectureType === 'Lab'
-                                                ? (isDark ? '1px solid rgba(167, 139, 250, 0.2)' : '1px solid rgba(124, 58, 237, 0.2)')
-                                                : (isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(15,23,42,0.06)'),
-                                            color: slot.lectureType === 'Lab'
-                                                ? (isDark ? '#c4b5fd' : '#7c3aed')
-                                                : (isDark ? 'rgba(255,255,255,0.5)' : '#64748b')
-                                        }}>
-                                            {slot.lectureType || 'Theory'}
-                                        </span>
                                     ) : showActions ? (
-                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                        <div style={{ display: 'flex', gap: '3px' }}>
                                             <button
                                                 onClick={() => markAttendance(slot, 'Present')}
                                                 style={{
-                                                    background: isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)',
-                                                    border: isDark ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(16, 185, 129, 0.3)',
-                                                    color: isDark ? '#10b981' : '#059669',
-                                                    padding: '3px 7px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '9.5px',
+                                                    background: isDark ? 'rgba(22, 163, 74, 0.15)' : '#DCFCE7',
+                                                    border: isDark ? '1px solid rgba(22, 163, 74, 0.3)' : '1px solid #86EFAC',
+                                                    color: isDark ? '#86EFAC' : '#16A34A',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '9px',
                                                     fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.15s ease',
-                                                    outline: 'none'
-                                                }}
-                                                onMouseEnter={e => {
-                                                    e.currentTarget.style.background = '#10b981';
-                                                    e.currentTarget.style.color = '#fff';
-                                                }}
-                                                onMouseLeave={e => {
-                                                    e.currentTarget.style.background = isDark ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)';
-                                                    e.currentTarget.style.color = isDark ? '#10b981' : '#059669';
+                                                    cursor: 'pointer'
                                                 }}
                                             >
                                                 P
@@ -482,24 +498,14 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                             <button
                                                 onClick={() => markAttendance(slot, 'Absent')}
                                                 style={{
-                                                    background: isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.1)',
-                                                    border: isDark ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(239, 68, 68, 0.3)',
-                                                    color: isDark ? '#ef4444' : '#dc2626',
-                                                    padding: '3px 7px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '9.5px',
+                                                    background: isDark ? 'rgba(220, 38, 38, 0.15)' : '#FEE2E2',
+                                                    border: isDark ? '1px solid rgba(220, 38, 38, 0.3)' : '1px solid #FCA5A5',
+                                                    color: isDark ? '#FCA5A5' : '#DC2626',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '9px',
                                                     fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.15s ease',
-                                                    outline: 'none'
-                                                }}
-                                                onMouseEnter={e => {
-                                                    e.currentTarget.style.background = '#ef4444';
-                                                    e.currentTarget.style.color = '#fff';
-                                                }}
-                                                onMouseLeave={e => {
-                                                    e.currentTarget.style.background = isDark ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.1)';
-                                                    e.currentTarget.style.color = isDark ? '#ef4444' : '#dc2626';
+                                                    cursor: 'pointer'
                                                 }}
                                             >
                                                 A
@@ -507,37 +513,26 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                             <button
                                                 onClick={() => markAttendance(slot, 'Cancelled')}
                                                 style={{
-                                                    background: isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.1)',
-                                                    border: isDark ? '1px solid rgba(148, 163, 184, 0.25)' : '1px solid rgba(100, 116, 139, 0.3)',
-                                                    color: isDark ? '#94a3b8' : '#475569',
-                                                    padding: '3px 7px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '9.5px',
+                                                    background: isDark ? 'rgba(113, 113, 122, 0.15)' : '#F4F4F5',
+                                                    border: isDark ? '1px solid #3F3F46' : '1px solid #E4E4E7',
+                                                    color: labelColor,
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    fontSize: '9px',
                                                     fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.15s ease',
-                                                    outline: 'none'
-                                                }}
-                                                onMouseEnter={e => {
-                                                    e.currentTarget.style.background = isDark ? '#94a3b8' : '#475569';
-                                                    e.currentTarget.style.color = '#fff';
-                                                }}
-                                                onMouseLeave={e => {
-                                                    e.currentTarget.style.background = isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.1)';
-                                                    e.currentTarget.style.color = isDark ? '#94a3b8' : '#475569';
+                                                    cursor: 'pointer'
                                                 }}
                                             >
                                                 S
                                             </button>
                                         </div>
                                     ) : showStatusBadge ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <span style={{
-                                                fontSize: '10px',
-                                                fontWeight: 800,
+                                                fontSize: '9.5px',
+                                                fontWeight: 700,
                                                 color: statusColor,
-                                                textTransform: 'uppercase',
-                                                letterSpacing: '0.04em'
+                                                textTransform: 'uppercase'
                                             }}>
                                                 {slot.status === 'Cancelled' ? 'Suspended' : slot.status}
                                             </span>
@@ -546,34 +541,28 @@ const TodayClassesCard = ({ selectedDate, setSelectedDate }) => {
                                                 style={{
                                                     background: 'transparent',
                                                     border: 'none',
-                                                    outline: 'none',
                                                     cursor: 'pointer',
                                                     padding: 0,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.4)',
-                                                    transition: 'color 0.15s'
+                                                    color: labelColor
                                                 }}
-                                                onMouseEnter={e => e.currentTarget.style.color = isDark ? '#fff' : '#0f172a'}
-                                                onMouseLeave={e => e.currentTarget.style.color = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(15,23,42,0.4)'}
                                             >
-                                                <Edit2 size={11} />
+                                                <Edit2 size={10} />
                                             </button>
                                         </div>
                                     ) : (
                                         <span style={{
                                             fontSize: '9.5px',
-                                            fontWeight: 700,
+                                            fontWeight: 600,
                                             color: displayLabel.startsWith('Ends in')
-                                                ? (isDark ? '#a78bfa' : '#7c3aed')
-                                                : (isDark ? 'rgba(255,255,255,0.4)' : '#64748b'),
+                                                ? (isDark ? '#93C5FD' : '#2563EB')
+                                                : labelColor,
                                             background: displayLabel.startsWith('Ends in')
-                                                ? (isDark ? 'rgba(167, 139, 250, 0.08)' : 'rgba(124, 58, 237, 0.08)')
+                                                ? (isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF')
                                                 : 'transparent',
-                                            padding: displayLabel.startsWith('Ends in') ? '3px 8px' : '0',
-                                            borderRadius: '6px',
+                                            padding: displayLabel.startsWith('Ends in') ? '2px 6px' : '0',
+                                            borderRadius: '4px',
                                             border: displayLabel.startsWith('Ends in')
-                                                ? (isDark ? '1px solid rgba(167, 139, 250, 0.2)' : '1px solid rgba(124, 58, 237, 0.2)')
+                                                ? (isDark ? '1px solid rgba(59, 130, 246, 0.25)' : '1px solid #DBEAFE')
                                                 : 'none'
                                         }}>
                                             {displayLabel}

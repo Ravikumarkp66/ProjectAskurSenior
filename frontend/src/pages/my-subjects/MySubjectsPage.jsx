@@ -15,7 +15,8 @@ import {
     AlertCircle, 
     Inbox,
     PanelLeftOpen,
-    PanelLeftClose
+    PanelLeftClose,
+    Plus
 } from 'lucide-react';
 import { AuthContext } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,6 +27,7 @@ import MySubjectsSidebar from './components/MySubjectsSidebar';
 import TopicEditorialView from './components/TopicEditorialView';
 import { getAcademicContentTree } from '../../services/academicContentApi';
 import { mapApiTreeToNavigation, mergeSubjectWithContentTree } from '../../services/academicContentMapper';
+import { DEMO_SUBJECTS, getDemoContentTree } from '../../data/demo/mySubjectsDemoData.js';
 
 // In-memory cache for loaded subject content trees
 export const CONTENT_TREE_CACHE = new Map();
@@ -188,17 +190,21 @@ const MySubjectsPage = () => {
     const { subjectSlug, moduleSlug, section, topicSlug } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
-    const { user } = useContext(AuthContext);
+    const { user, hasPlusAccess } = useContext(AuthContext);
     const { isDark } = useTheme();
 
+    const isPlusUser = Boolean(user && hasPlusAccess);
     const initialData = useMemo(() => getInitialCachedData(), []);
 
-    // Timetable-derived subjects state (initializes immediately from cache for 0ms load)
-    const [subjects, setSubjects] = useState(() => initialData?.subjects || []);
+    // Timetable-derived subjects for Plus users; static demo subjects for free/unauthenticated users
+    const [subjects, setSubjects] = useState(() => {
+        if (!isPlusUser) return DEMO_SUBJECTS;
+        return initialData?.subjects || [];
+    });
     const [sectionName, setSectionName] = useState(() => initialData?.sectionName || '');
     const [semesterNumber, setSemesterNumber] = useState(() => initialData?.semester || 1);
     const [contentTrees, setContentTrees] = useState({});
-    const [loading, setLoading] = useState(() => !(initialData?.subjects?.length > 0));
+    const [loading, setLoading] = useState(() => isPlusUser && !(initialData?.subjects?.length > 0));
     const [searchQuery, setSearchQuery] = useState('');
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
     const isFetchingRef = useRef(false);
@@ -222,6 +228,18 @@ const MySubjectsPage = () => {
             return next;
         });
     };
+
+    // Close mobile drawer on Escape key
+    useEffect(() => {
+        if (!isMobileDrawerOpen) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                setIsMobileDrawerOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isMobileDrawerOpen]);
 
     // Theme Tokens (Light SaaS / Dark CSE Sheet)
     const t = useMemo(() => {
@@ -325,10 +343,17 @@ const MySubjectsPage = () => {
     const userSectionKey = typeof user?.section === 'object' ? (user.section?.name || user.section?.section || '') : (user?.section || '');
     const userSemesterKey = typeof user?.academicSemester === 'object' ? (user.academicSemester?.semesterNumber || '') : (user?.semester || '');
 
-    // Fetch authoritative timetable-derived subjects (SWR pattern)
+    // Fetch authoritative timetable-derived subjects (SWR pattern for Plus users only)
     useEffect(() => {
         let isMounted = true;
         const fetchAllocatedSubjects = async () => {
+            // ZERO database/API calls for non-logged-in or free users
+            if (!isPlusUser) {
+                setSubjects(DEMO_SUBJECTS);
+                setLoading(false);
+                return;
+            }
+
             try {
                 // If we don't have subjects cached in memory, show loading spinner
                 if (!subjects || subjects.length === 0) {
@@ -385,7 +410,7 @@ const MySubjectsPage = () => {
 
         fetchAllocatedSubjects();
         return () => { isMounted = false; };
-    }, [userSectionKey, userSemesterKey]);
+    }, [isPlusUser, userSectionKey, userSemesterKey]);
 
     // ── Pre-calculate active subject key from URL or first subject ───────────
     const currentSubjectIdentifier = useMemo(() => {
@@ -393,10 +418,22 @@ const MySubjectsPage = () => {
         return raw ? String(raw).toLowerCase() : 'default';
     }, [subjectSlug, subjects]);
 
-    // Fetch authoritative academic content tree from MongoDB API (SWR: instant cached display + background revalidation)
+    // Fetch authoritative academic content tree from MongoDB API (Plus users only)
     useEffect(() => {
         let isMounted = true;
         if (!currentSubjectIdentifier || currentSubjectIdentifier === 'default') return;
+
+        // ZERO database/API calls for free or non-logged-in users: resolve from static demo tree
+        if (!isPlusUser) {
+            const demoTree = getDemoContentTree(currentSubjectIdentifier);
+            if (demoTree && demoTree.length > 0) {
+                setContentTrees(prev => (prev[currentSubjectIdentifier] === demoTree ? prev : {
+                    ...prev,
+                    [currentSubjectIdentifier]: demoTree
+                }));
+            }
+            return;
+        }
 
         // If in-memory cache exists, populate immediately for 0ms instant display
         if (CONTENT_TREE_CACHE.has(currentSubjectIdentifier)) {
@@ -414,14 +451,22 @@ const MySubjectsPage = () => {
                 if (res?.success && res?.data?.modules && Array.isArray(res.data.modules) && res.data.modules.length > 0) {
                     const normalizedModules = mapApiTreeToNavigation(res.data);
                     if (normalizedModules && normalizedModules.length > 0) {
-                        CONTENT_TREE_CACHE.set(currentSubjectIdentifier, normalizedModules);
-                        try {
-                            sessionStorage.setItem(`ask_tree_cache_v3_${currentSubjectIdentifier}`, JSON.stringify(normalizedModules));
-                        } catch (e) {}
-                        setContentTrees(prev => ({
-                            ...prev,
-                            [currentSubjectIdentifier]: normalizedModules
-                        }));
+                        const keysToCache = [currentSubjectIdentifier];
+                        if (res.data.subject?.code) keysToCache.push(res.data.subject.code.toLowerCase());
+                        if (res.data.subject?.slug) keysToCache.push(res.data.subject.slug.toLowerCase());
+
+                        keysToCache.forEach(k => {
+                            CONTENT_TREE_CACHE.set(k, normalizedModules);
+                            try {
+                                sessionStorage.setItem(`ask_tree_cache_v3_${k}`, JSON.stringify(normalizedModules));
+                            } catch (e) {}
+                        });
+
+                        setContentTrees(prev => {
+                            const next = { ...prev };
+                            keysToCache.forEach(k => { next[k] = normalizedModules; });
+                            return next;
+                        });
                     }
                 }
             })
@@ -430,7 +475,7 @@ const MySubjectsPage = () => {
             });
 
         return () => { isMounted = false; };
-    }, [currentSubjectIdentifier]);
+    }, [isPlusUser, currentSubjectIdentifier]);
 
     // Enhanced subjects list: API tree is primary when loaded, baseline subjects used as fallback
     const enhancedSubjects = useMemo(() => {
@@ -503,8 +548,8 @@ const MySubjectsPage = () => {
             setCompletedTopicKeys(new Set());
         }
 
-        // Also fetch from API if subject is present
-        if (activeSubjectKey && activeSubjectKey !== 'default') {
+        // Also fetch from API if subject is present (Plus users only)
+        if (isPlusUser && activeSubjectKey && activeSubjectKey !== 'default') {
             apiV2.getEditorialProgress(activeSubjectKey)
                 .then(res => {
                     const progressData = res.data?.data;
@@ -534,7 +579,7 @@ const MySubjectsPage = () => {
                     // Silently fail if offline or not logged in - localStorage already works seamlessly
                 });
         }
-    }, [progressStorageKey, activeSubjectKey]);
+    }, [progressStorageKey, activeSubjectKey, isPlusUser]);
 
     const handleToggleTopicCompletion = (mod, topic) => {
         const modSlug = mod?.slug || (mod?.moduleNumber === 0 ? 'basics' : `module-${mod?.moduleNumber || 1}`);
@@ -564,8 +609,8 @@ const MySubjectsPage = () => {
             return next;
         });
 
-        // Backend persistence call
-        if (activeSubjectKey && activeSubjectKey !== 'default') {
+        // Backend persistence call (Plus users only)
+        if (isPlusUser && activeSubjectKey && activeSubjectKey !== 'default') {
             apiV2.toggleTopicCompletion({
                 subjectSlug: activeSubjectKey,
                 moduleSlug: modSlug,
@@ -581,9 +626,9 @@ const MySubjectsPage = () => {
     const activeModule = useMemo(() => {
         if (!activeSubject) return null;
 
-        // If modules were populated by the authoritative API content tree, use them directly
+        // If modules were populated by API or demo content tree, use them directly
         let modules = [];
-        if (activeSubject.contentSource === 'api' && Array.isArray(activeSubject.modules) && activeSubject.modules.length > 0) {
+        if ((activeSubject.contentSource === 'api' || activeSubject.contentSource === 'demo') && Array.isArray(activeSubject.modules) && activeSubject.modules.length > 0) {
             modules = activeSubject.modules;
         } else if (Array.isArray(activeSubject.modules) && activeSubject.modules.length > 0) {
             // Legacy fallback subject modules with label normalization
@@ -719,7 +764,9 @@ const MySubjectsPage = () => {
         } catch (e) {}
 
         const firstMod = subject.modules?.[0]?.slug || (subject.modules?.[0]?.moduleNumber !== undefined ? (subject.modules[0].moduleNumber === 0 ? 'basics' : `module-${subject.modules[0].moduleNumber}`) : 'module-1');
-        navigate(`${basePath}/${sSlug}/${firstMod}/${activeTab}`);
+        const firstTopic = subject.modules?.[0]?.topics?.[0]?.slug;
+        const topicPart = (activeTab === 'editorial' && firstTopic) ? `/${firstTopic}` : '';
+        navigate(`${basePath}/${sSlug}/${firstMod}/${activeTab}${topicPart}`);
     };
 
     const handleSelectModule = (subject, mod) => {
@@ -733,8 +780,8 @@ const MySubjectsPage = () => {
             const savedRaw = localStorage.getItem(`ask_last_opened_${uid}_${sSlug}_${targetSlug}`);
             if (savedRaw) {
                 const saved = JSON.parse(savedRaw);
-                if (saved?.topicSlug) {
-                    navigate(`${basePath}/${sSlug}/${targetSlug}/${activeTab}/${saved.topicSlug}`);
+                if (saved?.topicSlug && activeTab === 'editorial') {
+                    navigate(`${basePath}/${sSlug}/${targetSlug}/editorial/${saved.topicSlug}`);
                     setIsMobileDrawerOpen(false);
                     return;
                 }
@@ -742,7 +789,7 @@ const MySubjectsPage = () => {
         } catch (e) {}
 
         const firstTopicSlug = mod.topics?.[0]?.slug || mod.topics?.[0]?.id;
-        const topicPart = firstTopicSlug ? `/${firstTopicSlug}` : '';
+        const topicPart = (activeTab === 'editorial' && firstTopicSlug) ? `/${firstTopicSlug}` : '';
         navigate(`${basePath}/${sSlug}/${targetSlug}/${activeTab}${topicPart}`);
         setIsMobileDrawerOpen(false);
     };
@@ -752,7 +799,8 @@ const MySubjectsPage = () => {
         const targetMod = mod || activeModule;
         if (!subj || !targetMod) return;
         const modSlug = targetMod.slug || (targetMod.moduleNumber === 0 ? 'basics' : `module-${targetMod.moduleNumber}`);
-        navigate(`${basePath}/${subj.slug || subj.code?.toLowerCase()}/${modSlug}/${activeTab}/${topic.slug}`);
+        // Selecting a specific topic always opens the editorial study sheet
+        navigate(`${basePath}/${subj.slug || subj.code?.toLowerCase()}/${modSlug}/editorial/${topic.slug}`);
         setIsMobileDrawerOpen(false);
 
         if (mainScrollRef.current) {
@@ -764,7 +812,8 @@ const MySubjectsPage = () => {
     const handleSelectTab = (tabId) => {
         if (!activeSubject || !activeModule) return;
         const modSlug = activeModule.slug || (activeModule.moduleNumber === 0 ? 'basics' : `module-${activeModule.moduleNumber}`);
-        const topicSuffix = activeTopic?.slug ? `/${activeTopic.slug}` : '';
+        // Topic suffix is only relevant for the editorial sheet
+        const topicSuffix = (tabId === 'editorial' && activeTopic?.slug) ? `/${activeTopic.slug}` : '';
         navigate(`${basePath}/${activeSubject.slug || activeSubject.code?.toLowerCase()}/${modSlug}/${tabId}${topicSuffix}`);
     };
 
@@ -868,11 +917,14 @@ const MySubjectsPage = () => {
                     }
                 }
             } catch (e) {}
+
+            // Fallback: Canonical redirect to the first topic of this module if topics exist
+            if (activeModule?.topics?.[0]?.slug) {
+                navigate(`${basePath}/${currentSubjKey}/${currentModKey}/editorial/${activeModule.topics[0].slug}`, { replace: true });
+            }
         }
     }, [subjects, subjectSlug, moduleSlug, topicSlug, activeTab, user, basePath, navigate, activeSubject]);
 
-    const activeTabMeta = getTabMeta(activeTab, isDark);
-    const TabIcon = activeTabMeta.icon;
 
     const isCurrentTopicCompleted = useMemo(() => {
         if (!activeTopic) return false;
@@ -977,7 +1029,7 @@ const MySubjectsPage = () => {
                         loading={loading}
                         activeSubjectId={activeSubject?.slug || activeSubject?.code || activeSubject?._id}
                         activeModuleSlug={activeModule?.slug || (activeModule?.moduleNumber === 0 ? 'basics' : `module-${activeModule?.moduleNumber}`)}
-                        activeTopicSlug={activeTopic?.slug}
+                        activeTopicSlug={activeTab === 'editorial' ? activeTopic?.slug : null}
                         completedTopicKeys={completedTopicKeys}
                         onSelectSubject={handleSelectSubject}
                         onSelectModule={handleSelectModule}
@@ -1032,7 +1084,7 @@ const MySubjectsPage = () => {
                                     loading={loading}
                                     activeSubjectId={activeSubject?.slug || activeSubject?.code || activeSubject?._id}
                                     activeModuleSlug={activeModule?.slug || (activeModule?.moduleNumber === 0 ? 'basics' : `module-${activeModule?.moduleNumber}`)}
-                                    activeTopicSlug={activeTopic?.slug}
+                                    activeTopicSlug={activeTab === 'editorial' ? activeTopic?.slug : null}
                                     completedTopicKeys={completedTopicKeys}
                                     onSelectSubject={handleSelectSubject}
                                     onSelectModule={handleSelectModule}
@@ -1173,23 +1225,43 @@ const MySubjectsPage = () => {
                                 >
                                     {activeSubject?.displayName || activeSubject?.name || 'Subject'}
                                 </h1>
-                                {(activeSubject?.branchCode || activeSubject?.displayCode || activeSubject?.code) && (
-                                    <span
-                                        style={{
-                                            fontSize: '11.5px',
-                                            fontWeight: 700,
-                                            fontFamily: 'monospace',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            background: isDark ? 'rgba(255, 255, 255, 0.05)' : (activeTab === 'editorial' ? '#FFFFFF' : t.codeBadgeBg),
-                                            border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : (activeTab === 'editorial' ? '#E2E4E8' : t.codeBadgeBorder)}`,
-                                            color: isDark ? '#A5D6FF' : (activeTab === 'editorial' ? '#4B5563' : t.codeBadgeText),
-                                            letterSpacing: '0.04em'
-                                        }}
-                                    >
-                                        [{activeSubject.branchCode || activeSubject.displayCode || activeSubject.code}]
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-2.5 shrink-0">
+                                    {!isPlusUser && (
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(user ? '/plus' : '/login')}
+                                            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors border"
+                                            style={{
+                                                background: isDark ? '#15181D' : '#EFF6FF',
+                                                color: isDark ? '#60A5FA' : '#1D4ED8',
+                                                borderColor: isDark ? '#292E37' : '#DBEAFE',
+                                                boxShadow: 'none'
+                                            }}
+                                        >
+                                            <span className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0" style={{ background: isDark ? 'rgba(96, 165, 250, 0.2)' : 'rgba(29, 78, 216, 0.1)' }}>
+                                                <Plus size={10} strokeWidth={2.5} />
+                                            </span>
+                                            <span>{user ? 'Upgrade to Plus' : 'Log in to Access'}</span>
+                                        </button>
+                                    )}
+                                    {(activeSubject?.branchCode || activeSubject?.displayCode || activeSubject?.code) && (
+                                        <span
+                                            style={{
+                                                fontSize: '11.5px',
+                                                fontWeight: 700,
+                                                fontFamily: 'monospace',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                background: isDark ? 'rgba(255, 255, 255, 0.05)' : (activeTab === 'editorial' ? '#FFFFFF' : t.codeBadgeBg),
+                                                border: `1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : (activeTab === 'editorial' ? '#E2E4E8' : t.codeBadgeBorder)}`,
+                                                color: isDark ? '#A5D6FF' : (activeTab === 'editorial' ? '#4B5563' : t.codeBadgeText),
+                                                letterSpacing: '0.04em'
+                                            }}
+                                        >
+                                            [{activeSubject.branchCode || activeSubject.displayCode || activeSubject.code}]
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Feature Tabs: [ Editorial ] [ PYQs ] [ Discussion ] */}
@@ -1266,115 +1338,115 @@ const MySubjectsPage = () => {
                                         isCompleted={isCurrentTopicCompleted}
                                         onToggleCompletion={() => handleToggleTopicCompletion(activeModule, activeTopic)}
                                         isDark={isDark}
+                                        hasPlusAccess={hasPlusAccess}
+                                        onNavigate={navigate}
                                     />
                                 </div>
                         ) : (
-                            <div 
-                                className="flex-1 flex flex-col items-center justify-center text-center py-12 px-4"
-                                style={{ minHeight: '300px' }}
-                            >
-                                <motion.div
-                                    key={`${activeSubject?.code}-${activeModule?.moduleNumber}-${activeTab}-${activeTopic?.slug || 'none'}`}
-                                    initial={{ opacity: 0, y: 8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.22 }}
-                                    style={{
-                                        maxWidth: '520px',
-                                        width: '100%',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        gap: '14px',
-                                        background: t.emptyCardBg,
-                                        border: t.emptyCardBorder,
-                                        borderRadius: isDark ? '0' : '20px',
-                                        padding: isDark ? '0' : '36px 28px',
-                                        boxShadow: t.emptyCardShadow
-                                    }}
-                                >
-                                {/* Ambient Icon */}
+                            (!isPlusUser && (activeTab === 'pyqs' || activeTab === 'discussion')) ? (
                                 <div 
-                                    style={{
-                                        width: 60,
-                                        height: 60,
-                                        borderRadius: '18px',
-                                        background: activeTabMeta.bg,
-                                        border: `1px solid ${activeTabMeta.border}`,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: activeTabMeta.color,
-                                        boxShadow: activeTabMeta.shadow || `0 0 28px ${activeTabMeta.color}25`
-                                    }}
+                                    className="flex-1 flex flex-col items-center justify-center text-center py-20 px-4"
+                                    style={{ minHeight: '360px' }}
                                 >
-                                    <TabIcon size={26} strokeWidth={1.8} />
-                                </div>
-
-                                {/* Title & Badge */}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                                    <h3 
+                                    <div
+                                        className="rounded-lg flex flex-col items-center justify-center text-center max-w-[460px] w-full p-8 border"
                                         style={{
-                                            fontSize: '17px',
-                                            fontWeight: 750,
-                                            color: t.emptyTitle,
-                                            margin: 0,
-                                            letterSpacing: '-0.02em'
+                                            background: isDark ? '#15181D' : '#FFFFFF',
+                                            borderColor: isDark ? '#292E37' : '#E5E7EB',
+                                            boxShadow: 'none'
                                         }}
                                     >
-                                        {activeTabMeta.title}
-                                    </h3>
+                                        <div 
+                                            style={{
+                                                width: 48,
+                                                height: 48,
+                                                borderRadius: '50%',
+                                                background: isDark ? 'rgba(59, 130, 246, 0.12)' : 'rgba(37, 99, 235, 0.1)',
+                                                border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(37, 99, 235, 0.25)'}`,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: isDark ? '#60A5FA' : '#2563EB',
+                                                marginBottom: 16
+                                            }}
+                                        >
+                                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                            </svg>
+                                        </div>
+
+                                        <div 
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                fontSize: 11,
+                                                fontWeight: 500,
+                                                letterSpacing: '0.04em',
+                                                textTransform: 'uppercase',
+                                                color: isDark ? '#60A5FA' : '#2563EB',
+                                                background: isDark ? 'rgba(59, 130, 246, 0.12)' : '#EFF6FF',
+                                                border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.25)' : '#DBEAFE'}`,
+                                                borderRadius: '9999px',
+                                                padding: '2px 8px',
+                                                marginBottom: 12
+                                            }}
+                                        >
+                                            Plus Only
+                                        </div>
+
+                                        <h3 style={{ fontSize: '18px', fontWeight: 600, color: isDark ? '#F3F4F6' : '#111827', margin: '0 0 8px' }}>
+                                            {activeTab === 'pyqs' ? 'Previous Year Questions' : 'Module Doubts & Discussions'}
+                                        </h3>
+
+                                        <p style={{ fontSize: '13px', color: isDark ? '#A1A1AA' : '#4B5563', margin: '0 0 22px', lineHeight: 1.55 }}>
+                                            {activeTab === 'pyqs' 
+                                                ? 'Curated examination question papers with year tagging and model answers are available with AskUrSenior Plus.'
+                                                : 'Module-specific discussions and verified senior mentor answers are available with AskUrSenior Plus.'}
+                                        </p>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => navigate(user ? '/plus' : '/login')}
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 7,
+                                                padding: '9px 20px',
+                                                borderRadius: '6px',
+                                                background: isDark ? '#3B82F6' : '#2563EB',
+                                                color: '#ffffff',
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                boxShadow: 'none'
+                                            }}
+                                        >
+                                            {user ? 'Upgrade to Plus →' : 'Log in to Access →'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div 
+                                    className="flex-1 flex items-center justify-center text-center py-24 px-4"
+                                    style={{ minHeight: '360px' }}
+                                >
                                     <span 
                                         style={{
-                                            fontSize: '10px',
-                                            fontWeight: 800,
-                                            padding: '2px 8px',
-                                            borderRadius: '999px',
-                                            background: t.badgeBg,
-                                            border: `1px solid ${t.badgeBorder}`,
-                                            color: t.badgeText,
-                                            letterSpacing: '0.06em',
-                                            textTransform: 'uppercase'
+                                            fontSize: '15px',
+                                            fontWeight: 500,
+                                            color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)',
+                                            letterSpacing: '0.02em',
+                                            userSelect: 'none'
                                         }}
                                     >
                                         Coming Soon
                                     </span>
                                 </div>
-
-                                {/* Description */}
-                                <p 
-                                    style={{
-                                        fontSize: '13px',
-                                        color: t.emptyDesc,
-                                        margin: '2px 0 10px',
-                                        lineHeight: 1.55,
-                                        maxWidth: '400px'
-                                    }}
-                                >
-                                    {activeTabMeta.description}
-                                </p>
-
-                                {/* Active Context Pill */}
-                                <div
-                                    style={{
-                                        padding: '8px 14px',
-                                        borderRadius: '8px',
-                                        background: t.contextBg,
-                                        border: t.contextBorder,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        fontSize: '12px',
-                                        color: t.contextText
-                                    }}
-                                >
-                                    <Folder size={14} color={t.contextIcon} />
-                                    <span>
-                                        Active Context: <strong style={{ color: t.contextHighlight }}>[{activeSubject?.branchCode || activeSubject?.displayCode || activeSubject?.code}] {activeSubject?.displayName || activeSubject?.name}</strong> → <strong style={{ color: t.contextHighlight }}>{activeModule?.displayLabel || activeModule?.title || `Module ${String(activeModule?.moduleNumber || 1).padStart(2, '0')}`}</strong>{activeTopic && <> → <strong style={{ color: t.contextHighlight }}>{activeTopic.displayLabel || activeTopic.title}</strong></>}
-                                    </span>
-                                </div>
-                            </motion.div>
-                        </div>
-                    )}
+                            )
+                        )}
                     </>
                 )}
             </main>

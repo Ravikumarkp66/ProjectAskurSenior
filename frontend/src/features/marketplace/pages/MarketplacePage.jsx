@@ -112,7 +112,7 @@ const MarketplacePage = ({ initialCategory }) => {
     // If an item is selected for details view, render MarketplaceDetailsPage
     if (selectedItem) {
         return (
-            <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3] p-4 sm:p-6 md:p-8">
+            <div className="min-h-screen bg-slate-50 dark:bg-[#0D1117] text-slate-900 dark:text-[#E6EDF3] p-4 sm:p-6 md:p-8 transition-colors duration-200">
                 <MarketplaceDetailsPage
                     item={selectedItem}
                     currentUser={currentUser}
@@ -152,7 +152,7 @@ const MarketplacePage = ({ initialCategory }) => {
     }
 
     return (
-        <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3] p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-5 pb-24 md:pb-8 relative">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#0D1117] text-slate-900 dark:text-[#E6EDF3] p-3 sm:p-6 md:p-8 space-y-4 sm:space-y-5 pb-24 md:pb-8 relative transition-colors duration-200">
             {/* Header */}
             <MarketplaceHeader
                 onSellClick={handleSellClick}

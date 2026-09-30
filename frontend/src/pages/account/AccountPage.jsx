@@ -1,8 +1,8 @@
 import React from 'react';
-import { useNavigate, useParams, NavLink } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    LayoutList, 
+    CreditCard, 
     ShieldCheck, 
     History,
     ArrowLeft
@@ -13,7 +13,7 @@ import AccountSecuritySection from './sections/AccountSecuritySection';
 import AccountLoginHistorySection from './sections/AccountLoginHistorySection';
 
 export const ACCOUNT_TABS = [
-    { id: 'summary', label: 'Summary', icon: LayoutList },
+    { id: 'summary', label: 'Plan', icon: CreditCard },
     { id: 'security', label: 'Security', icon: ShieldCheck },
     { id: 'login-history', label: 'Login History', icon: History }
 ];
@@ -44,13 +44,16 @@ const AccountPage = () => {
     };
 
     return (
-        <div style={{
-            width: '100%',
-            height: 'calc(100vh - 32px)',
-            overflow: 'hidden',
-            boxSizing: 'border-box',
-            fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
-        }}>
+        <div 
+            style={{
+                width: '100%',
+                height: 'calc(100vh - 32px)',
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+                fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
+            }}
+            className="text-slate-900 dark:text-white"
+        >
             {/* ══════════════════════════════════════════════════════════════
                 DESKTOP LAYOUT (≥ 768px) — Sidebar + Content Panel
             ══════════════════════════════════════════════════════════════ */}
@@ -69,60 +72,31 @@ const AccountPage = () => {
                     initial={{ opacity: 0, x: -12 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
-                    style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '12px',
-                        padding: '16px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                        height: '100%',
-                        boxSizing: 'border-box'
-                    }}
-                    className="settings-left-col"
+                    className="settings-left-col rounded-2xl border p-4 sm:p-5 flex flex-col gap-3.5 h-full box-border transition-all duration-200 bg-white dark:bg-[#0D111C] border-slate-200/80 dark:border-white/[0.08] shadow-sm dark:shadow-xl text-slate-900 dark:text-white"
                 >
                     {/* Back to Profile link */}
                     <button
                         type="button"
                         onClick={() => navigate('/profile')}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            color: 'rgba(148, 163, 184, 0.65)',
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            textDecoration: 'none',
-                            transition: 'color 0.15s',
-                            cursor: 'pointer',
-                            alignSelf: 'flex-start',
-                            background: 'transparent',
-                            border: 'none',
-                            padding: 0
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)'}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-purple-600 dark:text-slate-400 dark:hover:text-purple-400 transition-colors cursor-pointer self-start bg-transparent border-0 p-0"
                     >
-                        <ArrowLeft size={12} />
+                        <ArrowLeft size={13} />
                         <span>Back to Profile</span>
                     </button>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
+                    <div className="flex flex-col gap-1">
+                        <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white m-0">
                             Settings
                         </h2>
-                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.55)', fontWeight: 500 }}>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                             Configure your academic profile workspace
                         </span>
                     </div>
 
-                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
+                    <div className="h-px bg-slate-100 dark:bg-white/[0.08] my-1" />
 
                     {/* Navigation list */}
-                    <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                    <nav className="flex flex-col gap-1.5 flex-1">
                         {TABS.map((item) => {
                             const Icon = item.icon;
                             const isActive = activeTab === item.id;
@@ -131,42 +105,13 @@ const AccountPage = () => {
                                     key={item.id}
                                     type="button"
                                     onClick={() => handleTabChange(item.id)}
-                                    style={{
-                                        padding: '9px 12px',
-                                        borderRadius: '8px',
-                                        color: isActive ? '#a78bfa' : 'rgba(148, 163, 184, 0.65)',
-                                        background: isActive
-                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
-                                            : 'transparent',
-                                        border: isActive
-                                            ? '1px solid rgba(139, 92, 246, 0.25)'
-                                            : '1px solid transparent',
-                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.08)' : 'none',
-                                        fontSize: '12.5px',
-                                        fontWeight: isActive ? 600 : 500,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        textDecoration: 'none',
-                                        transition: 'all 0.18s',
-                                        cursor: 'pointer',
-                                        width: '100%',
-                                        textAlign: 'left'
-                                    }}
-                                    onMouseEnter={e => {
-                                        if (!isActive) {
-                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.85)';
-                                        }
-                                    }}
-                                    onMouseLeave={e => {
-                                        if (!isActive) {
-                                            e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)';
-                                        }
-                                    }}
+                                    className={`w-full text-left py-2.5 px-3 rounded-xl text-xs flex items-center gap-2.5 transition-all cursor-pointer ${
+                                        isActive
+                                            ? 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200/80 dark:border-purple-500/30 font-semibold shadow-xs'
+                                            : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/[0.04] border border-transparent font-medium'
+                                    }`}
                                 >
-                                    <Icon size={14} />
+                                    <Icon size={15} />
                                     <span>{item.label}</span>
                                 </button>
                             );
@@ -179,20 +124,7 @@ const AccountPage = () => {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
-                    style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '12px',
-                        padding: '20px',
-                        backdropFilter: 'blur(20px)',
-                        WebkitBackdropFilter: 'blur(20px)',
-                        minWidth: 0,
-                        height: '100%',
-                        overflowY: 'auto',
-                        overflowX: 'auto',
-                        boxSizing: 'border-box'
-                    }}
-                    className="settings-content-col"
+                    className="settings-content-col rounded-2xl border p-5 sm:p-7 min-w-0 h-full overflow-y-auto box-border transition-all duration-200 bg-white dark:bg-[#0D111C] border-slate-200/80 dark:border-white/[0.08] shadow-sm dark:shadow-xl text-slate-900 dark:text-white"
                 >
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -212,56 +144,22 @@ const AccountPage = () => {
                 MOBILE LAYOUT (< 768px) — Mobile Header + Content
             ══════════════════════════════════════════════════════════════ */}
             <div className="mobile-edit-shell">
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '14px 16px 12px',
-                    boxSizing: 'border-box',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)'
-                }}>
+                <div className="flex items-center gap-2.5 p-3.5 px-4 border-b border-slate-200 dark:border-white/[0.08] bg-white/95 dark:bg-[#0D111C]/95 backdrop-blur-md">
                     <button
                         type="button"
                         onClick={() => navigate('/profile')}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                            background: 'rgba(139,92,246,0.08)',
-                            border: '1px solid rgba(139,92,246,0.2)',
-                            borderRadius: '8px',
-                            color: '#c4b5fd',
-                            fontSize: '12.5px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            padding: '5px 11px',
-                            outline: 'none',
-                            flexShrink: 0
-                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 cursor-pointer shrink-0"
                     >
                         <ArrowLeft size={13} />
                         <span>Back</span>
                     </button>
-                    <span style={{
-                        flex: 1,
-                        textAlign: 'center',
-                        fontSize: '15px',
-                        fontWeight: 700,
-                        color: '#fff'
-                    }}>
+                    <span className="flex-1 text-center text-sm font-extrabold text-slate-900 dark:text-white">
                         Account Settings
                     </span>
                 </div>
 
                 {/* Mobile Tabs */}
-                <div style={{
-                    display: 'flex',
-                    gap: '8px',
-                    padding: '10px 16px',
-                    overflowX: 'auto',
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(19, 18, 26, 0.3)'
-                }}>
+                <div className="flex gap-2 p-2.5 px-4 overflow-x-auto border-b border-slate-200 dark:border-white/[0.08] bg-slate-50/70 dark:bg-white/[0.02]">
                     {TABS.map((item) => {
                         const Icon = item.icon;
                         const isActive = activeTab === item.id;
@@ -270,24 +168,11 @@ const AccountPage = () => {
                                 key={item.id}
                                 type="button"
                                 onClick={() => handleTabChange(item.id)}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '7px 12px',
-                                    borderRadius: '8px',
-                                    fontSize: '12px',
-                                    fontWeight: isActive ? 600 : 500,
-                                    whiteSpace: 'nowrap',
-                                    color: isActive ? '#a78bfa' : 'rgba(148, 163, 184, 0.65)',
-                                    background: isActive
-                                        ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
-                                        : 'transparent',
-                                    border: isActive
-                                        ? '1px solid rgba(139, 92, 246, 0.25)'
-                                        : '1px solid transparent',
-                                    cursor: 'pointer'
-                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs whitespace-nowrap cursor-pointer transition-all ${
+                                    isActive
+                                        ? 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 font-semibold shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border border-transparent font-medium'
+                                }`}
                             >
                                 <Icon size={13} />
                                 <span>{item.label}</span>
@@ -296,12 +181,7 @@ const AccountPage = () => {
                     })}
                 </div>
 
-                <div style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    padding: '16px',
-                    background: 'rgba(19, 18, 26, 0.45)'
-                }}>
+                <div className="flex-1 overflow-y-auto p-4 bg-white dark:bg-[#0D111C]">
                     {renderSection()}
                 </div>
             </div>

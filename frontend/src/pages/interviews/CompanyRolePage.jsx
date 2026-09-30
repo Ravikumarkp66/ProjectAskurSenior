@@ -1,11 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation, useNavigate } from 'react-router-dom';
 import { interviewExperiencesAPI } from '../../services/api';
+import { useAuth } from '../../utils/hooks';
+import { getDemoCompanyDetail } from '../../data/demoInterviewExperiences';
+import CompanyLogo from '../../components/CompanyLogo';
 import { 
     ChevronLeft, 
-    Building2, 
     ShieldCheck, 
-    Loader2
+    Loader2,
+    LogIn,
+    Sparkles
 } from 'lucide-react';
 import InterviewRounds from '../../components/interview/InterviewRounds';
 import { transformExperiencesByRound } from '../../utils/interviewTransform';
@@ -21,14 +25,28 @@ const DUMMY_COMPANY_ROLE = {
 
 const CompanyRolePage = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { isAuthenticated, hasPlusAccess } = useAuth();
     const [theme] = useState(() => localStorage.getItem('uiTheme') || 'dark');
     const [experiences, setExperiences] = useState([]);
+    const [demoGroupedRounds, setDemoGroupedRounds] = useState({});
     const [isLoading, setIsLoading] = useState(true);
     const [companyInfo, setCompanyInfo] = useState(DUMMY_COMPANY_ROLE);
 
     useEffect(() => {
+        if (!id) return;
+
+        // ZERO API / Database calls for non-Plus and guest users
+        if (!hasPlusAccess) {
+            const demo = getDemoCompanyDetail(id);
+            setCompanyInfo(demo.companyInfo);
+            setDemoGroupedRounds(demo.groupedRounds);
+            setIsLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
-            if (!id) return;
             setIsLoading(true);
             try {
                 // Support batch-encoded slugs: "companyId--batch" (used for Amazon split)
@@ -87,11 +105,12 @@ const CompanyRolePage = () => {
             }
         };
         fetchData();
-    }, [id]);
+    }, [id, hasPlusAccess]);
 
-    const groupedRounds = useMemo(() => {
+    const activeGroupedRounds = useMemo(() => {
+        if (!hasPlusAccess) return demoGroupedRounds;
         return transformExperiencesByRound(experiences);
-    }, [experiences]);
+    }, [hasPlusAccess, demoGroupedRounds, experiences]);
 
     const isLightMode = theme === 'light';
     const formattedCtc = (companyInfo.ctc === "Role Based" || /lpa|lakh|L$/i.test(companyInfo.ctc)) 
@@ -109,23 +128,60 @@ const CompanyRolePage = () => {
         );
     }
 
+    const backLink = location.pathname.startsWith('/plus') ? '/plus/interview' : '/home/interview';
+
     return (
         <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-28">
             {/* Top Navigation: Back to Companies */}
             <div className="pt-6 pb-2">
                 <Link 
-                    to="/home/interview"
+                    to={backLink}
                     className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-purple-400 font-medium transition-colors group mb-4"
                 >
                     <ChevronLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
                     <span>Back to Companies</span>
                 </Link>
 
+                {/* Authentication & Plus Status Banners */}
+                {!isAuthenticated && (
+                    <div className="mb-4 px-4 py-3 rounded-[8px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#EFF6FF] dark:bg-[#15181D] flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                            <LogIn size={16} className="text-[#2563EB] shrink-0" />
+                            <p className="text-[13px] text-[#111827] dark:text-[#F3F4F6] m-0">
+                                <span className="font-semibold">Sign in</span> to see full interview experiences from seniors.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)}
+                            className="text-[#2563EB] hover:text-[#1D4ED8] underline cursor-pointer bg-transparent border-0 p-0 text-[13px] font-medium shrink-0"
+                        >
+                            Log in →
+                        </button>
+                    </div>
+                )}
+
+                {isAuthenticated && !hasPlusAccess && (
+                    <div className="mb-4 px-4 py-3 rounded-[8px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#EFF6FF] dark:bg-[#15181D] flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5">
+                            <Sparkles size={16} className="text-[#2563EB] shrink-0" />
+                            <p className="text-[13px] text-[#111827] dark:text-[#F3F4F6] m-0">
+                                Viewing preview experiences. <span className="font-semibold">Upgrade to Plus</span> for complete senior interview archives and verified question debriefs.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/pricing')}
+                            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[6px] px-3 py-1 text-xs font-medium cursor-pointer shrink-0 transition-colors"
+                        >
+                            Upgrade to Plus →
+                        </button>
+                    </div>
+                )}
+
                 {/* Simplified Company Header: Compact Logo + Hierarchy */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/[0.08]">
                     <div className="flex items-center gap-3.5">
                         {/* Compact Company Logo (44px) */}
-                        <div className="w-11 h-11 rounded-lg bg-white p-1.5 flex items-center justify-center shrink-0 border border-white/10 shadow-sm overflow-hidden">
+                        <div className="w-11 h-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 border border-white/10 shadow-sm overflow-hidden">
                             {companyInfo.logo ? (
                                 <img 
                                     src={companyInfo.logo} 
@@ -137,7 +193,7 @@ const CompanyRolePage = () => {
                                     }}
                                 />
                             ) : (
-                                <Building2 size={22} className="text-slate-700" />
+                                <CompanyLogo company={companyInfo.company} className="w-8 h-8 object-contain" />
                             )}
                         </div>
 
@@ -158,7 +214,7 @@ const CompanyRolePage = () => {
                                 <span>{companyInfo.batch}</span>
                                 <span>·</span>
                                 <span className="text-purple-400 font-mono font-medium">
-                                    {experiences.length} {experiences.length === 1 ? 'experience' : 'experiences'}
+                                    {(hasPlusAccess ? experiences.length : companyInfo.totalExperiences)} {(hasPlusAccess ? experiences.length : companyInfo.totalExperiences) === 1 ? 'experience' : 'experiences'}
                                 </span>
                             </div>
                         </div>
@@ -207,7 +263,7 @@ const CompanyRolePage = () => {
 
             {/* Information-Dense CSES Interview Rounds Section */}
             <InterviewRounds 
-                groupedRounds={groupedRounds} 
+                groupedRounds={activeGroupedRounds} 
                 isLightMode={isLightMode} 
             />
         </div>

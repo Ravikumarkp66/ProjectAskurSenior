@@ -43,6 +43,11 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            // If caller requested not to hard redirect on 401 (e.g. optional public feeds)
+            if (error.config?.skipAuthRedirect) {
+                return Promise.reject(error);
+            }
+
             const currentPath = window.location.pathname;
             const isAuthRoute = currentPath === '/login' || currentPath === '/signup' || currentPath === '/complete-profile' || currentPath === '/admin/login';
 

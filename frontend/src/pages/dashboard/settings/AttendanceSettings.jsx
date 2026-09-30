@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../../context/AuthContext';
@@ -21,6 +21,513 @@ import SubjectSwapModal from './components/attendance/SubjectSwapModal';
 import TimetableSlotCustomizeModal from './components/attendance/TimetableSlotCustomizeModal';
 import PastWeekChangeWarningModal from './components/attendance/PastWeekChangeWarningModal';
 import OfficialTimetableModal from './components/attendance/OfficialTimetableModal';
+import AttendanceSectionSetupModal from './components/attendance/AttendanceSectionSetupModal';
+
+// ── Realistic Static Dummy Data for Non-Plus Users (Zero DB/API calls) ──
+const DUMMY_USER_PROFILE = {
+    name: 'Student Demo',
+    semester: 4,
+    section: 'A',
+    labBatch: 'B1',
+    branch: 'CSE',
+    academicSection: { name: 'A' },
+    sectionLocked: true
+};
+
+const DUMMY_ALLOTTED_TIMETABLE = {
+    sectionName: 'A',
+    labBatch: 'B1',
+    branchName: 'Computer Science & Engineering',
+    semesterNumber: 4
+};
+
+const DUMMY_ATTENDANCE_OVERALL = {
+    attendance: 84.43,
+    percentage: 84.43,
+    totalClasses: 154,
+    conducted: 122,
+    present: 103,
+    absent: 19,
+    medicalLeave: 0,
+    onDuty: 0,
+    cancelled: 0,
+    status: 'Attention',
+    margin: 18,
+    collegeThreshold: 85,
+    userThreshold: 85,
+    threshold: 85,
+    canMiss: 0,
+    needToAttend: 2,
+    streak: { current: 3, longest: 14 }
+};
+
+const DUMMY_ATTENDANCE_SUBJECTS = [
+    {
+        subjectId: 'sub-mat41',
+        subjectCode: '21MAT41',
+        code: '21MAT41',
+        name: 'Mathematics IV (Complex Analysis)',
+        subjectName: 'Mathematics IV (Complex Analysis)',
+        category: 'Theory',
+        credits: 3,
+        attendancePercentage: 88.46,
+        collegeThreshold: 85,
+        userThreshold: 85,
+        analytics: {
+            present: 23,
+            conducted: 26,
+            expected: 32,
+            toBeConducted: 6,
+            absent: 3,
+            medicalLeave: 0,
+            onDuty: 0,
+            streak: { current: 4, longest: 12 },
+            healthStatus: '🟢 Safe',
+            statusCategory: 'SAFE',
+            statusMessage: 'On target'
+        }
+    },
+    {
+        subjectId: 'sub-cs42',
+        subjectCode: '21CS42',
+        code: '21CS42',
+        name: 'Design & Analysis of Algorithms',
+        subjectName: 'Design & Analysis of Algorithms',
+        category: 'Theory',
+        credits: 4,
+        attendancePercentage: 84.62,
+        collegeThreshold: 85,
+        userThreshold: 85,
+        analytics: {
+            present: 22,
+            conducted: 26,
+            expected: 32,
+            toBeConducted: 6,
+            absent: 4,
+            medicalLeave: 0,
+            onDuty: 0,
+            streak: { current: 2, longest: 9 },
+            healthStatus: '🟡 Attention',
+            statusCategory: 'ATTENTION',
+            statusMessage: 'Below personal target'
+        }
+    },
+    {
+        subjectId: 'sub-cs43',
+        subjectCode: '21CS43',
+        code: '21CS43',
+        name: 'Operating Systems',
+        subjectName: 'Operating Systems',
+        category: 'Theory',
+        credits: 3,
+        attendancePercentage: 81.82,
+        collegeThreshold: 85,
+        userThreshold: 85,
+        analytics: {
+            present: 18,
+            conducted: 22,
+            expected: 28,
+            toBeConducted: 6,
+            absent: 4,
+            medicalLeave: 0,
+            onDuty: 0,
+            streak: { current: 3, longest: 8 },
+            healthStatus: '🟡 Attention',
+            statusCategory: 'ATTENTION',
+            statusMessage: 'Below personal target'
+        }
+    },
+    {
+        subjectId: 'sub-cs44',
+        subjectCode: '21CS44',
+        code: '21CS44',
+        name: 'Microcontrollers & Embedded Systems',
+        subjectName: 'Microcontrollers & Embedded Systems',
+        category: 'Theory',
+        credits: 3,
+        attendancePercentage: 73.68,
+        collegeThreshold: 85,
+        userThreshold: 85,
+        analytics: {
+            present: 14,
+            conducted: 19,
+            expected: 26,
+            toBeConducted: 7,
+            absent: 5,
+            medicalLeave: 0,
+            onDuty: 0,
+            streak: { current: 0, longest: 6 },
+            healthStatus: '🔴 Critical',
+            statusCategory: 'CRITICAL',
+            statusMessage: 'Below college minimum'
+        }
+    },
+    {
+        subjectId: 'sub-csl46',
+        subjectCode: '21CSL46',
+        code: '21CSL46',
+        name: 'Algorithms Laboratory',
+        subjectName: 'Algorithms Laboratory',
+        category: 'Lab',
+        credits: 1.5,
+        attendancePercentage: 95.0,
+        collegeThreshold: 85,
+        userThreshold: 85,
+        analytics: {
+            present: 19,
+            conducted: 20,
+            expected: 24,
+            toBeConducted: 4,
+            absent: 1,
+            medicalLeave: 0,
+            onDuty: 0,
+            streak: { current: 5, longest: 14 },
+            healthStatus: '🟢 Safe',
+            statusCategory: 'SAFE',
+            statusMessage: 'On target'
+        }
+    },
+    {
+        subjectId: 'sub-cip47',
+        subjectCode: '21CIP47',
+        code: '21CIP47',
+        name: 'Constitution of India & Ethics',
+        subjectName: 'Constitution of India & Ethics',
+        category: 'Theory',
+        credits: 1,
+        attendancePercentage: 77.78,
+        collegeThreshold: 85,
+        userThreshold: 85,
+        analytics: {
+            present: 7,
+            conducted: 9,
+            expected: 12,
+            toBeConducted: 3,
+            absent: 2,
+            medicalLeave: 0,
+            onDuty: 0,
+            streak: { current: 1, longest: 4 },
+            healthStatus: '🟡 Attention',
+            statusCategory: 'ATTENTION',
+            statusMessage: 'Below personal target'
+        }
+    }
+];
+
+const DUMMY_DAY_CLASSES = [
+    {
+        _id: 'dummy-slot-1',
+        subjectId: 'sub-cs42',
+        subjectCode: '21CS42',
+        subjectName: 'Design & Analysis of Algorithms',
+        timeSlot: '09:00 - 09:55',
+        lectureType: 'Lecture',
+        room: 'LH-204',
+        credits: 4,
+        teacherName: 'Dr. Ramesh Kumar',
+        status: 'Present'
+    },
+    {
+        _id: 'dummy-slot-2',
+        subjectId: 'sub-cs43',
+        subjectCode: '21CS43',
+        subjectName: 'Operating Systems',
+        timeSlot: '09:55 - 10:50',
+        lectureType: 'Lecture',
+        room: 'LH-204',
+        credits: 3,
+        teacherName: 'Prof. Anitha Rao',
+        status: 'Present'
+    },
+    {
+        _id: 'dummy-slot-3',
+        subjectId: 'sub-mat41',
+        subjectCode: '21MAT41',
+        subjectName: 'Mathematics IV',
+        timeSlot: '11:10 - 12:05',
+        lectureType: 'Lecture',
+        room: 'LH-204',
+        credits: 3,
+        teacherName: 'Dr. S. K. Sharma',
+        status: 'Present'
+    },
+    {
+        _id: 'dummy-slot-4',
+        subjectId: 'sub-cs44',
+        subjectCode: '21CS44',
+        subjectName: 'Microcontrollers',
+        timeSlot: '12:05 - 01:00',
+        lectureType: 'Lecture',
+        room: 'LH-204',
+        credits: 3,
+        teacherName: 'Prof. Venkatesh P',
+        status: 'Absent'
+    },
+    {
+        _id: 'dummy-slot-5',
+        subjectId: 'sub-csl46',
+        subjectCode: '21CSL46',
+        subjectName: 'Algorithms Laboratory',
+        timeSlot: '01:45 - 03:35',
+        lectureType: 'Lab',
+        room: 'Lab 3',
+        credits: 1.5,
+        batchGroup: 'B1',
+        teacherName: 'Dr. Ramesh Kumar',
+        status: 'Yet To Be Taken'
+    }
+];
+
+const DUMMY_TIMETABLE_SLOTS = [
+    { dayOfWeek: 1, timeSlot: '09:00 - 09:55', subjectCode: '21CS42', subjectName: 'Design & Analysis of Algorithms', room: 'LH-204', lectureType: 'Lecture', startMinute: 540, endMinute: 595 },
+    { dayOfWeek: 1, timeSlot: '09:55 - 10:50', subjectCode: '21CS43', subjectName: 'Operating Systems', room: 'LH-204', lectureType: 'Lecture', startMinute: 595, endMinute: 650 },
+    { dayOfWeek: 1, timeSlot: '11:10 - 12:05', subjectCode: '21MAT41', subjectName: 'Mathematics IV', room: 'LH-204', lectureType: 'Lecture', startMinute: 670, endMinute: 725 },
+    { dayOfWeek: 1, timeSlot: '12:05 - 01:00', subjectCode: '21CS44', subjectName: 'Microcontrollers', room: 'LH-204', lectureType: 'Lecture', startMinute: 725, endMinute: 780 },
+    { dayOfWeek: 2, timeSlot: '09:00 - 09:55', subjectCode: '21CS43', subjectName: 'Operating Systems', room: 'LH-204', lectureType: 'Lecture', startMinute: 540, endMinute: 595 },
+    { dayOfWeek: 2, timeSlot: '09:55 - 10:50', subjectCode: '21MAT41', subjectName: 'Mathematics IV', room: 'LH-204', lectureType: 'Lecture', startMinute: 595, endMinute: 650 },
+    { dayOfWeek: 2, timeSlot: '11:10 - 01:00', subjectCode: '21CSL46', subjectName: 'Algorithms Laboratory', room: 'Lab 3', lectureType: 'Lab', batchGroup: 'B1', startMinute: 670, endMinute: 780 },
+    { dayOfWeek: 3, timeSlot: '09:00 - 09:55', subjectCode: '21CS44', subjectName: 'Microcontrollers', room: 'LH-204', lectureType: 'Lecture', startMinute: 540, endMinute: 595 },
+    { dayOfWeek: 3, timeSlot: '09:55 - 10:50', subjectCode: '21CS42', subjectName: 'Design & Analysis of Algorithms', room: 'LH-204', lectureType: 'Lecture', startMinute: 595, endMinute: 650 },
+    { dayOfWeek: 3, timeSlot: '11:10 - 12:05', subjectCode: '21CIP47', subjectName: 'Constitution of India & Ethics', room: 'LH-204', lectureType: 'Lecture', startMinute: 670, endMinute: 725 },
+    { dayOfWeek: 4, timeSlot: '09:00 - 09:55', subjectCode: '21MAT41', subjectName: 'Mathematics IV', room: 'LH-204', lectureType: 'Lecture', startMinute: 540, endMinute: 595 },
+    { dayOfWeek: 4, timeSlot: '09:55 - 10:50', subjectCode: '21CS44', subjectName: 'Microcontrollers', room: 'LH-204', lectureType: 'Lecture', startMinute: 595, endMinute: 650 },
+    { dayOfWeek: 4, timeSlot: '11:10 - 12:05', subjectCode: '21CS42', subjectName: 'Design & Analysis of Algorithms', room: 'LH-204', lectureType: 'Lecture', startMinute: 670, endMinute: 725 },
+    { dayOfWeek: 5, timeSlot: '09:00 - 09:55', subjectCode: '21CS43', subjectName: 'Operating Systems', room: 'LH-204', lectureType: 'Lecture', startMinute: 540, endMinute: 595 },
+    { dayOfWeek: 5, timeSlot: '09:55 - 10:50', subjectCode: '21CIP47', subjectName: 'Constitution of India & Ethics', room: 'LH-204', lectureType: 'Lecture', startMinute: 595, endMinute: 650 },
+    { dayOfWeek: 5, timeSlot: '11:10 - 01:00', subjectCode: '21CSL46', subjectName: 'Algorithms Laboratory', room: 'Lab 3', lectureType: 'Lab', batchGroup: 'B1', startMinute: 670, endMinute: 780 },
+    { dayOfWeek: 6, timeSlot: '09:00 - 09:55', subjectCode: '21MAT41', subjectName: 'Mathematics IV', room: 'LH-204', lectureType: 'Lecture', startMinute: 540, endMinute: 595 },
+    { dayOfWeek: 6, timeSlot: '09:55 - 10:50', subjectCode: '21CS42', subjectName: 'Design & Analysis of Algorithms', room: 'LH-204', lectureType: 'Lecture', startMinute: 595, endMinute: 650 }
+];
+
+const DUMMY_SEMESTERS_LIST = [
+    { semester: 4, isCurrent: true, isPast: false }
+];
+
+const createDummyCalendarData = () => {
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const toDateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const todayStr = toDateStr(today);
+
+    // Dummy test event: 5 days from now
+    const testDate = new Date(today);
+    testDate.setDate(testDate.getDate() + 5);
+    if (testDate.getDay() === 0) testDate.setDate(testDate.getDate() + 1);
+    const testDateStr = toDateStr(testDate);
+
+    // Dummy holiday: 2nd day of current month
+    const holidayDate = new Date(today.getFullYear(), today.getMonth(), 2);
+    const holidayDateStr = toDateStr(holidayDate);
+
+    const eventsList = [
+        {
+            _id: 'dummy-ev-1',
+            title: 'TEST-01 (Internal Assessment)',
+            eventType: 'Exam',
+            startDate: new Date(testDateStr + 'T00:00:00Z'),
+            endDate: new Date(testDateStr + 'T23:59:59Z'),
+            allDay: true,
+            classesSuspended: true,
+            suspensionType: 'full_day',
+            description: 'Internal assessment examination. Regular classes are suspended.'
+        },
+        {
+            _id: 'dummy-ev-2',
+            title: 'College Fest / Holiday',
+            eventType: 'Holiday / Closure',
+            startDate: new Date(holidayDateStr + 'T00:00:00Z'),
+            endDate: new Date(holidayDateStr + 'T23:59:59Z'),
+            allDay: true,
+            classesSuspended: true,
+            suspensionType: 'full_day',
+            description: 'Annual college holiday.'
+        }
+    ];
+
+    const groupedTimeline = [];
+    const scanStart = new Date(today.getFullYear(), today.getMonth() - 1, 20);
+    const scanEnd = new Date(today.getFullYear(), today.getMonth() + 1, 10);
+
+    for (let cur = new Date(scanStart); cur <= scanEnd; cur.setDate(cur.getDate() + 1)) {
+        const curStr = toDateStr(cur);
+        const dayOfWeek = cur.getDay(); // 0 = Sun
+
+        if (dayOfWeek === 0 || curStr === testDateStr || curStr === holidayDateStr) {
+            groupedTimeline.push({ date: curStr, slots: [], classes: [] });
+            continue;
+        }
+
+        const dayTimetable = DUMMY_TIMETABLE_SLOTS.filter(s => s.dayOfWeek === dayOfWeek);
+
+        if (curStr === todayStr) {
+            groupedTimeline.push({
+                date: curStr,
+                slots: DUMMY_DAY_CLASSES,
+                classes: DUMMY_DAY_CLASSES
+            });
+        } else if (curStr < todayStr) {
+            const dayNum = cur.getDate();
+            const slots = dayTimetable.map((slot, idx) => ({
+                _id: `dummy-${curStr}-${idx}`,
+                subjectCode: slot.subjectCode,
+                subjectName: slot.subjectName,
+                timeSlot: slot.timeSlot,
+                lectureType: slot.lectureType,
+                room: slot.room,
+                status: (dayNum % 5 === 0 && idx === 1) ? 'Absent' : 'Present'
+            }));
+            groupedTimeline.push({ date: curStr, slots, classes: slots });
+        } else {
+            const slots = dayTimetable.map((slot, idx) => ({
+                _id: `dummy-${curStr}-${idx}`,
+                subjectCode: slot.subjectCode,
+                subjectName: slot.subjectName,
+                timeSlot: slot.timeSlot,
+                lectureType: slot.lectureType,
+                room: slot.room,
+                status: 'Yet To Be Taken'
+            }));
+            groupedTimeline.push({ date: curStr, slots, classes: slots });
+        }
+    }
+
+    const timetableConfig = {
+        commencementDate: toDateStr(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
+        lastWorkingDayDate: toDateStr(new Date(today.getFullYear(), today.getMonth() + 2, 28)),
+        semesterStartDate: toDateStr(new Date(today.getFullYear(), today.getMonth() - 2, 1)),
+        lastWorkingDate: toDateStr(new Date(today.getFullYear(), today.getMonth() + 2, 28)),
+        collegeStartMinute: 540,
+        collegeEndMinute: 960,
+        classDuration: 55,
+        labDuration: 110,
+        workingDays: {
+            '1': 'Full Day',
+            '2': 'Full Day',
+            '3': 'Full Day',
+            '4': 'Full Day',
+            '5': 'Full Day',
+            '6': 'Half Day',
+            '7': 'Holiday'
+        }
+    };
+
+    return {
+        eventsList,
+        groupedTimeline,
+        timetableConfig,
+        testDateStr,
+        holidayDateStr
+    };
+};
+
+const getDummyAttendanceForDate = (dateStr, calendarData) => {
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const { testDateStr, holidayDateStr, eventsList } = calendarData;
+
+    if (dateStr === testDateStr) {
+        const ev = eventsList.find(e => e._id === 'dummy-ev-1');
+        return {
+            classes: [],
+            eventInfo: {
+                classesSuspended: true,
+                suspensionType: 'full_day',
+                activeEvent: ev,
+                dayEvents: [ev],
+                message: 'Classes are suspended today for TEST-01 (Internal Assessment).'
+            }
+        };
+    }
+
+    if (dateStr === holidayDateStr) {
+        const ev = eventsList.find(e => e._id === 'dummy-ev-2');
+        return {
+            classes: [],
+            eventInfo: {
+                classesSuspended: true,
+                suspensionType: 'full_day',
+                activeEvent: ev,
+                dayEvents: [ev],
+                message: 'Classes are suspended today for College Fest / Holiday.'
+            }
+        };
+    }
+
+    if (dateStr === todayStr) {
+        return {
+            classes: DUMMY_DAY_CLASSES,
+            eventInfo: {
+                classesSuspended: false,
+                suspensionType: 'none',
+                activeEvent: null,
+                dayEvents: [],
+                message: ''
+            }
+        };
+    }
+
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayOfWeek = d.getDay();
+    if (dayOfWeek === 0) {
+        return {
+            classes: [],
+            eventInfo: {
+                classesSuspended: false,
+                suspensionType: 'none',
+                activeEvent: null,
+                dayEvents: [],
+                message: ''
+            }
+        };
+    }
+
+    const dayTimetable = DUMMY_TIMETABLE_SLOTS.filter(s => s.dayOfWeek === dayOfWeek);
+    if (dateStr < todayStr) {
+        const dayNum = d.getDate();
+        const classes = dayTimetable.map((slot, idx) => ({
+            _id: `dummy-${dateStr}-${idx}`,
+            subjectCode: slot.subjectCode,
+            subjectName: slot.subjectName,
+            timeSlot: slot.timeSlot,
+            lectureType: slot.lectureType,
+            room: slot.room,
+            credits: 3,
+            status: (dayNum % 5 === 0 && idx === 1) ? 'Absent' : 'Present'
+        }));
+        return {
+            classes,
+            eventInfo: {
+                classesSuspended: false,
+                suspensionType: 'none',
+                activeEvent: null,
+                dayEvents: [],
+                message: ''
+            }
+        };
+    } else {
+        const classes = dayTimetable.map((slot, idx) => ({
+            _id: `dummy-${dateStr}-${idx}`,
+            subjectCode: slot.subjectCode,
+            subjectName: slot.subjectName,
+            timeSlot: slot.timeSlot,
+            lectureType: slot.lectureType,
+            room: slot.room,
+            credits: 3,
+            status: 'Yet To Be Taken'
+        }));
+        return {
+            classes,
+            eventInfo: {
+                classesSuspended: false,
+                suspensionType: 'none',
+                activeEvent: null,
+                dayEvents: [],
+                message: ''
+            }
+        };
+    }
+};
 
 const NAV_GROUPS = [
     {
@@ -65,9 +572,13 @@ const getLocalDateString = (d = new Date()) => {
 
 const AttendanceSettings = () => {
     const location = useLocation();
+    const navigate = useNavigate();
     const queryTab = new URLSearchParams(location.search).get('tab');
 
-    const [loading, setLoading] = useState(true);
+    const { user, hasPlusAccess, isAuthenticated } = useAuth();
+    const { isDark } = useTheme();
+
+    const [loading, setLoading] = useState(() => !hasPlusAccess ? false : true);
     const [isDayLoading, setIsDayLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -84,9 +595,6 @@ const AttendanceSettings = () => {
 
     // Date state (YYYY-MM-DD in user's local timezone)
     const [selectedDate, setSelectedDate] = useState(() => getLocalDateString(new Date()));
-
-    const { user } = useAuth();
-    const { isDark } = useTheme();
 
     const t = useMemo(() => ({
         bgPage: isDark ? '#0A0D16' : '#F8FAFC',
@@ -106,13 +614,15 @@ const AttendanceSettings = () => {
         selectText: isDark ? '#F8FAFC' : '#0F172A',
     }), [isDark]);
 
-    const initialSemester = Number(user?.semester) || 1;
+    const initialSemester = !hasPlusAccess ? 4 : (Number(user?.semester) || 1);
 
     // Student & Semester state
     const [currentStudentSemester, setCurrentStudentSemester] = useState(initialSemester);
     const [selectedSemester, setSelectedSemester] = useState(initialSemester);
-    const [semestersList, setSemestersList] = useState([]);
-    const [userProfile, setUserProfile] = useState(user || null);
+    const [semestersList, setSemestersList] = useState(() => !hasPlusAccess ? DUMMY_SEMESTERS_LIST : []);
+    const [userProfile, setUserProfile] = useState(() => !hasPlusAccess ? DUMMY_USER_PROFILE : (user || null));
+
+    const [isSectionSetupModalOpen, setIsSectionSetupModalOpen] = useState(false);
 
     const isSuperAdmin = useMemo(() => {
         const email = (user?.email || userProfile?.email || '').toLowerCase().trim();
@@ -123,18 +633,18 @@ const AttendanceSettings = () => {
     }, [user, userProfile]);
 
     // Analytics & Subject states
-    const [overallMetrics, setOverallMetrics] = useState(null);
-    const [progressList, setProgressList] = useState([]);
+    const [overallMetrics, setOverallMetrics] = useState(() => !hasPlusAccess ? DUMMY_ATTENDANCE_OVERALL : null);
+    const [progressList, setProgressList] = useState(() => !hasPlusAccess ? DUMMY_ATTENDANCE_SUBJECTS : []);
     const [groupedTimeline, setGroupedTimeline] = useState([]);
-    const [registeredSubjectsList, setRegisteredSubjectsList] = useState([]);
+    const [registeredSubjectsList, setRegisteredSubjectsList] = useState(() => !hasPlusAccess ? DUMMY_ATTENDANCE_SUBJECTS : []);
 
     // Timetable states
     const [timetableConfig, setTimetableConfig] = useState(null);
-    const [timetableSlots, setTimetableSlots] = useState([]);
-    const [initialTimetableSlots, setInitialTimetableSlots] = useState([]);
-    const [allottedTimetable, setAllottedTimetable] = useState(null);
+    const [timetableSlots, setTimetableSlots] = useState(() => !hasPlusAccess ? DUMMY_TIMETABLE_SLOTS : []);
+    const [initialTimetableSlots, setInitialTimetableSlots] = useState(() => !hasPlusAccess ? DUMMY_TIMETABLE_SLOTS : []);
+    const [allottedTimetable, setAllottedTimetable] = useState(() => !hasPlusAccess ? DUMMY_ALLOTTED_TIMETABLE : null);
     const [isTimetableLoading, setIsTimetableLoading] = useState(false);
-    const [officialTimetableSlots, setOfficialTimetableSlots] = useState([]);
+    const [officialTimetableSlots, setOfficialTimetableSlots] = useState(() => !hasPlusAccess ? DUMMY_TIMETABLE_SLOTS : []);
     const [isCustomizingTimetable, setIsCustomizingTimetable] = useState(false);
     const [isViewingOfficial, setIsViewingOfficial] = useState(false);
     const [editingTimetableSlot, setEditingTimetableSlot] = useState(null);
@@ -144,7 +654,7 @@ const AttendanceSettings = () => {
     const [isResettingTimetable, setIsResettingTimetable] = useState(false);
 
     // Day classes state
-    const [dayClasses, setDayClasses] = useState([]);
+    const [dayClasses, setDayClasses] = useState(() => !hasPlusAccess ? DUMMY_DAY_CLASSES : []);
     const [eventsList, setEventsList] = useState([]);
     const [dayEventInfo, setDayEventInfo] = useState({
         classesSuspended: false,
@@ -169,8 +679,24 @@ const AttendanceSettings = () => {
     const [subjectForecast, setSubjectForecast] = useState(null);
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
+    const isSectionConfigured = Boolean(
+        userProfile?.academicSection ||
+        userProfile?.sectionLocked ||
+        user?.academicSection ||
+        (allottedTimetable?.sectionName && allottedTimetable?.sectionName !== 'A')
+    );
+
+    const handleLockedAction = () => {
+        if (!isAuthenticated) {
+            navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        } else {
+            navigate('/plus');
+        }
+    };
+
     // 1. Fetch student profile
     const fetchStudentProfile = async () => {
+        if (!hasPlusAccess) return 1;
         try {
             const [meRes, semRes] = await Promise.all([
                 apiV2.getMe().catch(() => null),
@@ -203,6 +729,7 @@ const AttendanceSettings = () => {
 
     // 2. Fetch semester metrics and config (Optimized single dashboard call)
     const fetchSemesterData = async (sem, showLoading = false) => {
+        if (!hasPlusAccess) return;
         if (showLoading) setLoading(true);
         setError(null);
         try {
@@ -241,6 +768,7 @@ const AttendanceSettings = () => {
 
     // Fetch full timetable slots and configuration when timetable tab is opened or semester changes
     const fetchTimetableData = async (sem) => {
+        if (!hasPlusAccess) return;
         setIsTimetableLoading(true);
         try {
             const [slotsRes, configRes] = await Promise.allSettled([
@@ -300,13 +828,15 @@ const AttendanceSettings = () => {
     };
 
     useEffect(() => {
+        if (!hasPlusAccess) return;
         if (activeTab === 'timetable' || activeTab === 'my-timetable') {
             fetchTimetableData(selectedSemester);
         }
-    }, [activeTab, selectedSemester]);
+    }, [activeTab, selectedSemester, hasPlusAccess]);
 
     // Lazy load registered subjects in background for baseline setup and class overrides
     useEffect(() => {
+        if (!hasPlusAccess) return;
         if (registeredSubjectsList.length === 0) {
             apiV2.getRegisteredSubjects(selectedSemester).then(res => {
                 if (res?.data?.success) {
@@ -314,10 +844,11 @@ const AttendanceSettings = () => {
                 }
             }).catch(() => {});
         }
-    }, [selectedSemester, registeredSubjectsList.length]);
+    }, [selectedSemester, registeredSubjectsList.length, hasPlusAccess]);
 
     // 3. Fetch day classes for selected date
     const fetchDayAttendance = async (dateStr, sem, showLoading = false) => {
+        if (!hasPlusAccess) return;
         if (showLoading) setIsDayLoading(true);
         try {
             const res = await apiV2.getAttendanceDay(dateStr, sem).catch(() => ({ data: { success: false, data: [] } }));
@@ -339,14 +870,43 @@ const AttendanceSettings = () => {
         }
     };
 
+    // Cached dummy calendar data for non-Plus users (Zero API calls)
+    const dummyCalendarData = useMemo(() => {
+        if (hasPlusAccess) return null;
+        return createDummyCalendarData();
+    }, [hasPlusAccess]);
+
     // Initial load: Concurrently and non-blockingly loads today's classes and semester metrics
     useEffect(() => {
         let isMounted = true;
         const init = async () => {
-            try {
-                const today = getLocalDateString(new Date());
-                setSelectedDate(today);
+            const today = getLocalDateString(new Date());
+            setSelectedDate(today);
 
+            if (!hasPlusAccess) {
+                const calData = dummyCalendarData || createDummyCalendarData();
+                setLoading(false);
+                setIsDayLoading(false);
+                setIsTimetableLoading(false);
+                setUserProfile(DUMMY_USER_PROFILE);
+                setProgressList(DUMMY_ATTENDANCE_SUBJECTS);
+                setOverallMetrics(DUMMY_ATTENDANCE_OVERALL);
+                const dummyDayData = getDummyAttendanceForDate(today, calData);
+                setDayClasses(dummyDayData.classes);
+                setDayEventInfo(dummyDayData.eventInfo);
+                setTimetableSlots(DUMMY_TIMETABLE_SLOTS);
+                setOfficialTimetableSlots(DUMMY_TIMETABLE_SLOTS);
+                setAllottedTimetable(DUMMY_ALLOTTED_TIMETABLE);
+                setSemestersList(DUMMY_SEMESTERS_LIST);
+                setGroupedTimeline(calData.groupedTimeline);
+                setEventsList(calData.eventsList);
+                setTimetableConfig(calData.timetableConfig);
+                setSelectedSemester(4);
+                setCurrentStudentSemester(4);
+                return;
+            }
+
+            try {
                 const currentSem = Number(user?.semester) || 1;
                 setSelectedSemester(currentSem);
 
@@ -373,10 +933,14 @@ const AttendanceSettings = () => {
         };
         init();
         return () => { isMounted = false; };
-    }, []);
+    }, [hasPlusAccess, dummyCalendarData]);
 
     // Change semester
     const handleSemesterChange = async (sem) => {
+        if (!hasPlusAccess) {
+            handleLockedAction();
+            return;
+        }
         setSelectedSemester(sem);
         setTimetableSlots([]);
         await Promise.all([
@@ -391,7 +955,13 @@ const AttendanceSettings = () => {
     const handleSelectDate = async (dateStr) => {
         if (dateStr === selectedDate) return;
         setSelectedDate(dateStr);
-        setDayClasses([]); // Clear stale dayClasses to prevent flash of previous date
+        if (!hasPlusAccess) {
+            const calData = dummyCalendarData || createDummyCalendarData();
+            const dummyDayData = getDummyAttendanceForDate(dateStr, calData);
+            setDayClasses(dummyDayData.classes);
+            setDayEventInfo(dummyDayData.eventInfo);
+            return;
+        }
         await fetchDayAttendance(dateStr, selectedSemester, true);
     };
 
@@ -413,6 +983,10 @@ const AttendanceSettings = () => {
 
     // Mark / Edit attendance for a specific class slot
     const handleMarkAttendance = async (classItem, status) => {
+        if (!hasPlusAccess) {
+            handleLockedAction();
+            return;
+        }
         if (readOnly && !isSuperAdmin) {
             toast.error('Attendance is read-only for archived semesters.');
             return;
@@ -461,6 +1035,7 @@ const AttendanceSettings = () => {
                 date: selectedDate,
                 timeSlot: classItem.timeSlot,
                 constituentSlots,
+                lectureType: classItem.lectureType || 'Lecture',
                 status,
                 allowFutureOverride: isSuperAdmin
             });
@@ -484,6 +1059,10 @@ const AttendanceSettings = () => {
 
     // Recalculate / Sync
     const handleRecalculate = async () => {
+        if (!hasPlusAccess) {
+            handleLockedAction();
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
@@ -505,6 +1084,10 @@ const AttendanceSettings = () => {
 
     // One-Tap Mark All Present Today
     const handleMarkAllPresentToday = async () => {
+        if (!hasPlusAccess) {
+            handleLockedAction();
+            return;
+        }
         if (readOnly && !isSuperAdmin) {
             toast.error('Attendance is read-only for archived semesters.');
             return;
@@ -531,21 +1114,22 @@ const AttendanceSettings = () => {
         });
 
         try {
-            for (const item of unrecorded) {
+            await Promise.all(unrecorded.map(item => {
                 const constituentSlots = item.subSlots && item.subSlots.length > 0
                     ? item.subSlots.map(s => s.timeSlot)
                     : [item.timeSlot];
 
-                await apiV2.updateAttendanceHistoryV2({
+                return apiV2.updateAttendanceHistoryV2({
                     subjectId: item.subjectId,
                     scheduledSubjectId: item.scheduledSubjectId || item.subjectId,
                     date: selectedDate,
                     timeSlot: item.timeSlot,
                     constituentSlots,
+                    lectureType: item.lectureType || 'Lecture',
                     status: 'Present',
                     allowFutureOverride: isSuperAdmin
                 });
-            }
+            }));
             toast.success(`Marked all ${unrecorded.length} classes as Present!`);
             fetchSemesterData(selectedSemester, false);
             window.dispatchEvent(new Event('attendance-updated'));
@@ -584,6 +1168,10 @@ const AttendanceSettings = () => {
 
     // Quick-Mark all past unconfirmed classes as Present (Instant 0ms Optimistic Update + Single Bulk API)
     const handleQuickMarkPastAsPresent = async () => {
+        if (!hasPlusAccess) {
+            handleLockedAction();
+            return;
+        }
         if (readOnly) return;
         const today = getLocalDateString(new Date());
 
@@ -622,6 +1210,10 @@ const AttendanceSettings = () => {
 
     // Reset Day Attendance to Original Timetable State
     const handleResetDayAttendance = async () => {
+        if (!hasPlusAccess) {
+            handleLockedAction();
+            return;
+        }
         if (readOnly && !isSuperAdmin) {
             toast.error('Attendance is read-only for archived semesters.');
             return;
@@ -1206,11 +1798,73 @@ const AttendanceSettings = () => {
     const activeTabObj = ALL_NAV_TABS.find(t => t.id === activeTab) || ALL_NAV_TABS[0];
 
     const renderActiveSection = () => {
+        const setupBanner = (!isSectionConfigured && hasPlusAccess && !loading) ? (
+            <div style={{
+                marginBottom: '16px',
+                padding: '14px 18px',
+                borderRadius: '12px',
+                background: isDark ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.1))' : '#F5F3FF',
+                border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.35)' : 'rgba(124, 58, 237, 0.3)'}`,
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
+                        background: isDark ? 'rgba(124, 58, 237, 0.25)' : '#EDE9FE',
+                        color: isDark ? '#c4b5fd' : '#6d28d9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                    }}>
+                        <CalendarDays size={20} />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: t.text }}>
+                            Configure Your Attendance Section
+                        </div>
+                        <div style={{ fontSize: '12px', color: t.textMuted }}>
+                            Select your class section (and lab batch if applicable) to load your official college timetable and attendance schedule.
+                        </div>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setIsSectionSetupModalOpen(true)}
+                    style={{
+                        padding: '7px 16px',
+                        borderRadius: '8px',
+                        background: '#7c3aed',
+                        color: '#ffffff',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(124, 58, 237, 0.4)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    <span>Select Section & Batch</span>
+                    <ChevronRight size={14} />
+                </button>
+            </div>
+        ) : null;
+
         switch (activeTab) {
             case 'timetable':
             case 'my-timetable':
                 return (
                     <div className="flex flex-col gap-4 w-full">
+                        {setupBanner}
                         {/* Personal Timetable Top Header (CSES + Modern SaaS style) */}
                         <div 
                             style={{
@@ -1259,7 +1913,9 @@ const AttendanceSettings = () => {
                                             Your personal timetable
                                         </h2>
                                         <span style={{ fontSize: '12px', color: t.textMuted, fontFamily: 'monospace' }}>
-                                            Section {allottedTimetable?.sectionName || userProfile?.section || 'K'} · Batch {allottedTimetable?.labBatch || userProfile?.labBatch || 'B1'}
+                                            {isSectionConfigured
+                                                ? `Section ${allottedTimetable?.sectionName || (typeof userProfile?.academicSection === 'object' && userProfile?.academicSection?.name ? userProfile.academicSection.name : userProfile?.section || 'A')} · Batch ${allottedTimetable?.labBatch || userProfile?.labBatch || 'All'}`
+                                                : 'Section: Not Configured'}
                                             {allottedTimetable?.branchName ? ` · ${allottedTimetable.branchName}` : ''}
                                         </span>
                                     </div>
@@ -1269,8 +1925,32 @@ const AttendanceSettings = () => {
                                     </p>
                                 </div>
 
-                                {/* Action buttons */}
+                                 {/* Action buttons */}
                                 <div className="flex items-center gap-2 self-start md:self-center shrink-0 flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => !hasPlusAccess ? handleLockedAction() : setIsSectionSetupModalOpen(true)}
+                                        title="Change or select your class section"
+                                        style={{
+                                            padding: '7px 14px',
+                                            borderRadius: '8px',
+                                            fontSize: '12px',
+                                            fontFamily: 'monospace',
+                                            fontWeight: 600,
+                                            color: isDark ? '#c4b5fd' : '#6d28d9',
+                                            background: isDark ? 'rgba(124, 58, 237, 0.12)' : '#F5F3FF',
+                                            border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(124, 58, 237, 0.25)'}`,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                            transition: 'all 0.15s'
+                                        }}
+                                    >
+                                        <Edit3 size={12} />
+                                        <span>{isSectionConfigured ? 'Switch Section' : 'Setup Section'}</span>
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsViewingOfficial(true)}
@@ -1296,8 +1976,8 @@ const AttendanceSettings = () => {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => setIsResetConfirmOpen(true)}
-                                        title="Restore official college schedule for future dates"
+                                        onClick={() => !hasPlusAccess ? handleLockedAction() : setIsResetConfirmOpen(true)}
+                                        title={!hasPlusAccess ? (isAuthenticated ? 'Upgrade to Plus to customize timetable' : 'Login for plus access to customize timetable') : 'Restore official college schedule for future dates'}
                                         style={{
                                             padding: '7px 14px',
                                             borderRadius: '8px',
@@ -1321,6 +2001,10 @@ const AttendanceSettings = () => {
                                     <button
                                         type="button"
                                         onClick={() => {
+                                            if (!hasPlusAccess) {
+                                                handleLockedAction();
+                                                return;
+                                            }
                                             if (isCustomizingTimetable && unsavedChangesCount > 0) {
                                                 if (window.confirm('You have unsaved timetable changes. Discard them before exiting?')) {
                                                     handleDiscardTimetableChanges();
@@ -1360,7 +2044,7 @@ const AttendanceSettings = () => {
                                             </>
                                         ) : (
                                             <>
-                                                <Edit3 size={13} />
+                                                {!hasPlusAccess ? <Lock size={12} className="mr-0.5" /> : <Edit3 size={13} />}
                                                 <span>Customize Timetable</span>
                                             </>
                                         )}
@@ -1370,7 +2054,9 @@ const AttendanceSettings = () => {
                         </div>
 
                         {isTimetableLoading ? (
-                            <div className="p-12 text-center text-zinc-400 text-xs flex flex-col items-center justify-center gap-2">
+                            <div className={`p-12 text-center text-xs flex flex-col items-center justify-center gap-2 ${
+                                isDark ? 'text-zinc-400' : 'text-slate-500'
+                            }`}>
                                 <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
                                 <span>Loading timetable schedule...</span>
                             </div>
@@ -1384,7 +2070,8 @@ const AttendanceSettings = () => {
                                 allottedTimetable={allottedTimetable}
                                 officialSlots={officialTimetableSlots}
                                 isCustomizing={isCustomizingTimetable}
-                                onCellClick={handleSlotClick}
+                                isReadOnly={!hasPlusAccess}
+                                onCellClick={!hasPlusAccess ? handleLockedAction : handleSlotClick}
                             />
                         )}
 
@@ -1438,20 +2125,26 @@ const AttendanceSettings = () => {
             case 'overview':
             case 'summary':
                 return (
-                    <AttendanceSummaryView
-                        progressList={progressList}
-                        overallMetrics={overallMetrics}
-                        onOpenBaselineModal={() => setIsBaselineModalOpen(true)}
-                        readOnly={readOnly}
-                        selectedSemester={selectedSemester}
-                        onTargetUpdated={() => fetchSemesterData(selectedSemester)}
-                    />
+                    <div className="w-full">
+                        {setupBanner}
+                        <AttendanceSummaryView
+                            progressList={progressList}
+                            overallMetrics={overallMetrics}
+                            onOpenBaselineModal={() => !hasPlusAccess ? handleLockedAction() : setIsBaselineModalOpen(true)}
+                            readOnly={!hasPlusAccess || readOnly}
+                            isLocked={!hasPlusAccess}
+                            onLockedClick={handleLockedAction}
+                            selectedSemester={selectedSemester}
+                            onTargetUpdated={() => fetchSemesterData(selectedSemester)}
+                        />
+                    </div>
                 );
             case 'today':
             case 'daily':
             default: {
                 return (
                     <div className="w-full">
+                        {setupBanner}
                         <DailyAttendanceWorkspace
                             selectedDate={selectedDate}
                             onSelectDate={handleSelectDate}
@@ -1465,15 +2158,20 @@ const AttendanceSettings = () => {
                             onResetDayAttendance={handleResetDayAttendance}
                             unconfirmedPastCount={unconfirmedPastCount}
                             onQuickMarkPast={handleQuickMarkPastAsPresent}
-                            readOnly={readOnly && !isSuperAdmin}
+                            readOnly={!hasPlusAccess || (readOnly && !isSuperAdmin)}
+                            isLocked={!hasPlusAccess}
                             timetableConfig={timetableConfig}
                             groupedTimeline={groupedTimeline}
                             events={eventsList}
                             dayEventInfo={dayEventInfo}
-                            canEditAnytime={isSuperAdmin}
+                            canEditAnytime={isSuperAdmin && hasPlusAccess}
                             registeredSubjects={registeredSubjectsList}
                             onConfirmSubjectSwap={handleConfirmSubjectSwap}
                             onRestoreOriginalClass={async (classItem) => {
+                                if (!hasPlusAccess) {
+                                    handleLockedAction();
+                                    return;
+                                }
                                 await handleConfirmSubjectSwap({
                                     classItem,
                                     scheduledSubjectId: classItem.scheduledSubjectId || classItem.subjectId,
@@ -1497,7 +2195,7 @@ const AttendanceSettings = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                color: '#a78bfa',
+                color: isDark ? '#a78bfa' : '#6d28d9',
                 fontSize: '13px'
             }}>
                 <Loader2 size={20} className="animate-spin" />
@@ -1700,81 +2398,120 @@ const AttendanceSettings = () => {
 
                         {/* Top Right Controls: Section & Lab Batch Context + Semester Switcher */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {userProfile?.section && (
-                                <div style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '5px 12px',
-                                    borderRadius: '8px',
-                                    background: t.accentBg,
-                                    border: `1px solid ${t.accentBorder}`,
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    color: t.accentText
-                                }}>
-                                    <span>Section {typeof userProfile.academicSection === 'object' && userProfile.academicSection?.name ? userProfile.academicSection.name : userProfile.section}</span>
+                            {isSectionConfigured ? (
+                                <button
+                                    type="button"
+                                    onClick={() => !hasPlusAccess ? handleLockedAction() : setIsSectionSetupModalOpen(true)}
+                                    title={!hasPlusAccess ? "Unlock with Plus to configure section" : "Click to view or switch your class section"}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 12px',
+                                        borderRadius: '8px',
+                                        background: t.accentBg,
+                                        border: `1px solid ${t.accentBorder}`,
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: t.accentText,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {!hasPlusAccess && <Lock size={11} />}
+                                    <span>Section {typeof userProfile?.academicSection === 'object' && userProfile?.academicSection?.name ? userProfile.academicSection.name : (userProfile?.section || '4-A')}</span>
                                     <span style={{ fontSize: '10px', opacity: 0.8, fontWeight: 400 }}>
-                                        {userProfile.labBatch ? `· Batch ${userProfile.labBatch}` : '· Batch: All'}
+                                        {userProfile?.labBatch ? `· Batch ${userProfile.labBatch}` : '· Batch: B1'}
                                     </span>
-                                </div>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => !hasPlusAccess ? handleLockedAction() : setIsSectionSetupModalOpen(true)}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 12px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(234, 179, 8, 0.15)',
+                                        border: '1px solid rgba(234, 179, 8, 0.4)',
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        color: '#facc15',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <Lock size={12} />
+                                    <span>Setup Section</span>
+                                </button>
                             )}
                             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '5px 12px',
-                                    borderRadius: '8px',
-                                    background: isDark ? 'rgba(19, 18, 26, 0.7)' : '#F8FAFC',
-                                    border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : t.border}`,
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    color: t.text,
-                                    cursor: 'pointer'
-                                }}>
+                                <div 
+                                    onClick={() => !hasPlusAccess && handleLockedAction()}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '5px 12px',
+                                        borderRadius: '8px',
+                                        background: isDark ? 'rgba(19, 18, 26, 0.7)' : '#F8FAFC',
+                                        border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : t.border}`,
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        color: t.text,
+                                        cursor: 'pointer'
+                                    }}
+                                    title={!hasPlusAccess ? "Unlock with Plus to switch semesters" : "Select semester"}
+                                >
                                     <span style={{
                                         width: '6px',
                                         height: '6px',
                                         borderRadius: '50%',
-                                        background: readOnly ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981'
+                                        background: !hasPlusAccess ? '#10B981' : (readOnly ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981')
                                     }} />
                                     <span>Semester {selectedSemester}</span>
                                     <span style={{ fontSize: '10px', color: t.textMuted, fontWeight: 400 }}>
-                                        {readOnly ? '· Finalized 🔒' : '· Active ●'}
+                                        {!hasPlusAccess ? '· Active ●' : (readOnly ? '· Finalized 🔒' : '· Active ●')}
                                     </span>
-                                    <ChevronDown size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
-                                    <select
-                                        value={selectedSemester}
-                                        onChange={(e) => handleSemesterChange(Number(e.target.value))}
-                                        style={{
-                                            position: 'absolute',
-                                            inset: 0,
-                                            opacity: 0,
-                                            cursor: 'pointer',
-                                            width: '100%',
-                                            height: '100%'
-                                        }}
-                                    >
-                                        {semestersList.map(s => (
-                                             <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
-                                                Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    {!hasPlusAccess ? (
+                                        <Lock size={11} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                                    ) : (
+                                        <ChevronDown size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                                    )}
+                                    {hasPlusAccess && (
+                                        <select
+                                            value={selectedSemester}
+                                            onChange={(e) => handleSemesterChange(Number(e.target.value))}
+                                            style={{
+                                                position: 'absolute',
+                                                inset: 0,
+                                                opacity: 0,
+                                                cursor: 'pointer',
+                                                width: '100%',
+                                                height: '100%'
+                                            }}
+                                        >
+                                            {semestersList.map(s => (
+                                                <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
+                                                    Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
 
+
                     {/* ERROR BANNER */}
                     {error && (
                         <div style={{
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                            background: isDark ? 'rgba(239, 68, 68, 0.08)' : '#FEF2F2',
+                            border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.2)' : '#FECACA'}`,
                             borderRadius: '10px',
                             padding: '12px 16px',
-                            color: '#fca5a5',
+                            color: isDark ? '#fca5a5' : '#B91C1C',
                             fontSize: '13px',
                             marginBottom: '16px'
                         }}>
@@ -1835,27 +2572,56 @@ const AttendanceSettings = () => {
 
                         {/* Top Right Controls: Section & Lab Batch Context + Semester Switcher */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            {userProfile?.section && (
-                                <div style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '4px 10px',
-                                    borderRadius: '8px',
-                                    background: t.accentBg,
-                                    border: `1px solid ${t.accentBorder}`,
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    color: t.accentText
-                                }}>
-                                    <span>Sec {typeof userProfile.academicSection === 'object' && userProfile.academicSection?.name ? userProfile.academicSection.name : userProfile.section}</span>
+                            {isSectionConfigured ? (
+                                <button
+                                    type="button"
+                                    onClick={() => !hasPlusAccess ? handleLockedAction() : setIsSectionSetupModalOpen(true)}
+                                    title="Click to view or switch your class section"
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '4px 10px',
+                                        borderRadius: '8px',
+                                        background: t.accentBg,
+                                        border: `1px solid ${t.accentBorder}`,
+                                        fontSize: '11px',
+                                        fontWeight: 600,
+                                        color: t.accentText,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <span>Sec {typeof userProfile?.academicSection === 'object' && userProfile?.academicSection?.name ? userProfile.academicSection.name : userProfile?.section}</span>
                                     <span style={{ fontSize: '10px', opacity: 0.8, fontWeight: 400 }}>
-                                        {userProfile.labBatch ? `· ${userProfile.labBatch}` : '· All'}
+                                        {userProfile?.labBatch ? `· ${userProfile.labBatch}` : '· All'}
                                     </span>
-                                </div>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => !hasPlusAccess ? handleLockedAction() : setIsSectionSetupModalOpen(true)}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '4px 10px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(234, 179, 8, 0.15)',
+                                        border: '1px solid rgba(234, 179, 8, 0.4)',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        color: '#facc15',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {!hasPlusAccess ? <Lock size={12} /> : <AlertCircle size={12} />}
+                                    <span>Setup Section</span>
+                                </button>
                             )}
                             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                            <div style={{
+                            <div
+                                onClick={!hasPlusAccess ? handleLockedAction : undefined}
+                                style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
@@ -1866,7 +2632,7 @@ const AttendanceSettings = () => {
                                 fontSize: '12px',
                                 fontWeight: 600,
                                 color: t.text,
-                                cursor: 'pointer'
+                                cursor: !hasPlusAccess ? 'pointer' : 'pointer'
                             }}>
                                 <span style={{
                                     width: '6px',
@@ -1878,25 +2644,30 @@ const AttendanceSettings = () => {
                                 <span style={{ fontSize: '10px', color: t.textMuted, fontWeight: 400 }}>
                                     {readOnly ? '· Finalized 🔒' : '· Active ●'}
                                 </span>
-                                <ChevronDown size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
-                                <select
-                                    value={selectedSemester}
-                                    onChange={(e) => handleSemesterChange(Number(e.target.value))}
-                                    style={{
-                                        position: 'absolute',
-                                        inset: 0,
-                                        opacity: 0,
-                                        cursor: 'pointer',
-                                        width: '100%',
-                                        height: '100%'
-                                    }}
-                                >
-                                    {semestersList.map(s => (
-                                        <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
-                                            Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
-                                        </option>
-                                    ))}
-                                </select>
+                                {!hasPlusAccess
+                                    ? <Lock size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                                    : <ChevronDown size={12} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                                }
+                                {hasPlusAccess && (
+                                    <select
+                                        value={selectedSemester}
+                                        onChange={(e) => handleSemesterChange(Number(e.target.value))}
+                                        style={{
+                                            position: 'absolute',
+                                            inset: 0,
+                                            opacity: 0,
+                                            cursor: 'pointer',
+                                            width: '100%',
+                                            height: '100%'
+                                        }}
+                                    >
+                                        {semestersList.map(s => (
+                                            <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
+                                                Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1992,7 +2763,9 @@ const AttendanceSettings = () => {
 
                     {/* Mobile Semester Switcher */}
                     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
-                        <div style={{
+                        <div
+                            onClick={!hasPlusAccess ? handleLockedAction : undefined}
+                            style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px',
@@ -2013,25 +2786,30 @@ const AttendanceSettings = () => {
                                 background: readOnly ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981'
                             }} />
                             <span>Sem {selectedSemester}</span>
-                            <ChevronDown size={11} color={isDark ? '#a78bfa' : '#7c3aed'} />
-                            <select
-                                value={selectedSemester}
-                                onChange={(e) => handleSemesterChange(Number(e.target.value))}
-                                style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    opacity: 0,
-                                    cursor: 'pointer',
-                                    width: '100%',
-                                    height: '100%'
-                                }}
-                            >
-                                {semestersList.map(s => (
-                                    <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
-                                        Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
-                                    </option>
-                                ))}
-                            </select>
+                            {!hasPlusAccess
+                                ? <Lock size={11} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                                : <ChevronDown size={11} color={isDark ? '#a78bfa' : '#7c3aed'} />
+                            }
+                            {hasPlusAccess && (
+                                <select
+                                    value={selectedSemester}
+                                    onChange={(e) => handleSemesterChange(Number(e.target.value))}
+                                    style={{
+                                        position: 'absolute',
+                                        inset: 0,
+                                        opacity: 0,
+                                        cursor: 'pointer',
+                                        width: '100%',
+                                        height: '100%'
+                                    }}
+                                >
+                                    {semestersList.map(s => (
+                                        <option key={s.semester} value={s.semester} style={{ background: t.selectBg, color: t.selectText }}>
+                                            Semester {s.semester} {s.semester === currentStudentSemester ? '(Current Active)' : s.isPast ? '(Past Semester)' : '(Upcoming)'}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -2223,6 +3001,21 @@ const AttendanceSettings = () => {
                     </div>
                 </div>
             )}
+
+            {/* Attendance Section & Lab Batch Setup Modal */}
+            <AttendanceSectionSetupModal
+                isOpen={isSectionSetupModalOpen}
+                onClose={() => setIsSectionSetupModalOpen(false)}
+                semester={selectedSemester}
+                onSuccess={async () => {
+                    setIsSectionSetupModalOpen(false);
+                    const newSem = await fetchStudentProfile();
+                    await fetchSemesterData(newSem || selectedSemester, true);
+                    await fetchDayAttendance(selectedDate, newSem || selectedSemester, true);
+                    await fetchTimetableData(newSem || selectedSemester);
+                    window.dispatchEvent(new Event('attendance-updated'));
+                }}
+            />
 
             {/* CSS Media Queries for Dynamic Deterministic Responsiveness */}
             <style>{`

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { GitCompare, Table, ArrowRight, Pencil, Check, RotateCcw, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { GitCompare, Table, ArrowRight, Pencil, Check, RotateCcw, AlertCircle, Lock } from 'lucide-react';
 import AcademicToolModal from '../AcademicToolModal';
 import BranchChangeInput from './BranchChangeInput';
 import BranchChangeResult from './BranchChangeResult';
@@ -9,7 +10,7 @@ import {
     compareStudentProfile,
     getBranchList
 } from '../../../utils/branchChangeEngine';
-import { AuthContext } from '../../../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function BranchChangeTool({
     isOpen,
@@ -17,22 +18,36 @@ export default function BranchChangeTool({
     initialCgpa,
     initialBranch
 }) {
-    const { user } = useContext(AuthContext) || {};
+    const { user, hasPlusAccess, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const handleLockedAction = () => {
+        if (!isAuthenticated) {
+            navigate('/login', { state: { from: location.pathname } });
+        } else {
+            navigate('/pricing');
+        }
+    };
+
     const branches = useMemo(() => getBranchList(), []);
 
-    // Derive starting branch & CGPA from profile if available
+    // Derive starting branch & CGPA from profile if available (or realistic demo for non-Plus)
     const defaultBranch = useMemo(() => {
+        if (!hasPlusAccess) return 'ME';
         if (initialBranch) return canonicalizeBranch(initialBranch);
         const userBr = user?.branch || user?.department || user?.branchCode;
         if (userBr) return canonicalizeBranch(userBr);
         return 'ME'; // sensible default
-    }, [initialBranch, user]);
+    }, [initialBranch, user, hasPlusAccess]);
 
     const defaultTarget = useMemo(() => {
+        if (!hasPlusAccess) return 'CS';
         return defaultBranch === 'CS' ? 'IS' : 'CS';
-    }, [defaultBranch]);
+    }, [defaultBranch, hasPlusAccess]);
 
     const defaultCgpa = useMemo(() => {
+        if (!hasPlusAccess) return '9.15';
         if (initialCgpa !== undefined && initialCgpa !== null && !isNaN(Number(initialCgpa))) {
             return String(Number(initialCgpa).toFixed(2));
         }
@@ -41,7 +56,7 @@ export default function BranchChangeTool({
             return String(Number(userCgpa).toFixed(2));
         }
         return '9.00';
-    }, [initialCgpa, user]);
+    }, [initialCgpa, user, hasPlusAccess]);
 
     // Flow Step: 'entry' | 'result' | 'matrix'
     const [step, setStep] = useState('entry');
@@ -135,7 +150,7 @@ export default function BranchChangeTool({
                     <button
                         type="button"
                         onClick={handleReset}
-                        className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                         <RotateCcw size={12} />
                         <span>Reset</span>
@@ -145,7 +160,7 @@ export default function BranchChangeTool({
                         type="button"
                         onClick={handleAnalyze}
                         disabled={!canAnalyze}
-                        className="px-4 py-1.5 rounded text-xs font-mono font-bold text-slate-950 bg-slate-100 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        className="px-4 py-1.5 rounded text-xs font-mono font-bold text-white dark:text-slate-950 bg-purple-600 dark:bg-slate-100 hover:bg-purple-700 dark:hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                         <span>Analyze Historical Chances</span>
                         <ArrowRight size={13} />
@@ -160,7 +175,7 @@ export default function BranchChangeTool({
                     <button
                         type="button"
                         onClick={() => setStep('entry')}
-                        className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                     >
                         <Pencil size={12} />
                         <span>Edit Parameters</span>
@@ -169,7 +184,7 @@ export default function BranchChangeTool({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="px-4 py-1.5 rounded text-xs font-mono font-bold text-slate-950 bg-slate-100 hover:bg-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-4 py-1.5 rounded text-xs font-mono font-bold text-white dark:text-slate-950 bg-purple-600 dark:bg-slate-100 hover:bg-purple-700 dark:hover:bg-white transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                     >
                         <Check size={13} />
                         <span>Done</span>
@@ -184,7 +199,7 @@ export default function BranchChangeTool({
                 <button
                     type="button"
                     onClick={() => setStep('result')}
-                    className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded text-xs font-mono font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
                 >
                     <span>← Back to Analysis</span>
                 </button>
@@ -192,7 +207,7 @@ export default function BranchChangeTool({
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-1.5 rounded text-xs font-mono font-bold text-slate-950 bg-slate-100 hover:bg-white transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-1.5 rounded text-xs font-mono font-bold text-white dark:text-slate-950 bg-purple-600 dark:bg-slate-100 hover:bg-purple-700 dark:hover:bg-white transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                     <Check size={13} />
                     <span>Done</span>
@@ -213,20 +228,20 @@ export default function BranchChangeTool({
         >
             <div className="flex flex-col gap-4 font-mono">
                 {/* Minimalist Sub-Header Tab Switcher */}
-                <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-800">
+                <div className="flex items-center justify-between text-xs pb-1 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-1">
                         <button
                             type="button"
                             onClick={() => setStep('entry')}
                             className={`px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
                                 step === 'entry'
-                                    ? 'bg-slate-800 text-slate-100 font-bold border border-slate-700'
-                                    : 'text-slate-400 hover:text-slate-200'
+                                    ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-slate-100 font-bold border border-slate-200 dark:border-slate-700 shadow-xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                             }`}
                         >
                             1. Parameters
                         </button>
-                        <span className="text-slate-600">/</span>
+                        <span className="text-slate-300 dark:text-slate-600">/</span>
                         <button
                             type="button"
                             onClick={() => {
@@ -235,10 +250,10 @@ export default function BranchChangeTool({
                             disabled={!canAnalyze}
                             className={`px-2.5 py-1 rounded text-xs transition-colors cursor-pointer ${
                                 step === 'result'
-                                    ? 'bg-slate-800 text-slate-100 font-bold border border-slate-700'
+                                    ? 'bg-white dark:bg-slate-800 text-purple-700 dark:text-slate-100 font-bold border border-slate-200 dark:border-slate-700 shadow-xs'
                                     : canAnalyze
-                                        ? 'text-slate-400 hover:text-slate-200'
-                                        : 'text-slate-600 cursor-not-allowed opacity-50'
+                                        ? 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                                        : 'text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-50'
                             }`}
                         >
                             2. Historical Analysis
@@ -248,14 +263,21 @@ export default function BranchChangeTool({
                     <div>
                         <button
                             type="button"
-                            onClick={() => setStep(step === 'matrix' ? 'result' : 'matrix')}
-                            className={`px-2 py-0.5 rounded text-[11px] border transition-colors cursor-pointer ${
+                            onClick={() => {
+                                if (!hasPlusAccess) {
+                                    handleLockedAction();
+                                    return;
+                                }
+                                setStep(step === 'matrix' ? 'result' : 'matrix');
+                            }}
+                            className={`px-2 py-0.5 rounded text-[11px] border transition-colors cursor-pointer flex items-center gap-1 ${
                                 step === 'matrix'
-                                    ? 'bg-purple-950/60 border-purple-500 text-purple-200 font-semibold'
-                                    : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200'
+                                    ? 'bg-purple-100 dark:bg-purple-950/60 border-purple-300 dark:border-purple-500 text-purple-800 dark:text-purple-200 font-semibold'
+                                    : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                             }`}
                         >
-                            {step === 'matrix' ? 'Close Matrix' : 'Allocations Sheet (58)'}
+                            {!hasPlusAccess && <Lock size={10} className="text-purple-600 dark:text-purple-400" />}
+                            <span>{step === 'matrix' ? 'Close Matrix' : 'Allocations Sheet (58)'}</span>
                         </button>
                     </div>
                 </div>
@@ -275,6 +297,8 @@ export default function BranchChangeTool({
                             targetPreference={targetPreference}
                             onTargetPreferenceChange={setTargetPreference}
                             error={inputError}
+                            readOnly={!hasPlusAccess}
+                            onLockedClick={handleLockedAction}
                         />
                     </div>
                 )}
@@ -284,7 +308,15 @@ export default function BranchChangeTool({
                     <div className="animate-in fade-in duration-100">
                         <BranchChangeResult
                             analysisResult={analysisResult}
-                            onOpenMatrix={() => setStep('matrix')}
+                            onOpenMatrix={() => {
+                                if (!hasPlusAccess) {
+                                    handleLockedAction();
+                                    return;
+                                }
+                                setStep('matrix');
+                            }}
+                            isLocked={!hasPlusAccess}
+                            onLockedClick={handleLockedAction}
                         />
                     </div>
                 )}

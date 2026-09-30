@@ -17,22 +17,22 @@ const MarketplaceSearch = ({
     totalCount
 }) => {
     return (
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#161B22]/60 p-2.5 rounded-2xl border border-[#21262D]">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white/80 dark:bg-[#161B22]/60 p-2.5 rounded-2xl border border-slate-200 dark:border-[#21262D] shadow-xs">
             {/* Search Input */}
             <div className="relative flex-1">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B949E]" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#8B949E]" />
                 <input
                     type="text"
                     placeholder="Search engineering books, calculators, electronics, gear..."
                     value={searchQuery}
                     onChange={e => onSearchChange(e.target.value)}
-                    className="w-full pl-10 pr-9 py-2 rounded-xl bg-[#0D1117] border border-[#21262D] text-[#E6EDF3] placeholder-[#8B949E]/60 text-xs sm:text-sm focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 outline-none transition-colors"
+                    className="w-full pl-10 pr-9 py-2 rounded-xl bg-slate-50 dark:bg-[#0D1117] border border-slate-200 dark:border-[#21262D] text-slate-900 dark:text-[#E6EDF3] placeholder-slate-400 dark:placeholder-[#8B949E]/60 text-xs sm:text-sm focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 outline-none transition-colors"
                 />
                 {searchQuery && (
                     <button
                         type="button"
                         onClick={() => onSearchChange('')}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B949E] hover:text-[#E6EDF3] p-0.5"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#8B949E] hover:text-slate-900 dark:hover:text-[#E6EDF3] p-0.5"
                     >
                         <X size={14} />
                     </button>
@@ -46,8 +46,8 @@ const MarketplaceSearch = ({
                     onClick={onOpenFilters}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold transition-colors ${
                         activeFilterCount > 0
-                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400'
-                            : 'bg-[#0D1117] border-[#21262D] text-[#8B949E] hover:text-[#E6EDF3] hover:border-[#30363D]'
+                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-slate-50 dark:bg-[#0D1117] border-slate-200 dark:border-[#21262D] text-slate-600 dark:text-[#8B949E] hover:text-slate-900 dark:hover:text-[#E6EDF3] hover:border-slate-300 dark:hover:border-[#30363D]'
                     }`}
                 >
                     <SlidersHorizontal size={14} />
@@ -64,20 +64,20 @@ const MarketplaceSearch = ({
                     <select
                         value={sortOption}
                         onChange={e => onSortChange(e.target.value)}
-                        className="w-full sm:w-auto px-3 py-2 pl-8 rounded-xl bg-[#0D1117] border border-[#21262D] text-[#E6EDF3] text-xs sm:text-sm outline-none focus:border-emerald-500/50 cursor-pointer transition-colors appearance-none"
+                        className="w-full sm:w-auto px-3 py-2 pl-8 rounded-xl bg-slate-50 dark:bg-[#0D1117] border border-slate-200 dark:border-[#21262D] text-slate-900 dark:text-[#E6EDF3] text-xs sm:text-sm outline-none focus:border-emerald-500/50 cursor-pointer transition-colors appearance-none"
                     >
                         {SORT_OPTIONS.map(sort => (
-                            <option key={sort.value} value={sort.value} className="bg-[#161B22]">
+                            <option key={sort.value} value={sort.value} className="bg-white dark:bg-[#161B22] text-slate-900 dark:text-[#E6EDF3]">
                                 {sort.label}
                             </option>
                         ))}
                     </select>
-                    <ArrowUpDown size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8B949E] pointer-events-none" />
+                    <ArrowUpDown size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#8B949E] pointer-events-none" />
                 </div>
             </div>
 
             {/* Results Count */}
-            <div className="text-xs text-[#8B949E] font-medium px-2 py-1 self-end sm:self-center">
+            <div className="text-xs text-slate-500 dark:text-[#8B949E] font-medium px-2 py-1 self-end sm:self-center">
                 {totalCount} {totalCount === 1 ? 'listing' : 'listings'}
             </div>
         </div>

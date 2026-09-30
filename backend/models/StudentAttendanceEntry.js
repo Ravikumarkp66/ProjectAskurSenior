@@ -42,6 +42,11 @@ const studentAttendanceEntrySchema = new mongoose.Schema({
         type: String, // Optional: e.g. "08:00-09:00"
         default: ''
     },
+    lectureType: {
+        type: String,
+        enum: ['Lecture', 'Lab', 'Tutorial', 'Seminar', 'Project', 'Free Period'],
+        default: 'Lecture'
+    },
     remarks: {
         type: String,
         default: ''
@@ -59,6 +64,8 @@ const studentAttendanceEntrySchema = new mongoose.Schema({
 
 // Unique index to prevent duplicate attendance entry for same subject slot on a specific date
 studentAttendanceEntrySchema.index({ student: 1, semester: 1, subject: 1, date: 1, timeSlot: 1 }, { unique: true });
+studentAttendanceEntrySchema.index({ student: 1, semester: 1, date: 1 });
+studentAttendanceEntrySchema.index({ student: 1, semester: 1 });
 studentAttendanceEntrySchema.index({ student: 1, date: 1 });
 
 module.exports = mongoose.models.StudentAttendanceEntry || mongoose.model('StudentAttendanceEntry', studentAttendanceEntrySchema);

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { interviewExperiencesAPI } from '../../services/api';
+import { useAuth } from '../../utils/hooks';
+import AuthGate from '../../components/AuthGate';
 import { 
     ChevronLeft, 
     Plus, 
@@ -16,6 +18,9 @@ import {
 
 const ShareExperience = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { isAuthenticated, hasPlusAccess } = useAuth();
+    const targetInterviewPath = location.pathname.startsWith('/plus') ? '/plus/interview' : '/home/interview';
     const [companies, setCompanies] = useState([]);
     const [theme] = useState(() => localStorage.getItem('uiTheme') || 'dark');
     const [submitting, setSubmitting] = useState(false);
@@ -34,12 +39,17 @@ const ShareExperience = () => {
     });
 
     useEffect(() => {
+        if (!isAuthenticated || !hasPlusAccess) return;
         const fetchCompanies = async () => {
-            const res = await interviewExperiencesAPI.getCompanies();
-            setCompanies(res.data);
+            try {
+                const res = await interviewExperiencesAPI.getCompanies();
+                setCompanies(res.data || []);
+            } catch (err) {
+                console.error('Failed to load companies:', err);
+            }
         };
         fetchCompanies();
-    }, []);
+    }, [isAuthenticated, hasPlusAccess]);
 
     const handleRoundChange = (index, field, value) => {
         const newRounds = [...form.rounds];
@@ -85,7 +95,7 @@ const ShareExperience = () => {
                 roundsCount: form.rounds.length
             });
             alert('Experience shared successfully!');
-            navigate('/interview');
+            navigate(targetInterviewPath);
 
         } catch (error) {
             console.error('Error sharing experience:', error);
@@ -97,10 +107,29 @@ const ShareExperience = () => {
 
     const isLightMode = theme === 'light';
 
+    if (!isAuthenticated) {
+        return (
+            <AuthGate
+                requireAuth={true}
+                loginMessage="Sign in to share your interview rounds and help your college juniors."
+            />
+        );
+    }
+
+    if (!hasPlusAccess) {
+        return (
+            <AuthGate
+                requireAuth={false}
+                requirePlus={true}
+                plusMessage="Interview experience submission is enabled for Plus community members."
+            />
+        );
+    }
+
     return (
         <div className="max-w-4xl mx-auto w-full">
             <Link 
-                to="/interview"
+                to={targetInterviewPath}
                 className="flex items-center gap-2 text-slate-500 hover:text-purple-500 transition-colors font-bold mb-6 text-sm group"
             >
                 <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />

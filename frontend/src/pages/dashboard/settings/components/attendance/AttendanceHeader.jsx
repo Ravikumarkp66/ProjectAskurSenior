@@ -94,7 +94,7 @@ const AttendanceHeader = ({
                         type="button"
                         onClick={() => {
                             if (onOpenSettings) onOpenSettings();
-                            else navigate('/home/timetable');
+                            else navigate('/plus/timetable');
                         }}
                         style={{
                             background: 'rgba(255,255,255,0.03)',

@@ -1,9 +1,8 @@
 import React from 'react';
 import { socialPlatformsConfig } from '../config/socialPlatforms';
-
 import { useTheme } from '../../../context/ThemeContext';
 
-const SocialLinks = ({ student }) => {
+const SocialLinks = ({ student, isAnonymous = false }) => {
     const { isDark } = useTheme();
     if (!student) return null;
 
@@ -31,35 +30,36 @@ const SocialLinks = ({ student }) => {
 
     if (activePlatforms.length === 0) return null;
 
-    const borderColor = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.08)';
+    const borderColor = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(15, 23, 42, 0.12)';
     const bgColor = isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(15, 23, 42, 0.03)';
-    const iconColor = isDark ? '#94A3B8' : '#64748B';
+    const iconColor = isDark ? '#A1A1AA' : '#6B7280';
 
     return (
         <div style={{
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
-            fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif"
+            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif'
         }}>
             <h3 style={{
                 fontSize: '12px',
                 fontWeight: 700,
-                color: isDark ? '#94A3B8' : '#64748B',
+                color: isDark ? '#A1A1AA' : '#6B7280',
                 margin: '0 0 2px 0',
-                letterSpacing: '0.04em',
+                letterSpacing: '0.06em',
                 textTransform: 'uppercase'
             }}>
-                Social Media
+                Social Links
             </h3>
 
             <div style={{
                 display: 'flex',
                 flexWrap: 'nowrap',
-                gap: '8px',
+                gap: '10px',
                 overflowX: 'auto',
                 scrollbarWidth: 'none',
-                msOverflowStyle: 'none'
+                msOverflowStyle: 'none',
+                paddingTop: '2px'
             }} className="social-links-scroll-row">
                 {activePlatforms.map((platform) => {
                     const Icon = platform.icon;
@@ -76,36 +76,33 @@ const SocialLinks = ({ student }) => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '6px',
                                 border: `1px solid ${borderColor}`,
                                 background: bgColor,
                                 color: iconColor,
-                                transition: 'background 0.2s, color 0.2s, border-color 0.2s, transform 0.2s',
+                                transition: 'background 0.15s, color 0.15s, border-color 0.15s',
                                 flexShrink: 0
                             }}
                             onMouseEnter={(e) => {
-                                e.currentTarget.style.background = isDark ? 'rgba(139, 92, 246, 0.15)' : 'rgba(124, 58, 237, 0.08)';
-                                e.currentTarget.style.color = isDark ? '#c4b5fd' : '#7c3aed';
-                                e.currentTarget.style.borderColor = isDark ? 'rgba(139, 92, 246, 0.35)' : 'rgba(124, 58, 237, 0.3)';
-                                e.currentTarget.style.transform = 'translateY(-1px)';
+                                e.currentTarget.style.background = isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(37, 99, 235, 0.08)';
+                                e.currentTarget.style.color = isDark ? '#93C5FD' : '#2563EB';
+                                e.currentTarget.style.borderColor = isDark ? 'rgba(59, 130, 246, 0.35)' : 'rgba(37, 99, 235, 0.3)';
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.background = bgColor;
                                 e.currentTarget.style.color = iconColor;
                                 e.currentTarget.style.borderColor = borderColor;
-                                e.currentTarget.style.transform = 'translateY(0)';
                             }}
                             title={platform.label}
                         >
-                            <Icon size={13} />
+                            <Icon size={16} />
                         </a>
                     );
                 })}
             </div>
             
-            {/* Custom Webkit Scrollbar hider inline */}
             <style dangerouslySetInnerHTML={{__html: `
                 .social-links-scroll-row::-webkit-scrollbar {
                     display: none !important;

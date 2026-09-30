@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { apiV2 } from '../services/authService';
-import { useAuth } from '../utils/hooks';
+import { AuthContext } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
 const StudentAcademicsContext = createContext(null);
@@ -14,10 +14,13 @@ export const useStudentAcademics = () => {
 };
 
 export const StudentAcademicsProvider = ({ children }) => {
-    const { user, updateUser } = useAuth();
+    const auth = useContext(AuthContext);
+    const user = auth?.user;
+    const updateUser = auth?.updateUser;
+    const hasPlusAccess = auth ? Boolean(auth.hasPlusAccess) : true;
 
     // ── Global Loading & Status ─────────────────────────────
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(hasPlusAccess);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
@@ -43,6 +46,29 @@ export const StudentAcademicsProvider = ({ children }) => {
 
     // ── Initial Fetch: Overview, Semesters, Sections, Settings ─
     const fetchInitialData = useCallback(async () => {
+        if (!hasPlusAccess) {
+            setLoading(false);
+            setError(null);
+            setAcademicOverview({
+                student: { currentSemester: 3, branch: 'CSE', usn: '1RV23CS042', name: 'Preview Student' },
+                visibleSemesters: [
+                    { number: 1, label: 'Semester 1' },
+                    { number: 2, label: 'Semester 2' },
+                    { number: 3, label: 'Semester 3' },
+                    { number: 4, label: 'Semester 4' }
+                ]
+            });
+            setCurrentSemester(3);
+            setSelectedSemester(3);
+            setSemestersData([
+                { number: 1, label: 'Semester 1' },
+                { number: 2, label: 'Semester 2' },
+                { number: 3, label: 'Semester 3' },
+                { number: 4, label: 'Semester 4' }
+            ]);
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
@@ -92,7 +118,7 @@ export const StudentAcademicsProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, hasPlusAccess]);
 
     useEffect(() => {
         fetchInitialData();
@@ -100,6 +126,10 @@ export const StudentAcademicsProvider = ({ children }) => {
 
     // ── Load Semester-Specific Data (Timetable & Subjects) ─
     const fetchSemesterData = useCallback(async (semNum) => {
+        if (!hasPlusAccess) {
+            return;
+        }
+
         try {
             const [ttRes, subRes] = await Promise.allSettled([
                 apiV2.getStudentAcademicsTimetable(semNum),
@@ -123,7 +153,7 @@ export const StudentAcademicsProvider = ({ children }) => {
         } catch (err) {
             console.error(`[StudentAcademicsContext] Error loading sem ${semNum}:`, err);
         }
-    }, []);
+    }, [hasPlusAccess]);
 
     useEffect(() => {
         if (!loading) {
@@ -136,7 +166,7 @@ export const StudentAcademicsProvider = ({ children }) => {
     // Select semester: only permits visible past + current semesters (never future)
     const selectSemester = (semNum) => {
         const target = Number(semNum);
-        if (target > currentSemester) {
+        if (target > currentSemester && hasPlusAccess) {
             toast.error(`Future semester ${target} is not accessible. Current semester is ${currentSemester}.`);
             return;
         }
@@ -145,6 +175,7 @@ export const StudentAcademicsProvider = ({ children }) => {
 
     // Update section (within verified batch & branch)
     const updateSection = async (sectionId) => {
+        if (!hasPlusAccess) return false;
         try {
             setSaving(true);
             const res = await apiV2.updateStudentAcademicsSection(sectionId);
@@ -167,6 +198,7 @@ export const StudentAcademicsProvider = ({ children }) => {
 
     // Update personal attendance target (does NOT alter college minimum 85%)
     const updatePersonalTarget = async (target) => {
+        if (!hasPlusAccess) return false;
         try {
             setSaving(true);
             const targetNum = Number(target);
@@ -203,6 +235,7 @@ export const StudentAcademicsProvider = ({ children }) => {
 
     // Save registered subjects from authoritative curriculum
     const saveRegisteredSubjects = async (subjectIds) => {
+        if (!hasPlusAccess) return false;
         if (isHistorical) {
             toast.error('Historical semesters cannot be modified.');
             return false;

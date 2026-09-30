@@ -253,39 +253,39 @@ export default function FacultyFeedbackFormModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/75 backdrop-blur-xs">
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 8 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 8 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
-          className="w-full max-w-lg bg-[#0B0F19] text-slate-100 border border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="w-full max-w-lg bg-white dark:bg-[#0F1115] text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="feedback-form-title"
         >
           {/* Header */}
-          <div className="flex items-start justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/40">
+          <div className="flex items-start justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#15181D]">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/50">
+                <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-purple-700 dark:text-purple-400 bg-purple-100 dark:bg-purple-950/60 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800/50">
                   {isEditing ? 'EDIT FEEDBACK' : 'GIVE FEEDBACK'}
                 </span>
                 <span className="text-xs text-slate-500 font-mono">~30 sec</span>
               </div>
               <h2
                 id="feedback-form-title"
-                className="text-base font-semibold text-white mt-1 leading-snug"
+                className="text-base font-semibold text-slate-900 dark:text-white mt-1 leading-snug"
               >
                 {faculty.name}
               </h2>
-              <p className="text-xs text-slate-400 font-mono mt-0.5">
-                {faculty.designation} · <span className="text-purple-300">{faculty.department}</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                {faculty.designation} · <span className="text-purple-600 dark:text-purple-300 font-medium">{faculty.department}</span>
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/80 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800/80 transition-colors"
               aria-label="Close dialog"
             >
               <X size={18} />
@@ -293,26 +293,26 @@ export default function FacultyFeedbackFormModal({
           </div>
 
           {/* Form Content */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-6 bg-white dark:bg-[#0F1115]">
             {errorMessage && (
-              <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-lg flex items-center gap-2.5 text-xs text-red-200">
-                <AlertCircle size={15} className="shrink-0 text-red-400" />
+              <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-lg flex items-center gap-2.5 text-xs text-red-700 dark:text-red-200">
+                <AlertCircle size={15} className="shrink-0 text-red-500 dark:text-red-400" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             {/* Subject Selection */}
-            <div className="space-y-1.5 pb-3 border-b border-slate-800/80">
-              <label className="text-xs font-semibold text-slate-200 uppercase tracking-wide font-mono flex items-center justify-between">
+            <div className="space-y-1.5 pb-3 border-b border-slate-200 dark:border-slate-800/80">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wide font-mono flex items-center justify-between">
                 <span>SELECT SUBJECT</span>
-                <span className="text-[10px] text-purple-400 font-normal">REQUIRED</span>
+                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-normal">REQUIRED</span>
               </label>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Choose or specify the subject this faculty member taught you:
               </p>
               {loadingSubjects ? (
-                <div className="py-2 text-xs font-mono text-slate-400 flex items-center gap-2">
-                  <Loader2 size={13} className="animate-spin text-purple-400" />
+                <div className="py-2 text-xs font-mono text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                  <Loader2 size={13} className="animate-spin text-purple-600 dark:text-purple-400" />
                   <span>Loading subjects...</span>
                 </div>
               ) : !isCustomSubject ? (
@@ -320,7 +320,7 @@ export default function FacultyFeedbackFormModal({
                   <select
                     value={selectedSubjectCode}
                     onChange={(e) => handleSubjectChange(e.target.value)}
-                    className="w-full px-3 py-2 text-xs font-mono bg-[#070B14] border border-slate-800 rounded-lg text-slate-200 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-[#15181D] border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
                     required
                   >
                     <option value="" disabled>-- Choose a Subject --</option>
@@ -333,10 +333,10 @@ export default function FacultyFeedbackFormModal({
                   </select>
                 </div>
               ) : (
-                <div className="space-y-2 p-3 bg-[#070B14] border border-purple-900/50 rounded-lg">
+                <div className="space-y-2 p-3 bg-slate-50 dark:bg-[#15181D] border border-purple-200 dark:border-purple-900/50 rounded-lg">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
-                      <span className="text-[10px] font-mono text-slate-400 block mb-1">
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 block mb-1">
                         Course Code (e.g. 21CS42)
                       </span>
                       <input
@@ -344,12 +344,12 @@ export default function FacultyFeedbackFormModal({
                         value={customSubjectCode}
                         onChange={(e) => setCustomSubjectCode(e.target.value)}
                         placeholder="e.g. 21CS42"
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white uppercase focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white dark:bg-[#0F1115] border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-white uppercase focus:outline-none focus:ring-1 focus:ring-purple-500"
                         required
                       />
                     </div>
                     <div>
-                      <span className="text-[10px] font-mono text-slate-400 block mb-1">
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 block mb-1">
                         Course Name (Optional)
                       </span>
                       <input
@@ -357,7 +357,7 @@ export default function FacultyFeedbackFormModal({
                         value={customSubjectName}
                         onChange={(e) => setCustomSubjectName(e.target.value)}
                         placeholder="e.g. Database Management Systems"
-                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono bg-white dark:bg-[#0F1115] border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
                       />
                     </div>
                   </div>
@@ -367,7 +367,7 @@ export default function FacultyFeedbackFormModal({
                       setIsCustomSubject(false);
                       setSelectedSubjectCode(subjectsList[0]?.code || '');
                     }}
-                    className="text-[11px] font-mono text-purple-400 hover:text-purple-300 underline"
+                    className="text-[11px] font-mono text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline"
                   >
                     ← Choose from curriculum subjects list
                   </button>
@@ -378,12 +378,12 @@ export default function FacultyFeedbackFormModal({
             {/* Question 01 */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <label className="text-xs font-semibold text-slate-200 uppercase tracking-wide font-mono">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wide font-mono">
                   Question 01
                 </label>
-                <span className="text-[11px] text-slate-400">CIE Score</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">CIE Score</span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 What was your CIE score in this subject?
               </p>
 
@@ -398,16 +398,16 @@ export default function FacultyFeedbackFormModal({
                     value={cieScore}
                     onChange={(e) => setCieScore(e.target.value)}
                     placeholder="—"
-                    className={`w-24 px-3 py-1.5 text-sm font-mono bg-slate-900 border rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-colors ${
+                    className={`w-24 px-3 py-1.5 text-sm font-mono border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-colors ${
                       cieNotReceived
-                        ? 'border-slate-800 bg-slate-950 text-slate-600 cursor-not-allowed'
-                        : 'border-slate-700'
+                        ? 'border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                        : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-[#15181D] text-slate-900 dark:text-white'
                     }`}
                   />
-                  <span className="text-xs font-mono text-slate-400">/ {maxCie}</span>
+                  <span className="text-xs font-mono text-slate-500 dark:text-slate-400">/ {maxCie}</span>
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-400 hover:text-slate-300">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300">
                   <input
                     type="checkbox"
                     checked={cieNotReceived}
@@ -415,24 +415,24 @@ export default function FacultyFeedbackFormModal({
                       setCieNotReceived(e.target.checked);
                       if (e.target.checked) setCieScore('');
                     }}
-                    className="w-3.5 h-3.5 rounded border-slate-700 bg-slate-900 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
+                    className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-purple-600 focus:ring-purple-500 focus:ring-offset-0"
                   />
                   <span>I haven't received my CIE marks yet</span>
                 </label>
               </div>
             </div>
 
-            <div className="h-px bg-slate-800/60" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800/60" />
 
             {/* Question 02 */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <label className="text-xs font-semibold text-slate-200 uppercase tracking-wide font-mono">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wide font-mono">
                   Question 02
                 </label>
-                <span className="text-[11px] text-slate-400">Eligibility</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Eligibility</span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 Did you receive NE in this subject?
               </p>
 
@@ -442,8 +442,8 @@ export default function FacultyFeedbackFormModal({
                   onClick={() => setReceivedNE(true)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-mono font-medium border transition-all ${
                     receivedNE === true
-                      ? 'bg-red-950/60 text-red-200 border-red-600 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
-                      : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700'
+                      ? 'bg-red-50 text-red-700 border-red-300 dark:bg-red-950/60 dark:text-red-200 dark:border-red-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-900/60 dark:text-slate-400 dark:border-slate-800 dark:hover:border-slate-700'
                   }`}
                 >
                   Yes
@@ -453,8 +453,8 @@ export default function FacultyFeedbackFormModal({
                   onClick={() => setReceivedNE(false)}
                   className={`px-4 py-1.5 rounded-lg text-xs font-mono font-medium border transition-all ${
                     receivedNE === false
-                      ? 'bg-emerald-950/60 text-emerald-200 border-emerald-600 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                      : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-900/60 dark:text-slate-400 dark:border-slate-800 dark:hover:border-slate-700'
                   }`}
                 >
                   No
@@ -462,19 +462,19 @@ export default function FacultyFeedbackFormModal({
               </div>
             </div>
 
-            <div className="h-px bg-slate-800/60" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800/60" />
 
             {/* Question 03 */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <label className="text-xs font-semibold text-slate-200 uppercase tracking-wide font-mono">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wide font-mono">
                   Question 03
                 </label>
-                <span className="text-[11px] text-purple-400 font-mono">
+                <span className="text-[11px] text-purple-600 dark:text-purple-400 font-mono font-medium">
                   {teachingRating > 0 ? `${teachingRating} / 5 · ${TEACHING_LABELS[teachingRating]}` : '1–5 scale'}
                 </span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 How would you rate the faculty's teaching?
               </p>
 
@@ -489,11 +489,11 @@ export default function FacultyFeedbackFormModal({
                       aria-label={`Teaching rating: ${val} out of 5 (${TEACHING_LABELS[val]})`}
                       aria-checked={teachingRating === val}
                       role="radio"
-                      className="p-1 rounded hover:scale-110 active:scale-95 transition-all text-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="p-1 rounded hover:scale-110 active:scale-95 transition-all text-slate-300 dark:text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     >
                       <Star
                         size={22}
-                        className={isFilled ? 'fill-purple-400 text-purple-400' : 'text-slate-600'}
+                        className={isFilled ? 'fill-purple-500 text-purple-500 dark:fill-purple-400 dark:text-purple-400' : 'text-slate-300 dark:text-slate-700'}
                       />
                     </button>
                   );
@@ -501,21 +501,21 @@ export default function FacultyFeedbackFormModal({
               </div>
             </div>
 
-            <div className="h-px bg-slate-800/60" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800/60" />
 
             {/* Question 04 */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <label className="text-xs font-semibold text-slate-200 uppercase tracking-wide font-mono">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wide font-mono">
                   Question 04
                 </label>
-                <span className="text-[11px] text-purple-400 font-mono">
+                <span className="text-[11px] text-purple-600 dark:text-purple-400 font-mono font-medium">
                   {recommendationRating > 0
                     ? `${recommendationRating} / 5 · ${RECOMMENDATION_LABELS[recommendationRating]}`
                     : 'Recommendation'}
                 </span>
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-600 dark:text-slate-300">
                 How likely are you to recommend this faculty to your friends?
               </p>
 
@@ -530,11 +530,11 @@ export default function FacultyFeedbackFormModal({
                       aria-label={`Recommendation: ${val} out of 5 (${RECOMMENDATION_LABELS[val]})`}
                       aria-checked={recommendationRating === val}
                       role="radio"
-                      className="p-1 rounded hover:scale-110 active:scale-95 transition-all text-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                      className="p-1 rounded hover:scale-110 active:scale-95 transition-all text-slate-300 dark:text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
                     >
                       <Star
                         size={22}
-                        className={isFilled ? 'fill-purple-400 text-purple-400' : 'text-slate-600'}
+                        className={isFilled ? 'fill-purple-500 text-purple-500 dark:fill-purple-400 dark:text-purple-400' : 'text-slate-300 dark:text-slate-700'}
                       />
                     </button>
                   );
@@ -542,12 +542,12 @@ export default function FacultyFeedbackFormModal({
               </div>
             </div>
 
-            <div className="h-px bg-slate-800/60" />
+            <div className="h-px bg-slate-200 dark:bg-slate-800/60" />
 
             {/* Optional Question 05 */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <label className="text-xs font-semibold text-slate-200 uppercase tracking-wide font-mono">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wide font-mono">
                   Anything useful to share?
                 </label>
                 <span className="text-[11px] text-slate-500 font-mono">Optional</span>
@@ -558,21 +558,21 @@ export default function FacultyFeedbackFormModal({
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 placeholder="Write a short comment..."
-                className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none transition-colors"
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-[#15181D] border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none transition-colors"
               />
-              <p className="text-[10px] text-slate-500 font-mono text-right">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono text-right">
                 {comment.length} / 1000 · Anonymously published
               </p>
             </div>
           </form>
 
           {/* Footer CTA */}
-          <div className="flex items-center justify-between px-6 py-3.5 border-t border-slate-800 bg-slate-900/40">
+          <div className="flex items-center justify-between px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#15181D]">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-3.5 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors font-mono"
+              className="px-3.5 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors font-mono"
             >
               Cancel
             </button>

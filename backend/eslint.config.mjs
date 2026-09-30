@@ -29,7 +29,8 @@ export default [
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': 'off',
-      'no-undef': 'error'
+      'no-undef': 'error',
+      'no-empty': ['error', { allowEmptyCatch: true }]
     }
   },
   {
@@ -46,6 +47,9 @@ export default [
         beforeEach: 'readonly',
         afterEach: 'readonly'
       }
+    },
+    rules: {
+      'no-loss-of-precision': 'off'
     }
   }
 ];

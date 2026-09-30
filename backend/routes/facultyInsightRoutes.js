@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const authMiddleware = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/adminAuth');
+const { requirePlusAccess } = require('../middleware/plusAccess');
 const {
   getFacultySubjects,
   getFacultyInsights,
@@ -14,30 +14,15 @@ const {
   moderateComment,
 } = require('../controllers/facultyInsightController');
 
-// Soft auth middleware to optionally resolve userId for GET requests without failing if unauthenticated
-const optionalAuth = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
-  if (token) {
-    try {
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || 'fallback_secret_ask_ur_senior'
-      );
-      req.userId = decoded.userId || decoded.id || decoded._id;
-    } catch (_) {}
-  }
-  next();
-};
+// Plus-Protected Student Insight Browsing (Database access restricted to Plus members)
+router.get('/subjects', authMiddleware, requirePlusAccess, getFacultySubjects);
+router.get('/', authMiddleware, requirePlusAccess, getFacultyInsights);
+router.get('/:facultyId', authMiddleware, requirePlusAccess, getSingleFacultySubjectInsight);
+router.get('/:facultyId/:subjectCode', authMiddleware, requirePlusAccess, getSingleFacultySubjectInsight);
 
-// Public / Student Insight Browsing
-router.get('/subjects', optionalAuth, getFacultySubjects);
-router.get('/', optionalAuth, getFacultyInsights);
-router.get('/:facultyId', optionalAuth, getSingleFacultySubjectInsight);
-router.get('/:facultyId/:subjectCode', optionalAuth, getSingleFacultySubjectInsight);
-
-// Authenticated Student Feedback Submissions
-router.post('/', authMiddleware, submitFeedback);
-router.put('/:id', authMiddleware, updateFeedback);
+// Plus-Protected Student Feedback Submissions
+router.post('/', authMiddleware, requirePlusAccess, submitFeedback);
+router.put('/:id', authMiddleware, requirePlusAccess, updateFeedback);
 
 // Admin Configuration & Moderation
 router.get('/admin/config', authMiddleware, requireAdmin, getAdminConfig);

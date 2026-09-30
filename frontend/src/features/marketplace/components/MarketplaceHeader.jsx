@@ -8,32 +8,32 @@ import { Plus, ShoppingBag, Store, User } from 'lucide-react';
 
 const MarketplaceHeader = ({ onSellClick, myListingsOnly, onToggleMyListings }) => {
     return (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 pb-4 md:pb-5 border-b border-[#21262D]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-4 pb-4 md:pb-5 border-b border-slate-200 dark:border-[#21262D]">
             <div>
                 <div className="flex items-center gap-2.5">
-                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#E6EDF3] tracking-tight">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-[#E6EDF3] tracking-tight">
                         Marketplace
                     </h1>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         <ShoppingBag size={11} className="stroke-[2.5]" />
                         Campus Store
                     </span>
                 </div>
-                <p className="text-xs sm:text-sm text-[#8B949E] mt-0.5 md:mt-1 max-w-xl">
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-[#8B949E] mt-0.5 md:mt-1 max-w-xl">
                     Buy and sell useful things within your campus. Peer-to-peer student deals.
                 </p>
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end flex-wrap sm:flex-nowrap pt-1 md:pt-0">
                 {/* All vs My Listings Toggle — Full width on mobile (< md) */}
-                <div className="flex items-center bg-[#161B22] border border-[#21262D] rounded-xl p-1 text-xs w-full md:w-auto">
+                <div className="flex items-center bg-slate-100 dark:bg-[#161B22] border border-slate-200 dark:border-[#21262D] rounded-xl p-1 text-xs w-full md:w-auto shadow-xs">
                     <button
                         type="button"
                         onClick={() => onToggleMyListings(false)}
                         className={`flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
                             !myListingsOnly
-                                ? 'bg-[#21262D] text-[#E6EDF3] shadow-sm'
-                                : 'text-[#8B949E] hover:text-[#E6EDF3]'
+                                ? 'bg-white dark:bg-[#21262D] text-slate-900 dark:text-[#E6EDF3] shadow-xs'
+                                : 'text-slate-500 dark:text-[#8B949E] hover:text-slate-900 dark:hover:text-[#E6EDF3]'
                         }`}
                     >
                         <Store size={13} />
@@ -44,8 +44,8 @@ const MarketplaceHeader = ({ onSellClick, myListingsOnly, onToggleMyListings }) 
                         onClick={() => onToggleMyListings(true)}
                         className={`flex-1 md:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
                             myListingsOnly
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
-                                : 'text-[#8B949E] hover:text-emerald-400'
+                                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-xs'
+                                : 'text-slate-500 dark:text-[#8B949E] hover:text-emerald-600 dark:hover:text-emerald-400'
                         }`}
                     >
                         <User size={13} />

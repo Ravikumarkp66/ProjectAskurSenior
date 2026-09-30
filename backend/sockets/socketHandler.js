@@ -151,7 +151,7 @@ const setupSocketHandler = (io) => {
                             userId: conversation.userId,
                             type: 'admin_reply',
                             title: 'New Support Reply',
-                            message: 'You have received a new reply from ASK+ Support.',
+                            message: 'You have received a new reply from AskUrSenior Support.',
                             activeUsers
                         });
 

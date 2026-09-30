@@ -25,14 +25,14 @@ export const DEFAULT_HERO_CONTENT = {
         highlight: "EXPERIENCE,",
         suffix: "not speculation."
     },
-    description: "Access study materials, PYQs, interview experiences, AI assistance, campus tools, faculty information, and more—built specifically for SIT students.",
+    description: "Access verified study materials, solved PYQs, section timetables, attendance tracking, CIE calculators, lab coding tools, and senior interview experiences—built specifically for SIT students.",
     primaryCTA: {
         label: "Start For Free",
         href: "/signup"
     },
     secondaryCTA: {
         label: "Explore AskUrSenior Plus",
-        href: "/plus"
+        href: "/pricing"
     }
 };
 
@@ -45,24 +45,32 @@ export const DEFAULT_HERO_STATS = [
 
 export const SHOWCASE_TABS = [
     {
-        id: 'ask_plus',
-        title: 'Ask+ AI Assistant',
-        subtitle: '24/7 Academic AI tuned for SIT syllabus & regulations',
-        tag: 'AI POWERED',
+        id: 'attendance',
+        title: 'Smart Attendance',
+        subtitle: 'Section timetable sync, lab batch filter & safe bunk calculator',
+        tag: '85% SIT RULE',
         badgeColor: 'from-purple-500 to-indigo-500',
-        metrics: '99.4% Accuracy'
+        metrics: '85% Rule'
+    },
+    {
+        id: 'cie',
+        title: 'CIE 50-Mark Analyzer',
+        subtitle: 'Best-of-N normalization & SEE required marks target calculator',
+        tag: 'NORMALIZATION',
+        badgeColor: 'from-purple-600 to-violet-600',
+        metrics: 'Target Grade'
     },
     {
         id: 'materials',
-        title: 'Study Materials & PYQs',
+        title: 'Study Materials & Solved PYQs',
         subtitle: 'Sorted by Semester, Subject, and Exam Type',
         tag: 'STUDY RESOURCES',
-        badgeColor: 'from-indigo-500 to-blue-500',
+        badgeColor: 'from-indigo-500 to-purple-500',
         metrics: '100% Verified'
     },
     {
         id: 'interviews',
-        title: 'Interview Experiences',
+        title: 'Senior Interview Experiences',
         subtitle: 'Real placement questions & round-by-round tips from seniors',
         tag: 'SENIOR TESTED',
         badgeColor: 'from-fuchsia-500 to-purple-500',
@@ -71,18 +79,10 @@ export const SHOWCASE_TABS = [
     {
         id: 'campus_map',
         title: 'Campus Explorer 3D',
-        subtitle: 'Interactive 3D campus navigation with block search',
+        subtitle: 'Interactive campus navigation with block search',
         tag: 'INTERACTIVE',
         badgeColor: 'from-emerald-500 to-teal-500',
         metrics: 'Live SIT Map'
-    },
-    {
-        id: 'calculator',
-        title: 'CGPA & CIE Calculator',
-        subtitle: 'Calculate SGPA, target CIE marks & attendance safety',
-        tag: 'ACCURATE',
-        badgeColor: 'from-amber-500 to-orange-500',
-        metrics: 'SIT Scheme Ready'
     }
 ];
 
@@ -126,16 +126,6 @@ export const DEFAULT_LIVE_ACTIVITIES = [
         type: 'download',
         icon: '📚',
         color: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10'
-    },
-    {
-        id: 'act-6',
-        user: 'Sneha',
-        action: 'asked Ask+',
-        target: '"What happens if I become NE?"',
-        timeAgo: '15m ago',
-        type: 'ai',
-        icon: '🤖',
-        color: 'border-fuchsia-500/30 text-fuchsia-400 bg-fuchsia-500/10'
     }
 ];
 

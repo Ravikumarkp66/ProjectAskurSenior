@@ -42,7 +42,7 @@ const HomePage = () => {
     }, []);
 
     return (
-        <div className="flex flex-col min-h-screen bg-[#F8FAFC] dark:bg-[#080B14] text-slate-900 dark:text-slate-100 font-outfit transition-colors duration-200">
+        <div className="flex flex-col min-h-screen bg-[#FFFFFF] dark:bg-[#0F1115] text-[#111827] dark:text-[#F3F4F6] font-sans transition-colors duration-150">
             {/* Global Navbar */}
             <Navbar />
             <main className="flex-1 relative z-10">

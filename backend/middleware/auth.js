@@ -37,7 +37,7 @@ const authMiddleware = async (req, res, next) => {
 
         if (mongoose.isValidObjectId(userId)) {
             // Verify the student account exists (source of truth for students)
-            const student = await StudentAccount.findById(userId).select('_id email name accountStatus registrationStatus role branch');
+            const student = await StudentAccount.findById(userId).select('_id email name accountStatus registrationStatus role branch isTestUser isTestAccount isPlus plan subscription subscriptionStatus hasActiveSubscription');
             
             if (student) {
                 user = {
@@ -49,12 +49,19 @@ const authMiddleware = async (req, res, next) => {
                     role: student.role,
                     branch: student.branch,
                     currentBranch: student.branch,
+                    isTestUser: student.isTestUser,
+                    isTestAccount: student.isTestAccount,
+                    isPlus: student.isPlus,
+                    plan: student.plan,
+                    subscription: student.subscription,
+                    subscriptionStatus: student.subscriptionStatus,
+                    hasActiveSubscription: student.hasActiveSubscription,
                     isStudentAccount: true
                 };
                 isStudentAccount = true;
             } else {
                 // Fallback to legacy User
-                const legacyUser = await User.findById(userId).select('_id email name isSuspended registrationComplete role branch currentBranch');
+                const legacyUser = await User.findById(userId).select('_id email name isSuspended registrationComplete role branch currentBranch isTestUser isTestAccount isPlus plan subscription subscriptionStatus hasActiveSubscription');
                 if (legacyUser) {
                     user = legacyUser;
                 }
@@ -126,13 +133,15 @@ const authMiddleware = async (req, res, next) => {
         }
 
         // Restrict users with incomplete registration from accessing non-profile endpoints (exempt admins)
+        const requestUrl = (req.originalUrl || req.url || '').toLowerCase();
         if (!adminRecord && user.registrationComplete === false &&
-            !req.originalUrl.includes('/complete-google-registration') &&
-            !req.originalUrl.includes('/complete-profile') &&
-            !req.originalUrl.includes('/profile') &&
-            !req.originalUrl.includes('/me') &&
-            !req.originalUrl.includes('/heartbeat') &&
-            !req.originalUrl.includes('/events')) {
+            !requestUrl.includes('/complete-google-registration') &&
+            !requestUrl.includes('/complete-profile') &&
+            !requestUrl.includes('/profile') &&
+            !requestUrl.includes('/me') &&
+            !requestUrl.includes('/heartbeat') &&
+            !requestUrl.includes('/events') &&
+            !requestUrl.includes('/bugs')) {
             return res.status(403).json({ error: 'Please complete your profile registration first.', needsCompletion: true });
         }
 

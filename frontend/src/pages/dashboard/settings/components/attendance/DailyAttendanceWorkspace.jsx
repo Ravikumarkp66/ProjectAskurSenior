@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
     Check, X, RotateCcw, ChevronLeft, ChevronRight, CalendarDays, AlertCircle, Clock,
-    MoreVertical, Pause, Play, Edit3, Undo2
+    MoreVertical, Pause, Play, Edit3, Undo2, Lock
 } from 'lucide-react';
 import { useTheme } from '../../../../../context/ThemeContext';
 import CalendarDateNavigator from './CalendarDateNavigator';
@@ -22,6 +22,7 @@ const DailyAttendanceWorkspace = ({
     unconfirmedPastCount = 0,
     onQuickMarkPast,
     readOnly,
+    isLocked = false,
     timetableConfig,
     groupedTimeline = [],
     events = [],
@@ -92,11 +93,20 @@ const DailyAttendanceWorkspace = ({
     }, [dayEventInfo, events, selectedDate]);
 
     // Check full-day suspension vs time-range suspension
+    const isTestOrExam = (e) => (
+        e?.eventType === 'Exam' || 
+        e?.eventType === 'EXAM' || 
+        e?.eventType === 'CIE / Test' || 
+        /test[-\s]?\d+|cie[-\s]?\d+|exam|internal/i.test(e?.title || '')
+    );
+
     const fullDayEvent = dayEvents.find(e => 
-        e.suspensionType === 'full_day' || 
-        e.eventType === 'Holiday / Closure' || 
-        (e.classesSuspended && (!e.suspensionType || e.suspensionType === 'none' || e.suspensionType === 'full_day')) ||
-        /holiday|closure|vacation|preparation.*holiday/i.test(e.title || '')
+        e?.suspensionType === 'full_day' || 
+        e?.classImpact === 'FULL_DAY' ||
+        e?.eventType === 'Holiday / Closure' || 
+        (e?.classesSuspended && (!e.suspensionType || e.suspensionType === 'none' || e.suspensionType === 'full_day')) ||
+        /holiday|closure|vacation|preparation.*holiday/i.test(e?.title || '') ||
+        (isTestOrExam(e) && e?.classesSuspended !== false && !/evening/i.test(e?.title || ''))
     );
 
     const isClassesSuspended = Boolean(dayEventInfo?.classesSuspended && dayEventInfo?.suspensionType !== 'time_range') || 
@@ -353,30 +363,36 @@ const DailyAttendanceWorkspace = ({
                                 />
                             </div>
                         )}
-                        {totalClasses > 0 && (!readOnly || canEditAnytime) && (!isFutureDate || canEditAnytime) && (
+                        {totalClasses > 0 && (!readOnly || canEditAnytime || isLocked) && (!isFutureDate || canEditAnytime) && (
                             <div className="flex items-center gap-1.5 ml-1 sm:ml-2">
                                 {!allMarked && (
                                     <button
                                         type="button"
                                         onClick={onMarkAllPresent}
-                                        className={`px-2 py-0.5 text-[11px] font-medium rounded border transition-all ${
+                                        className={`px-2 py-0.5 text-[11px] font-medium rounded border transition-all flex items-center gap-1 ${
+                                            isLocked
+                                                ? 'opacity-80 cursor-not-allowed hover:opacity-100'
+                                                : ''
+                                        } ${
                                             isDark 
                                                 ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border-emerald-500/30' 
                                                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200'
                                         }`}
-                                        title="Mark all unrecorded classes as Present"
+                                        title={isLocked ? "Unlock with Plus to mark all present" : "Mark all unrecorded classes as Present"}
                                     >
-                                        ✓ All Present
+                                        {isLocked ? <Lock size={10} /> : <span>✓</span>}
+                                        <span>All Present</span>
                                     </button>
                                 )}
                                 {markedCount > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => onResetDayAttendance(selectedDate)}
-                                        className="p-1 rounded transition-all hover:opacity-80"
+                                        className={`p-1 rounded transition-all flex items-center gap-1 ${isLocked ? 'cursor-not-allowed opacity-80' : 'hover:opacity-80'}`}
                                         style={{ color: t.textMuted }}
-                                        title="Reset all marked classes to unmarked"
+                                        title={isLocked ? "Unlock with Plus to reset attendance" : "Reset all marked classes to unmarked"}
                                     >
+                                        {isLocked && <Lock size={10} />}
                                         <RotateCcw size={13} />
                                     </button>
                                 )}
@@ -396,7 +412,7 @@ const DailyAttendanceWorkspace = ({
                         <span className={`font-semibold ${isDark ? 'text-amber-200' : 'text-amber-900'}`}>
                             {timeRangeEvent.title || 'Official Event'}
                         </span>
-                        <span className="text-zinc-500 hidden sm:inline">·</span>
+                        <span className={`${isDark ? 'text-zinc-500' : 'text-slate-300'} hidden sm:inline`}>·</span>
                         <span className={`hidden sm:inline ${isDark ? 'text-amber-300/90' : 'text-amber-800'}`}>
                             Classes suspended <strong>{timeRangeEvent.suspensionStartTime} – {timeRangeEvent.suspensionEndTime}</strong>
                         </span>
@@ -455,7 +471,7 @@ const DailyAttendanceWorkspace = ({
                         <div className={`w-10 h-10 rounded-full border flex items-center justify-center text-lg ${
                             isDark ? 'bg-rose-500/15 border-rose-500/30 text-rose-400' : 'bg-rose-100 border-rose-200 text-rose-600'
                         }`}>
-                            {activeDayEvent?.eventType === 'Exam' ? '📝' : activeDayEvent?.eventType === 'College Event' ? '🎯' : '🌴'}
+                            {isTestOrExam(activeDayEvent) ? '📝' : activeDayEvent?.eventType === 'College Event' ? '🎯' : '🌴'}
                         </div>
                         <div className="text-base font-bold" style={{ color: t.text }}>
                             {activeDayEvent?.title || 'Classes Suspended'}
@@ -648,15 +664,17 @@ const DailyAttendanceWorkspace = ({
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() => (!readOnly || canEditAnytime) && setActiveChangeSlotId(slotId)}
+                                                onClick={() => isLocked ? onMarkAttendance(item, 'Present') : (!readOnly || canEditAnytime) && setActiveChangeSlotId(slotId)}
                                                 className={`px-3 py-1 rounded-md text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 ${
+                                                    isLocked ? 'cursor-not-allowed opacity-85' : ''
+                                                } ${
                                                     isDark 
                                                         ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/35 hover:bg-emerald-500/25' 
                                                         : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                                                 }`}
-                                                title="Click to change attendance"
+                                                title={isLocked ? "Unlock with Plus to change attendance" : "Click to change attendance"}
                                             >
-                                                <Check size={13} strokeWidth={2.5} />
+                                                {isLocked ? <Lock size={11} /> : <Check size={13} strokeWidth={2.5} />}
                                                 <span>PRESENT</span>
                                             </button>
                                         </div>
@@ -665,15 +683,17 @@ const DailyAttendanceWorkspace = ({
                                         <div className="flex items-center gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() => (!readOnly || canEditAnytime) && setActiveChangeSlotId(slotId)}
+                                                onClick={() => isLocked ? onMarkAttendance(item, 'Absent') : (!readOnly || canEditAnytime) && setActiveChangeSlotId(slotId)}
                                                 className={`px-3 py-1 rounded-md text-xs font-mono font-semibold border transition-all flex items-center gap-1.5 ${
+                                                    isLocked ? 'cursor-not-allowed opacity-85' : ''
+                                                } ${
                                                     isDark 
                                                         ? 'bg-rose-500/15 text-rose-400 border-rose-500/35 hover:bg-rose-500/25' 
                                                         : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                                                 }`}
-                                                title="Click to change attendance"
+                                                title={isLocked ? "Unlock with Plus to change attendance" : "Click to change attendance"}
                                             >
-                                                <X size={13} strokeWidth={2.5} />
+                                                {isLocked ? <Lock size={11} /> : <X size={13} strokeWidth={2.5} />}
                                                 <span>ABSENT</span>
                                             </button>
                                         </div>
@@ -695,19 +715,29 @@ const DailyAttendanceWorkspace = ({
                                             <button
                                                 type="button"
                                                 onClick={() => onMarkAttendance(item, 'Present')}
-                                                className="px-2.5 py-1 text-xs font-mono font-medium rounded-md border transition-all flex items-center gap-1 hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-300"
+                                                className={`px-2.5 py-1 text-xs font-mono font-medium rounded-md border transition-all flex items-center gap-1 ${
+                                                    isLocked 
+                                                        ? 'opacity-80 cursor-not-allowed hover:opacity-100' 
+                                                        : 'hover:border-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-300'
+                                                }`}
+                                                title={isLocked ? "Unlock with Plus to mark attendance" : "Mark as Present"}
                                                 style={{ borderColor: t.border, color: t.text }}
                                             >
-                                                <Check size={12} strokeWidth={2} />
+                                                {isLocked ? <Lock size={11} /> : <Check size={12} strokeWidth={2} />}
                                                 <span>Present</span>
                                             </button>
                                             <button
                                                 type="button"
                                                 onClick={() => onMarkAttendance(item, 'Absent')}
-                                                className="px-2.5 py-1 text-xs font-mono font-medium rounded-md border transition-all flex items-center gap-1 hover:border-rose-500 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-300"
+                                                className={`px-2.5 py-1 text-xs font-mono font-medium rounded-md border transition-all flex items-center gap-1 ${
+                                                    isLocked 
+                                                        ? 'opacity-80 cursor-not-allowed hover:opacity-100' 
+                                                        : 'hover:border-rose-500 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-300'
+                                                }`}
+                                                title={isLocked ? "Unlock with Plus to mark attendance" : "Mark as Absent"}
                                                 style={{ borderColor: t.border, color: t.text }}
                                             >
-                                                <X size={12} strokeWidth={2} />
+                                                {isLocked ? <Lock size={11} /> : <X size={12} strokeWidth={2} />}
                                                 <span>Absent</span>
                                             </button>
                                         </div>
@@ -719,18 +749,22 @@ const DailyAttendanceWorkspace = ({
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
+                                                if (isLocked) {
+                                                    onMarkAttendance(item, 'LOCKED');
+                                                    return;
+                                                }
                                                 setActiveMenuSlotId(isMenuOpen ? null : slotId);
                                             }}
-                                            className="p-1.5 rounded-md transition-colors"
+                                            className={`p-1.5 rounded-md transition-colors ${isLocked ? 'cursor-not-allowed opacity-80' : ''}`}
                                             style={isMenuOpen ? {
                                                 backgroundColor: t.accentBg,
                                                 color: t.accent
                                             } : {
                                                 color: t.textMuted
                                             }}
-                                            title="Class options"
+                                            title={isLocked ? "Unlock with Plus to edit class" : "Class options"}
                                         >
-                                            <MoreVertical size={15} />
+                                            {isLocked ? <Lock size={12} /> : <MoreVertical size={15} />}
                                         </button>
 
                                         {/* Context Menu Dropdown */}

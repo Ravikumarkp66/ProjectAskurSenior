@@ -6,7 +6,8 @@ const COUNTED_ACTIVITY_TYPES = new Set([
     'notes_preview',
     'notes_download',
     'pyqs',
-    'ask_plus',
+    'lab_playground',
+    'attendance',
     'planner_task',
 ]);
 
@@ -16,7 +17,8 @@ const ACTIVITY_LABELS = {
     notes_preview: 'Previewed Notes',
     notes_download: 'Downloaded Notes',
     pyqs: 'Opened PYQs',
-    ask_plus: 'Used Ask+',
+    lab_playground: 'Practiced in Coding Lab',
+    attendance: 'Checked Attendance',
     planner_task: 'Completed Planner Task',
 };
 

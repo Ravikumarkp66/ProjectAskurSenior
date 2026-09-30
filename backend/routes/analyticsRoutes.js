@@ -9,6 +9,8 @@ const {
     getUploadByMonthAnalytics,
     getNotificationStats,
     getUserListAnalytics,
+    grantUserManualPlusAccess,
+    revokeUserManualPlusAccess,
     updateTestUserAccess,
     suspendUser,
     getAdminLogs
@@ -41,6 +43,10 @@ router.get("/notification-stats", getNotificationStats);
 
 // User management
 router.get("/users", requirePermission("users.view"), enforceDepartmentScope, getUserListAnalytics);
+router.patch("/users/:userId/manual-plus", requirePermission("users.update"), enforceDepartmentScope, grantUserManualPlusAccess);
+router.post("/users/:userId/manual-plus", requirePermission("users.update"), enforceDepartmentScope, grantUserManualPlusAccess);
+router.delete("/users/:userId/manual-plus", requirePermission("users.update"), enforceDepartmentScope, revokeUserManualPlusAccess);
+router.post("/users/:userId/revoke-manual-plus", requirePermission("users.update"), enforceDepartmentScope, revokeUserManualPlusAccess);
 router.patch("/users/:userId/test-access", requirePermission("users.update"), enforceDepartmentScope, updateTestUserAccess);
 router.patch("/users/:userId/suspend", requirePermission("users.update"), enforceDepartmentScope, suspendUser);
 router.get("/users/:userId/logs", requirePermission("users.view"), enforceDepartmentScope, getAdminLogs);

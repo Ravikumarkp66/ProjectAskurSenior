@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { 
     Folder, FileText, BookOpen, Users, UserCheck, MessageSquare, Building2, 
     Star, GraduationCap, MapPin, Search, ShoppingBag, Calculator, TrendingUp, 
-    Award, BarChart3, Target, Sparkles, PenTool, Cpu, Database, Layers, 
+    Award, BarChart3, Target, Sparkles, Plus, PenTool, Cpu, Database, Layers, 
     Brain, Bot, Rocket, ShieldCheck, CheckCircle2, Lock, AlertTriangle, 
     TrendingDown, GitBranch, Calendar, Clock, LayoutGrid, Compass, Video, 
     Flame, CheckSquare, Trophy, Crown, Tag, Package, AlertCircle, BarChart2,
@@ -1765,6 +1767,8 @@ const IllustrationCard = ({
     metadataText,
     isActiveGlow = false
 }) => {
+    const navigate = useNavigate();
+    const { user, isAuthenticated, hasPlusAccess } = useAuth();
     const [hovered, setHovered] = useState(false);
     const [showPopover, setShowPopover] = useState(false);
     const { isDark } = useTheme();
@@ -1776,26 +1780,26 @@ const IllustrationCard = ({
     // ── Theme tokens ─────────────────────────────────────────────────
     const tokens = {
         // Page → Card → Card surface hierarchy
-        cardBg:          isDark ? '#0D111C' : '#FFFFFF',
-        contentBg:       isDark ? '#0D111C' : '#FFFFFF',
-        borderIdle:      isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.09)',
+        cardBg:          isDark ? '#15181D' : '#FFFFFF',
+        contentBg:       isDark ? '#15181D' : '#FFFFFF',
+        borderIdle:      isDark ? '#292E37' : '#E5E7EB',
         borderHover:     isDark ? `${accent}55` : `${accent}70`,
-        borderSubdued:   isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.06)',
+        borderSubdued:   isDark ? 'rgba(41,46,55,0.5)' : 'rgba(229,231,235,0.5)',
         // Illustration tinted area
         illustBgDark:    `radial-gradient(ellipse at 50% 0%, ${accent}18 0%, transparent 75%)`,
         illustBgLight:   `radial-gradient(ellipse at 50% 0%, ${accent}10 0%, transparent 80%)`,
-        illustDivider:   isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.07)',
+        illustDivider:   isDark ? '#292E37' : '#E5E7EB',
         // Content typography
-        titleColor:      isDark ? '#F1F5F9' : '#0F172A',
-        titleColorHover: isDark ? '#FFFFFF' : '#0F172A',
-        descColor:       isDark ? '#64748B' : '#64748B',
-        descColorActive: isDark ? '#94A3B8' : '#475569',
+        titleColor:      isDark ? '#F3F4F6' : '#111827',
+        titleColorHover: isDark ? '#FFFFFF' : '#111827',
+        descColor:       isDark ? '#A1A1AA' : '#4B5563',
+        descColorActive: isDark ? '#D1D5DB' : '#374151',
         // CTA divider
-        ctaDivider:      isDark ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.07)',
+        ctaDivider:      isDark ? '#292E37' : '#E5E7EB',
         // Subdued popover
-        popoverBg:       isDark ? '#0A0E18' : '#FFFFFF',
+        popoverBg:       isDark ? '#1B1F26' : '#FFFFFF',
         popoverBorder:   isDark ? 'rgba(139,92,246,0.35)' : 'rgba(139,92,246,0.25)',
-        popoverText:     isDark ? '#CBD5E1' : '#334155',
+        popoverText:     isDark ? '#A1A1AA' : '#374151',
     };
 
     const handleCardClick = (e) => {
@@ -1823,6 +1827,38 @@ const IllustrationCard = ({
     // ── Feature state indicator ───────────────────────────────────────
     const StateIndicator = () => {
         if (isSubdued) return null;
+        if (isAuthenticated && !hasPlusAccess) {
+            return (
+                <span 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/pricing');
+                    }}
+                    title="Upgrade to Plus"
+                    style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3.5,
+                        fontSize: 10,
+                        fontWeight: 600,
+                        color: isDark ? '#E9D5FF' : '#6D28D9',
+                        background: isDark ? 'rgba(124, 58, 237, 0.18)' : '#F3E8FF',
+                        border: isDark ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid rgba(147, 51, 234, 0.3)',
+                        padding: '1.5px 7px',
+                        borderRadius: 9999,
+                        fontFamily: 'Inter, sans-serif',
+                        letterSpacing: '0.02em',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease-out'
+                    }}
+                >
+                    <Plus size={10} strokeWidth={3} className="text-purple-600 dark:text-purple-400 shrink-0" />
+                    Upgrade to Plus
+                </span>
+            );
+        }
         if (featureState === 'active') {
             return (
                 <span style={{
@@ -1830,9 +1866,9 @@ const IllustrationCard = ({
                     alignItems: 'center',
                     gap: 4,
                     fontSize: 10,
-                    fontWeight: 600,
-                    color: '#10B981',
-                    fontFamily: 'Outfit, sans-serif',
+                    fontWeight: 500,
+                    color: '#16A34A',
+                    fontFamily: 'Inter, sans-serif',
                     letterSpacing: '0.01em',
                     flexShrink: 0,
                     whiteSpace: 'nowrap',
@@ -1841,7 +1877,7 @@ const IllustrationCard = ({
                         width: 6,
                         height: 6,
                         borderRadius: '50%',
-                        background: '#10B981',
+                        background: '#16A34A',
                         display: 'inline-block',
                         flexShrink: 0,
                     }} />
@@ -1857,8 +1893,8 @@ const IllustrationCard = ({
                     gap: 4,
                     fontSize: 10,
                     fontWeight: 500,
-                    color: isDark ? '#475569' : '#94A3B8',
-                    fontFamily: 'Outfit, sans-serif',
+                    color: isDark ? '#71717A' : '#9CA3AF',
+                    fontFamily: 'Inter, sans-serif',
                     letterSpacing: '0.01em',
                     flexShrink: 0,
                     whiteSpace: 'nowrap',
@@ -1879,7 +1915,7 @@ const IllustrationCard = ({
                 fontSize: 10,
                 fontWeight: 500,
                 color: isDark ? `${accent}99` : `${accent}BB`,
-                fontFamily: 'Outfit, sans-serif',
+                fontFamily: 'Inter, sans-serif',
                 letterSpacing: '0.01em',
                 flexShrink: 0,
                 whiteSpace: 'nowrap',
@@ -1920,7 +1956,7 @@ const IllustrationCard = ({
             style={{
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: 14,
+                borderRadius: 8,
                 border: `1px solid ${
                     isSubdued
                         ? tokens.borderSubdued
@@ -1931,15 +1967,13 @@ const IllustrationCard = ({
                 backgroundColor: tokens.cardBg,
                 opacity: isSubdued ? 0.62 : 1,
                 cursor: isSubdued ? 'default' : 'pointer',
-                transition: 'transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease, opacity 200ms ease',
-                transform: (!isSubdued && hovered) ? 'translateY(-3px)' : 'translateY(0)',
+                transition: 'transform 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out, opacity 200ms ease-out',
+                transform: (!isSubdued && hovered) ? 'translateY(-2px)' : 'translateY(0)',
                 boxShadow: (!isSubdued && hovered)
                     ? isDark
-                        ? '0 12px 28px -6px rgba(0,0,0,0.55)'
-                        : '0 8px 20px -4px rgba(15,23,42,0.12), 0 2px 6px -1px rgba(15,23,42,0.07)'
-                    : isDark
-                        ? '0 2px 8px rgba(0,0,0,0.35)'
-                        : '0 1px 4px rgba(15,23,42,0.06)',
+                        ? '0 4px 12px rgba(0,0,0,0.35)'
+                        : '0 4px 12px rgba(0,0,0,0.08)'
+                    : '0 2px 8px rgba(0,0,0,0.06)',
                 overflow: 'visible',
                 position: 'relative',
                 height: '100%',
@@ -1948,13 +1982,13 @@ const IllustrationCard = ({
             }}
         >
             {/* ── INNER WRAPPER keeps corner radius + overflow hidden ── */}
-            <div style={{ borderRadius: 13, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+            <div style={{ borderRadius: 7, overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
 
                 {/* ── ILLUSTRATION AREA ─────────────────────────────── */}
                 <div style={{
                     height: 140,
                     background: isDark ? tokens.illustBgDark : tokens.illustBgLight,
-                    backgroundColor: isDark ? '#0B0F1C' : '#F8FAFC',
+                    backgroundColor: isDark ? '#1B1F26' : '#F8FAFC',
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
@@ -1962,7 +1996,7 @@ const IllustrationCard = ({
                     overflow: 'hidden',
                     borderBottom: `1px solid ${tokens.illustDivider}`,
                     filter: isSubdued ? 'saturate(0.5) brightness(0.85)' : 'none',
-                    transition: 'filter 200ms ease',
+                    transition: 'filter 200ms ease-out',
                 }}>
                     {/* Illustration scene — exactly as authored in SCENE_PRESETS */}
                     <div style={{
@@ -1993,14 +2027,14 @@ const IllustrationCard = ({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                             <h3 style={{
-                                fontSize: 15,
-                                fontWeight: 700,
+                                fontSize: 14,
+                                fontWeight: 600,
                                 color: hovered && !isSubdued ? tokens.titleColorHover : tokens.titleColor,
                                 margin: 0,
-                                fontFamily: 'Outfit, sans-serif',
-                                letterSpacing: '-0.015em',
-                                lineHeight: 1.25,
-                                transition: 'color 150ms ease',
+                                fontFamily: 'Inter, sans-serif',
+                                letterSpacing: '-0.01em',
+                                lineHeight: '20px',
+                                transition: 'color 150ms ease-out',
                                 minWidth: 0,
                                 flex: 1,
                             }}>
@@ -2013,13 +2047,13 @@ const IllustrationCard = ({
                             fontWeight: 400,
                             color: hovered && !isSubdued ? tokens.descColorActive : tokens.descColor,
                             margin: 0,
-                            lineHeight: 1.55,
-                            fontFamily: 'Outfit, sans-serif',
+                            lineHeight: '18px',
+                            fontFamily: 'Inter, sans-serif',
                             display: '-webkit-box',
                             WebkitLineClamp: 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
-                            transition: 'color 150ms ease',
+                            transition: 'color 150ms ease-out',
                         }}>
                             {isSubdued ? 'Complete subject setup to unlock this feature.' : cardSubtitle}
                         </p>
@@ -2039,11 +2073,11 @@ const IllustrationCard = ({
                             <span style={{
                                 fontSize: 11.5,
                                 fontWeight: 600,
-                                color: isDark ? '#475569' : '#94A3B8',
+                                color: isDark ? '#71717A' : '#94A3B8',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 5,
-                                fontFamily: 'Outfit, sans-serif',
+                                fontFamily: 'Inter, sans-serif',
                             }}>
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -2058,8 +2092,8 @@ const IllustrationCard = ({
                                     <span style={{
                                         fontSize: 11,
                                         fontWeight: 500,
-                                        color: isDark ? '#475569' : '#94A3B8',
-                                        fontFamily: 'Outfit, sans-serif',
+                                        color: isDark ? '#71717A' : '#6B7280',
+                                        fontFamily: 'Inter, sans-serif',
                                         letterSpacing: '0.01em',
                                         flexShrink: 1,
                                         minWidth: 0,
@@ -2079,11 +2113,11 @@ const IllustrationCard = ({
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: 3,
-                                    fontFamily: 'Outfit, sans-serif',
+                                    fontFamily: 'Inter, sans-serif',
                                     letterSpacing: '0.01em',
                                     marginLeft: 'auto',
                                     flexShrink: 0,
-                                    transition: 'gap 150ms ease',
+                                    transition: 'gap 150ms ease-out',
                                 }}>
                                     {ctaLabel.replace(' →', '')}
                                     <svg
@@ -2096,7 +2130,7 @@ const IllustrationCard = ({
                                         strokeLinecap="round"
                                         strokeLinejoin="round"
                                         style={{
-                                            transition: 'transform 150ms ease',
+                                            transition: 'transform 150ms ease-out',
                                             transform: hovered ? 'translateX(3px)' : 'translateX(0)',
                                             flexShrink: 0,
                                         }}
@@ -2122,11 +2156,11 @@ const IllustrationCard = ({
                     zIndex: 50,
                     backgroundColor: tokens.popoverBg,
                     border: `1px solid ${tokens.popoverBorder}`,
-                    borderRadius: 12,
+                    borderRadius: 8,
                     padding: '11px 13px',
                     boxShadow: isDark
-                        ? '0 12px 30px rgba(0,0,0,0.85), 0 0 0 1px rgba(139,92,246,0.15)'
-                        : '0 8px 24px rgba(15,23,42,0.14), 0 0 0 1px rgba(139,92,246,0.12)',
+                        ? '0 2px 8px rgba(0,0,0,0.5)'
+                        : '0 2px 8px rgba(0,0,0,0.06)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 8,
@@ -2135,10 +2169,10 @@ const IllustrationCard = ({
                     <p style={{
                         margin: 0,
                         fontSize: 12,
-                        fontWeight: 500,
+                        fontWeight: 400,
                         color: tokens.popoverText,
-                        lineHeight: 1.5,
-                        fontFamily: 'Outfit, sans-serif',
+                        lineHeight: '18px',
+                        fontFamily: 'Inter, sans-serif',
                     }}>
                         {dependencyText || 'Complete Subject Registration first to continue.'}
                     </p>
@@ -2150,22 +2184,22 @@ const IllustrationCard = ({
                                 onGoToRegistration();
                             }}
                             style={{
-                                background: 'linear-gradient(135deg, #7C3AED 0%, #6366F1 100%)',
+                                background: '#2563EB',
                                 border: 'none',
                                 color: '#FFFFFF',
-                                fontSize: 11,
-                                fontWeight: 700,
+                                fontSize: 12,
+                                fontWeight: 500,
                                 padding: '6px 12px',
-                                borderRadius: 8,
+                                borderRadius: 6,
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: 4,
                                 width: 'fit-content',
                                 alignSelf: 'flex-start',
-                                fontFamily: 'Outfit, sans-serif',
+                                fontFamily: 'Inter, sans-serif',
                                 letterSpacing: '0.01em',
-                                transition: 'opacity 150ms ease',
+                                transition: 'opacity 150ms ease-out',
                             }}
                         >
                             Go to Registration →

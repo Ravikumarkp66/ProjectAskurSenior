@@ -55,7 +55,8 @@ function clearRuleResolverCache() {
  * @returns {Promise<{ rule: Object, group: Object, subject: Object|null }>}
  */
 async function resolveActiveEvaluationRule(options = {}) {
-    const { schemeId, subjectId, subjectCode, groupId, subject: preResolvedSubject } = options;
+    const { schemeId: rawSchemeId, scheme: altSchemeId, subjectId, subjectCode, groupId, subject: preResolvedSubject } = options;
+    const schemeId = rawSchemeId || altSchemeId;
 
     const cacheSubjectKey = preResolvedSubject?._id || subjectId || subjectCode || '';
     const cacheKey = `${schemeId || ''}_${cacheSubjectKey}_${groupId || ''}`;

@@ -1,7 +1,8 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CompanyLogo from '../../CompanyLogo';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Lock } from 'lucide-react';
+import { useAuth } from '../../../utils/hooks';
 
 const formatCtc = (rawCtc) => {
     if (!rawCtc || rawCtc === 'Role Based' || rawCtc === 'Not Disclosed') return rawCtc || 'Role Based';
@@ -10,14 +11,34 @@ const formatCtc = (rawCtc) => {
 
 const InterviewSheetRow = ({ item }) => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { isAuthenticated, hasPlusAccess } = useAuth();
     const slug = item._navSlug || item.companyId || item._id;
 
     const formattedCtc = formatCtc(item.ctc || item.representativeCtc);
     const cutoffText = item.cutoff ? `≥ ${item.cutoff} CGPA` : 'None';
 
     const handleRowClick = () => {
-        navigate(`/home/interview/${slug}`);
+        const basePath = location.pathname.startsWith('/plus') ? '/plus/interview' : '/home/interview';
+        navigate(`${basePath}/${slug}`);
     };
+
+    const handleViewClick = (e) => {
+        e.stopPropagation();
+        if (!hasPlusAccess) {
+            if (!isAuthenticated) {
+                navigate('/login');
+            } else {
+                navigate('/plus');
+            }
+            return;
+        }
+        handleRowClick();
+    };
+
+    const viewTooltip = !isAuthenticated 
+        ? "Login to view experiences" 
+        : "Upgrade to Plus to view experiences";
 
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -94,16 +115,25 @@ const InterviewSheetRow = ({ item }) => {
 
             {/* 7. Action Button */}
             <td className="py-2.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick();
-                    }}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 group-hover:border-purple-500/40 text-xs font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors"
-                >
-                    <span>View</span>
-                    <ArrowUpRight size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                </button>
+                {hasPlusAccess ? (
+                    <button
+                        onClick={handleViewClick}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 group-hover:border-purple-500/40 text-xs font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors"
+                    >
+                        <span>View</span>
+                        <ArrowUpRight size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleViewClick}
+                        title={viewTooltip}
+                        aria-label={viewTooltip}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] border border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                    >
+                        <Lock size={11} className="text-zinc-400 dark:text-zinc-500 shrink-0" />
+                        <span>View</span>
+                    </button>
+                )}
             </td>
         </tr>
     );

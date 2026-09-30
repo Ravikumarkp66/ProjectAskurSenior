@@ -24,15 +24,15 @@ const TestimonialCard = ({ item }) => {
     if (!item) return null;
 
     return (
-        <div className="w-[280px] xs:w-[320px] sm:w-[380px] shrink-0 p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0D111C] border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-500/30 transition-all duration-200 shadow-sm dark:shadow-none flex flex-col justify-between group relative overflow-hidden">
+        <div className="w-[280px] xs:w-[320px] sm:w-[380px] shrink-0 p-4 sm:p-5 rounded-lg bg-white dark:bg-[#15181D] border border-[#E5E7EB] dark:border-[#292E37] hover:border-[#D1D5DB] dark:hover:border-[#3E4451] transition-colors duration-150 shadow-none flex flex-col justify-between group relative overflow-hidden">
             <div>
                 {/* Header: Masked Email & Verified Badge */}
                 <div className="flex items-center justify-between gap-2 mb-3">
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono tracking-tight truncate max-w-[190px]">
+                    <span className="text-xs font-medium text-[#4B5563] dark:text-[#A1A1AA] font-mono tracking-tight truncate max-w-[190px]">
                         {item.email || 'student****@sit.ac.in'}
                     </span>
-                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold shrink-0">
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F0FDF4] border border-[#BBF7D0] text-[#16A34A] dark:bg-[#14532D]/30 dark:border-[#166534] dark:text-[#4ADE80] text-[10px] font-medium shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-[#16A34A] dark:text-[#4ADE80]" />
                         <span>Verified SIT Student</span>
                     </div>
                 </div>
@@ -43,7 +43,7 @@ const TestimonialCard = ({ item }) => {
                 </div>
 
                 {/* Review Text */}
-                <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-normal italic line-clamp-4 relative z-10">
+                <p className="text-[#374151] dark:text-[#D1D5DB] text-xs sm:text-sm leading-relaxed font-normal italic line-clamp-4 relative z-10">
                     "{item.review}"
                 </p>
             </div>
@@ -52,13 +52,11 @@ const TestimonialCard = ({ item }) => {
 };
 
 const TestimonialsSection = ({ data }) => {
-    const [testimonials, setTestimonials] = useState(data?.testimonials || []);
-    const [loading, setLoading] = useState(!data?.testimonials || data.testimonials.length === 0);
+    const [testimonials, setTestimonials] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (data && data.isVisible === false) return;
-        if (data?.testimonials && data.testimonials.length > 0) {
-            setTestimonials(data.testimonials);
+        if (data && data.isVisible === false) {
             setLoading(false);
             return;
         }
@@ -86,33 +84,32 @@ const TestimonialsSection = ({ data }) => {
         return null;
     }
 
-    // Select 12 items for each row to ensure an ultra-smooth, slow marquee glide
     const row1 = testimonials.slice(0, 12);
     const row2 = testimonials.slice(12, 24).length > 0 ? testimonials.slice(12, 24) : testimonials.slice(0, 12);
 
     return (
-        <section id="testimonials" className="py-20 relative bg-transparent overflow-hidden">
-            <div className="max-w-7xl mx-auto px-6 relative z-10 mb-12 text-center">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-semibold uppercase tracking-wider mb-4">
+        <section id="testimonials" className="py-20 relative bg-transparent border-b border-[#E5E7EB] dark:border-[#292E37] overflow-hidden">
+            <div className="max-w-7xl mx-auto px-6 relative z-10 mb-10 text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#7C3AED] dark:text-[#A78BFA] text-xs font-medium uppercase tracking-wider mb-3">
                     <MessageSquareQuote className="w-3.5 h-3.5" />
                     <span>Real SIT Student Feedback</span>
                 </div>
-                <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white font-outfit tracking-tight mb-3">
+                <h2 className="text-2xl sm:text-3xl font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight mb-2">
                     {data?.sectionTitle || 'What Students Say About AskUrSenior'}
                 </h2>
-                <p className="text-slate-600 dark:text-slate-400 text-base font-normal max-w-2xl mx-auto">
+                <p className="text-[#4B5563] dark:text-[#A1A1AA] text-sm font-normal max-w-2xl mx-auto">
                     {data?.subtitle || 'Real, unedited feedback shared by SITians across branches and semesters.'}
                 </p>
             </div>
 
             {/* Marquee Containers */}
-            <div className="space-y-6 relative z-10 overflow-hidden">
+            <div className="space-y-4 relative z-10 overflow-hidden">
                 {/* Row 1: Leftward infinite scroll */}
                 <div className="flex overflow-hidden relative">
-                    <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#F8FAFC] dark:from-[#080B14] to-transparent z-20 pointer-events-none" />
-                    <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#F8FAFC] dark:from-[#080B14] to-transparent z-20 pointer-events-none" />
+                    <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-white dark:from-[#0F1115] to-transparent z-20 pointer-events-none" />
+                    <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-white dark:from-[#0F1115] to-transparent z-20 pointer-events-none" />
 
-                    <div className="animate-marquee gap-5 pr-5">
+                    <div className="animate-marquee gap-4 pr-4">
                         {row1.concat(row1).map((item, idx) => (
                             <TestimonialCard key={`r1-${idx}`} item={item} />
                         ))}
@@ -121,10 +118,10 @@ const TestimonialsSection = ({ data }) => {
 
                 {/* Row 2: Rightward infinite scroll */}
                 <div className="flex overflow-hidden relative">
-                    <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-[#F8FAFC] dark:from-[#080B14] to-transparent z-20 pointer-events-none" />
-                    <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-[#F8FAFC] dark:from-[#080B14] to-transparent z-20 pointer-events-none" />
+                    <div className="absolute top-0 bottom-0 left-0 w-24 bg-gradient-to-r from-white dark:from-[#0F1115] to-transparent z-20 pointer-events-none" />
+                    <div className="absolute top-0 bottom-0 right-0 w-24 bg-gradient-to-l from-white dark:from-[#0F1115] to-transparent z-20 pointer-events-none" />
 
-                    <div className="animate-marquee-reverse gap-5 pr-5">
+                    <div className="animate-marquee-reverse gap-4 pr-4">
                         {row2.concat(row2).map((item, idx) => (
                             <TestimonialCard key={`r2-${idx}`} item={item} />
                         ))}

@@ -67,9 +67,7 @@ export default function Hero() {
     }, []);
 
     return (
-        <section className="relative w-full bg-[#F8FAFC] dark:bg-[#080B14] font-outfit overflow-hidden pt-24 pb-14 sm:pt-28 sm:pb-20 lg:pt-32 lg:pb-24 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-            {/* Subtle Hero Background Accent (No giant neon glow) */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-purple-100/40 via-transparent to-transparent dark:from-purple-950/20 dark:via-transparent dark:to-transparent pointer-events-none -z-0" />
+        <section className="relative w-full bg-[#FFFFFF] dark:bg-[#0F1115] font-sans pt-20 pb-12 sm:pt-24 sm:pb-16 lg:pt-28 lg:pb-20 px-4 sm:px-6 lg:px-8 border-b border-[#E5E7EB] dark:border-[#292E37] transition-colors duration-150">
 
             {/* Main Container */}
             <div className="relative z-10 max-w-7xl mx-auto w-full">

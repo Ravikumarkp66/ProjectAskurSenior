@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { 
     Clock, Maximize2, Minimize2, Keyboard, 
     Play, Pause, Send, RotateCcw, Loader2 
@@ -15,11 +14,15 @@ const PlaygroundHeader = ({
     onRunCode,
     onSubmitCode,
     isRunning = false,
-    isSubmitting = false
+    isSubmitting = false,
+    isAuthenticated = true,
+    hasPlusAccess = true,
+    onPlusAction
 }) => {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isRunHovered, setIsRunHovered] = useState(false);
     const isDark = theme === 'dark';
+    const plusTooltip = isAuthenticated ? "Upgrade for plus access" : "Login for plus access";
 
     const formatTimer = (totalSeconds = 0) => {
         const mins = Math.floor(totalSeconds / 60);
@@ -55,6 +58,8 @@ const PlaygroundHeader = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {/* Lab Session Timer with Play/Pause Control (Starts paused) */}
                 <div 
+                    title={!hasPlusAccess ? plusTooltip : undefined}
+                    onClick={!hasPlusAccess ? onPlusAction : undefined}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -68,6 +73,8 @@ const PlaygroundHeader = ({
                         fontSize: 12,
                         fontFamily: '"JetBrains Mono", monospace',
                         color: isDark ? (isTimerRunning ? '#38BDF8' : '#D1D5DB') : (isTimerRunning ? '#0284C7' : '#111827'),
+                        cursor: !hasPlusAccess ? 'not-allowed' : 'default',
+                        opacity: !hasPlusAccess ? 0.55 : 1,
                         transition: 'all 0.15s ease'
                     }}
                 >
@@ -76,8 +83,9 @@ const PlaygroundHeader = ({
 
                     {/* Dedicated Play / Pause Button */}
                     <button
-                        onClick={onToggleTimer}
-                        title={isTimerRunning ? 'Pause Timer' : 'Start Timer'}
+                        onClick={hasPlusAccess ? onToggleTimer : onPlusAction}
+                        disabled={!hasPlusAccess}
+                        title={!hasPlusAccess ? plusTooltip : (isTimerRunning ? 'Pause Timer' : 'Start Timer')}
                         style={{
                             background: isDark 
                                 ? (isTimerRunning ? 'rgba(56, 189, 248, 0.18)' : 'rgba(34, 197, 94, 0.18)')
@@ -91,7 +99,7 @@ const PlaygroundHeader = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            cursor: 'pointer',
+                            cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
                             color: isDark ? (isTimerRunning ? '#38BDF8' : '#22C55E') : (isTimerRunning ? '#0284C7' : '#16A34A'),
                             padding: 0,
                             marginLeft: 2,
@@ -107,27 +115,35 @@ const PlaygroundHeader = ({
                 </div>
 
                 {/* Shortcuts Trigger */}
-                <button
-                    onClick={onOpenShortcuts}
-                    title="Keyboard Shortcuts"
-                    style={{
-                        background: isDark ? '#111111' : '#FFFFFF',
-                        border: isDark ? '1px solid #202020' : '1px solid #E5E7EB',
-                        color: isDark ? '#858585' : '#6B7280',
-                        width: 30,
-                        height: 30,
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = isDark ? '#FFFFFF' : '#111827'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = isDark ? '#858585' : '#6B7280'}
-                >
-                    <Keyboard size={14} />
-                </button>
+                <div title={!hasPlusAccess ? plusTooltip : "Keyboard Shortcuts"} style={{ display: 'inline-flex' }}>
+                    <button
+                        onClick={hasPlusAccess ? onOpenShortcuts : onPlusAction}
+                        disabled={!hasPlusAccess}
+                        title={!hasPlusAccess ? plusTooltip : "Keyboard Shortcuts"}
+                        style={{
+                            background: isDark ? '#111111' : '#FFFFFF',
+                            border: isDark ? '1px solid #202020' : '1px solid #E5E7EB',
+                            color: isDark ? '#858585' : '#6B7280',
+                            width: 30,
+                            height: 30,
+                            borderRadius: 6,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: !hasPlusAccess ? 'not-allowed' : 'pointer',
+                            opacity: !hasPlusAccess ? 0.5 : 1,
+                            transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            if (hasPlusAccess) e.currentTarget.style.color = isDark ? '#FFFFFF' : '#111827';
+                        }}
+                        onMouseLeave={(e) => {
+                            if (hasPlusAccess) e.currentTarget.style.color = isDark ? '#858585' : '#6B7280';
+                        }}
+                    >
+                        <Keyboard size={14} />
+                    </button>
+                </div>
 
                 {/* Fullscreen Toggle */}
                 <button
@@ -153,71 +169,85 @@ const PlaygroundHeader = ({
                 </button>
 
                 {/* Run Action with Ctrl+' shortcut & loading state */}
-                <button
-                    onClick={onRunCode}
-                    disabled={isRunning || isSubmitting}
-                    title="Run Code (Ctrl + ')"
-                    onMouseEnter={() => setIsRunHovered(true)}
-                    onMouseLeave={() => setIsRunHovered(false)}
-                    style={{
-                        background: isDark 
-                            ? (isRunHovered ? '#1C1C1C' : '#111111')
-                            : (isRunHovered ? '#F0FDF4' : '#FFFFFF'),
-                        border: isDark 
-                            ? (isRunHovered ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid #333333')
-                            : (isRunHovered ? '1px solid rgba(22, 163, 74, 0.4)' : '1px solid #D1D5DB'),
-                        color: isDark ? '#FFFFFF' : '#111827',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        padding: '6px 14px',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        cursor: isRunning ? 'wait' : 'pointer',
-                        opacity: isRunning ? 0.7 : 1,
-                        transition: 'all 0.15s ease'
-                    }}
+                <div 
+                    title={!hasPlusAccess ? plusTooltip : (!isAuthenticated ? "Sign in to run code" : "Run (Ctrl + ')")}
+                    style={{ display: 'inline-flex' }}
                 >
-                    {isRunning ? (
-                        <Loader2 size={13} className="animate-spin" color={isDark ? "#22C55E" : "#16A34A"} />
-                    ) : (
-                        <Play size={12} fill={isDark ? "#22C55E" : "#16A34A"} color={isDark ? "#22C55E" : "#16A34A"} />
-                    )}
-                    <span>{isRunning ? 'Evaluating...' : "Run (Ctrl + ')"}</span>
-                </button>
+                    <button
+                        onClick={hasPlusAccess ? onRunCode : onPlusAction}
+                        disabled={!hasPlusAccess || isRunning || isSubmitting}
+                        title={!hasPlusAccess ? plusTooltip : "Run (Ctrl + ')"}
+                        onMouseEnter={() => setIsRunHovered(true)}
+                        onMouseLeave={() => setIsRunHovered(false)}
+                        style={{
+                            background: isDark 
+                                ? (isRunHovered && hasPlusAccess ? '#1C1C1C' : '#111111')
+                                : (isRunHovered && hasPlusAccess ? '#F0FDF4' : '#FFFFFF'),
+                            border: isDark 
+                                ? (isRunHovered && hasPlusAccess ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid #333333')
+                                : (isRunHovered && hasPlusAccess ? '1px solid rgba(22, 163, 74, 0.4)' : '1px solid #D1D5DB'),
+                            color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : (isDark ? '#FFFFFF' : '#111827'),
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: '6px 14px',
+                            borderRadius: 6,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            cursor: !hasPlusAccess ? 'not-allowed' : (isRunning ? 'wait' : 'pointer'),
+                            opacity: !hasPlusAccess ? 0.45 : (isRunning ? 0.7 : 1),
+                            transition: 'all 0.15s ease'
+                        }}
+                    >
+                        {isRunning ? (
+                            <Loader2 size={13} className="animate-spin" color={isDark ? "#22C55E" : "#16A34A"} />
+                        ) : (
+                            <Play size={12} fill={!hasPlusAccess ? (isDark ? "#52525B" : "#9CA3AF") : (isDark ? "#22C55E" : "#16A34A")} color={!hasPlusAccess ? (isDark ? "#52525B" : "#9CA3AF") : (isDark ? "#22C55E" : "#16A34A")} />
+                        )}
+                        <span>{isRunning ? 'Evaluating...' : "Run (Ctrl + ')"}</span>
+                    </button>
+                </div>
 
                 {/* Submit Action: Modern Gradient Send CTA with Ctrl+Enter shortcut */}
-                <button
-                    onClick={onSubmitCode}
-                    disabled={isRunning || isSubmitting}
-                    title="Submit Solution (Ctrl + Enter)"
-                    style={{
-                        background: isSubmitting
-                            ? (isDark ? '#4C1D95' : '#6D28D9')
-                            : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-                        border: '1px solid rgba(139, 92, 246, 0.4)',
-                        color: '#FFFFFF',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        padding: '6px 16px',
-                        borderRadius: 6,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        cursor: isSubmitting ? 'wait' : 'pointer',
-                        opacity: isSubmitting ? 0.75 : 1,
-                        boxShadow: isDark ? '0 2px 10px rgba(124, 58, 237, 0.35)' : '0 2px 8px rgba(124, 58, 237, 0.25)',
-                        transition: 'all 0.15s ease'
-                    }}
+                <div 
+                    title={!hasPlusAccess ? plusTooltip : (!isAuthenticated ? "Sign in to submit solution" : 'Submit Solution (Ctrl + Enter)')}
+                    style={{ display: 'inline-flex' }}
                 >
-                    {isSubmitting ? (
-                        <Loader2 size={13} className="animate-spin" />
-                    ) : (
-                        <Send size={13} />
-                    )}
-                    <span>{isSubmitting ? 'Submitting...' : 'Submit (Ctrl + Enter)'}</span>
-                </button>
+                    <button
+                        onClick={hasPlusAccess ? onSubmitCode : onPlusAction}
+                        disabled={!hasPlusAccess || isRunning || isSubmitting}
+                        title={!hasPlusAccess ? plusTooltip : 'Submit Solution (Ctrl + Enter)'}
+                        style={{
+                            background: !hasPlusAccess
+                                ? (isDark ? '#27272A' : '#E5E7EB')
+                                : (isSubmitting
+                                    ? (isDark ? '#4C1D95' : '#6D28D9')
+                                    : 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)'),
+                            border: !hasPlusAccess
+                                ? (isDark ? '1px solid #3F3F46' : '1px solid #D1D5DB')
+                                : '1px solid rgba(139, 92, 246, 0.4)',
+                            color: !hasPlusAccess ? (isDark ? '#71717A' : '#9CA3AF') : '#FFFFFF',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            padding: '6px 16px',
+                            borderRadius: 6,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            cursor: !hasPlusAccess ? 'not-allowed' : (isSubmitting ? 'wait' : 'pointer'),
+                            opacity: !hasPlusAccess ? 0.5 : (isSubmitting ? 0.75 : 1),
+                            boxShadow: !hasPlusAccess ? 'none' : (isDark ? '0 2px 10px rgba(124, 58, 237, 0.35)' : '0 2px 8px rgba(124, 58, 237, 0.25)'),
+                            transition: 'all 0.15s ease'
+                        }}
+                    >
+                        {isSubmitting ? (
+                            <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                            <Send size={13} />
+                        )}
+                        <span>{isSubmitting ? 'Submitting...' : 'Submit (Ctrl + Enter)'}</span>
+                    </button>
+                </div>
             </div>
         </header>
     );

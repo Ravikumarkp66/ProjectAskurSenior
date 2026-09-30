@@ -498,7 +498,7 @@ const AcademicRegisterPage = () => {
             }
 
             toast.success('Academic setup saved & Timetable generated!');
-            navigate('/home/timetable');
+            navigate('/plus/timetable');
         } catch (err) {
             console.error('[AcademicRegisterPage] Generate error:', err);
             toast.error(err.response?.data?.message || 'Failed to generate timetable. Please try again.');
@@ -509,17 +509,17 @@ const AcademicRegisterPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#07050e] text-white flex items-center justify-center">
+            <div className="min-h-screen bg-slate-50 dark:bg-[#07050e] text-slate-900 dark:text-white flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
-                    <RefreshCw size={24} className="animate-spin text-purple-400" />
-                    <span className="text-sm text-slate-400 font-medium">Loading Academic Setup...</span>
+                    <RefreshCw size={24} className="animate-spin text-purple-600 dark:text-purple-400" />
+                    <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Loading Academic Setup...</span>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#07050e] text-white p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto flex flex-col gap-6">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#07050e] text-slate-900 dark:text-white p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto flex flex-col gap-6">
             <style>{`
                 input[type="number"]::-webkit-outer-spin-button,
                 input[type="number"]::-webkit-inner-spin-button {
@@ -533,14 +533,14 @@ const AcademicRegisterPage = () => {
             
             {/* TOP SEGMENTED TAB SWITCHER */}
             <div className="flex items-center justify-center w-full">
-                <div className="inline-flex p-1.5 rounded-2xl bg-[#0f0b21] border border-purple-500/20 shadow-lg gap-2">
+                <div className="inline-flex p-1.5 rounded-2xl bg-slate-200/80 dark:bg-[#0f0b21] border border-slate-300 dark:border-purple-500/20 shadow-lg gap-2">
                     <button
                         type="button"
                         onClick={() => setActiveTab('basic')}
                         className={`px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer transition-all ${
                             activeTab === 'basic'
                                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30 scale-105'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-white/5'
                         }`}
                     >
                         <Calendar size={15} />
@@ -553,7 +553,7 @@ const AcademicRegisterPage = () => {
                         className={`px-6 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer transition-all ${
                             activeTab === 'weekly'
                                 ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-900/30 scale-105'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-white/5'
                         }`}
                     >
                         <BookOpen size={15} />
@@ -564,13 +564,13 @@ const AcademicRegisterPage = () => {
 
             {/* TAB CONTENT: BASIC SETUP */}
             {activeTab === 'basic' && (
-                <div className="p-6 rounded-2xl bg-[#0f0b21]/90 border border-purple-500/20 flex flex-col gap-6 shadow-xl text-left w-full">
+                <div className="p-6 rounded-2xl bg-white dark:bg-[#0f0b21]/90 border border-slate-200 dark:border-purple-500/20 flex flex-col gap-6 shadow-xl text-left w-full">
                     
                     {/* Header & Save Button */}
-                    <div className="flex items-center justify-between border-b border-purple-500/10 pb-4">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-purple-500/10 pb-4">
                         <div className="flex items-center gap-2">
-                            <Calendar size={20} className="text-purple-400" />
-                            <h2 className="text-lg font-black text-white">Basic Setup</h2>
+                            <Calendar size={20} className="text-purple-600 dark:text-purple-400" />
+                            <h2 className="text-lg font-black text-slate-900 dark:text-white">Basic Setup</h2>
                         </div>
                         <button
                             type="button"
@@ -586,66 +586,66 @@ const AcademicRegisterPage = () => {
                     {/* 1. Semester Duration */}
                     <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-purple-400" />
-                            <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">1. Semester Duration</h3>
+                            <Calendar size={16} className="text-purple-600 dark:text-purple-400" />
+                            <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">1. Semester Duration</h3>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-400 font-semibold">Semester Start Date</label>
+                                <label className="text-slate-600 dark:text-slate-400 font-semibold">Semester Start Date</label>
                                 <input
                                     type="date"
                                     value={formatDateForInput(config.semesterStartDate)}
                                     onChange={(e) => setConfig(prev => ({ ...prev, semesterStartDate: e.target.value }))}
-                                    className="p-3 rounded-xl bg-[#0a0718] border border-purple-500/20 text-white font-bold outline-none focus:border-purple-500"
+                                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-300 dark:border-purple-500/20 text-slate-900 dark:text-white font-bold outline-none focus:border-purple-500"
                                 />
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-400 font-semibold">Last Working / End Date</label>
+                                <label className="text-slate-600 dark:text-slate-400 font-semibold">Last Working / End Date</label>
                                 <input
                                     type="date"
                                     value={formatDateForInput(config.lastWorkingDate)}
                                     onChange={(e) => setConfig(prev => ({ ...prev, lastWorkingDate: e.target.value }))}
-                                    className="p-3 rounded-xl bg-[#0a0718] border border-purple-500/20 text-white font-bold outline-none focus:border-purple-500"
+                                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-300 dark:border-purple-500/20 text-slate-900 dark:text-white font-bold outline-none focus:border-purple-500"
                                 />
                             </div>
                         </div>
-                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs text-slate-300">
+                        <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
                             <span>Estimated Academic Duration:</span>
-                            <span className="font-extrabold text-purple-300">{calculateWeeks} Weeks</span>
+                            <span className="font-extrabold text-purple-600 dark:text-purple-300">{calculateWeeks} Weeks</span>
                         </div>
                     </div>
 
                     {/* 2. College Daily Timings */}
-                    <div className="flex flex-col gap-3 border-t border-purple-500/10 pt-5">
+                    <div className="flex flex-col gap-3 border-t border-slate-200 dark:border-purple-500/10 pt-5">
                         <div className="flex items-center gap-2">
-                            <Clock size={16} className="text-purple-400" />
-                            <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">2. College Daily Timings</h3>
+                            <Clock size={16} className="text-purple-600 dark:text-purple-400" />
+                            <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">2. College Daily Timings</h3>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-400 font-semibold">College Starts At</label>
+                                <label className="text-slate-600 dark:text-slate-400 font-semibold">College Starts At</label>
                                 <input
                                     type="time"
                                     value={minutesToTimeString(config.collegeStartMinute)}
                                     onChange={(e) => setConfig(prev => ({ ...prev, collegeStartMinute: timeStringToMinutes(e.target.value) }))}
-                                    className="p-3 rounded-xl bg-[#0a0718] border border-purple-500/20 text-white font-bold outline-none focus:border-purple-500"
+                                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-300 dark:border-purple-500/20 text-slate-900 dark:text-white font-bold outline-none focus:border-purple-500"
                                 />
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-400 font-semibold">College Ends At</label>
+                                <label className="text-slate-600 dark:text-slate-400 font-semibold">College Ends At</label>
                                 <input
                                     type="time"
                                     value={minutesToTimeString(config.collegeEndMinute)}
                                     onChange={(e) => setConfig(prev => ({ ...prev, collegeEndMinute: timeStringToMinutes(e.target.value) }))}
-                                    className="p-3 rounded-xl bg-[#0a0718] border border-purple-500/20 text-white font-bold outline-none focus:border-purple-500"
+                                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-300 dark:border-purple-500/20 text-slate-900 dark:text-white font-bold outline-none focus:border-purple-500"
                                 />
                             </div>
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-slate-400 font-semibold">Class Period Duration</label>
+                                <label className="text-slate-600 dark:text-slate-400 font-semibold">Class Period Duration</label>
                                 <select
                                     value={config.classDuration}
                                     onChange={(e) => setConfig(prev => ({ ...prev, classDuration: parseInt(e.target.value, 10) }))}
-                                    className="p-3 rounded-xl bg-[#0a0718] border border-purple-500/20 text-white font-bold outline-none focus:border-purple-500 cursor-pointer"
+                                    className="p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-300 dark:border-purple-500/20 text-slate-900 dark:text-white font-bold outline-none focus:border-purple-500 cursor-pointer"
                                 >
                                     <option value="45">45 Minutes</option>
                                     <option value="50">50 Minutes</option>
@@ -657,16 +657,16 @@ const AcademicRegisterPage = () => {
                     </div>
 
                     {/* 3. Break Timings */}
-                    <div className="flex flex-col gap-3 border-t border-purple-500/10 pt-5">
+                    <div className="flex flex-col gap-3 border-t border-slate-200 dark:border-purple-500/10 pt-5">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Coffee size={16} className="text-purple-400" />
-                                <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">3. Break Timings</h3>
+                                <Coffee size={16} className="text-purple-600 dark:text-purple-400" />
+                                <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">3. Break Timings</h3>
                             </div>
                             <button
                                 type="button"
                                 onClick={handleAddBreak}
-                                className="px-3 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                                className="px-3 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
                             >
                                 <Plus size={13} />
                                 Add Break
@@ -677,21 +677,21 @@ const AcademicRegisterPage = () => {
                         ) : (
                             <div className="flex flex-col gap-2.5">
                                 {config.breaks.map((item, idx) => (
-                                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center p-3 rounded-xl bg-[#0a0718] border border-white/5 text-xs">
+                                    <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-200 dark:border-white/5 text-xs">
                                         <input
                                             type="text"
                                             placeholder="Break Name"
                                             value={item.name}
                                             onChange={(e) => handleBreakFieldChange(idx, 'name', e.target.value)}
-                                            className="sm:col-span-5 p-2.5 rounded-lg bg-white/5 border border-white/10 text-white font-bold outline-none"
+                                            className="sm:col-span-5 p-2.5 rounded-lg bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white font-bold outline-none"
                                         />
                                         <input
                                             type="time"
                                             value={minutesToTimeString(item.startMinute)}
                                             onChange={(e) => handleBreakFieldChange(idx, 'startMinute', timeStringToMinutes(e.target.value))}
-                                            className="sm:col-span-3 p-2.5 rounded-lg bg-white/5 border border-white/10 text-white font-bold outline-none"
+                                            className="sm:col-span-3 p-2.5 rounded-lg bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white font-bold outline-none"
                                         />
-                                        <div className="sm:col-span-3 flex items-center gap-1 bg-[#0f0b21] p-1.5 rounded-lg border border-white/10">
+                                        <div className="sm:col-span-3 flex items-center gap-1 bg-white dark:bg-[#0f0b21] p-1.5 rounded-lg border border-slate-300 dark:border-white/10">
                                             <input
                                                 type="number"
                                                 min="1"
@@ -699,14 +699,14 @@ const AcademicRegisterPage = () => {
                                                 placeholder="Mins"
                                                 value={item.duration || ''}
                                                 onChange={(e) => handleBreakFieldChange(idx, 'duration', Math.max(1, parseInt(e.target.value, 10) || 0))}
-                                                className="w-full bg-transparent text-white font-bold outline-none text-xs text-center"
+                                                className="w-full bg-transparent text-slate-900 dark:text-white font-bold outline-none text-xs text-center"
                                             />
-                                            <span className="text-[11px] text-purple-300 font-extrabold pr-2 shrink-0">mins</span>
+                                            <span className="text-[11px] text-purple-600 dark:text-purple-300 font-extrabold pr-2 shrink-0">mins</span>
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => handleRemoveBreak(idx)}
-                                            className="sm:col-span-1 p-2 rounded-lg text-red-400 hover:bg-red-500/10 flex items-center justify-center cursor-pointer"
+                                            className="sm:col-span-1 p-2 rounded-lg text-red-500 hover:bg-red-500/10 flex items-center justify-center cursor-pointer"
                                         >
                                             <Trash2 size={15} />
                                         </button>
@@ -717,17 +717,17 @@ const AcademicRegisterPage = () => {
                     </div>
 
                     {/* 4. Working Days */}
-                    <div className="flex flex-col gap-3 border-t border-purple-500/10 pt-5">
+                    <div className="flex flex-col gap-3 border-t border-slate-200 dark:border-purple-500/10 pt-5">
                         <div className="flex items-center gap-2">
-                            <CalendarRange size={16} className="text-purple-400" />
-                            <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">4. Working Days</h3>
+                            <CalendarRange size={16} className="text-purple-600 dark:text-purple-400" />
+                            <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider">4. Working Days</h3>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {daysList.map((day) => {
                                 const currentStatus = getWorkingDayStatus(config.workingDays, day);
                                 return (
-                                    <div key={day.key} className="flex items-center justify-between p-3 rounded-xl bg-[#0a0718] border border-white/5 text-xs">
-                                        <span className="font-bold text-slate-200">{day.name}</span>
+                                    <div key={day.key} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-[#0a0718] border border-slate-200 dark:border-white/5 text-xs">
+                                        <span className="font-bold text-slate-800 dark:text-slate-200">{day.name}</span>
                                         <div className="flex gap-1">
                                             {['Full Day', 'Half Day', 'Holiday'].map((opt) => {
                                                 const isSelected = currentStatus === opt;
@@ -738,10 +738,10 @@ const AcademicRegisterPage = () => {
                                                         onClick={() => handleDayStatusChange(day, opt)}
                                                         className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold cursor-pointer transition-all ${
                                                             isSelected
-                                                                ? opt === 'Full Day' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                                                  : opt === 'Half Day' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                                                                  : 'bg-red-500/20 text-red-300 border border-red-500/40'
-                                                                : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                                                ? opt === 'Full Day' ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/40'
+                                                                  : opt === 'Half Day' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40'
+                                                                  : 'bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/40'
+                                                                : 'bg-slate-200/60 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10'
                                                         }`}
                                                     >
                                                         {opt.replace(' Day', '')}
@@ -760,23 +760,23 @@ const AcademicRegisterPage = () => {
 
             {/* TAB CONTENT: WEEKLY PLAN */}
             {activeTab === 'weekly' && (
-                <div className="p-6 rounded-2xl bg-[#0f0b21]/90 border border-purple-500/20 flex flex-col gap-5 shadow-xl text-left w-full">
+                <div className="p-6 rounded-2xl bg-white dark:bg-[#0f0b21]/90 border border-slate-200 dark:border-purple-500/20 flex flex-col gap-5 shadow-xl text-left w-full">
                     
                     {/* Header & Action Buttons */}
-                    <div className="flex items-center justify-between border-b border-purple-500/10 pb-4">
+                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-purple-500/10 pb-4">
                         <div className="flex items-center gap-2">
-                            <BookOpen size={20} className="text-purple-400" />
-                            <h2 className="text-lg font-black text-white">Weekly Subject Schedule Plan</h2>
+                            <BookOpen size={20} className="text-purple-600 dark:text-purple-400" />
+                            <h2 className="text-lg font-black text-slate-900 dark:text-white">Weekly Subject Schedule Plan</h2>
                         </div>
                         
                         <div className="flex items-center gap-2.5">
                             {autoSaveStatus === 'saving' && (
-                                <span className="text-[11px] text-purple-300 font-bold flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg animate-pulse">
+                                <span className="text-[11px] text-purple-700 dark:text-purple-300 font-bold flex items-center gap-1.5 bg-purple-500/10 border border-purple-500/20 px-2.5 py-1 rounded-lg animate-pulse">
                                     <RefreshCw size={11} className="animate-spin" /> Saving...
                                 </span>
                             )}
                             {autoSaveStatus === 'saved' && (
-                                <span className="text-[11px] text-emerald-300 font-bold flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                                <span className="text-[11px] text-emerald-700 dark:text-emerald-300 font-bold flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
                                     <Check size={12} /> Auto-saved
                                 </span>
                             )}
@@ -786,7 +786,7 @@ const AcademicRegisterPage = () => {
                                     type="button"
                                     onClick={handleStartEditWeeklyPlan}
                                     disabled={registeredSubjectsList.length === 0}
-                                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center gap-2 cursor-pointer transition-all shadow-md disabled:opacity-50"
+                                    className="px-4 py-2.5 rounded-xl text-xs font-black bg-purple-600/10 hover:bg-purple-600/20 text-purple-700 dark:text-purple-300 border border-purple-500/30 flex items-center gap-2 cursor-pointer transition-all shadow-md disabled:opacity-50"
                                 >
                                     <Edit3 size={14} />
                                     <span>Edit Plan</span>
@@ -796,7 +796,7 @@ const AcademicRegisterPage = () => {
                                     <button
                                         type="button"
                                         onClick={handleCancelEditWeeklyPlan}
-                                        className="px-3.5 py-2.5 rounded-xl text-xs font-black bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
+                                        className="px-3.5 py-2.5 rounded-xl text-xs font-black bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/10 flex items-center gap-1.5 cursor-pointer transition-all"
                                     >
                                         <X size={14} />
                                         <span>Cancel</span>
@@ -816,8 +816,8 @@ const AcademicRegisterPage = () => {
                         </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-purple-500/5 border border-purple-500/15 flex items-center gap-2.5 text-xs text-purple-300">
-                        <Lock size={16} className="flex-shrink-0 text-purple-400" />
+                    <div className="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-500/5 border border-purple-200 dark:border-purple-500/15 flex items-center gap-2.5 text-xs text-purple-700 dark:text-purple-300">
+                        <Lock size={16} className="flex-shrink-0 text-purple-600 dark:text-purple-400" />
                         <span>
                             Subjects are read-only (synced from Subject Registration). {isEditingWeeklyPlan ? 'Edit theory classes, lab sessions, and your attendance target percentage below.' : 'Click "Edit Plan" to modify weekly theory, lab sessions, and target threshold.'}
                         </span>
@@ -825,16 +825,16 @@ const AcademicRegisterPage = () => {
 
                     {/* Subjects Table */}
                     {registeredSubjectsList.length === 0 ? (
-                        <div className="py-12 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
-                            <AlertCircle size={24} className="text-purple-400/50" />
+                        <div className="py-12 text-center text-xs text-slate-500 dark:text-slate-400 flex flex-col items-center gap-2">
+                            <AlertCircle size={24} className="text-purple-500/50 dark:text-purple-400/50" />
                             <span>No registered subjects found for this semester.</span>
-                            <span className="text-[11px] text-slate-500">Go to Subject Registration to select and save your subjects.</span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500">Go to Subject Registration to select and save your subjects.</span>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto w-full rounded-xl border border-purple-500/10 bg-[#090616]">
+                        <div className="overflow-x-auto w-full rounded-xl border border-slate-200 dark:border-purple-500/10 bg-white dark:bg-[#090616]">
                             <table className="w-full text-left border-collapse min-w-[580px]">
                                 <thead>
-                                    <tr className="text-[11px] font-extrabold tracking-wider uppercase border-b border-white/10 text-slate-400 bg-white/[0.03]">
+                                    <tr className="text-[11px] font-extrabold tracking-wider uppercase border-b border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-white/[0.03]">
                                         <th className="py-3.5 px-4 text-center w-12">Sl No</th>
                                         <th className="py-3.5 px-4">Subject Code</th>
                                         <th className="py-3.5 px-4">Subject Name</th>
@@ -845,7 +845,7 @@ const AcademicRegisterPage = () => {
                                         <th className="py-3.5 px-4 text-center">My Threshold</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5 text-xs font-medium">
+                                <tbody className="divide-y divide-slate-200 dark:divide-white/5 text-xs font-medium">
                                     {registeredSubjectsList.map((item, idx) => {
                                         const code = item.subject?.code || item.customCode || 'N/A';
                                         const name = item.subject?.name || item.customName || 'Registered Subject';
@@ -855,20 +855,20 @@ const AcademicRegisterPage = () => {
                                         const targetVal = editedWeeklyPlan[item._id]?.threshold ?? myThreshold ?? 85;
 
                                         return (
-                                            <tr key={item._id} className="hover:bg-white/[0.02]">
-                                                <td className="py-3.5 px-4 text-center font-bold text-slate-500">
+                                            <tr key={item._id} className="hover:bg-slate-50/80 dark:hover:bg-white/[0.02]">
+                                                <td className="py-3.5 px-4 text-center font-bold text-slate-400 dark:text-slate-500">
                                                     {idx + 1}
                                                 </td>
-                                                <td className="py-3.5 px-4 font-mono text-xs text-purple-300 font-extrabold">
-                                                    <span className="px-2.5 py-1 rounded-md bg-purple-500/15 border border-purple-500/20">
+                                                <td className="py-3.5 px-4 font-mono text-xs text-purple-700 dark:text-purple-300 font-extrabold">
+                                                    <span className="px-2.5 py-1 rounded-md bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/20">
                                                         {code}
                                                     </span>
                                                 </td>
-                                                <td className="py-3.5 px-4 font-bold text-slate-200 text-sm">
+                                                <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 text-sm">
                                                     {name}
                                                 </td>
                                                 <td className="py-3.5 px-4 text-center">
-                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-300">
+                                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-transparent">
                                                         {credits} Credits
                                                     </span>
                                                 </td>
@@ -883,10 +883,10 @@ const AcademicRegisterPage = () => {
                                                             value={theoryVal}
                                                             onChange={(e) => handleTheoryChange(item._id, e.target.value)}
                                                             onBlur={() => handleTheoryBlur(item._id)}
-                                                            className="w-14 h-8 text-center rounded-lg bg-[#0d091f] border border-purple-500/40 text-purple-200 font-bold text-xs outline-none focus:border-purple-400"
+                                                            className="w-14 h-8 text-center rounded-lg bg-slate-50 dark:bg-[#0d091f] border border-purple-500/40 text-purple-700 dark:text-purple-200 font-bold text-xs outline-none focus:border-purple-400"
                                                         />
                                                     ) : (
-                                                        <span className="font-bold text-slate-200 text-xs">
+                                                        <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
                                                             {theoryVal} / week
                                                         </span>
                                                     )}
@@ -902,10 +902,10 @@ const AcademicRegisterPage = () => {
                                                             value={labVal}
                                                             onChange={(e) => handleLabChange(item._id, e.target.value)}
                                                             onBlur={() => handleLabBlur(item._id)}
-                                                            className="w-14 h-8 text-center rounded-lg bg-[#0d091f] border border-purple-500/40 text-purple-200 font-bold text-xs outline-none focus:border-purple-400"
+                                                            className="w-14 h-8 text-center rounded-lg bg-slate-50 dark:bg-[#0d091f] border border-purple-500/40 text-purple-700 dark:text-purple-200 font-bold text-xs outline-none focus:border-purple-400"
                                                         />
                                                     ) : (
-                                                        <span className="font-bold text-slate-200 text-xs">
+                                                        <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
                                                             {labVal} Lab
                                                         </span>
                                                     )}
@@ -913,7 +913,7 @@ const AcademicRegisterPage = () => {
 
                                                 {/* College Threshold */}
                                                 <td className="py-3.5 px-4 text-center">
-                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-slate-300 font-bold text-xs" title="College Minimum (Immutable)">
+                                                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-bold text-xs" title="College Minimum (Immutable)">
                                                         <Lock size={11} className="text-slate-400" />
                                                         <span>{collegeThreshold}%</span>
                                                     </div>
@@ -930,13 +930,13 @@ const AcademicRegisterPage = () => {
                                                                 value={targetVal}
                                                                 onChange={(e) => handleThresholdChange(item._id, e.target.value)}
                                                                 onBlur={() => handleThresholdBlur(item._id)}
-                                                                className="w-16 h-8 text-center pr-4 rounded-lg bg-[#0d091f] border border-purple-500/40 text-purple-200 font-extrabold text-xs outline-none focus:border-purple-400"
+                                                                className="w-16 h-8 text-center pr-4 rounded-lg bg-slate-50 dark:bg-[#0d091f] border border-purple-500/40 text-purple-700 dark:text-purple-200 font-extrabold text-xs outline-none focus:border-purple-400"
                                                             />
-                                                            <span className="absolute right-2 text-[10px] text-purple-400 font-bold pointer-events-none">%</span>
+                                                            <span className="absolute right-2 text-[10px] text-purple-600 dark:text-purple-400 font-bold pointer-events-none">%</span>
                                                         </div>
                                                     ) : (
-                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-500/15 border border-purple-500/25 text-purple-300 font-extrabold text-xs" title="Personal Target">
-                                                            <Target size={11} className="text-purple-400" />
+                                                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-500/10 dark:bg-purple-500/15 border border-purple-500/25 text-purple-700 dark:text-purple-300 font-extrabold text-xs" title="Personal Target">
+                                                            <Target size={11} className="text-purple-600 dark:text-purple-400" />
                                                             <span>{targetVal}%</span>
                                                         </div>
                                                     )}

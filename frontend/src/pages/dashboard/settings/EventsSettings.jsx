@@ -3,11 +3,14 @@ import { Calendar, Plus, RefreshCw, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { apiV2 } from '../../../services/authService';
+import { useAuth } from '../../../utils/hooks';
+import AuthGate from '../../../components/AuthGate';
 import AcademicCalendar from './components/AcademicCalendar';
 import EventsTimeline from './components/EventsTimeline';
 import EventModal from './components/EventModal';
 
 const EventsSettings = () => {
+    const { isAuthenticated, hasPlusAccess } = useAuth();
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(false);
 
@@ -17,8 +20,8 @@ const EventsSettings = () => {
     const [initialDate, setInitialDate] = useState(null);
 
     useEffect(() => {
-        fetchEvents();
-    }, []);
+        if (isAuthenticated && hasPlusAccess) fetchEvents();
+    }, [isAuthenticated, hasPlusAccess]);
 
     const fetchEvents = async () => {
         try {
@@ -101,14 +104,20 @@ const EventsSettings = () => {
     };
 
     return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '24px',
-            maxWidth: '800px',
-            margin: '0 auto',
-            paddingBottom: '40px'
-        }}>
+        <AuthGate
+            requireAuth={true}
+            requirePlus={true}
+            loginMessage="Sign in to manage your academic events and schedule."
+            plusMessage="Academic events and custom scheduling is a Plus feature. Upgrade to access your personal academic calendar."
+        >
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '24px',
+                maxWidth: '800px',
+                margin: '0 auto',
+                paddingBottom: '40px'
+            }}>
             {/* Header Title & Button */}
             <div style={{
                 display: 'flex',
@@ -195,6 +204,7 @@ const EventsSettings = () => {
                 initialDate={initialDate}
             />
         </div>
+        </AuthGate>
     );
 };
 

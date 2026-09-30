@@ -9,6 +9,7 @@ router.get('/public-page', subscriptionModuleController.getPublicPage);
 router.get('/plans', subscriptionModuleController.getPlans);
 router.get('/features', subscriptionModuleController.getFeatures);
 router.post('/coupon/validate', subscriptionModuleController.validateCoupon);
+router.post('/checkout', authMiddleware, subscriptionModuleController.checkout);
 
 // Enterprise Admin Endpoints
 router.post('/admin/plans', authMiddleware, adminMiddleware, subscriptionModuleController.createPlanAdmin);

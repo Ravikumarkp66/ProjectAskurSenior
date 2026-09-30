@@ -14,7 +14,9 @@ import {
     PanelLeftClose,
     ChevronsDownUp,
     ChevronsUpDown,
-    Check
+    Check,
+    LogIn,
+    Plus
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../../context/ThemeContext';
@@ -120,7 +122,8 @@ const MySubjectsSidebar = ({
     onToggleCollapse
 }) => {
     const { isDark, toggleTheme } = useTheme();
-    const { user } = useContext(AuthContext);
+    const { user, isAuthenticated, hasPlusAccess } = useContext(AuthContext);
+    const isUserLoggedIn = Boolean(isAuthenticated && user);
     const navigate = useNavigate();
 
     // Track which subjects and modules are expanded in the folder tree (collapsed by default)
@@ -1272,99 +1275,181 @@ const MySubjectsSidebar = ({
                     </button>
                 </div>
 
-                {/* ── 5. User Profile Card ───────────────────────────────── */}
-                <button
-                    type="button"
-                    onClick={() => {
-                        if (onCloseMobileDrawer) onCloseMobileDrawer();
-                        navigate('/profile');
-                    }}
-                    style={{
-                        width: '100%',
-                        padding: '8px 10px',
-                        borderRadius: '8px',
-                        background: t.profileBg,
-                        border: `1px solid ${t.profileBorder}`,
-                        boxShadow: t.profileShadow,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        outline: 'none',
-                        transition: 'all 0.15s ease'
-                    }}
-                    className={isDark ? "hover:bg-white/[0.05] hover:border-neutral-700 group" : "hover:bg-purple-50/50 hover:border-purple-300 group"}
-                    title="View profile"
-                >
-                    {/* Avatar */}
-                    <div
+                {/* ── 5. User Profile Card / Upgrade Button / Login Button ─────────────── */}
+                {!isUserLoggedIn ? (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (onCloseMobileDrawer) onCloseMobileDrawer();
+                            navigate('/login');
+                        }}
+                        title="Login to AskUrSenior"
                         style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            overflow: 'hidden',
-                            flexShrink: 0,
-                            background: t.profileAvatarBg,
-                            border: `1px solid ${t.profileAvatarBorder}`,
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                            border: 'none',
+                            color: '#FFFFFF',
+                            fontSize: '12px',
+                            fontWeight: 700,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: t.profileAvatarText,
-                            fontSize: '11px',
-                            fontWeight: 750
+                            gap: '8px',
+                            cursor: 'pointer',
+                            boxShadow: isDark ? '0 2px 10px rgba(124, 58, 237, 0.35)' : '0 2px 8px rgba(124, 58, 237, 0.25)',
+                            transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.filter = 'brightness(1.1)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.filter = 'none';
+                            e.currentTarget.style.transform = 'translateY(0)';
                         }}
                     >
-                        {profilePic && !imgError ? (
-                            <img
-                                src={getProfilePicUrl(profilePic)}
-                                alt={user?.name || 'Profile'}
-                                onError={() => setImgError(true)}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                        ) : (
-                            <span>{initials}</span>
+                        <LogIn size={14} />
+                        <span>Login</span>
+                    </button>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                        {!hasPlusAccess && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onCloseMobileDrawer) onCloseMobileDrawer();
+                                    navigate(user ? '/plus' : '/login');
+                                }}
+                                title="Upgrade to Plus"
+                                style={{
+                                    width: '100%',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)',
+                                    border: 'none',
+                                    color: '#FFFFFF',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    cursor: 'pointer',
+                                    boxShadow: isDark ? '0 2px 10px rgba(124, 58, 237, 0.35)' : '0 2px 8px rgba(124, 58, 237, 0.25)',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.filter = 'brightness(1.1)';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.filter = 'none';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                            >
+                                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                    <Plus size={11} strokeWidth={3} className="text-white" />
+                                </span>
+                                <span>Upgrade to Plus</span>
+                            </button>
                         )}
-                    </div>
 
-                    {/* User Name & Branch */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                            style={{
-                                fontSize: '12px',
-                                fontWeight: 650,
-                                color: t.profileName,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                lineHeight: 1.25
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (onCloseMobileDrawer) onCloseMobileDrawer();
+                                navigate('/profile');
                             }}
-                        >
-                            {typeof user?.name === 'string' ? user.name : 'Student Account'}
-                        </div>
-                        <div
                             style={{
-                                fontSize: '10.5px',
-                                fontWeight: 550,
-                                color: t.profileBranch,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                marginTop: '1px'
+                                width: '100%',
+                                padding: '8px 10px',
+                                borderRadius: '8px',
+                                background: t.profileBg,
+                                border: `1px solid ${t.profileBorder}`,
+                                boxShadow: t.profileShadow,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                outline: 'none',
+                                transition: 'all 0.15s ease'
                             }}
+                            className={isDark ? "hover:bg-white/[0.05] hover:border-neutral-700 group" : "hover:bg-purple-50/50 hover:border-purple-300 group"}
+                            title="View profile"
                         >
-                            {userBranchDisplay}
-                            {userSectionDisplay ? ` • Sec ${userSectionDisplay}` : ''}
-                        </div>
-                    </div>
+                            {/* Avatar */}
+                            <div
+                                style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    overflow: 'hidden',
+                                    flexShrink: 0,
+                                    background: t.profileAvatarBg,
+                                    border: `1px solid ${t.profileAvatarBorder}`,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: t.profileAvatarText,
+                                    fontSize: '11px',
+                                    fontWeight: 750
+                                }}
+                            >
+                                {profilePic && !imgError ? (
+                                    <img
+                                        src={getProfilePicUrl(profilePic)}
+                                        alt={user?.name || 'Profile'}
+                                        onError={() => setImgError(true)}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                ) : (
+                                    <span>{initials}</span>
+                                )}
+                            </div>
 
-                    {/* Right Chevron Affordance */}
-                    <ChevronRight
-                        size={14}
-                        style={{ color: t.profileChevron, flexShrink: 0 }}
-                        className={isDark ? "group-hover:text-white transition-colors" : "group-hover:text-purple-900 transition-colors"}
-                    />
-                </button>
+                            {/* User Name & Branch */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div
+                                    style={{
+                                        fontSize: '12px',
+                                        fontWeight: 650,
+                                        color: t.profileName,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        lineHeight: 1.25
+                                    }}
+                                >
+                                    {typeof user?.name === 'string' ? user.name : 'Student Account'}
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: '10.5px',
+                                        fontWeight: 550,
+                                        color: t.profileBranch,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        marginTop: '1px'
+                                    }}
+                                >
+                                    {userBranchDisplay}
+                                    {userSectionDisplay ? ` • Sec ${userSectionDisplay}` : ''}
+                                </div>
+                            </div>
+
+                            {/* Right Chevron Affordance */}
+                            <ChevronRight
+                                size={14}
+                                style={{ color: t.profileChevron, flexShrink: 0 }}
+                                className={isDark ? "group-hover:text-white transition-colors" : "group-hover:text-purple-900 transition-colors"}
+                            />
+                        </button>
+                    </div>
+                )}
             </div>
         </aside>
     );

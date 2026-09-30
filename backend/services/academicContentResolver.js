@@ -1,4 +1,4 @@
-﻿const mongoose = require('mongoose');
+const mongoose = require('mongoose');
 const studentSubjectResolver = require('./studentSubjectResolver');
 const AcademicSubjectCms = require('../models/AcademicSubject');
 const CourseModule = require('../models/CourseModule');
@@ -190,10 +190,22 @@ async function getTopicEditorialContent(academicSubjectId, moduleSlug, topicSlug
     const cleanTopicSlug = topicSlug.trim().toLowerCase();
 
     // 1. Locate CourseModule constrained by: academicSubjectId + moduleSlug
-    const moduleDoc = await CourseModule.findOne({
+    // Support both canonical ('module1', 'basics') and route slugs ('module-1')
+    const queryModuleSlug = (cleanModuleSlug.includes('-') && /^module-\d+$/.test(cleanModuleSlug))
+        ? cleanModuleSlug.replace('-', '')
+        : cleanModuleSlug;
+
+    let moduleDoc = await CourseModule.findOne({
         academicSubjectId: subjectIdObj,
         moduleSlug: cleanModuleSlug
     }).lean();
+
+    if (!moduleDoc && queryModuleSlug !== cleanModuleSlug) {
+        moduleDoc = await CourseModule.findOne({
+            academicSubjectId: subjectIdObj,
+            moduleSlug: queryModuleSlug
+        }).lean();
+    }
 
     if (!moduleDoc) {
         return {

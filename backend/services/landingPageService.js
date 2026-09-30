@@ -15,7 +15,7 @@ const getDefaultLandingPageData = () => {
             primaryButton: { text: 'Explore Materials', link: '/cms' },
             secondaryButton: { text: 'Calculate CGPA', link: '/calculator' },
             previewCards: [
-                { title: 'Ask+ AI Assistant', image: '/assets/previews/ask_ai.png', route: '/ask-finder' },
+                { title: 'Smart Attendance & Timetables', image: '/assets/previews/attendance.png', route: '/home' },
                 { title: 'Interactive Campus Map', image: '/assets/previews/campus_map.png', route: '/campus-map' },
                 { title: 'Smart CGPA & CIE Calculator', image: '/assets/previews/calculator.png', route: '/calculator' },
                 { title: 'Organized PYQs & Notes', image: '/assets/previews/materials.png', route: '/cms' }
@@ -57,7 +57,17 @@ const getDefaultLandingPageData = () => {
                         { title: 'Eligibility Checker', slug: 'eligibility-checker', shortDescription: 'Check placement cutoff and credit eligibility criteria.', icon: 'CheckSquare', route: '/calculator', displayOrder: 4 },
                         { title: 'Year Back Predictor', slug: 'year-back-predictor', shortDescription: 'Credit check tool to avoid academic year back risks.', icon: 'AlertTriangle', route: '/calculator', displayOrder: 5 },
                         { title: 'Branch Change Predictor', slug: 'branch-change-predictor', shortDescription: 'Analyze historical cutoff trends for 1st-year branch change.', icon: 'GitBranch', route: '/calculator', displayOrder: 6 },
-                        { title: 'Attendance Tracker', slug: 'attendance-tracker', shortDescription: 'Track subject attendance percentages and safe bunk margin.', icon: 'CheckCircle', route: '/dashboard', displayOrder: 7 }
+                        { title: 'Attendance Tracker', slug: 'attendance-tracker', shortDescription: 'Track subject attendance percentages and safe bunk margin.', icon: 'CheckCircle', route: '/home', displayOrder: 7 }
+                    ]
+                },
+                {
+                    title: 'Lab & Coding',
+                    slug: 'lab-and-coding',
+                    description: 'Interactive browser-based coding playground for VTU/SIT lab programs.',
+                    icon: 'Code2',
+                    order: 3,
+                    features: [
+                        { title: 'Monaco Lab Playground', slug: 'monaco-lab-playground', shortDescription: 'Practice C, C++, Java, and Python lab sets with instant test execution.', icon: 'Terminal', route: '/compiler', badge: 'Playground', isPremium: false, isComingSoon: false, displayOrder: 1 }
                     ]
                 },
                 {
@@ -65,7 +75,7 @@ const getDefaultLandingPageData = () => {
                     slug: 'placements',
                     description: 'Career preparation tools and verified placement experiences.',
                     icon: 'Briefcase',
-                    order: 3,
+                    order: 4,
                     features: [
                         { title: 'Interview Experiences', slug: 'interview-experiences', shortDescription: 'Real interview questions and rounds shared by placed seniors.', icon: 'UserCheck', route: '/interview', badge: 'Verified', isPremium: false, isComingSoon: false, displayOrder: 1 },
                         { title: 'Company Cutoffs', slug: 'company-cutoffs', shortDescription: 'CGPA and branch eligibility cutoffs for visiting campus recruiters.', icon: 'CheckSquare', route: '/interview', displayOrder: 2 }
@@ -76,22 +86,12 @@ const getDefaultLandingPageData = () => {
                     slug: 'campus',
                     description: 'Explore SIT campus buildings, services, and student listings.',
                     icon: 'Building',
-                    order: 4,
+                    order: 5,
                     features: [
-                        { title: 'Campus Map', slug: 'campus-map', shortDescription: 'Interactive map of blocks, canteens, hostels, and auditoriums.', icon: 'MapPin', route: '/campus-map', badge: '3D Interactive', isPremium: false, isComingSoon: false, displayOrder: 1 },
+                        { title: 'Campus Map', slug: 'campus-map', shortDescription: 'Interactive map of blocks, canteens, hostels, and auditoriums.', icon: 'MapPin', route: '/campus-map', badge: 'Interactive Map', isPremium: false, isComingSoon: false, displayOrder: 1 },
                         { title: 'Lost & Found', slug: 'lost-and-found', shortDescription: 'Campus-wide portal to report and locate missing belongings.', icon: 'Search', route: '/campus-hub', displayOrder: 2 },
                         { title: 'Marketplace', slug: 'marketplace', shortDescription: 'Buy, sell, or exchange used textbooks, drafters, and equipment.', icon: 'ShoppingBag', route: '/campus-hub', displayOrder: 3 },
                         { title: 'Blogs', slug: 'blogs', shortDescription: 'Student articles, campus news, and academic survival guides.', icon: 'BookMarked', route: '/blog', displayOrder: 4 }
-                    ]
-                },
-                {
-                    title: 'AI',
-                    slug: 'ai',
-                    description: 'Custom AI assistant trained specifically on SIT academic data.',
-                    icon: 'Sparkles',
-                    order: 5,
-                    features: [
-                        { title: 'Ask+ Chatbot (RAG)', slug: 'ask-plus-chatbot', shortDescription: 'Instant answers to academic syllabus and SIT query questions.', icon: 'Cpu', route: '/ask-finder', badge: 'AI Assistant', isPremium: false, isComingSoon: false, displayOrder: 1 }
                     ]
                 },
                 {
@@ -101,10 +101,10 @@ const getDefaultLandingPageData = () => {
                     icon: 'Activity',
                     order: 6,
                     features: [
-                        { title: 'Personalized Dashboard', slug: 'personalized-dashboard', shortDescription: 'Single dashboard showing enrolled courses, schedule, and notes.', icon: 'Layout', route: '/dashboard', displayOrder: 1 },
-                        { title: '4-Year Academic Journey', slug: '4-year-academic-journey', shortDescription: 'Visual milestone roadmap from 1st sem to graduation.', icon: 'Flag', route: '/dashboard', displayOrder: 2 },
-                        { title: 'Streak System', slug: 'streak-system', shortDescription: 'Build daily study habits with active revision streaks.', icon: 'Zap', route: '/dashboard', displayOrder: 3 },
-                        { title: 'To-do List', slug: 'to-do-list', shortDescription: 'Prioritize assignments, lab submissions, and exam prep tasks.', icon: 'List', route: '/dashboard', displayOrder: 4 },
+                        { title: 'Personalized Dashboard', slug: 'personalized-dashboard', shortDescription: 'Single dashboard showing enrolled courses, schedule, and notes.', icon: 'Layout', route: '/home', displayOrder: 1 },
+                        { title: '4-Year Academic Journey', slug: '4-year-academic-journey', shortDescription: 'Visual milestone roadmap from 1st sem to graduation.', icon: 'Flag', route: '/home', displayOrder: 2 },
+                        { title: 'Streak System', slug: 'streak-system', shortDescription: 'Build daily study habits with active revision streaks.', icon: 'Zap', route: '/home', displayOrder: 3 },
+                        { title: 'To-do List', slug: 'to-do-list', shortDescription: 'Prioritize assignments, lab submissions, and exam prep tasks.', icon: 'List', route: '/home', displayOrder: 4 },
                         { title: 'Leaderboard', slug: 'leaderboard', shortDescription: 'Gamified student rank based on academic contributions.', icon: 'Trophy', route: '/leaderboard', displayOrder: 5 }
                     ]
                 },
@@ -128,11 +128,11 @@ const getDefaultLandingPageData = () => {
             items: [
                 { without: 'Searching WhatsApp groups for notes', with: 'Search organized study materials instantly', icon: 'Search', order: 1 },
                 { without: 'Asking seniors individually', with: 'Verified interview experiences from real seniors', icon: 'UserCheck', order: 2 },
-                { without: 'Using multiple academic websites', with: 'Everything in one platform', icon: 'Grid', order: 3 },
-                { without: 'Manual CGPA calculations', with: 'Instant CGPA, SGPA and CIE analysis', icon: 'Calculator', order: 4 },
+                { without: 'Using multiple academic websites', with: 'Everything in one unified platform', icon: 'Grid', order: 3 },
+                { without: 'Manual CGPA & CIE calculations', with: 'Instant CGPA, SGPA and CIE 50-mark analysis', icon: 'Calculator', order: 4 },
                 { without: 'No campus navigation', with: 'Interactive Campus Explorer', icon: 'MapPin', order: 5 },
                 { without: 'No faculty insights', with: 'Faculty and Department Ratings', icon: 'Star', order: 6 },
-                { without: 'Generic AI answers', with: 'Ask+ trained on SIT-specific resources', icon: 'Cpu', order: 7 },
+                { without: 'Manual timetable & attendance tracking', with: 'Smart section timetable sync & safe bunk margin calculator', icon: 'Calendar', order: 7 },
                 { without: 'No study tracking', with: 'Personal Dashboard with Streaks & Progress', icon: 'TrendingUp', order: 8 },
                 { without: 'Scattered PDFs and Google Drive links', with: 'Organized Notes, PYQs, SEE Papers & Question Banks', icon: 'Folder', order: 9 },
                 { without: 'No structured placement preparation', with: 'Company Cutoffs, Roadmaps & Interview Experiences', icon: 'Briefcase', order: 10 },
@@ -172,7 +172,7 @@ const getDefaultLandingPageData = () => {
         },
         seo: {
             pageTitle: 'AskUrSenior V3 - Official SIT Student Platform',
-            metaDescription: 'Access SIT notes, PYQs, CGPA calculator, campus map, placement experiences, and AI assistant.',
+            metaDescription: 'Access SIT notes, PYQs, CGPA calculator, campus map, placement experiences, and academic tools.',
             keywords: 'SIT, AskUrSenior, Tumkur, Study Materials, PYQ, CGPA Calculator, Placement Experiences',
             openGraphImage: '/assets/og_image.png'
         }
@@ -198,11 +198,17 @@ class LandingPageService {
             landingPage = await LandingPage.create(defaultData);
             console.log('✅ LandingPage document seeded successfully.');
         } else {
-            // Update platformFeatures to ensure latest category updates
+            // Update platformFeatures, hero previewCards, comparison, and seo to ensure latest clean data
             landingPage.platformFeatures = defaultData.platformFeatures;
+            if (landingPage.hero) {
+                landingPage.hero.previewCards = defaultData.hero.previewCards;
+            }
+            landingPage.comparison = defaultData.comparison;
+            landingPage.seo = defaultData.seo;
         }
 
-        // Link ALL published Testimonial ObjectIDs into landingPage.testimonials.testimonials if empty or out of sync
+        // Sync testimonial IDs if the array is empty — do NOT populate them here.
+        // Testimonials are fetched separately via GET /api/testimonials/random for performance.
         if (!landingPage.testimonials?.testimonials || landingPage.testimonials.testimonials.length === 0) {
             const allPublishedTestimonials = await Testimonial.find({ isPublished: true }).select('_id');
             const testimonialIds = allPublishedTestimonials.map(t => t._id);
@@ -218,9 +224,7 @@ class LandingPageService {
             }
         }
 
-        // Return populated document with Testimonial ObjectIDs populated
-        landingPage = await LandingPage.findById(landingPage._id).populate('testimonials.testimonials');
-
+        // Return the document without populating testimonials (they are fetched separately)
         return landingPage;
     }
 }

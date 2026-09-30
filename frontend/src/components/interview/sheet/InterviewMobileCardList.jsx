@@ -1,7 +1,8 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CompanyLogo from '../../CompanyLogo';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Lock } from 'lucide-react';
+import { useAuth } from '../../../utils/hooks';
 
 const formatCtc = (rawCtc) => {
     if (!rawCtc || rawCtc === 'Role Based' || rawCtc === 'Not Disclosed') return rawCtc || 'Role Based';
@@ -10,6 +11,30 @@ const formatCtc = (rawCtc) => {
 
 const InterviewMobileCardList = ({ items = [] }) => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const { isAuthenticated, hasPlusAccess } = useAuth();
+
+    const viewTooltip = !isAuthenticated 
+        ? "Login to view experiences" 
+        : "Upgrade to Plus to view experiences";
+
+    const getTargetRoute = (slug) => {
+        const basePath = location.pathname.startsWith('/plus') ? '/plus/interview' : '/home/interview';
+        return `${basePath}/${slug}`;
+    };
+
+    const handleActionClick = (e, slug) => {
+        e.stopPropagation();
+        if (!hasPlusAccess) {
+            if (!isAuthenticated) {
+                navigate('/login');
+            } else {
+                navigate('/plus');
+            }
+            return;
+        }
+        navigate(getTargetRoute(slug));
+    };
 
     return (
         <div className="w-full flex flex-col gap-2.5">
@@ -20,10 +45,10 @@ const InterviewMobileCardList = ({ items = [] }) => {
                 return (
                     <div
                         key={`${item.companyId || item._id}-${item.batch || ''}-${index}`}
-                        onClick={() => navigate(`/home/interview/${slug}`)}
+                        onClick={() => navigate(getTargetRoute(slug))}
                         className="group p-3.5 rounded-xl bg-white dark:bg-[#0e1015] border border-zinc-200 dark:border-white/[0.08] hover:border-zinc-300 dark:hover:border-white/20 active:scale-[0.99] transition-all cursor-pointer shadow-sm relative overflow-hidden"
                     >
-                        {/* Top: Logo + Name + Category + Arrow */}
+                        {/* Top: Logo + Name + Category + Action */}
                         <div className="flex items-center justify-between gap-3 mb-2">
                             <div className="flex items-center gap-2.5 min-w-0">
                                 <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-zinc-900">
@@ -46,9 +71,19 @@ const InterviewMobileCardList = ({ items = [] }) => {
                                 </div>
                             </div>
 
-                            <div className="p-1 rounded-md text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors shrink-0">
-                                <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                            </div>
+                            <button
+                                type="button"
+                                onClick={(e) => handleActionClick(e, slug)}
+                                title={viewTooltip}
+                                aria-label={viewTooltip}
+                                className="p-1 rounded-md text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors shrink-0"
+                            >
+                                {hasPlusAccess ? (
+                                    <ArrowUpRight size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                ) : (
+                                    <Lock size={13} className="text-zinc-400 dark:text-zinc-500" />
+                                )}
+                            </button>
                         </div>
 
                         {/* Mid Meta: Role, Batch, Package */}

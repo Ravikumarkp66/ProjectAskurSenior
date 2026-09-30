@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { interviewExperiencesAPI } from '../../services/api';
+import { useAuth } from '../../utils/hooks';
+import { STATIC_DEMO_COMPANIES } from '../../data/demoInterviewExperiences';
 
 // Sub-components
 import InterviewHero from '../../components/interview/sheet/InterviewHero';
@@ -11,16 +13,28 @@ import InterviewMobileCardList from '../../components/interview/sheet/InterviewM
 import InterviewEmptyState from '../../components/interview/sheet/InterviewEmptyState';
 import InterviewSkeletonSheet from '../../components/interview/sheet/InterviewSkeletonSheet';
 
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, LogIn, Sparkles } from 'lucide-react';
 
 const InterviewPage = () => {
-    const [companies, setCompanies] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { isAuthenticated, hasPlusAccess } = useAuth();
+    const [companies, setCompanies] = useState(() => (!hasPlusAccess ? STATIC_DEMO_COMPANIES : []));
+    const [isLoading, setIsLoading] = useState(() => (hasPlusAccess ? true : false));
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         let isMounted = true;
+
+        // ZERO API / Database calls for non-Plus users
+        if (!hasPlusAccess) {
+            setCompanies(STATIC_DEMO_COMPANIES);
+            setIsLoading(false);
+            return;
+        }
+
         const fetchCompanies = async () => {
+            setIsLoading(true);
             try {
                 const response = await interviewExperiencesAPI.getCompanies();
                 const data = Array.isArray(response.data) ? response.data : [];
@@ -113,7 +127,7 @@ const InterviewPage = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [hasPlusAccess]);
 
     // Summary metrics for Hero
     const summaryStats = useMemo(() => {
@@ -165,6 +179,41 @@ const InterviewPage = () => {
                 totalCompanies={summaryStats.totalCompanies}
                 totalStories={summaryStats.totalStories}
             />
+
+            {/* Authentication & Plus Status Banners */}
+            {!isAuthenticated && (
+                <div className="my-3 px-4 py-3 rounded-[8px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#EFF6FF] dark:bg-[#15181D] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <LogIn size={16} className="text-[#2563EB] shrink-0" />
+                        <p className="text-[13px] text-[#111827] dark:text-[#F3F4F6] m-0">
+                            <span className="font-semibold">Sign in</span> to view company rounds, debriefs, and placed seniors' insights.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)}
+                        className="text-[#2563EB] hover:text-[#1D4ED8] underline cursor-pointer bg-transparent border-0 p-0 text-[13px] font-medium shrink-0"
+                    >
+                        Log in →
+                    </button>
+                </div>
+            )}
+
+            {isAuthenticated && !hasPlusAccess && (
+                <div className="my-3 px-4 py-3 rounded-[8px] border border-[#E5E7EB] dark:border-[#292E37] bg-[#EFF6FF] dark:bg-[#15181D] flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <Sparkles size={16} className="text-[#2563EB] shrink-0" />
+                        <p className="text-[13px] text-[#111827] dark:text-[#F3F4F6] m-0">
+                            Currently showing preview interview experiences. <span className="font-semibold">Upgrade to Plus</span> for verified archives and all campus companies.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => navigate('/pricing')}
+                        className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-[6px] px-3 py-1 text-xs font-medium cursor-pointer shrink-0 transition-colors"
+                    >
+                        Upgrade to Plus →
+                    </button>
+                </div>
+            )}
 
             {/* 2. Simplified Clean Search Toolbar with Dynamic Rotating Placeholder */}
             <InterviewToolbar 
@@ -219,7 +268,7 @@ const InterviewPage = () => {
                         </p>
                     </div>
                     <Link
-                        to="/home/interview/share"
+                        to={location.pathname.startsWith('/plus') ? '/plus/interview/share' : '/home/interview/share'}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:border-zinc-400 dark:hover:border-zinc-500 transition-colors whitespace-nowrap"
                     >
                         <PlusCircle size={13} className="text-purple-600 dark:text-purple-400" />

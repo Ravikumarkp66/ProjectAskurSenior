@@ -16,19 +16,24 @@ const initialPlans = [
         currency: 'INR',
         duration: 1,
         durationUnit: 'semester',
-        badge: 'Most Popular',
+        badge: 'Recommended',
         isRecommended: true,
         status: 'ACTIVE',
         sortOrder: 1,
         features: [
-            'Personalized Student Dashboard',
-            'SIT Attendance Tracker & Timetable',
-            'Ask+ AI Assistant (RAG on SIT Syllabus)',
-            'Interactive Academic Roadmaps & Heatmap',
-            'Advanced CIE & Year Back Predictors',
-            'Leaderboards, Streaks & Daily To-do',
-            'Senior Mentorship & Community Support',
-            'Priority Download Bandwidth'
+            'Attendance Tracker with Section Timetables & 85% Bunk Rule Planner',
+            'Today\'s Classes & Daily Schedule Live Tracking',
+            'CIE Analyzer (50-Mark Normalization & SEE Target Forecaster)',
+            'Branch Change Predictor with Statistical Shift Odds',
+            'Year Back Predictor & Pre-Exam Dual Compliance Auditor',
+            'Exam Eligibility Checker (Dual Compliance Audit)',
+            'College Labset Coding Playground (C, C++, Java, Python)',
+            '1-Credit Subject Quizzes (NCMC/AEC) & Practice Engine',
+            '4-Year Academic Journey Heatmap & Activity Tracker',
+            'Attendance Streaks for All Subjects & Days',
+            'Visual Engineering Roadmaps & Progress Checklists',
+            'Personalized Student Command Dashboard',
+            'Notes, Solved PYQs, Campus Map & Senior Placement Logs'
         ]
     }
 ];
@@ -44,7 +49,7 @@ const initialCoupons = [
     },
     {
         code: 'LAUNCH50',
-        title: 'V3 Platform Launch Offer',
+        title: 'AskUrSenior Strike Launch Offer',
         discountType: 'flat',
         discountValue: 50,
         applicablePlans: ['SEM_1'],
@@ -150,16 +155,16 @@ const initialFeatures = [
         order: 7
     },
     {
-        code: 'ask_ai',
-        title: 'Ask+ AI Assistant',
-        category: 'AI Assistant',
+        code: 'coding_playground',
+        title: 'Monaco Lab Playground',
+        category: 'Lab & Coding',
         tier: 'plus',
-        shortDescription: 'RAG AI trained on SIT syllabus.',
-        problem: 'General AI tools give irrelevant or generic answers to SIT course questions.',
-        solution: 'Retrieval-Augmented Generation trained on SIT modules and past papers.',
-        benefit: 'Get instant, context-aware academic guidance 24/7.',
-        icon: 'Sparkles',
-        highlight: 'SIT Trained RAG',
+        shortDescription: 'In-browser C, C++, Java & Python editor.',
+        problem: 'Students struggle with local compiler setups and running lab problem sets.',
+        solution: 'Built-in Monaco editor with test case runner for official SIT lab manual questions.',
+        benefit: 'Practice and verify lab code immediately before practical exams.',
+        icon: 'Code2',
+        highlight: 'Labsets & Compiler',
         order: 8
     },
     {
@@ -237,7 +242,7 @@ const initialSections = [
             subtitle: 'Building a sustainable student platform.',
             pillars: [
                 { title: 'Server Infrastructure', desc: 'Fast, secure hosting & database bandwidth.' },
-                { title: 'AI Services', desc: 'Ask+ RAG query credits & custom model fine-tuning.' },
+                { title: 'Lab Playground', desc: 'Monaco editor cloud runners & compiler compute.' },
                 { title: 'Resource QA', desc: 'Verifying study materials & senior interview logs.' },
                 { title: 'Community Support', desc: 'Weekly sessions & feature maintenance.' }
             ],
@@ -413,6 +418,16 @@ class SubscriptionModuleService {
                 await SubscriptionPlan.insertMany(initialPlans);
             } else {
                 await SubscriptionPlan.updateMany({ status: { $exists: false } }, { $set: { status: 'ACTIVE' } });
+                await SubscriptionPlan.updateOne(
+                    { code: 'SEM_1' },
+                    { 
+                        $set: { 
+                            features: initialPlans[0].features,
+                            badge: 'Recommended',
+                            isRecommended: true
+                        } 
+                    }
+                );
             }
 
             // Seed Features

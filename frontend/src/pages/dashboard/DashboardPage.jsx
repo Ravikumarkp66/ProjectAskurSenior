@@ -30,11 +30,12 @@ const SectionHeader = ({ title }) => {
         <div style={{ marginBottom: 14 }}>
             <h2 style={{
                 fontSize: 20,
-                fontWeight: 700,
-                color: isDark ? '#F8FAFC' : '#0F172A',
+                fontWeight: 600,
+                color: isDark ? '#F3F4F6' : '#111827',
                 margin: 0,
-                fontFamily: 'Outfit, sans-serif',
-                letterSpacing: '-0.02em'
+                fontFamily: 'Inter, sans-serif',
+                letterSpacing: '-0.01em',
+                lineHeight: '28px',
             }}>
                 {title}
             </h2>
@@ -71,7 +72,7 @@ const DashboardPage = () => {
     const location = useLocation();
     const context = useOutletContext() || {};
     const { activeMobileTab = 'home' } = context;
-    const { user } = useContext(AuthContext);
+    const { user, hasPlusAccess } = useContext(AuthContext);
     const [rightSlot, setRightSlot] = useState(null);
 
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -111,6 +112,11 @@ const DashboardPage = () => {
     const [isRegisteredLoading, setIsRegisteredLoading] = useState(true);
 
     useEffect(() => {
+        if (!hasPlusAccess) {
+            setIsRegisteredLoading(false);
+            return;
+        }
+
         const fetchRegistered = async () => {
             try {
                 const res = await apiV2.getRegisteredSubjects();
@@ -149,7 +155,7 @@ const DashboardPage = () => {
                 }
             })
             .catch(() => {});
-    }, []);
+    }, [hasPlusAccess]);
 
     const isSubjectRegistrationComplete = registeredSubjects.length > 0;
     const totalRegisteredCredits = registeredSubjects.reduce(
@@ -251,7 +257,7 @@ const DashboardPage = () => {
                                     featureState={fs('attendance')}
                                     title="Attendance"
                                     subtitle="Track your classes, daily sessions, and safe bunk margins."
-                                    onClick={() => navigate('/home/attendance')}
+                                    onClick={() => navigate('/plus/attendance')}
                                     isSubdued={false}
                                     ctaText="View attendance →"
                                 />
@@ -275,7 +281,7 @@ const DashboardPage = () => {
                                     featureState={fs('academicSummary')}
                                     title="Academic Overview"
                                     subtitle="Review your complete degree journey, CGPA & academic trajectory."
-                                    onClick={() => navigate('/home/academic-summary')}
+                                    onClick={() => navigate('/plus/academic-summary')}
                                     isSubdued={false}
                                     ctaText="View overview →"
                                 />
@@ -295,7 +301,7 @@ const DashboardPage = () => {
                                     featureState={fs('cieAnalyzer')}
                                     title="CIE & Eligibility"
                                     subtitle="Enter your marks, calculate CIE and check your academic eligibility."
-                                    onClick={() => setActiveModal('cie-eligibility')}
+                                    onClick={() => navigate('/plus/cie-eligibility')}
                                     isSubdued={false}
                                     ctaText="Check academics →"
                                 />
@@ -307,7 +313,7 @@ const DashboardPage = () => {
                                     featureState={fs('branchChange')}
                                     title="Branch Change Predictor"
                                     subtitle="Data-driven historical analysis based on confirmed SIT 2025–26 merit and allocation records."
-                                    onClick={() => setActiveModal('branch')}
+                                    onClick={() => navigate('/plus/branch-change-predictor')}
                                     isSubdued={false}
                                     ctaText="Analyze chances →"
                                 />
@@ -372,7 +378,7 @@ const DashboardPage = () => {
                                     featureState={fs('interviews')}
                                     title="Interview Experiences"
                                     subtitle="Verified interview questions, rounds, and preparation tips from placed seniors."
-                                    onClick={() => navigate('/home/interview')}
+                                    onClick={() => navigate('/plus/interview')}
                                     isSubdued={false}
                                     ctaText="Read debriefs →"
                                 />
@@ -392,7 +398,7 @@ const DashboardPage = () => {
                                     featureState={fs('campusMap')}
                                     title="Campus Explorer"
                                     subtitle="Interactive 3D campus navigation for blocks, canteens, libraries, and labs."
-                                    onClick={() => navigate('/campus-map')}
+                                    onClick={() => navigate('/plus/campus-map')}
                                     isSubdued={false}
                                     ctaText="Explore campus →"
                                 />
@@ -404,7 +410,7 @@ const DashboardPage = () => {
                                     featureState={fs('faculty')}
                                     title="Faculty Ratings"
                                     subtitle="Anonymous insights on teaching styles, internal grading, and exam prep tips."
-                                    onClick={() => navigate('/home/faculty-ratings')}
+                                    onClick={() => navigate('/plus/faculty-insights')}
                                     isSubdued={false}
                                     ctaText="View ratings →"
                                 />
@@ -420,7 +426,12 @@ const DashboardPage = () => {
             ═══════════════════════════════════════════════════════ */}
             <BranchChangeTool
                 isOpen={activeModal === 'branch'}
-                onClose={() => setActiveModal(null)}
+                onClose={() => {
+                    setActiveModal(null);
+                    if (location.pathname.includes('/branch-change-predictor')) {
+                        navigate('/plus', { replace: true });
+                    }
+                }}
                 initialCgpa={user?.cgpa}
                 initialBranch={user?.branch || user?.department}
             />
@@ -430,7 +441,12 @@ const DashboardPage = () => {
             ═══════════════════════════════════════════════════════ */}
             <CIEEligibilityTool
                 isOpen={activeModal === 'cie-eligibility'}
-                onClose={() => setActiveModal(null)}
+                onClose={() => {
+                    setActiveModal(null);
+                    if (location.pathname.includes('/cie-eligibility') || location.pathname.includes('/cie-analyzer') || location.pathname.includes('/eligibility-checker')) {
+                        navigate('/plus', { replace: true });
+                    }
+                }}
                 initialSubjects={registeredSubjects}
             />
 

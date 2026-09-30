@@ -792,6 +792,8 @@ async function calculateSemesterResults(options = {}) {
                     subjectId: reg.subject._id,
                     subjectCode: reg.subject.code,
                     subjectName: reg.subject.name,
+                    credits: reg.subject.credits !== undefined ? reg.subject.credits : (reg.registeredCredits || 0),
+                    category: reg.subject.category || reg.category || 'Theory',
                     error: err.message,
                     statusCode: err.statusCode || 500
                 }
@@ -1072,7 +1074,7 @@ async function getStudentSemesterResults(studentId, semester) {
 
     const schemeName = schemeDoc?.name || 'Scheme 2025';
 
-    const subjects = (batchResult.results || []).map(r => ({
+    const calculatedSubjects = (batchResult.results || []).map(r => ({
         subjectId: r.subject._id,
         registeredSubjectId: r.registeredSubject || null,
         registeredSubject: r.registeredSubject || null,
@@ -1155,16 +1157,48 @@ async function getStudentSemesterResults(studentId, semester) {
         partitions: r.partitions || []
     }));
 
-    const passedSubjects = subjects.filter(s => s.grade.letter !== 'F' && s.grade.letter !== 'NP' && s.grade.letter !== 'NE').length;
-    const failedSubjects = subjects.filter(s => s.grade.letter === 'F' || s.grade.letter === 'NP' || s.grade.letter === 'NE').length;
-    const totalCreditsAttempted = subjects.reduce((sum, s) => sum + (Number(s.credits) || 0), 0);
-    const totalCreditsEarned = subjects.filter(s => s.grade.letter !== 'F' && s.grade.letter !== 'NP' && s.grade.letter !== 'NE').reduce((sum, s) => sum + (Number(s.credits) || 0), 0);
+    // Gracefully include any registered subjects that had calculation errors (e.g. pending rule setup)
+    const fallbackSubjects = (batchResult.errors || []).map(err => ({
+        subjectId: err.subjectId || null,
+        registeredSubjectId: err.registeredSubjectId || null,
+        registeredSubject: err.registeredSubjectId || null,
+        code: err.subjectCode || 'SUB',
+        name: err.subjectName || 'Registered Subject',
+        subjectCode: err.subjectCode || 'SUB',
+        subjectName: err.subjectName || 'Registered Subject',
+        credits: err.credits || 0,
+        category: err.category || 'Theory',
+        evaluationGroup: 'Pending Setup',
+        evaluationRuleVersion: 1,
+        pattern: 'Standard Theory',
+        rawMarks: {},
+        cie: { components: [], total: null, obtained: null, max: 50 },
+        see: { marks: null, obtained: null, max: 50, enabled: true },
+        aggregate: { marks: null, obtained: null, max: 100 },
+        attendance: { percentage: null, status: 'NOT_AVAILABLE' },
+        eligibility: { eligible: true, reasons: [], failedConditions: [] },
+        grade: { letter: null, gradePoint: null },
+        contributesToSGPA: true,
+        components: [],
+        partitions: []
+    }));
 
-    const availableSemesters = distinctSemesters && distinctSemesters.length > 0
-        ? distinctSemesters.map(Number).filter(n => !isNaN(n) && n > 0).sort((a, b) => a - b)
-        : [1];
+    const subjects = calculatedSubjects.concat(fallbackSubjects);
+
+    const evaluatedSubjects = subjects.filter(s => s.grade?.letter && s.grade.letter !== 'PENDING' && s.grade.letter !== 'NOT_ENTERED');
+    const passedSubjects = evaluatedSubjects.filter(s => s.grade.letter !== 'F' && s.grade.letter !== 'NP' && s.grade.letter !== 'NE').length;
+    const failedSubjects = evaluatedSubjects.filter(s => s.grade.letter === 'F' || s.grade.letter === 'NP' || s.grade.letter === 'NE').length;
+    const totalCreditsAttempted = subjects.reduce((sum, s) => sum + (Number(s.credits) || 0), 0);
+    const totalCreditsEarned = evaluatedSubjects.filter(s => s.grade.letter !== 'F' && s.grade.letter !== 'NP' && s.grade.letter !== 'NE').reduce((sum, s) => sum + (Number(s.credits) || 0), 0);
 
     const currentSemester = studentDoc?.academicProfile?.currentSemester || 1;
+
+    // Available semesters should always cover 1..currentSemester plus any semesters with registered subjects
+    const semesterSet = new Set((distinctSemesters || []).map(Number).filter(n => !isNaN(n) && n > 0));
+    for (let s = 1; s <= currentSemester; s++) {
+        semesterSet.add(s);
+    }
+    const availableSemesters = Array.from(semesterSet).sort((a, b) => a - b);
 
     return {
         semester: semNum,

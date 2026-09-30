@@ -190,7 +190,7 @@ const SgpaWorkspace = ({
                             </div>
 
                             <button
-                                onClick={() => navigate('/home/cie')}
+                                onClick={() => navigate('/plus/cie')}
                                 style={{
                                     display: 'flex',
                                     alignItems: 'center',

@@ -1858,22 +1858,22 @@ const CGPACalculatorPage = ({ initialTab }) => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50/50 to-slate-100 dark:from-slate-900 dark:via-purple-900 dark:to-slate-900 text-slate-900 dark:text-white transition-colors duration-200">
             {/* Header */}
-            <div className="sticky top-0 z-10 backdrop-blur-xl bg-slate-900/80 border-b border-white/10">
+            <div className="sticky top-0 z-10 backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-white/10">
                 <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate('/')}
-                            className="h-10 w-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+                            className="h-10 w-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center transition text-slate-700 dark:text-white"
                         >
-                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-slate-700 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
                         </button>
                         <div>
-                            <h1 className="text-xl font-bold text-white">🎓 CGPA / SGPA Calculator</h1>
-                            <p className="text-xs text-white/60">Enter CIE & SEE marks to calculate your grade 📊</p>
+                            <h1 className="text-xl font-bold text-slate-900 dark:text-white">🎓 CGPA / SGPA Calculator</h1>
+                            <p className="text-xs text-slate-500 dark:text-white/60">Enter CIE & SEE marks to calculate your grade 📊</p>
                         </div>
                     </div>
                 </div>
@@ -1884,12 +1884,12 @@ const CGPACalculatorPage = ({ initialTab }) => {
                     {/* LEFT SIDE - Calculator */}
                     <div className="flex-1">
                         {/* Tab Switcher */}
-                        <div className="flex items-center gap-2 p-1 rounded-2xl bg-white/5 border border-white/10 mb-6">
+                        <div className="flex items-center gap-2 p-1 rounded-2xl bg-slate-200/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 mb-6">
                             <button
                                 onClick={() => setActiveTab('sgpa')}
                                 className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${activeTab === 'sgpa'
                                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                                    : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-white/10'
                                     }`}
                             >
                                 SGPA Calculator
@@ -1898,7 +1898,7 @@ const CGPACalculatorPage = ({ initialTab }) => {
                                 onClick={() => setActiveTab('cgpa')}
                                 className={`flex-1 h-11 rounded-xl text-sm font-semibold transition ${activeTab === 'cgpa'
                                     ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                                    : 'text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-300/50 dark:hover:bg-white/10'
                                     }`}
                             >
                                 CGPA Calculator
@@ -1909,28 +1909,28 @@ const CGPACalculatorPage = ({ initialTab }) => {
                         {activeTab === 'sgpa' && (
                             <div className="space-y-4">
                                 {/* Branch & Semester Selector */}
-                                <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                                <div className="rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 p-4 shadow-sm dark:shadow-none">
                                     <div className="flex items-center justify-between mb-3">
-                                        <h3 className="text-sm font-semibold text-white">Select Branch & Semester</h3>
+                                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Select Branch & Semester</h3>
 
                                     </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div className="relative">
-                                            <label className="text-xs font-medium text-white/60 mb-1 block">Branch</label>
+                                            <label className="text-xs font-medium text-slate-600 dark:text-white/60 mb-1 block">Branch</label>
                                             <div className="relative">
                                                 <select
                                                     value={selectedBranch}
                                                     onChange={(e) => setSelectedBranch(e.target.value)}
-                                                    className="w-full h-11 px-4 rounded-xl bg-white/10 border border-white/10 text-white text-sm outline-none focus:border-purple-500 transition cursor-pointer pr-10 appearance-none"
+                                                    className="w-full h-11 px-4 rounded-xl bg-slate-50 dark:bg-white/10 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm outline-none focus:border-purple-500 transition cursor-pointer pr-10 appearance-none"
                                                 >
-                                                    <option value="" className="bg-slate-800">Select Branch</option>
+                                                    <option value="" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">Select Branch</option>
                                                     {BRANCHES.map(b => (
-                                                        <option key={b.code} value={b.code} className="bg-slate-800">
+                                                        <option key={b.code} value={b.code} className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">
                                                             {b.code} - {b.name}
                                                         </option>
                                                     ))}
                                                 </select>
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">
+                                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 dark:text-white/40">
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                                     </svg>
@@ -1938,18 +1938,18 @@ const CGPACalculatorPage = ({ initialTab }) => {
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="text-xs font-medium text-white/60 mb-1 block">Semester / Cycle</label>
+                                            <label className="text-xs font-medium text-slate-600 dark:text-white/60 mb-1 block">Semester / Cycle</label>
                                             <div className="relative">
                                                 <select
                                                     value={selectedCycle}
                                                     onChange={(e) => setSelectedCycle(e.target.value)}
-                                                    className="w-full h-11 px-4 rounded-xl bg-white/10 border border-white/10 text-white text-sm outline-none focus:border-purple-500 transition cursor-pointer pr-10 appearance-none font-semibold"
+                                                    className="w-full h-11 px-4 rounded-xl bg-slate-50 dark:bg-white/10 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm outline-none focus:border-purple-500 transition cursor-pointer pr-10 appearance-none font-semibold"
                                                 >
-                                                    <optgroup label="1st Year" className="bg-slate-800">
+                                                    <optgroup label="1st Year" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">
                                                         <option value="P">P Cycle</option>
                                                         <option value="C">C Cycle</option>
                                                     </optgroup>
-                                                    <optgroup label="Higher Semesters" className="bg-slate-800">
+                                                    <optgroup label="Higher Semesters" className="bg-white text-slate-900 dark:bg-slate-800 dark:text-white">
                                                         <option value="3">3rd Semester</option>
                                                         <option value="4">4th Semester</option>
                                                         <option value="5">5th Semester</option>
@@ -2007,13 +2007,13 @@ const CGPACalculatorPage = ({ initialTab }) => {
 
 
                                 {/* Subject Inputs */}
-                                <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-                                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                                        <h3 className="text-sm font-semibold text-white">Enter Subject Marks</h3>
+                                <div className="rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 overflow-hidden shadow-sm dark:shadow-none">
+                                    <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
+                                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Enter Subject Marks</h3>
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={resetSubjects}
-                                                className="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition"
+                                                className="h-8 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-medium text-slate-700 dark:text-white transition"
                                             >
                                                 Reset
                                             </button>
@@ -2028,7 +2028,7 @@ const CGPACalculatorPage = ({ initialTab }) => {
 
                                     <div className="p-4 space-y-3">
                                         {/* Table Header */}
-                                        <div className="hidden sm:grid grid-cols-12 gap-3 text-[11px] font-black text-white/40 px-5 tracking-widest uppercase mb-2">
+                                        <div className="hidden sm:grid grid-cols-12 gap-3 text-[11px] font-black text-slate-500 dark:text-white/40 px-5 tracking-widest uppercase mb-2">
                                             <div className="col-span-4">Subject Name</div>
                                             <div className="col-span-1 text-center">Credits</div>
                                             <div className="col-span-2 text-center">CIE (50)</div>
@@ -2362,16 +2362,16 @@ const CGPACalculatorPage = ({ initialTab }) => {
                         {/* CGPA Calculator */}
                         {activeTab === 'cgpa' && (
                             <div className="space-y-4">
-                                <div className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden">
-                                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                                <div className="rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 overflow-hidden shadow-sm dark:shadow-none">
+                                    <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-sm font-semibold text-white">Enter SGPA for Each Semester</h3>
-                                            <p className="text-xs text-white/50 mt-1">Credits are optional (for weighted average)</p>
+                                            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Enter SGPA for Each Semester</h3>
+                                            <p className="text-xs text-slate-500 dark:text-white/50 mt-1">Credits are optional (for weighted average)</p>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={resetSemesters}
-                                                className="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-white transition"
+                                                className="h-8 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-xs font-medium text-slate-700 dark:text-white transition"
                                             >
                                                 Reset
                                             </button>
@@ -2388,13 +2388,13 @@ const CGPACalculatorPage = ({ initialTab }) => {
                                 {/* Semester List - Horizontal row on mobile */}
                                 <div className="p-4 flex sm:block flex-row overflow-x-auto flex-nowrap gap-3 pb-3 sm:pb-0 sm:space-y-3 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-purple-500/20">
                                     {semesters.map((sem, idx) => (
-                                        <div key={sem.id} className="shrink-0 min-w-[240px] sm:min-w-0 sm:w-full p-3 sm:p-0 rounded-2xl bg-white/5 sm:bg-transparent border border-white/10 sm:border-none snap-center grid grid-cols-12 gap-2.5 sm:gap-3 items-center">
+                                        <div key={sem.id} className="shrink-0 min-w-[240px] sm:min-w-0 sm:w-full p-3 sm:p-0 rounded-2xl bg-white sm:bg-transparent dark:bg-white/5 sm:dark:bg-transparent border border-slate-200 sm:border-none dark:border-white/10 sm:dark:border-none snap-center grid grid-cols-12 gap-2.5 sm:gap-3 items-center">
                                             <div className="col-span-4 sm:col-span-5">
                                                 <input
                                                     type="text"
                                                     value={`Semester ${sem.sem}`}
                                                     readOnly
-                                                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm font-bold outline-none"
+                                                    className="w-full h-10 px-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm font-bold outline-none"
                                                 />
                                             </div>
                                             <div className="col-span-3 sm:col-span-3">
@@ -2405,7 +2405,7 @@ const CGPACalculatorPage = ({ initialTab }) => {
                                                     step="0.01"
                                                     value={sem.sgpa}
                                                     onChange={(e) => updateSemester(sem.id, 'sgpa', e.target.value)}
-                                                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-bold outline-none focus:border-purple-500"
+                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm text-center font-bold outline-none focus:border-purple-500"
                                                     placeholder="SGPA"
                                                 />
                                             </div>
@@ -2417,14 +2417,14 @@ const CGPACalculatorPage = ({ initialTab }) => {
                                                     step="1"
                                                     value={sem.credits}
                                                     onChange={(e) => updateSemester(sem.id, 'credits', e.target.value)}
-                                                    className="w-full h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm text-center font-bold outline-none focus:border-purple-500"
+                                                    className="w-full h-10 px-3 rounded-xl bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-sm text-center font-bold outline-none focus:border-purple-500"
                                                     placeholder="Credits"
                                                 />
                                             </div>
                                             <div className="col-span-2 sm:col-span-1 text-center">
                                                 <button
                                                     onClick={() => removeSemester(sem.id)}
-                                                    className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/30 text-red-400 transition-all inline-flex items-center justify-center border border-red-500/20"
+                                                    className="h-8 w-8 rounded-lg bg-red-500/10 hover:bg-red-500/30 text-red-500 transition-all inline-flex items-center justify-center border border-red-500/20"
                                                     disabled={semesters.length <= 1}
                                                 >
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2440,36 +2440,36 @@ const CGPACalculatorPage = ({ initialTab }) => {
                                 <div className="rounded-2xl bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 p-6">
                                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                                         <div className="text-center sm:text-left">
-                                            <p className="text-sm text-white/60">Cumulative Grade Point Average</p>
-                                            <p className="text-xs text-white/40 mt-1">
+                                            <p className="text-sm text-slate-600 dark:text-white/60">Cumulative Grade Point Average</p>
+                                            <p className="text-xs text-slate-400 dark:text-white/40 mt-1">
                                                 Based on {cgpaResult.semestersCount} semester{cgpaResult.semestersCount !== 1 ? 's' : ''}
                                             </p>
                                         </div>
                                         <div className="text-center">
-                                            <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                                            <div className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400">
                                                 {cgpaResult.cgpa || '0.00'}
                                             </div>
-                                            <p className="text-sm text-white/60 mt-1">CGPA</p>
+                                            <p className="text-sm text-slate-600 dark:text-white/60 mt-1">CGPA</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Percentage Conversion */}
                                 {cgpaResult.cgpa > 0 && (
-                                    <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-                                        <h3 className="text-sm font-semibold text-white mb-3">Percentage Equivalent</h3>
+                                    <div className="rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 p-4 shadow-sm dark:shadow-none">
+                                        <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">Percentage Equivalent</h3>
                                         <div className="flex items-center gap-4">
-                                            <div className="flex-1 h-3 bg-white/10 rounded-full overflow-hidden">
+                                            <div className="flex-1 h-3 bg-slate-100 dark:bg-white/10 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
                                                     style={{ width: `${Math.min(100, ((cgpaResult.cgpa - 4) / 6) * 100)}%` }}
                                                 />
                                             </div>
-                                            <div className="text-lg font-bold text-white">
+                                            <div className="text-lg font-bold text-slate-900 dark:text-white">
                                                 {((cgpaResult.cgpa - 0.75) * 10).toFixed(1)}%
                                             </div>
                                         </div>
-                                        <p className="text-xs text-white/50 mt-2">
+                                        <p className="text-xs text-slate-500 dark:text-white/50 mt-2">
                                             Formula: Percentage = (CGPA - 0.75) × 10
                                         </p>
                                     </div>
@@ -2480,23 +2480,23 @@ const CGPACalculatorPage = ({ initialTab }) => {
 
                     {/* RIGHT SIDE - Info & Rules */}
                     <div className="w-full lg:w-96 flex-shrink-0">
-                        <div className="rounded-2xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 p-6 lg:sticky lg:top-24 space-y-6">
+                        <div className="rounded-2xl bg-white dark:bg-gradient-to-br dark:from-slate-800/50 dark:to-slate-900/50 border border-slate-200 dark:border-white/10 p-6 lg:sticky lg:top-24 space-y-6 shadow-sm dark:shadow-none">
                             {/* Rules Call to Action */}
                             <div className="relative group overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-20 group-hover:opacity-30 transition-opacity rounded-2xl" />
-                                <div className="relative rounded-2xl border border-white/10 p-5 flex flex-col gap-4">
+                                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 opacity-10 dark:opacity-20 group-hover:opacity-20 dark:group-hover:opacity-30 transition-opacity rounded-2xl" />
+                                <div className="relative rounded-2xl border border-slate-200 dark:border-white/10 p-5 flex flex-col gap-4 bg-slate-50/50 dark:bg-transparent">
                                     <div className="flex items-center gap-3 text-left">
-                                        <div className="p-3 bg-white/10 rounded-xl">
+                                        <div className="p-3 bg-white dark:bg-white/10 rounded-xl shadow-xs border border-slate-200/50 dark:border-transparent">
                                             <span className="text-2xl">📜</span>
                                         </div>
                                         <div>
-                                            <h4 className="text-sm font-black text-white uppercase tracking-tight">Know about rules!</h4>
-                                            <p className="text-[10px] text-white/40 uppercase font-bold tracking-widest mt-1 leading-none">Grading & Eligibility</p>
+                                            <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Know about rules!</h4>
+                                            <p className="text-[10px] text-slate-500 dark:text-white/40 uppercase font-bold tracking-widest mt-1 leading-none">Grading & Eligibility</p>
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => setShowRulesModal(true)}
-                                        className="w-full py-2.5 bg-white text-slate-900 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all shadow-xl shadow-white/5 transform active:scale-95"
+                                        className="w-full py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-slate-100 transition-all shadow-md transform active:scale-95 cursor-pointer"
                                     >
                                         View Guidelines
                                     </button>
@@ -2505,10 +2505,10 @@ const CGPACalculatorPage = ({ initialTab }) => {
 
                             {/* Pro Tip - Contextual */}
                             <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-4 text-left">
-                                <div className="text-sm text-emerald-300 mb-2 font-semibold flex items-center gap-2">
+                                <div className="text-sm text-emerald-600 dark:text-emerald-300 mb-2 font-semibold flex items-center gap-2">
                                     💡 Pro Tip
                                 </div>
-                                <div className="text-xs text-emerald-200/80 leading-relaxed">
+                                <div className="text-xs text-emerald-700 dark:text-emerald-200/80 leading-relaxed">
                                     {activeTab === 'sgpa'
                                         ? 'SEE marks are entered out of 100 and automatically converted to 50. Focus on both CIE and SEE for better grades!'
                                         : 'Your CGPA is the weighted average of all your semester SGPAs. Consistent performance across semesters is key!'}

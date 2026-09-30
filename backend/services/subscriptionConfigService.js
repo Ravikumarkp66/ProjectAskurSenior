@@ -17,14 +17,19 @@ const initialPlans = [
         isPopular: true,
         order: 1,
         features: [
-            'Personalized Student Dashboard',
-            'SIT Attendance Tracker & Timetable',
-            'Ask+ AI Assistant (RAG on SIT Syllabus)',
-            'Interactive Academic Roadmaps & Heatmap',
-            'Advanced CIE & Year Back Predictors',
-            'Leaderboards, Streaks & Daily To-do',
-            'Senior Mentorship & Community Support',
-            'Priority Download Bandwidth'
+            'Attendance Tracker with Section Timetables & 85% Bunk Rule Planner',
+            'Today\'s Classes & Daily Schedule Live Tracking',
+            'CIE Analyzer (50-Mark Normalization & SEE Target Forecaster)',
+            'Branch Change Predictor with Statistical Shift Odds',
+            'Year Back Predictor & Pre-Exam Dual Compliance Auditor',
+            'Exam Eligibility Checker (Dual Compliance Audit)',
+            'College Labset Coding Playground (C, C++, Java, Python)',
+            '1-Credit Subject Quizzes (NCMC/AEC) & Practice Engine',
+            '4-Year Academic Journey Heatmap & Activity Tracker',
+            'Attendance Streaks for All Subjects & Days',
+            'Visual Engineering Roadmaps & Progress Checklists',
+            'Personalized Student Command Dashboard',
+            'Notes, Solved PYQs, Campus Map & Senior Placement Logs'
         ]
     }
 ];
@@ -40,7 +45,7 @@ const initialCoupons = [
     },
     {
         code: 'LAUNCH50',
-        title: 'V3 Platform Launch Offer',
+        title: 'AskUrSenior Strike Launch Offer',
         discountType: 'flat',
         discountValue: 50,
         applicablePlans: ['SEM_1'],
@@ -142,15 +147,15 @@ const initialFeatures = [
         order: 7
     },
     {
-        code: 'ask_ai',
-        title: 'Ask+ AI Assistant',
-        category: 'AI Assistant',
+        code: 'coding_playground',
+        title: 'Monaco Lab Playground',
+        category: 'Lab & Coding',
         tier: 'plus',
-        shortDescription: 'RAG AI trained on SIT syllabus.',
-        problem: 'General AI tools give irrelevant or generic answers to SIT course questions.',
-        solution: 'Retrieval-Augmented Generation trained on SIT modules and past papers.',
-        benefit: 'Get instant, context-aware academic guidance 24/7.',
-        icon: 'Sparkles',
+        shortDescription: 'In-browser C, C++, Java & Python editor.',
+        problem: 'Students struggle with local compiler setups and running lab problem sets.',
+        solution: 'Built-in Monaco editor with test case runner for official SIT lab manual questions.',
+        benefit: 'Practice and verify lab code immediately before practical exams.',
+        icon: 'Code2',
         order: 8
     },
     {
@@ -228,8 +233,8 @@ const initialSections = [
         content: {
             pillars: [
                 'Continuous platform development',
-                'Server infrastructure & hosting',
-                'AI services & API costs',
+                'Server infrastructure & cloud hosting',
+                'Monaco playground code runners & compute',
                 'Resource verification & QA',
                 'Weekly sessions & mentorship',
                 'Community management & maintenance'

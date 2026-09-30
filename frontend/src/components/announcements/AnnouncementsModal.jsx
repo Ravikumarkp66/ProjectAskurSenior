@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     X, Megaphone, Calendar, User, FileText, Download, 
-    ChevronLeft, Lock, Inbox, ArrowRight 
+    ChevronLeft, Lock, Inbox, ArrowRight, LogIn, Sparkles 
 } from 'lucide-react';
 import { getAnnouncements, markAnnouncementRead } from '../../services/api/announcementApi';
 import { useTheme } from '../../context/ThemeContext';
@@ -108,8 +108,10 @@ const AnnouncementsModal = ({ isOpen, onClose }) => {
             .catch(err => {
                 if (!isMounted) return;
                 console.error('Failed to load announcements:', err);
-                if (err?.response?.status === 403) {
-                    setError('Announcements are available for Plus members only.');
+                if (err?.response?.status === 401) {
+                    setError('AUTHENTICATION_REQUIRED');
+                } else if (err?.response?.status === 403) {
+                    setError('PLUS_ACCESS_REQUIRED');
                 } else {
                     setError('Failed to load announcements. Please try again.');
                 }
@@ -161,7 +163,8 @@ const AnnouncementsModal = ({ isOpen, onClose }) => {
 
     if (!isOpen) return null;
 
-    const isPlusLocked = error === 'Announcements are available for Plus members only.';
+    const isAuthRequired = error === 'AUTHENTICATION_REQUIRED';
+    const isPlusLocked = error === 'PLUS_ACCESS_REQUIRED' || error === 'Announcements are available for Plus members only.';
 
     return (
         <AnimatePresence>
@@ -286,6 +289,36 @@ const AnnouncementsModal = ({ isOpen, onClose }) => {
                                         <div className="w-5 h-5 rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
                                         <span>Loading announcements…</span>
                                     </div>
+                                ) : isAuthRequired ? (
+                                    /* Locked Guest Auth State */
+                                    <div className="h-full flex flex-col items-center justify-center text-center p-6">
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+                                            isDark ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-purple-50 text-purple-600 border border-purple-200'
+                                        }`}>
+                                            <LogIn size={18} />
+                                        </div>
+                                        <h4 className={`text-xs font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                            Sign In Required
+                                        </h4>
+                                        <p className={`text-[11px] leading-relaxed mb-3.5 max-w-[210px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                            Sign in to your AskUrSenior account to access official departmental notices and circulars.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onClose?.();
+                                                navigate('/login');
+                                            }}
+                                            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                                isDark 
+                                                    ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-xs' 
+                                                    : 'bg-purple-600 hover:bg-purple-700 text-white shadow-xs'
+                                            }`}
+                                        >
+                                            <span>Sign In to Continue</span>
+                                            <ArrowRight size={12} />
+                                        </button>
+                                    </div>
                                 ) : isPlusLocked ? (
                                     /* Locked Plus State */
                                     <div className="h-full flex flex-col items-center justify-center text-center p-6">
@@ -295,10 +328,10 @@ const AnnouncementsModal = ({ isOpen, onClose }) => {
                                             <Lock size={18} />
                                         </div>
                                         <h4 className={`text-xs font-bold mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                                            Announcements Unavailable
+                                            Plus Exclusive
                                         </h4>
                                         <p className={`text-[11px] leading-relaxed mb-3.5 max-w-[210px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                                            Official notices are available for AskUrSenior Plus members.
+                                            Official notices and circulars are exclusive to AskUrSenior Plus members.
                                         </p>
                                         <button
                                             type="button"
@@ -535,6 +568,62 @@ const AnnouncementsModal = ({ isOpen, onClose }) => {
                                         )}
 
                                     </div>
+                                </div>
+                            ) : isAuthRequired ? (
+                                /* Right Panel Auth Required Preview */
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3.5 border ${
+                                        isDark ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-purple-50 text-purple-600 border-purple-200'
+                                    }`}>
+                                        <Lock size={20} />
+                                    </div>
+                                    <h4 className={`text-sm font-semibold mb-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                        Institutional Notices & Circulars
+                                    </h4>
+                                    <p className={`text-xs max-w-sm leading-relaxed mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        Sign in to stay informed with real-time academic announcements, CIE eligibility schedules, exam updates, and official attachments.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onClose?.();
+                                            navigate('/login');
+                                        }}
+                                        className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                            isDark ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                        }`}
+                                    >
+                                        <span>Sign In / Register</span>
+                                        <ArrowRight size={13} />
+                                    </button>
+                                </div>
+                            ) : isPlusLocked ? (
+                                /* Right Panel Plus Locked Preview */
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3.5 border ${
+                                        isDark ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-purple-50 text-purple-600 border-purple-200'
+                                    }`}>
+                                        <Sparkles size={20} />
+                                    </div>
+                                    <h4 className={`text-sm font-semibold mb-1.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                        Unlock Plus Announcements
+                                    </h4>
+                                    <p className={`text-xs max-w-sm leading-relaxed mb-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        AskUrSenior Plus delivers verified university circulars, CIE schedule releases, exam timetables, and downloadable PDF circulars directly to your workspace.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            onClose?.();
+                                            navigate('/pricing');
+                                        }}
+                                        className={`px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                            isDark ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                        }`}
+                                    >
+                                        <span>Upgrade to Plus</span>
+                                        <ArrowRight size={13} />
+                                    </button>
                                 </div>
                             ) : !loading ? (
                                 /* Intentional Detail Placeholder */

@@ -23,7 +23,7 @@ const SORTS = [
    CAMPUS HUB PAGE
 ══════════════════════════════════════════════════════════════════ */
 const CampusHub = ({ initialTab }) => {
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const navigate = useNavigate();
 
     const [tab,    setTab]    = useState(initialTab || 'all');
@@ -55,25 +55,27 @@ const CampusHub = ({ initialTab }) => {
     }, []);
 
     const handleDelete = useCallback((id) => {
+        if (!isAuthenticated) { navigate('/login?redirect=/campus-hub'); return; }
         setRefreshKey(k => k + 1);
         setSelected(null);
-    }, []);
+    }, [isAuthenticated, navigate]);
 
     const handlePin = useCallback(() => {
+        if (!isAuthenticated) { navigate('/login?redirect=/campus-hub'); return; }
         setRefreshKey(k => k + 1);
-    }, []);
+    }, [isAuthenticated, navigate]);
 
     return (
-        <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3]">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#0D1117] text-slate-900 dark:text-[#E6EDF3] transition-colors duration-200">
             {/* ── Header ─────────────────────────────────────────── */}
-            <div className="border-b border-[#21262D] bg-[#0D1117] sticky top-0 z-30">
+            <div className="border-b border-slate-200 dark:border-[#21262D] bg-white/95 dark:bg-[#0D1117] sticky top-0 z-30 backdrop-blur-md">
                 <div className="max-w-5xl mx-auto px-4 py-5">
                     <div className="flex items-start justify-between gap-4">
                         <div>
-                            <h1 className="text-2xl font-extrabold text-[#E6EDF3] tracking-tight">
+                            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-[#E6EDF3] tracking-tight">
                                 Campus Hub
                             </h1>
-                            <p className="text-sm text-[#8B949E] mt-0.5">
+                            <p className="text-sm text-slate-500 dark:text-[#8B949E] mt-0.5">
                                 Everything happening in college
                             </p>
                         </div>
@@ -81,12 +83,12 @@ const CampusHub = ({ initialTab }) => {
                         {/* Stats row (placeholder — can be wired to real data) */}
                         <div className="hidden sm:flex items-center gap-4 mt-1">
                             <div className="text-right">
-                                <p className="text-[10px] text-[#8B949E] uppercase tracking-widest">Posts today</p>
-                                <p className="text-sm font-bold text-[#A78BFA]">—</p>
+                                <p className="text-[10px] text-slate-500 dark:text-[#8B949E] uppercase tracking-widest">Posts today</p>
+                                <p className="text-sm font-bold text-purple-600 dark:text-[#A78BFA]">—</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-[10px] text-[#8B949E] uppercase tracking-widest">Active listings</p>
-                                <p className="text-sm font-bold text-[#34D399]">—</p>
+                                <p className="text-[10px] text-slate-500 dark:text-[#8B949E] uppercase tracking-widest">Active listings</p>
+                                <p className="text-sm font-bold text-emerald-600 dark:text-[#34D399]">—</p>
                             </div>
                         </div>
                     </div>
@@ -100,8 +102,8 @@ const CampusHub = ({ initialTab }) => {
                                 className={[
                                     'px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors',
                                     tab === t.id
-                                        ? 'bg-[#7C3AED] text-white'
-                                        : 'text-[#8B949E] hover:text-[#E6EDF3] bg-[#161B22] border border-[#21262D] hover:border-[#30363D]',
+                                        ? 'bg-[#7C3AED] text-white shadow-sm'
+                                        : 'text-slate-600 dark:text-[#8B949E] hover:text-slate-900 dark:hover:text-[#E6EDF3] bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#21262D] hover:border-slate-300 dark:hover:border-[#30363D]',
                                 ].join(' ')}
                             >
                                 {t.label}
@@ -117,7 +119,7 @@ const CampusHub = ({ initialTab }) => {
                 <div className="flex items-center gap-2 mb-5">
                     {/* Search */}
                     <div className="relative flex-1">
-                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8B949E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-[#8B949E]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <input
@@ -125,7 +127,7 @@ const CampusHub = ({ initialTab }) => {
                             placeholder="Search announcements, listings…"
                             value={searchInput}
                             onChange={e => handleSearchChange(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 rounded-lg bg-[#161B22] border border-[#21262D] text-[#E6EDF3] placeholder-[#8B949E]/60 text-sm focus:border-[#7C3AED]/50 focus:ring-1 focus:ring-[#7C3AED]/20 outline-none transition-colors"
+                            className="w-full pl-9 pr-4 py-2 rounded-lg bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#21262D] text-slate-900 dark:text-[#E6EDF3] placeholder-slate-400 dark:placeholder-[#8B949E]/60 text-sm focus:border-[#7C3AED]/50 focus:ring-1 focus:ring-[#7C3AED]/20 outline-none transition-colors"
                         />
                     </div>
 
@@ -133,10 +135,10 @@ const CampusHub = ({ initialTab }) => {
                     <select
                         value={sort}
                         onChange={e => setSort(e.target.value)}
-                        className="px-3 py-2 rounded-lg bg-[#161B22] border border-[#21262D] text-[#E6EDF3] text-sm outline-none focus:border-[#7C3AED]/50 cursor-pointer"
+                        className="px-3 py-2 rounded-lg bg-white dark:bg-[#161B22] border border-slate-200 dark:border-[#21262D] text-slate-900 dark:text-[#E6EDF3] text-sm outline-none focus:border-[#7C3AED]/50 cursor-pointer"
                     >
                         {SORTS.map(s => (
-                            <option key={s.value} value={s.value} className="bg-[#161B22]">{s.label}</option>
+                            <option key={s.value} value={s.value} className="bg-white dark:bg-[#161B22] text-slate-900 dark:text-[#E6EDF3]">{s.label}</option>
                         ))}
                     </select>
                 </div>
@@ -156,7 +158,13 @@ const CampusHub = ({ initialTab }) => {
             {/* ── Floating + Post buttons ──────────────────────── */}
             <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3 items-end">
                 <button
-                    onClick={() => setShowMktForm(true)}
+                    onClick={() => {
+                        if (!isAuthenticated) {
+                            navigate('/login?redirect=/campus-hub');
+                            return;
+                        }
+                        setShowMktForm(true);
+                    }}
                     className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all hover:scale-105 active:scale-95"
                     style={{
                         background: '#1D9E75',

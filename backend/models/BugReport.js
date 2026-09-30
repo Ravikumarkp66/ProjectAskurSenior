@@ -5,7 +5,13 @@ const bugReportSchema = new mongoose.Schema(
         userId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
-            required: true
+            required: false
+        },
+        contactEmail: {
+            type: String,
+            trim: true,
+            maxlength: 200,
+            lowercase: true
         },
         title: {
             type: String,
@@ -32,8 +38,17 @@ const bugReportSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['open', 'resolved'],
+            enum: ['open', 'in_progress', 'resolved', 'closed'],
             default: 'open'
+        },
+        adminNotes: {
+            type: String,
+            trim: true,
+            maxlength: 2000
+        },
+        resolvedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Admin'
         },
         resolvedAt: {
             type: Date

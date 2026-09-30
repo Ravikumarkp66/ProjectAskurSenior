@@ -90,7 +90,7 @@ const NavPill = ({ item, isActive, isDark }) => {
                 fontSize: 13,
                 fontWeight: isActive ? 650 : 500,
                 letterSpacing: '-0.01em',
-                fontFamily: "'Plus Jakarta Sans', 'Inter', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 transition: 'background 0.15s, color 0.15s, border-color 0.15s',
                 background: isActive
                     ? isDark

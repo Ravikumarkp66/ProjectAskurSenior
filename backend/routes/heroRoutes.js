@@ -49,14 +49,14 @@ router.get('/content', async (req, res) => {
                     suffix: "not speculation.",
                     tagline: "The Native Academic Operating System for Siddaganga Institute of Technology."
                 },
-                description: "Access study materials, PYQs, interview experiences, AI assistance, campus tools, faculty information, and more—built specifically for SIT students.",
+                description: "Access verified study materials, solved PYQs, section timetables, attendance tracking, CIE calculators, lab coding tools, and senior interview experiences—built specifically for SIT students.",
                 primaryCTA: {
                     text: "Start For Free",
                     href: "/signup"
                 },
                 secondaryCTA: {
                     text: "Explore AskUrSenior Plus",
-                    href: "/plus"
+                    href: "/pricing"
                 }
             }
         });

@@ -292,11 +292,13 @@ const CalendarDateNavigator = ({
             {selectedEvents.length > 0 && (
                 <div className="flex flex-col gap-1.5 pt-0.5">
                     {selectedEvents.map((ev, idx) => {
+                        const isTestOrExam = ev.eventType === 'Exam' || ev.type === 'EXAM' || /test[-\s]?\d+|cie[-\s]?\d+|exam|see\b/i.test(ev.title || '');
                         const isFullDay = ev.eventType === 'Holiday / Closure' || 
                             ev.suspensionType === 'full_day' || 
                             (ev.classesSuspended && (!ev.suspensionType || ev.suspensionType === 'none' || ev.suspensionType === 'full_day')) || 
-                            /holiday|vacation/i.test(ev.title);
-                        const isTimeRange = !isFullDay && ev.suspensionType === 'time_range' && ev.suspensionStartTime && ev.suspensionEndTime;
+                            /holiday|vacation|preparation.*holiday/i.test(ev.title || '') ||
+                            (isTestOrExam && ev.classesSuspended !== false && !/evening/i.test(ev.title || ''));
+                        const isTimeRange = !isFullDay && (ev.suspensionType === 'time_range' || ev.classImpact === 'TIME_RANGE');
 
                         return (
                             <div 

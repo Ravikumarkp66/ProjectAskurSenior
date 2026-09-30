@@ -183,7 +183,7 @@ const ArticlePage = () => {
 
     if (loading) {
         return (
-            <div className="flex h-screen bg-[#0a0a0b] justify-center items-center">
+            <div className="flex h-screen bg-slate-50 dark:bg-[#0a0a0b] justify-center items-center">
                 <div className="w-12 h-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin"></div>
             </div>
         );
@@ -191,10 +191,10 @@ const ArticlePage = () => {
 
     if (error || !article) {
         return (
-            <div className="flex h-screen bg-[#0a0a0b] justify-center items-center px-4">
+            <div className="flex h-screen bg-slate-50 dark:bg-[#0a0a0b] justify-center items-center px-4">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-white mb-4">Article Not Found</h2>
-                    <Link to="/blog" className="inline-block bg-purple-600 px-6 py-3 rounded-xl text-white font-bold hover:bg-purple-700 transition-colors">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Article Not Found</h2>
+                    <Link to="/blog" className="inline-block bg-purple-600 px-6 py-3 rounded-xl text-white font-bold hover:bg-purple-700 transition-colors shadow-md">
                         Return to Blog
                     </Link>
                 </div>
@@ -211,25 +211,25 @@ const ArticlePage = () => {
     });
 
     return (
-        <div className="min-h-screen bg-[#0a0a0b] font-outfit text-white overflow-x-hidden">
-            <div className="border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0b] font-outfit text-slate-900 dark:text-white overflow-x-hidden transition-colors duration-200">
+            <div className="border-b border-slate-200 dark:border-white/5 bg-white/80 dark:bg-[#0a0a0b]/80 backdrop-blur-md sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-                    <Link to="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+                    <Link to="/" className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                         <ArrowLeft size={18} />
                         <span className="font-medium hidden sm:inline">Back</span>
                     </Link>
                     <div className="hidden md:flex items-center gap-4 flex-1 justify-center px-8">
-                        <span className="text-slate-200 text-sm font-semibold truncate max-w-[400px]">{title}</span>
+                        <span className="text-slate-800 dark:text-slate-200 text-sm font-semibold truncate max-w-[400px]">{title}</span>
                     </div>
 
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setMobileTocOpen(true)}
-                            className="lg:hidden p-2 text-slate-400 hover:text-white"
+                            className="lg:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
                         >
                             <Menu size={20} />
                         </button>
-                        <Link to="/blog" className="text-purple-400 hover:text-purple-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
+                        <Link to="/blog" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
                             All Guides
                         </Link>
                     </div>
@@ -237,7 +237,7 @@ const ArticlePage = () => {
             </div>
 
             {/* Reading Progress Bar */}
-            <div className="fixed top-[64px] left-0 right-0 h-1 bg-[#1a1a1e] z-40">
+            <div className="fixed top-[64px] left-0 right-0 h-1 bg-slate-200 dark:bg-[#1a1a1e] z-40">
                 <div 
                     className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-150 ease-out"
                     style={{ width: `${readingProgress}%` }}
@@ -245,11 +245,11 @@ const ArticlePage = () => {
             </div>
 
             {mobileTocOpen && (
-                <div className="fixed inset-0 z-[100] bg-[#0a0a0b]/95 backdrop-blur-sm lg:hidden">
+                <div className="fixed inset-0 z-[100] bg-white/95 dark:bg-[#0a0a0b]/95 backdrop-blur-sm lg:hidden">
                     <div className="p-6 h-full flex flex-col">
                         <div className="flex justify-between items-center mb-10">
-                            <h3 className="text-xl font-bold text-white">Contents</h3>
-                            <button onClick={() => setMobileTocOpen(false)} className="p-2 text-slate-400"><X size={24} /></button>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white">Contents</h3>
+                            <button onClick={() => setMobileTocOpen(false)} className="p-2 text-slate-500 dark:text-slate-400"><X size={24} /></button>
                         </div>
                         <nav className="flex-1 space-y-4 overflow-y-auto">
                             {toc.map((item) => (
@@ -258,16 +258,16 @@ const ArticlePage = () => {
                                     href={`#${item.id}`}
                                     onClick={() => setMobileTocOpen(false)}
                                     className={`block text-lg ${item.level === 'h2'
-                                        ? 'text-slate-200 font-bold'
-                                        : 'text-slate-400 pl-4 border-l border-white/10'
+                                        ? 'text-slate-900 dark:text-slate-200 font-bold'
+                                        : 'text-slate-600 dark:text-slate-400 pl-4 border-l border-slate-200 dark:border-white/10'
                                         }`}
                                 >
                                     {item.text}
                                 </a>
                             ))}
                         </nav>
-                        <div className="pt-8 border-t border-white/5 mt-auto">
-                            <Link to="/calculator" onClick={() => setMobileTocOpen(false)} className="flex items-center justify-between p-4 rounded-2xl bg-purple-600 text-white font-bold mb-4">
+                        <div className="pt-8 border-t border-slate-200 dark:border-white/5 mt-auto">
+                            <Link to="/calculator" onClick={() => setMobileTocOpen(false)} className="flex items-center justify-between p-4 rounded-2xl bg-purple-600 text-white font-bold mb-4 shadow-md">
                                 <div className="flex items-center gap-3">
                                     <Calculator size={20} />
                                     <span>Open CIE Analyzer</span>
@@ -284,7 +284,7 @@ const ArticlePage = () => {
                     <aside className="hidden lg:block lg:col-span-3 sticky overflow-y-auto no-scrollbar pr-4 toc-sidebar" style={{ top: '100px', height: 'calc(100vh - 120px)' }}>
                         <div className="space-y-8">
                             <div>
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                     <Hash size={14} />
                                     On this page
                                 </h3>
@@ -298,7 +298,7 @@ const ArticlePage = () => {
                                                 key={item.id}
                                                 href={`#${item.id}`}
                                                 className={`flex items-center gap-2 py-2 text-sm transition-all duration-200 
-                                                    ${isActive ? 'text-white font-semibold transform translate-x-1' : 'text-slate-500 hover:text-slate-300'}
+                                                    ${isActive ? 'text-purple-600 dark:text-white font-semibold transform translate-x-1' : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}
                                                     ${item.level === 'h3' ? 'ml-4' : ''}
                                                 `}
                                             >
@@ -308,30 +308,30 @@ const ArticlePage = () => {
                                                     ) : isActive ? (
                                                         <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                                                     ) : (
-                                                        <div className="w-1 h-1 rounded-full bg-slate-600" />
+                                                        <div className="w-1 h-1 rounded-full bg-slate-400 dark:bg-slate-600" />
                                                     )}
                                                 </div>
                                                 <span className="truncate">{item.text}</span>
                                             </a>
                                         );
                                     }) : (
-                                        <p className="text-slate-600 text-sm italic py-2">Brief article sections</p>
+                                        <p className="text-slate-400 dark:text-slate-600 text-sm italic py-2">Brief article sections</p>
                                     )}
                                 </nav>
                             </div>
 
-                            <div className="pt-8 border-t border-white/5">
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                            <div className="pt-8 border-t border-slate-200 dark:border-white/5">
+                                <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                                     <BookOpen size={14} />
                                     Related Tools
                                 </h3>
                                 <div className="space-y-3">
-                                    <Link to="/calculator" className="group flex items-center justify-between p-3 rounded-xl bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/10 hover:border-purple-500/20 transition-all">
+                                    <Link to="/calculator" className="group flex items-center justify-between p-3 rounded-xl bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/10 hover:border-purple-500/20 transition-all shadow-xs">
                                         <div className="flex items-center gap-3">
-                                            <Calculator size={18} className="text-purple-400" />
-                                            <span className="text-sm font-bold text-slate-200">CIE/SGPA Calc</span>
+                                            <Calculator size={18} className="text-purple-600 dark:text-purple-400" />
+                                            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">CIE/SGPA Calc</span>
                                         </div>
-                                        <ChevronRight size={16} className="text-slate-600 group-hover:translate-x-1 transition-transform" />
+                                        <ChevronRight size={16} className="text-slate-400 dark:text-slate-600 group-hover:translate-x-1 transition-transform" />
                                     </Link>
                                 </div>
                             </div>

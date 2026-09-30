@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import userService from '../services/userService';
 import { isEmptyField, getMissingProfileFields, isNeverActive } from '../utils/userValidation';
-import { X } from 'lucide-react';
+import { X, Calendar, AlertTriangle, Sparkles, Shield, Clock } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { canManageUsers } from '../utils/permissions';
 
@@ -38,15 +38,24 @@ const formatRelativeTime = (dateString) => {
   }
 };
 
+const REASON_PRESETS = [
+  'Academic Excellence Scholarship',
+  'Hackathon / Contest Winner',
+  'Offline Direct Payment / Cash',
+  'Faculty / Mentor Recommendation',
+  'Beta Tester & Community Contributor'
+];
+
 export const UsersPage = () => {
   const { admin } = useAdminAuth();
   const { canView, canUpdate } = useMemo(() => canManageUsers(admin), [admin]);
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'plus' | 'free' | 'testUsers' | 'incomplete' | 'neverActive'
+  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'plus' | 'free' | 'manual' | 'testUsers' | 'incomplete' | 'neverActive'
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
     totalUsers: 0,
     plusCount: 0,
     freeCount: 0,
+    manualCount: 0,
     testUserCount: 0,
     recentlyActiveCount: 0,
     liveUsers: 0,
@@ -69,6 +78,17 @@ export const UsersPage = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [togglingTestUser, setTogglingTestUser] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // null | 'enable' | 'disable'
+
+  // Manual Plus Grant modal state
+  const [showManualPlusModal, setShowManualPlusModal] = useState(false);
+  const [manualValidFrom, setManualValidFrom] = useState('');
+  const [manualValidUntil, setManualValidUntil] = useState('');
+  const [manualPreset, setManualPreset] = useState('1m');
+  const [manualReason, setManualReason] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [manualError, setManualError] = useState(null);
+  const [confirmRevokeManual, setConfirmRevokeManual] = useState(false);
+  const [revokingManualPlus, setRevokingManualPlus] = useState(false);
 
   const fetchUsers = useCallback(async (targetPage = 1, query = '', tab = 'all') => {
     try {
@@ -143,6 +163,149 @@ export const UsersPage = () => {
     }
   };
 
+  const applyPresetDuration = (presetKey, fromDateStr) => {
+    const base = fromDateStr ? new Date(fromDateStr) : new Date();
+    const d = new Date(base);
+    if (presetKey === '1m') {
+      d.setDate(d.getDate() + 30);
+    } else if (presetKey === '3m') {
+      d.setDate(d.getDate() + 90);
+    } else if (presetKey === '6m') {
+      d.setDate(d.getDate() + 180);
+    } else if (presetKey === '1y') {
+      d.setDate(d.getDate() + 365);
+    }
+    setManualPreset(presetKey);
+    if (presetKey !== 'custom') {
+      setManualValidUntil(d.toISOString().split('T')[0]);
+    }
+  };
+
+  const handleOpenManualPlusModal = (user) => {
+    const target = user || selectedUser;
+    if (!target) return;
+    setManualError(null);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const existingGrant = target.plusGrant || (target.access?.source === 'MANUAL' ? target.access : null);
+    if (existingGrant && existingGrant.validUntil) {
+      const fromStr = existingGrant.validFrom ? new Date(existingGrant.validFrom).toISOString().split('T')[0] : todayStr;
+      const untilStr = new Date(existingGrant.validUntil).toISOString().split('T')[0];
+      setManualValidFrom(fromStr);
+      setManualValidUntil(untilStr);
+      setManualReason(existingGrant.reason || 'Manual Admin Grant');
+      setManualPreset('custom');
+    } else {
+      setManualValidFrom(todayStr);
+      const defaultUntil = new Date();
+      defaultUntil.setDate(defaultUntil.getDate() + 30);
+      setManualValidUntil(defaultUntil.toISOString().split('T')[0]);
+      setManualPreset('1m');
+      setManualReason('Academic Excellence Scholarship');
+    }
+    setShowManualPlusModal(true);
+  };
+
+  const handleSaveManualPlusGrant = async (e) => {
+    if (e) e.preventDefault();
+    if (!selectedUser || !canUpdate) return;
+
+    if (!manualValidUntil) {
+      setManualError('Please select a valid Expiry Date.');
+      return;
+    }
+
+    const fromDate = manualValidFrom ? new Date(manualValidFrom) : new Date();
+    const untilDate = new Date(manualValidUntil);
+
+    if (untilDate <= fromDate) {
+      setManualError('Expiry Date must be strictly after the Start Date.');
+      return;
+    }
+
+    try {
+      setManualSubmitting(true);
+      setManualError(null);
+      const res = await userService.grantManualPlusAccess(selectedUser._id || selectedUser.id, {
+        validFrom: manualValidFrom || new Date().toISOString(),
+        validUntil: manualValidUntil,
+        reason: manualReason || 'Manual Admin Grant'
+      });
+
+      const updatedUser = {
+        ...selectedUser,
+        access: res.user?.access || {
+          plan: 'PLUS',
+          source: 'MANUAL',
+          validFrom: manualValidFrom,
+          validUntil: manualValidUntil,
+          reason: manualReason
+        },
+        plusGrant: res.user?.plusGrant || {
+          source: 'MANUAL',
+          validFrom: new Date(manualValidFrom),
+          validUntil: new Date(manualValidUntil),
+          reason: manualReason,
+          isActive: true
+        }
+      };
+
+      setSelectedUser(updatedUser);
+      setUsers((prev) =>
+        prev.map((u) => ((u._id || u.id) === (selectedUser._id || selectedUser.id) ? updatedUser : u))
+      );
+
+      setShowManualPlusModal(false);
+      setActionMessage(`Manual Plus access successfully granted until ${new Date(manualValidUntil).toLocaleDateString('en-GB')}.`);
+      setTimeout(() => setActionMessage(null), 5000);
+
+      fetchUsers(page, activeSearch, activeTab);
+    } catch (err) {
+      console.error('Failed to grant manual plus:', err);
+      setManualError(err.response?.data?.error || 'Failed to grant manual Plus access.');
+    } finally {
+      setManualSubmitting(false);
+    }
+  };
+
+  const handleRevokeManualPlus = async () => {
+    if (!selectedUser || !canUpdate) return;
+    try {
+      setRevokingManualPlus(true);
+      setError(null);
+      const res = await userService.revokeManualPlusAccess(selectedUser._id || selectedUser.id, {
+        reason: 'Revoked by admin'
+      });
+
+      const updatedUser = {
+        ...selectedUser,
+        access: res.user?.access || {
+          plan: 'FREE',
+          source: 'NONE'
+        },
+        plusGrant: res.user?.plusGrant || {
+          isActive: false
+        }
+      };
+
+      setSelectedUser(updatedUser);
+      setUsers((prev) =>
+        prev.map((u) => ((u._id || u.id) === (selectedUser._id || selectedUser.id) ? updatedUser : u))
+      );
+
+      setConfirmRevokeManual(false);
+      setActionMessage('Manual Plus access successfully revoked.');
+      setTimeout(() => setActionMessage(null), 4000);
+
+      fetchUsers(page, activeSearch, activeTab);
+    } catch (err) {
+      console.error('Failed to revoke manual plus:', err);
+      setError(err.response?.data?.error || 'Failed to revoke manual Plus access.');
+    } finally {
+      setRevokingManualPlus(false);
+    }
+  };
+
   const handleTabSwitch = (tab) => {
     if (activeTab !== tab) {
       setActiveTab(tab);
@@ -196,6 +359,8 @@ export const UsersPage = () => {
               ? 'Plus Users'
               : activeTab === 'free'
               ? 'Free Users'
+              : activeTab === 'manual'
+              ? 'Manual Plus Grants'
               : activeTab === 'testUsers'
               ? 'Test Users'
               : activeTab === 'incomplete'
@@ -216,6 +381,12 @@ export const UsersPage = () => {
                 <span>Standard accounts on Free student plan.</span>
                 <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
                 <span>Free Users: <span className="font-semibold text-gray-900 dark:text-gray-100">{(summary.freeCount || 0).toLocaleString()}</span></span>
+              </>
+            ) : activeTab === 'manual' ? (
+              <>
+                <span>Students granted Plus manually by Admin (non-payment override).</span>
+                <span className="hidden sm:inline text-gray-300 dark:text-zinc-700">|</span>
+                <span>Manual Grants: <span className="font-semibold text-blue-600 dark:text-blue-400">{(summary.manualCount || 0).toLocaleString()}</span></span>
               </>
             ) : activeTab === 'testUsers' ? (
               <>
@@ -242,6 +413,8 @@ export const UsersPage = () => {
                 <span>Plus: <span className="font-semibold text-purple-600 dark:text-purple-400">{(summary.plusCount || 0).toLocaleString()}</span></span>
                 <span className="text-gray-300 dark:text-zinc-700">|</span>
                 <span>Free: <span className="font-semibold text-gray-900 dark:text-gray-100">{(summary.freeCount || 0).toLocaleString()}</span></span>
+                <span className="text-gray-300 dark:text-zinc-700">|</span>
+                <span>Manual: <span className="font-semibold text-blue-600 dark:text-blue-400">{(summary.manualCount || 0).toLocaleString()}</span></span>
                 <span className="text-gray-300 dark:text-zinc-700">|</span>
                 <span>Test: <span className="font-semibold text-amber-600 dark:text-amber-400">{(summary.testUserCount || 0).toLocaleString()}</span></span>
                 <span className="text-gray-300 dark:text-zinc-700">|</span>
@@ -299,6 +472,20 @@ export const UsersPage = () => {
 
             <button
               type="button"
+              onClick={() => handleTabSwitch('manual')}
+              className={`${
+                activeTab === 'manual'
+                  ? 'text-blue-600 underline font-bold dark:text-blue-400'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              Manual ({(summary.manualCount || 0).toLocaleString()})
+            </button>
+
+            <span className="text-gray-300 dark:text-zinc-700">|</span>
+
+            <button
+              type="button"
               onClick={() => handleTabSwitch('testUsers')}
               className={`${
                 activeTab === 'testUsers'
@@ -350,15 +537,9 @@ export const UsersPage = () => {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Name, USN, Email"
-              className="flex-1 sm:w-48 rounded-none border border-gray-300 bg-white px-2 py-0.5 text-xs text-gray-900 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 font-sans"
+              placeholder="Name, USN, or email..."
+              className="h-7 w-full sm:w-44 border border-gray-300 bg-white px-2 text-xs text-gray-900 placeholder-gray-400 focus:border-blue-600 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 dark:placeholder-zinc-500 rounded-[6px]"
             />
-            <button
-              type="submit"
-              className="rounded-none border border-gray-300 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-800 hover:bg-gray-100 active:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700 font-sans"
-            >
-              Search
-            </button>
             {activeSearch && (
               <button
                 type="button"
@@ -366,33 +547,41 @@ export const UsersPage = () => {
                   setSearchInput('');
                   setActiveSearch('');
                   setPage(1);
+                  setVisibleCount(INITIAL_CHUNK_SIZE);
                 }}
-                className="text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs ml-0.5 font-sans"
+                className="text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                title="Clear search"
               >
-                Clear
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
+            <button
+              type="submit"
+              className="h-7 border border-gray-300 bg-gray-50 px-2 text-[11px] font-medium text-gray-700 hover:bg-gray-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700 rounded-[6px]"
+            >
+              Go
+            </button>
           </form>
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* Action Notification Toast */}
       {actionMessage && (
-        <div className="py-2 px-3 text-xs text-emerald-700 dark:text-emerald-300 font-mono bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-          <span>✓ {actionMessage}</span>
+        <div className="flex items-center justify-between border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:border-emerald-800/80 dark:bg-emerald-950/40 dark:text-emerald-300 rounded-[6px] font-mono">
+          <span>{actionMessage}</span>
           <button
             type="button"
             onClick={() => setActionMessage(null)}
-            className="text-emerald-700 dark:text-emerald-300 hover:underline"
+            className="text-emerald-600 hover:text-emerald-900 dark:text-emerald-400 dark:hover:text-white ml-2"
           >
-            Dismiss
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* Error alert */}
+      {/* Error Alert */}
       {error && (
-        <div className="py-2 px-3 text-xs text-red-600 dark:text-red-400 font-mono bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 flex items-center justify-between">
+        <div className="flex items-center justify-between border border-red-300 bg-red-50 px-3 py-1.5 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-300 font-mono rounded-[6px]">
           <span>{error}</span>
           <button
             type="button"
@@ -407,19 +596,19 @@ export const UsersPage = () => {
       {/* Main CSES Sheet Table */}
       <div className="pt-1">
         {!loading && !error && users.length === 0 ? (
-          <div className="py-6 text-xs text-gray-600 dark:text-gray-400 font-mono border border-gray-300 dark:border-zinc-700 p-4 text-center">
+          <div className="py-6 text-xs text-gray-600 dark:text-gray-400 font-mono border border-gray-300 dark:border-zinc-700 p-4 text-center rounded-[8px]">
             No users found.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 text-left text-xs text-gray-900 dark:border-zinc-700 dark:text-gray-200">
+          <div className="overflow-x-auto rounded-[8px] border border-gray-300 dark:border-zinc-700">
+            <table className="w-full border-collapse text-left text-xs text-gray-900 dark:text-gray-200">
               <thead>
                 <tr className="border-b border-gray-300 bg-gray-100 dark:border-zinc-700 dark:bg-zinc-800/80">
                   <th className="border-r border-gray-300 px-2 py-1 font-semibold dark:border-zinc-700 w-10 text-center text-gray-500 dark:text-gray-400 font-mono">#</th>
                   <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700">Name</th>
                   <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700 w-32">USN</th>
                   <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700">Email</th>
-                  <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700 w-28 text-center">Access</th>
+                  <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700 w-32 text-center">Access</th>
                   <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700 w-28">Joined Date</th>
                   <th className="border-r border-gray-300 px-2.5 py-1 font-semibold dark:border-zinc-700 w-28">Last Active</th>
                   {activeTab === 'incomplete' && (
@@ -471,6 +660,7 @@ export const UsersPage = () => {
                         onClick={() => {
                           setSelectedUser(u);
                           setConfirmAction(null);
+                          setConfirmRevokeManual(false);
                         }}
                         className={`border-b border-gray-200 cursor-pointer transition-colors dark:border-zinc-800 ${
                           isEven ? 'bg-white dark:bg-[#18181b]' : 'bg-gray-50/70 dark:bg-zinc-900/50'
@@ -510,9 +700,20 @@ export const UsersPage = () => {
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                                 PLUS <span className="font-normal text-[9px] opacity-75">Admin</span>
                               </span>
-                            ) : (
+                            ) : u.access?.source === 'MANUAL' ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                                title={u.access?.validUntil ? `Expires: ${new Date(u.access.validUntil).toLocaleDateString()}` : 'Manual Admin Grant'}
+                              >
+                                PLUS <span className="font-normal text-[9px] opacity-75">Manual</span>
+                              </span>
+                            ) : u.access?.source === 'TEST_USER' ? (
                               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                                 PLUS <span className="font-normal text-[9px] opacity-75">Test User</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                PLUS <span className="font-normal text-[9px] opacity-75">Sub</span>
                               </span>
                             )
                           ) : (
@@ -539,9 +740,9 @@ export const UsersPage = () => {
               </tbody>
             </table>
 
-            {/* Chunked Progressive Loaded Users Bar: don't dump all loaded users at once! */}
+            {/* Chunked Progressive Loaded Users Bar */}
             {users.length > visibleCount && (
-              <div className="flex flex-wrap items-center justify-between gap-2 border border-t-0 border-gray-300 dark:border-zinc-700 bg-gray-50/90 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-300 dark:border-zinc-700 bg-gray-50/90 dark:bg-zinc-800/60 px-3 py-1.5 text-xs font-mono">
                 <span className="text-gray-600 dark:text-gray-400">
                   Showing <strong className="text-gray-900 dark:text-gray-100">{visibleUsers.length}</strong> of <strong className="text-gray-900 dark:text-gray-100">{users.length}</strong> loaded users on this page
                 </span>
@@ -650,26 +851,41 @@ export const UsersPage = () => {
           role="dialog"
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setSelectedUser(null)}
+          onClick={() => {
+            setSelectedUser(null);
+            setConfirmAction(null);
+            setConfirmRevokeManual(false);
+          }}
         >
           <div
-            className="w-full max-w-lg border border-gray-300 bg-white p-5 text-xs text-gray-900 shadow-md dark:border-zinc-700 dark:bg-[#18181b] dark:text-gray-100"
+            className="w-full max-w-lg border border-gray-300 bg-white p-5 text-xs text-gray-900 shadow-md dark:border-zinc-700 dark:bg-[#18181b] dark:text-gray-100 rounded-[10px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-gray-200 pb-2 dark:border-zinc-800">
-              <h2 className="font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
-                User Review
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">
+                  User Review
+                </h2>
+                {selectedUser.access?.plan === 'PLUS' && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-950/80 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                    PLUS ({selectedUser.access.source})
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setSelectedUser(null)}
+                onClick={() => {
+                  setSelectedUser(null);
+                  setConfirmAction(null);
+                  setConfirmRevokeManual(false);
+                }}
                 className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="mt-3 space-y-1.5 font-mono">
+            <div className="mt-3 space-y-1.5 font-mono max-h-[70vh] overflow-y-auto pr-1">
               {selectedUser.studentId && (
                 <div><span className="text-gray-500 dark:text-gray-400 inline-block w-36">Student ID:</span> <span className="font-semibold text-gray-900 dark:text-gray-100">{selectedUser.studentId}</span></div>
               )}
@@ -700,7 +916,7 @@ export const UsersPage = () => {
 
                 {/* Case A: User is Admin */}
                 {(selectedUser.access?.source === 'ADMIN' || selectedUser.isAdmin || selectedUser.role === 'admin' || selectedUser.role === 'SUPER_ADMIN') ? (
-                  <div className="p-2.5 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded font-sans">
+                  <div className="p-2.5 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/60 rounded-[8px] font-sans">
                     <div className="flex items-center gap-2">
                       <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
                         PLUS
@@ -714,76 +930,174 @@ export const UsersPage = () => {
                     </p>
                   </div>
                 ) : (
-                  /* Case B: Normal User / Test User */
-                  <div className="p-2.5 bg-gray-50 dark:bg-zinc-900/70 border border-gray-200 dark:border-zinc-800 rounded font-sans space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {selectedUser.access?.plan === 'PLUS' ? (
-                          <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                            PLUS
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                            FREE
-                          </span>
-                        )}
-                        <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300">
-                          Source: {selectedUser.access?.source || (selectedUser.isTestUser ? 'TEST_USER' : 'NONE')}
-                        </span>
-                      </div>
+                  /* Case B: Student (Manual Grant / Test User / Free) */
+                  <div className="space-y-2">
+                    {/* Active Manual Grant Card */}
+                    {selectedUser.access?.source === 'MANUAL' ? (
+                      <div className="p-3 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/70 rounded-[8px] font-sans space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/80 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                              PLUS
+                            </span>
+                            <span className="text-xs font-semibold text-blue-950 dark:text-blue-200">
+                              Manual Admin Grant
+                            </span>
+                          </div>
 
-                      {canUpdate && (
-                        <button
-                          type="button"
-                          disabled={togglingTestUser}
-                          onClick={() => setConfirmAction(selectedUser.isTestUser ? 'disable' : 'enable')}
-                          className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                            selectedUser.isTestUser
-                              ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          {selectedUser.isTestUser ? 'Remove Test Access' : 'Enable Test Access'}
-                        </button>
-                      )}
-                    </div>
-
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      {selectedUser.isTestUser
-                        ? 'Testing Account Entitlement — Full AskUrSenior Plus access enabled without payment.'
-                        : 'Standard Free Student Access — No Plus entitlement active.'}
-                    </p>
-
-                    {/* Inline Confirmation Box */}
-                    {confirmAction && (
-                      <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded mt-2 space-y-1.5">
-                        <p className="font-semibold text-amber-900 dark:text-amber-200 text-xs">
-                          {confirmAction === 'enable' ? 'Enable Test Access?' : 'Remove Test Access?'}
-                        </p>
-                        <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                          {confirmAction === 'enable'
-                            ? 'This user will receive full AskUrSenior Plus access for testing without payment.'
-                            : "This will remove the user's TEST USER Plus entitlement."}
-                        </p>
-                        <div className="flex justify-end gap-2 pt-1 font-mono">
-                          <button
-                            type="button"
-                            onClick={() => setConfirmAction(null)}
-                            className="px-2 py-0.5 text-xs text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            disabled={togglingTestUser}
-                            onClick={handleToggleTestAccess}
-                            className={`px-2.5 py-0.5 text-xs font-semibold text-white rounded disabled:opacity-50 ${
-                              confirmAction === 'enable' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'
-                            }`}
-                          >
-                            {togglingTestUser ? 'Updating...' : confirmAction === 'enable' ? 'Enable Test Access' : 'Remove Access'}
-                          </button>
+                          {canUpdate && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenManualPlusModal(selectedUser)}
+                                className="px-2 py-1 text-xs font-medium text-blue-700 bg-white border border-blue-300 hover:bg-blue-50 dark:bg-zinc-800 dark:text-blue-300 dark:border-blue-700 rounded-[6px]"
+                              >
+                                Extend / Edit Dates
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmRevokeManual(true)}
+                                className="px-2 py-1 text-xs font-medium text-red-700 bg-white border border-red-300 hover:bg-red-50 dark:bg-zinc-800 dark:text-red-400 dark:border-red-800 rounded-[6px]"
+                              >
+                                Revoke Access
+                              </button>
+                            </div>
+                          )}
                         </div>
+
+                        {/* Grant Details Grid */}
+                        <div className="grid grid-cols-2 gap-2 text-[11px] bg-white/70 dark:bg-zinc-900/60 p-2 rounded border border-blue-100 dark:border-blue-900/40 font-mono">
+                          <div>
+                            <span className="text-gray-500 dark:text-zinc-400 block text-[10px] uppercase">Valid From:</span>
+                            <span className="font-semibold text-gray-800 dark:text-gray-200">
+                              {formatDate(selectedUser.access?.validFrom || selectedUser.plusGrant?.validFrom)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 dark:text-zinc-400 block text-[10px] uppercase">Expires On:</span>
+                            <span className="font-semibold text-blue-700 dark:text-blue-400">
+                              {formatDate(selectedUser.access?.validUntil || selectedUser.plusGrant?.validUntil)}
+                            </span>
+                          </div>
+                          {selectedUser.access?.reason && (
+                            <div className="col-span-2 pt-1 border-t border-blue-100/60 dark:border-blue-900/30">
+                              <span className="text-gray-500 dark:text-zinc-400 block text-[10px] uppercase">Reason / Notes:</span>
+                              <span className="text-gray-800 dark:text-gray-200">{selectedUser.access.reason}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Revoke Confirmation Box */}
+                        {confirmRevokeManual && (
+                          <div className="p-2.5 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded mt-2 space-y-1.5">
+                            <p className="font-semibold text-red-900 dark:text-red-200 text-xs">
+                              Revoke Manual Plus Access?
+                            </p>
+                            <p className="text-[11px] text-red-800 dark:text-red-300">
+                              This student will immediately lose all AskUrSenior Plus privileges and return to Free access.
+                            </p>
+                            <div className="flex justify-end gap-2 pt-1 font-mono">
+                              <button
+                                type="button"
+                                onClick={() => setConfirmRevokeManual(false)}
+                                className="px-2 py-0.5 text-xs text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                disabled={revokingManualPlus}
+                                onClick={handleRevokeManualPlus}
+                                className="px-2.5 py-0.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded disabled:opacity-50"
+                              >
+                                {revokingManualPlus ? 'Revoking...' : 'Confirm Revoke'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Non-Manual or Free User Card */
+                      <div className="p-3 bg-gray-50 dark:bg-zinc-900/70 border border-gray-200 dark:border-zinc-800 rounded-[8px] font-sans space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {selectedUser.access?.plan === 'PLUS' ? (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                PLUS
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                FREE
+                              </span>
+                            )}
+                            <span className="text-xs font-mono text-zinc-700 dark:text-zinc-300">
+                              Source: {selectedUser.access?.source || (selectedUser.isTestUser ? 'TEST_USER' : 'NONE')}
+                            </span>
+                          </div>
+
+                          {canUpdate && (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenManualPlusModal(selectedUser)}
+                                className="px-2.5 py-1 rounded text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition"
+                              >
+                                Grant Manual Plus
+                              </button>
+                              <button
+                                type="button"
+                                disabled={togglingTestUser}
+                                onClick={() => setConfirmAction(selectedUser.isTestUser ? 'disable' : 'enable')}
+                                className={`px-2 py-1 rounded text-xs font-medium transition ${
+                                  selectedUser.isTestUser
+                                    ? 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/40 dark:text-red-400 dark:border-red-900'
+                                    : 'bg-zinc-100 text-zinc-700 border border-zinc-300 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
+                                }`}
+                              >
+                                {selectedUser.isTestUser ? 'Remove Test' : 'Test User'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {selectedUser.isTestUser
+                            ? 'Testing Account Entitlement — Full AskUrSenior Plus access enabled for internal testing.'
+                            : 'Standard Free Student Access — No Plus entitlement active.'}
+                        </p>
+
+                        {/* Inline Test User Confirmation Box */}
+                        {confirmAction && (
+                          <div className="p-2.5 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded mt-2 space-y-1.5">
+                            <p className="font-semibold text-amber-900 dark:text-amber-200 text-xs">
+                              {confirmAction === 'enable' ? 'Enable Test Access?' : 'Remove Test Access?'}
+                            </p>
+                            <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                              {confirmAction === 'enable'
+                                ? 'This user will receive full AskUrSenior Plus access for testing without payment.'
+                                : "This will remove the user's TEST USER Plus entitlement."}
+                            </p>
+                            <div className="flex justify-end gap-2 pt-1 font-mono">
+                              <button
+                                type="button"
+                                onClick={() => setConfirmAction(null)}
+                                className="px-2 py-0.5 text-xs text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                disabled={togglingTestUser}
+                                onClick={handleToggleTestAccess}
+                                className={`px-2.5 py-0.5 text-xs font-semibold text-white rounded disabled:opacity-50 ${
+                                  confirmAction === 'enable' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'
+                                }`}
+                              >
+                                {togglingTestUser ? 'Updating...' : confirmAction === 'enable' ? 'Enable Test Access' : 'Remove Access'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -807,12 +1121,191 @@ export const UsersPage = () => {
             <div className="mt-4 pt-2 border-t border-gray-200 dark:border-zinc-800 flex justify-end">
               <button
                 type="button"
-                onClick={() => setSelectedUser(null)}
-                className="border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-800 hover:bg-gray-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700"
+                onClick={() => {
+                  setSelectedUser(null);
+                  setConfirmAction(null);
+                  setConfirmRevokeManual(false);
+                }}
+                className="border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-800 hover:bg-gray-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200 dark:hover:bg-zinc-700 rounded-[6px]"
               >
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DEDICATED MANUAL PLUS GRANT MODAL */}
+      {showManualPlusModal && selectedUser && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShowManualPlusModal(false)}
+        >
+          <div
+            className="w-full max-w-lg border border-gray-300 bg-white p-5 text-xs text-gray-900 shadow-xl dark:border-zinc-700 dark:bg-[#18181b] dark:text-gray-100 rounded-[10px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 pb-2.5 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <h3 className="font-bold text-sm tracking-tight text-gray-900 dark:text-gray-100">
+                  Grant Manual AskUrSenior Plus Access
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowManualPlusModal(false)}
+                className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Target Student Identity Banner */}
+            <div className="mt-3 p-2.5 bg-gray-50 dark:bg-zinc-900/80 border border-gray-200 dark:border-zinc-800 rounded-[6px] font-mono text-xs flex justify-between items-center">
+              <div>
+                <span className="font-bold text-gray-900 dark:text-gray-100">{selectedUser.name}</span>
+                <span className="text-gray-500 dark:text-gray-400 ml-2">({selectedUser.usn || selectedUser.studentId})</span>
+              </div>
+              <span className="text-blue-600 dark:text-blue-400 text-[11px]">{selectedUser.email}</span>
+            </div>
+
+            {/* MANDATORY EXPLICIT MANUAL NOTICE */}
+            <div className="mt-2.5 p-2.5 bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/80 rounded-[6px] text-[11px] text-blue-900 dark:text-blue-200 flex items-start gap-2">
+              <Shield className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-bold">MANUAL ADMINISTRATIVE GRANT:</strong> This entitlement is an administrative override marked with <span className="font-mono font-bold">source: MANUAL</span>. It is <strong className="underline">NOT</strong> recorded as a payment gateway transaction and will not affect financial reconciliation.
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {manualError && (
+              <div className="mt-2.5 p-2 bg-red-50 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-[6px] text-red-700 dark:text-red-300 text-xs font-mono">
+                {manualError}
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleSaveManualPlusGrant} className="mt-3.5 space-y-3">
+              {/* Start Date */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Start Date (Valid From)
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={manualValidFrom}
+                    onChange={(e) => {
+                      setManualValidFrom(e.target.value);
+                      if (manualPreset !== 'custom') {
+                        applyPresetDuration(manualPreset, e.target.value);
+                      }
+                    }}
+                    className="w-full h-8 px-2.5 text-xs font-mono border border-gray-300 bg-white text-gray-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 rounded-[6px] focus:border-blue-600 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Expiry Presets */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Duration Preset
+                </label>
+                <div className="grid grid-cols-4 gap-1.5 text-xs font-mono">
+                  {[
+                    { key: '1m', label: '1 Month' },
+                    { key: '3m', label: '3 Months (Sem)' },
+                    { key: '6m', label: '6 Months' },
+                    { key: '1y', label: '1 Year' }
+                  ].map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => applyPresetDuration(p.key, manualValidFrom)}
+                      className={`h-7 px-2 border rounded-[6px] text-[11px] font-medium transition ${
+                        manualPreset === p.key
+                          ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-950 dark:text-blue-300 font-bold'
+                          : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* End / Expiry Date */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Expiry Date (Valid Until / Expiration) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={manualValidUntil}
+                  onChange={(e) => {
+                    setManualValidUntil(e.target.value);
+                    setManualPreset('custom');
+                  }}
+                  className="w-full h-8 px-2.5 text-xs font-mono border border-gray-300 bg-white text-gray-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 rounded-[6px] focus:border-blue-600 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Reason / Administrative Rationale */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Reason & Administrative Reference Notes
+                </label>
+                {/* Reason Presets */}
+                <div className="flex flex-wrap gap-1 mb-1.5">
+                  {REASON_PRESETS.map((presetText) => (
+                    <button
+                      key={presetText}
+                      type="button"
+                      onClick={() => setManualReason(presetText)}
+                      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${
+                        manualReason === presetText
+                          ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-950 dark:text-blue-200 font-bold'
+                          : 'border-gray-200 bg-gray-100 text-gray-600 hover:bg-gray-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
+                      }`}
+                    >
+                      {presetText}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  rows={2}
+                  value={manualReason}
+                  onChange={(e) => setManualReason(e.target.value)}
+                  placeholder="Enter specific grant justification (e.g. Scholarship #104, Hackathon 1st place, Dean's approval)..."
+                  className="w-full p-2 text-xs border border-gray-300 bg-white text-gray-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 rounded-[6px] focus:border-blue-600 focus:outline-none font-sans"
+                  required
+                />
+              </div>
+
+              {/* Footer Actions */}
+              <div className="pt-2 border-t border-gray-200 dark:border-zinc-800 flex justify-end gap-2 font-mono">
+                <button
+                  type="button"
+                  onClick={() => setShowManualPlusModal(false)}
+                  className="px-3 py-1 text-xs text-zinc-700 dark:text-zinc-300 border border-zinc-300 dark:border-zinc-700 rounded-[6px] hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={manualSubmitting}
+                  className="px-4 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-[6px] disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {manualSubmitting ? 'Granting Access...' : 'Confirm & Grant Plus Access'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

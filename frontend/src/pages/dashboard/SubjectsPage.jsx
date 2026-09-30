@@ -5,6 +5,7 @@ import { useAuth } from '../../utils/hooks';
 import SubjectCard from '../../components/SubjectCard';
 import { subjectAPI } from '../../services/api';
 import { BRANCHES, deriveBranchFromUSN, toUiBranch } from '../../utils/constants';
+import AuthGate from '../../components/AuthGate';
 
 /* ─── Skeleton ─────────────────────────────────────────────────── */
 const SubjectsSkeleton = () => (
@@ -75,6 +76,16 @@ const SubjectsPage = () => {
         value: b.code || b.value || b,
         label: b.name || b.label || b
     })) || [];
+
+    if (!authLoading && !isAuthenticated) {
+        return (
+            <AuthGate
+                requireAuth={true}
+                requirePlus={false}
+                loginMessage="Sign in to browse subjects and academic materials."
+            />
+        );
+    }
 
     return (
         <div className="w-full space-y-6">

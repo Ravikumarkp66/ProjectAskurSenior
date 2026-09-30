@@ -20,7 +20,7 @@ const TermsPage = () => {
 
         <section className="space-y-3">
           <h2 className="text-2xl font-bold text-slate-900">2. Nature of Service & Payment</h2>
-          <p className="text-gray-600">By upgrading to ASK+ (Premium), users are paying for:</p>
+          <p className="text-gray-600">By upgrading to AskUrSenior Plus (Premium), users are paying for:</p>
           <ul className="list-disc pl-5 text-gray-600 space-y-2">
             <li>Platform infrastructure and technical maintenance</li>
             <li>Secure cloud hosting and storage</li>

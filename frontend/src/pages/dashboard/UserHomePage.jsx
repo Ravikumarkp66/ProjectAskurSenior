@@ -5,7 +5,8 @@ import {
     StudentDetailsWidget,
     MaterialsOverviewWidget,
     AcademicStreakWidget,
-    DailyPlannerWidget
+    DailyPlannerWidget,
+    SidebarPlusLock
 } from '../../components/dashboard/RightPanel';
 import { 
     Search, BookOpen, FileText, Download, Eye, X, ExternalLink, 
@@ -98,7 +99,7 @@ const UserHomePage = () => {
     // isDark is derived dynamically from html attributes, context or theme hook
     const isDark = contextDark !== undefined ? (contextDark && htmlDark) : (themeDark !== undefined ? (themeDark && htmlDark) : htmlDark);
     const isLight = !isDark;
-    const { user } = useContext(AuthContext);
+    const { user, isAuthenticated, hasPlusAccess } = useContext(AuthContext);
 
     // Responsive State
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
@@ -303,8 +304,16 @@ const UserHomePage = () => {
         }).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }, [documents, selectedType, activeSubject, selectedYear, selectedSem, searchQuery]);
 
-    // Handle Document Download
+    // Redirect non-logged-in users to login, preserving the current path so
+    // they return here after successful authentication.
+    const requireLogin = () => {
+        const redirectTo = encodeURIComponent(location.pathname);
+        navigate(`/login?redirect=${redirectTo}`);
+    };
+
+    // Handle Document Download — FREE feature, login required
     const handleDownload = async (docId) => {
+        if (!isAuthenticated) { requireLogin(); return; }
         try {
             const res = await apiClient.get(`/documents/${docId}/download`);
             const url = res.data?.downloadUrl;
@@ -317,8 +326,9 @@ const UserHomePage = () => {
         }
     };
 
-    // Handle Document Preview
+    // Handle Document Preview — FREE feature, login required
     const handlePreview = async (doc) => {
+        if (!isAuthenticated) { requireLogin(); return; }
         setPreviewDoc(doc);
         setLoadingPreview(true);
         try {
@@ -409,7 +419,7 @@ const UserHomePage = () => {
                         <p className={`text-xs m-0 mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Your profile info & study material statistics</p>
                     </div>
                     <StudentDetailsWidget user={user} />
-                    <MaterialsOverviewWidget user={user} />
+                    <MaterialsOverviewWidget user={user} isStatic={!hasPlusAccess} />
                 </div>
             )}
 
@@ -420,8 +430,25 @@ const UserHomePage = () => {
                         <h2 className={`text-xl font-bold font-['Outfit'] m-0 ${isLight ? 'text-slate-900' : 'text-white'}`}>Daily Planner & Streaks</h2>
                         <p className={`text-xs m-0 mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>Track your study habits, tasks and academic streak</p>
                     </div>
-                    <AcademicStreakWidget user={user} />
-                    <DailyPlannerWidget />
+                    {hasPlusAccess ? (
+                        <>
+                            <AcademicStreakWidget user={user} />
+                            <DailyPlannerWidget />
+                        </>
+                    ) : (
+                        <div className="py-4 flex justify-center">
+                            <SidebarPlusLock
+                                isAuthenticated={isAuthenticated}
+                                onAction={() => {
+                                    if (!isAuthenticated) {
+                                        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+                                    } else {
+                                        navigate('/pricing');
+                                    }
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -814,14 +841,22 @@ const UserHomePage = () => {
                                                         {idx + 1}
                                                     </span>
 
-                                                    {/* Title & Metadata */}
+                                                     {/* Title & Metadata */}
                                                     <div className="col-span-4 min-w-0">
                                                         <span
                                                             onClick={() => handlePreview(doc)}
-                                                            className={`text-xs md:text-sm font-semibold cursor-pointer transition-colors truncate block ${
+                                                            className={`text-xs md:text-sm font-semibold transition-colors truncate block ${
+                                                                isAuthenticated
+                                                                    ? 'cursor-pointer'
+                                                                    : 'cursor-pointer'
+                                                            } ${
                                                                 isLight ? 'text-slate-900 hover:text-purple-600' : 'text-slate-200 hover:text-purple-300'
                                                             }`}
-                                                            title={doc.title || doc.originalName || doc.fileName}
+                                                            title={
+                                                                isAuthenticated
+                                                                    ? (doc.title || doc.originalName || doc.fileName)
+                                                                    : `Login to preview: ${doc.title || doc.originalName || doc.fileName}`
+                                                            }
                                                         >
                                                             {doc.title || doc.originalName || doc.fileName}
                                                         </span>
@@ -868,26 +903,53 @@ const UserHomePage = () => {
                                                             {typeLabel}
                                                         </span>
                                                         <div className="flex items-center gap-1.5 ml-auto">
+                                                            {/* ── Preview button ── */}
                                                             <button
                                                                 onClick={() => handlePreview(doc)}
+                                                                title={isAuthenticated ? 'Preview document' : 'Login to preview'}
                                                                 className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors flex items-center gap-1 cursor-pointer ${
-                                                                    isLight
-                                                                        ? 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200'
-                                                                        : 'text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border-white/10'
+                                                                    isAuthenticated
+                                                                        ? isLight
+                                                                            ? 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200'
+                                                                            : 'text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border-white/10'
+                                                                        : isLight
+                                                                            ? 'text-slate-400 bg-slate-50 border-slate-200 opacity-75'
+                                                                            : 'text-slate-500 bg-white/[0.03] border-white/[0.07] opacity-75'
                                                                 }`}
                                                             >
-                                                                <Eye size={12} />
+                                                                {isAuthenticated ? (
+                                                                    <Eye size={12} />
+                                                                ) : (
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                                                    </svg>
+                                                                )}
                                                                 <span>Preview</span>
                                                             </button>
+
+                                                            {/* ── Download button ── */}
                                                             <button
                                                                 onClick={() => handleDownload(doc._id)}
+                                                                title={isAuthenticated ? 'Download document' : 'Login to download'}
                                                                 className={`px-2.5 py-1 rounded-md text-xs font-semibold border transition-colors flex items-center gap-1 cursor-pointer ${
-                                                                    isLight
-                                                                        ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200'
-                                                                        : 'text-purple-200 hover:text-white bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40'
+                                                                    isAuthenticated
+                                                                        ? isLight
+                                                                            ? 'text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200'
+                                                                            : 'text-purple-200 hover:text-white bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40'
+                                                                        : isLight
+                                                                            ? 'text-slate-400 bg-slate-50 border-slate-200 opacity-75'
+                                                                            : 'text-slate-500 bg-white/[0.03] border-white/[0.07] opacity-75'
                                                                 }`}
                                                             >
-                                                                <Download size={12} />
+                                                                {isAuthenticated ? (
+                                                                    <Download size={12} />
+                                                                ) : (
+                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                                                    </svg>
+                                                                )}
                                                                 <span>Download</span>
                                                             </button>
                                                         </div>

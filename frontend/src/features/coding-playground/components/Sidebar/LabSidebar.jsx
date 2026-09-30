@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
     ChevronDown, ChevronRight, 
     CheckCircle2, Circle, Search, PanelLeftClose, 
-    PanelLeftOpen, Terminal, X, FlaskConical 
+    PanelLeftOpen, Terminal, X, FlaskConical, LogIn, Plus 
 } from 'lucide-react';
 import { useAuth } from '../../../../utils/hooks';
 import Logo, { ASLogo } from '../../../../components/Logo';
@@ -125,7 +125,8 @@ const LabSidebar = ({
     onToggleTheme
 }) => {
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isAuthenticated, hasPlusAccess } = useAuth();
+    const isUserLoggedIn = Boolean(isAuthenticated && user);
     const isDark = theme === 'dark';
 
     const [searchQuery, setSearchQuery] = useState('');
@@ -148,7 +149,11 @@ const LabSidebar = ({
         return `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${pic}`;
     };
 
-    const [expandedLanguages, setExpandedLanguages] = useState({});
+    const [expandedLanguages, setExpandedLanguages] = useState(() => {
+        if (activeLanguageSlug) return { [activeLanguageSlug]: true };
+        if (languages?.[0]?.slug) return { [languages[0].slug]: true };
+        return {};
+    });
     const [expandedLabs, setExpandedLabs] = useState({});
 
     // By default all should be closed, ONLY open the language track and the specific lab folder containing the active problem
@@ -218,10 +223,15 @@ const LabSidebar = ({
                 const programs = lab.programs || [];
                 const matchingPrograms = programs.filter(prog => {
                     if (!searchQuery.trim()) return true;
+                    const paddedNum = String(lab.labNumber || '').padStart(2, '0');
                     return (
                         prog.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         prog.concepts?.some(c => c.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                        `program ${prog.programNumber}`.toLowerCase().includes(searchQuery.toLowerCase())
+                        `program ${prog.programNumber}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        `lab ${lab.labNumber}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        `lab ${paddedNum}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        `lab${paddedNum}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        `lab${lab.labNumber}`.toLowerCase().includes(searchQuery.toLowerCase())
                     );
                 });
 
@@ -396,38 +406,92 @@ const LabSidebar = ({
                     </div>
                 </div>
 
-                {/* Bottom Profile Avatar */}
-                <button
-                    onClick={() => navigate('/profile')}
-                    title={user?.name || 'Student Profile'}
-                    style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        backgroundColor: isDark ? '#16131F' : '#F3E8FF',
-                        border: isDark ? '1px solid #333333' : '1px solid #E5E7EB',
-                        color: isDark ? '#FFFFFF' : '#7E22CE',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 11.5,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        overflow: 'hidden',
-                        transition: 'all 0.15s ease'
-                    }}
-                >
-                    {profilePic && !imgError ? (
-                        <img
-                            src={getProfilePicUrl(profilePic)}
-                            alt="Avatar"
-                            onError={() => setImgError(true)}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                    ) : (
-                        user?.name ? user.name.charAt(0).toUpperCase() : 'U'
-                    )}
-                </button>
+                {/* Bottom Profile / Login Button */}
+                {isUserLoggedIn ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                        {!hasPlusAccess && (
+                            <button
+                                onClick={() => navigate('/pricing')}
+                                title="Upgrade to Plus"
+                                style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 6,
+                                    background: 'linear-gradient(135deg, #7C3AED 0%, #EC4899 100%)',
+                                    border: 'none',
+                                    color: '#FFFFFF',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.3)'
+                                }}
+                            >
+                                <Plus size={15} strokeWidth={2.5} />
+                            </button>
+                        )}
+                        <button
+                            onClick={() => navigate('/profile')}
+                            title={user?.name || 'Student Profile'}
+                            style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: '50%',
+                                backgroundColor: isDark ? '#16131F' : '#F3E8FF',
+                                border: isDark ? '1px solid #333333' : '1px solid #E5E7EB',
+                                color: isDark ? '#FFFFFF' : '#7E22CE',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 11.5,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                overflow: 'hidden',
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            {profilePic && !imgError ? (
+                                <img
+                                    src={getProfilePicUrl(profilePic)}
+                                    alt="Avatar"
+                                    onError={() => setImgError(true)}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            ) : (
+                                user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                            )}
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => navigate('/login')}
+                        title="Login"
+                        style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 6,
+                            backgroundColor: isDark ? 'rgba(124, 58, 237, 0.2)' : '#F3E8FF',
+                            border: isDark ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(147, 51, 234, 0.3)',
+                            color: isDark ? '#C084FC' : '#7C3AED',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = isDark ? '#7C3AED' : '#7C3AED';
+                            e.currentTarget.style.color = '#FFFFFF';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = isDark ? 'rgba(124, 58, 237, 0.2)' : '#F3E8FF';
+                            e.currentTarget.style.color = isDark ? '#C084FC' : '#7C3AED';
+                        }}
+                    >
+                        <LogIn size={15} />
+                    </button>
+                )}
             </aside>
         );
     }
@@ -676,12 +740,176 @@ const LabSidebar = ({
                                         {lang.labs?.map(lab => {
                                             const labKey = `${lang.slug}_${lab.id}`;
                                             const isLabExpanded = Boolean(expandedLabs[labKey]);
+                                            const labPrograms = lab.programs || [];
+                                            const hasMultiplePrograms = labPrograms.length > 1;
+                                            const labNumPadded = String(lab.labNumber || 1).padStart(2, '0');
+
+                                            // 1. Multiple programs in this lab -> Render as an expandable folder
+                                            if (hasMultiplePrograms) {
+                                                return (
+                                                    <div key={lab.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                                                        {/* Lab Folder Header */}
+                                                        <div
+                                                            onClick={() => toggleLab(labKey)}
+                                                            style={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'space-between',
+                                                                padding: '8px 10px',
+                                                                borderRadius: 6,
+                                                                cursor: 'pointer',
+                                                                backgroundColor: isLabExpanded 
+                                                                    ? (isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(124, 58, 237, 0.06)') 
+                                                                    : 'transparent',
+                                                                border: isLabExpanded
+                                                                    ? (isDark ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(124, 58, 237, 0.2)')
+                                                                    : (isDark ? '1px solid transparent' : '1px solid transparent'),
+                                                                color: isDark ? '#E5E7EB' : '#111827',
+                                                                fontSize: 13,
+                                                                fontWeight: 700,
+                                                                fontFamily: 'Outfit, sans-serif',
+                                                                transition: 'all 0.15s ease',
+                                                                userSelect: 'none',
+                                                                width: '100%',
+                                                                boxSizing: 'border-box'
+                                                            }}
+                                                            onMouseEnter={(e) => {
+                                                                if (!isLabExpanded) e.currentTarget.style.backgroundColor = isDark ? '#161616' : '#F3F4F6';
+                                                            }}
+                                                            onMouseLeave={(e) => {
+                                                                if (!isLabExpanded) e.currentTarget.style.backgroundColor = 'transparent';
+                                                            }}
+                                                        >
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                                <div style={{
+                                                                    width: 22,
+                                                                    height: 22,
+                                                                    borderRadius: 4,
+                                                                    backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(124, 58, 237, 0.1)',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    flexShrink: 0
+                                                                }}>
+                                                                    <FlaskConical size={14} color={isDark ? "#C084FC" : "#7C3AED"} />
+                                                                </div>
+                                                                <span style={{
+                                                                    color: isDark ? '#F3F4F6' : '#111827',
+                                                                    fontSize: 13,
+                                                                    fontWeight: 700,
+                                                                    letterSpacing: '-0.01em'
+                                                                }}>
+                                                                    Lab {labNumPadded}
+                                                                </span>
+                                                            </div>
+
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                                <span style={{
+                                                                    fontSize: 11,
+                                                                    fontWeight: 700,
+                                                                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
+                                                                    color: isDark ? '#9CA3AF' : '#4B5563',
+                                                                    padding: '1px 6px',
+                                                                    borderRadius: 10
+                                                                }}>
+                                                                    {labPrograms.length}
+                                                                </span>
+                                                                {isLabExpanded ? <ChevronDown size={14} color={isDark ? "#A855F7" : "#7C3AED"} /> : <ChevronRight size={14} color={isDark ? "#666666" : "#9CA3AF"} />}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Program Items inside folder */}
+                                                        {isLabExpanded && (
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                paddingLeft: 4,
+                                                                gap: 1,
+                                                                marginTop: 1
+                                                            }}>
+                                                                {labPrograms.map(prog => {
+                                                                    const isSelected = activeProblemId === prog.id || activeProblemId === prog.slug || activeProblemId === prog._id;
+                                                                    const isDone = !!prog.isCompleted;
+
+                                                                    return (
+                                                                        <button
+                                                                            key={prog.id}
+                                                                            onClick={() => onSelectProgram(lang.languageSlug || (lang.slug?.includes('python') ? 'python' : 'c'), lab.id, prog.slug || prog.id, lang.slug)}
+                                                                            style={{
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                justifyContent: 'space-between',
+                                                                                padding: '7px 10px',
+                                                                                borderRadius: 4,
+                                                                                border: 'none',
+                                                                                borderLeft: isSelected 
+                                                                                    ? (isDark ? '3px solid #A855F7' : '3px solid #7E22CE')
+                                                                                    : '3px solid transparent',
+                                                                                backgroundColor: isSelected 
+                                                                                    ? (isDark ? '#181424' : '#F3E8FF')
+                                                                                    : 'transparent',
+                                                                                cursor: 'pointer',
+                                                                                textAlign: 'left',
+                                                                                transition: 'all 0.15s ease',
+                                                                                width: '100%'
+                                                                            }}
+                                                                            onMouseEnter={(e) => {
+                                                                                if (!isSelected) e.currentTarget.style.backgroundColor = isDark ? '#141414' : '#F3F4F6';
+                                                                            }}
+                                                                            onMouseLeave={(e) => {
+                                                                                if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
+                                                                            }}
+                                                                        >
+                                                                            <div style={{
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: 7,
+                                                                                overflow: 'hidden'
+                                                                            }}>
+                                                                                {isDone ? (
+                                                                                    <CheckCircle2 size={12} color={isDark ? "#22C55E" : "#16A34A"} style={{ flexShrink: 0 }} />
+                                                                                ) : isSelected ? (
+                                                                                    <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: isDark ? '#A855F7' : '#7E22CE', flexShrink: 0 }} />
+                                                                                ) : (
+                                                                                    <Circle size={8} color={isDark ? "#444444" : "#D1D5DB"} style={{ flexShrink: 0 }} />
+                                                                                )}
+                                                                                <span style={{
+                                                                                    fontSize: 12,
+                                                                                    fontWeight: isSelected ? 700 : 500,
+                                                                                    color: isSelected 
+                                                                                        ? (isDark ? '#FFFFFF' : '#111827')
+                                                                                        : (isDone 
+                                                                                            ? (isDark ? '#D0D0D0' : '#374151') 
+                                                                                            : (isDark ? '#858585' : '#6B7280')),
+                                                                                    fontFamily: 'Outfit, sans-serif',
+                                                                                    whiteSpace: 'nowrap',
+                                                                                    overflow: 'hidden',
+                                                                                    textOverflow: 'ellipsis'
+                                                                                }}>
+                                                                                    P{prog.programNumber}. {prog.title}
+                                                                                </span>
+                                                                            </div>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }
+
+                                            // 2. Only 1 program in this lab -> No folder, directly selectable item
+                                            const singleProg = labPrograms[0];
+                                            if (!singleProg) return null;
+
+                                            const isSelected = activeProblemId === singleProg.id || activeProblemId === singleProg.slug || activeProblemId === singleProg._id;
+                                            const isDone = !!singleProg.isCompleted;
 
                                             return (
                                                 <div key={lab.id} style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    {/* Lab Header - Full width clickable button with larger text & icon */}
-                                                    <div
-                                                        onClick={() => toggleLab(labKey)}
+                                                    <button
+                                                        onClick={() => onSelectProgram(lang.languageSlug || (lang.slug?.includes('python') ? 'python' : 'c'), lab.id, singleProg.slug || singleProg.id, lang.slug)}
+                                                        title={singleProg.title ? `Lab ${labNumPadded}: ${singleProg.title}` : `Lab ${labNumPadded}`}
                                                         style={{
                                                             display: 'flex',
                                                             alignItems: 'center',
@@ -689,142 +917,77 @@ const LabSidebar = ({
                                                             padding: '8px 10px',
                                                             borderRadius: 6,
                                                             cursor: 'pointer',
-                                                            backgroundColor: isLabExpanded 
-                                                                ? (isDark ? 'rgba(168, 85, 247, 0.08)' : 'rgba(124, 58, 237, 0.06)') 
+                                                            border: 'none',
+                                                            borderLeft: isSelected 
+                                                                ? (isDark ? '3px solid #A855F7' : '3px solid #7E22CE')
+                                                                : '3px solid transparent',
+                                                            backgroundColor: isSelected 
+                                                                ? (isDark ? '#181424' : '#F3E8FF')
                                                                 : 'transparent',
-                                                            border: isLabExpanded
-                                                                ? (isDark ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(124, 58, 237, 0.2)')
-                                                                : (isDark ? '1px solid transparent' : '1px solid transparent'),
                                                             color: isDark ? '#E5E7EB' : '#111827',
                                                             fontSize: 13,
-                                                            fontWeight: 700,
+                                                            fontWeight: isSelected ? 800 : 700,
                                                             fontFamily: 'Outfit, sans-serif',
                                                             transition: 'all 0.15s ease',
                                                             userSelect: 'none',
                                                             width: '100%',
-                                                            boxSizing: 'border-box'
+                                                            boxSizing: 'border-box',
+                                                            textAlign: 'left'
                                                         }}
                                                         onMouseEnter={(e) => {
-                                                            if (!isLabExpanded) e.currentTarget.style.backgroundColor = isDark ? '#161616' : '#F3F4F6';
+                                                            if (!isSelected) e.currentTarget.style.backgroundColor = isDark ? '#161616' : '#F3F4F6';
                                                         }}
                                                         onMouseLeave={(e) => {
-                                                            if (!isLabExpanded) e.currentTarget.style.backgroundColor = 'transparent';
+                                                            if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
                                                         }}
                                                     >
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
                                                             <div style={{
                                                                 width: 22,
                                                                 height: 22,
                                                                 borderRadius: 4,
-                                                                backgroundColor: isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(124, 58, 237, 0.1)',
+                                                                backgroundColor: isDone
+                                                                    ? (isDark ? 'rgba(34, 197, 94, 0.15)' : 'rgba(22, 163, 74, 0.1)')
+                                                                    : isSelected
+                                                                        ? (isDark ? 'rgba(168, 85, 247, 0.25)' : 'rgba(124, 58, 237, 0.18)')
+                                                                        : (isDark ? 'rgba(168, 85, 247, 0.15)' : 'rgba(124, 58, 237, 0.1)'),
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
                                                                 flexShrink: 0
                                                             }}>
-                                                                <FlaskConical size={14} color={isDark ? "#C084FC" : "#7C3AED"} />
+                                                                {isDone ? (
+                                                                    <CheckCircle2 size={13} color={isDark ? "#22C55E" : "#16A34A"} />
+                                                                ) : (
+                                                                    <FlaskConical size={14} color={isSelected ? (isDark ? "#C084FC" : "#7C3AED") : (isDark ? "#A855F7" : "#7C3AED")} />
+                                                                )}
                                                             </div>
-                                                            <span style={{
-                                                                color: isDark ? '#F3F4F6' : '#111827',
-                                                                fontSize: 13,
-                                                                fontWeight: 700,
-                                                                letterSpacing: '-0.01em'
-                                                            }}>
-                                                                Lab {lab.labNumber}
-                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                                                                <span style={{
+                                                                    color: isSelected 
+                                                                        ? (isDark ? '#FFFFFF' : '#111827')
+                                                                        : (isDark ? '#F3F4F6' : '#111827'),
+                                                                    fontSize: 13,
+                                                                    fontWeight: isSelected ? 800 : 700,
+                                                                    letterSpacing: '-0.01em',
+                                                                    flexShrink: 0
+                                                                }}>
+                                                                    Lab {labNumPadded}
+                                                                </span>
+                                                                {searchQuery && singleProg.title && (
+                                                                    <span style={{
+                                                                        fontSize: 11,
+                                                                        color: isDark ? '#9CA3AF' : '#6B7280',
+                                                                        whiteSpace: 'nowrap',
+                                                                        overflow: 'hidden',
+                                                                        textOverflow: 'ellipsis'
+                                                                    }}>
+                                                                        · {singleProg.title}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
-
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                            <span style={{
-                                                                fontSize: 11,
-                                                                fontWeight: 700,
-                                                                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#E5E7EB',
-                                                                color: isDark ? '#9CA3AF' : '#4B5563',
-                                                                padding: '1px 6px',
-                                                                borderRadius: 10
-                                                            }}>
-                                                                {lab.programs?.length || 0}
-                                                            </span>
-                                                            {isLabExpanded ? <ChevronDown size={14} color={isDark ? "#A855F7" : "#7C3AED"} /> : <ChevronRight size={14} color={isDark ? "#666666" : "#9CA3AF"} />}
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Program Items */}
-                                                    {isLabExpanded && (
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            paddingLeft: 4,
-                                                            gap: 1,
-                                                            marginTop: 1
-                                                        }}>
-                                                            {lab.programs?.map(prog => {
-                                                                const isSelected = activeProblemId === prog.id || activeProblemId === prog.slug;
-                                                                const isDone = !!prog.isCompleted;
-
-                                                                return (
-                                                                    <button
-                                                                        key={prog.id}
-                                                                        onClick={() => onSelectProgram(lang.languageSlug || (lang.slug?.includes('python') ? 'python' : 'c'), lab.id, prog.slug || prog.id, lang.slug)}
-                                                                        style={{
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'space-between',
-                                                                            padding: '7px 10px',
-                                                                            borderRadius: 4,
-                                                                            border: 'none',
-                                                                            borderLeft: isSelected 
-                                                                                ? (isDark ? '3px solid #A855F7' : '3px solid #7E22CE')
-                                                                                : '3px solid transparent',
-                                                                            backgroundColor: isSelected 
-                                                                                ? (isDark ? '#181424' : '#F3E8FF')
-                                                                                : 'transparent',
-                                                                            cursor: 'pointer',
-                                                                            textAlign: 'left',
-                                                                            transition: 'all 0.15s ease',
-                                                                            width: '100%'
-                                                                        }}
-                                                                        onMouseEnter={(e) => {
-                                                                            if (!isSelected) e.currentTarget.style.backgroundColor = isDark ? '#141414' : '#F3F4F6';
-                                                                        }}
-                                                                        onMouseLeave={(e) => {
-                                                                            if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent';
-                                                                        }}
-                                                                    >
-                                                                        <div style={{
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: 7,
-                                                                            overflow: 'hidden'
-                                                                        }}>
-                                                                            {isDone ? (
-                                                                                <CheckCircle2 size={12} color={isDark ? "#22C55E" : "#16A34A"} style={{ flexShrink: 0 }} />
-                                                                            ) : isSelected ? (
-                                                                                <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: isDark ? '#A855F7' : '#7E22CE', flexShrink: 0 }} />
-                                                                            ) : (
-                                                                                <Circle size={8} color={isDark ? "#444444" : "#D1D5DB"} style={{ flexShrink: 0 }} />
-                                                                            )}
-                                                                            <span style={{
-                                                                                fontSize: 12,
-                                                                                fontWeight: isSelected ? 700 : 500,
-                                                                                color: isSelected 
-                                                                                    ? (isDark ? '#FFFFFF' : '#111827')
-                                                                                    : (isDone 
-                                                                                        ? (isDark ? '#D0D0D0' : '#374151') 
-                                                                                        : (isDark ? '#858585' : '#6B7280')),
-                                                                                fontFamily: 'Outfit, sans-serif',
-                                                                                whiteSpace: 'nowrap',
-                                                                                overflow: 'hidden',
-                                                                                textOverflow: 'ellipsis'
-                                                                            }}>
-                                                                                P{prog.programNumber}. {prog.title}
-                                                                            </span>
-                                                                        </div>
-                                                                    </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
+                                                    </button>
                                                 </div>
                                             );
                                         })}
@@ -935,80 +1098,154 @@ const LabSidebar = ({
                     </button>
                 </div>
 
-                {/* Profile Row */}
-                <button
-                    onClick={() => navigate('/profile')}
-                    title="View Student Profile"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor: isDark ? '#111111' : '#F9FAFB',
-                        border: isDark ? '1px solid #202020' : '1px solid #E5E7EB',
-                        borderRadius: 6,
-                        padding: '6px 8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        width: '100%',
-                        textAlign: 'left'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isDark ? '#1C1C1C' : '#F3F4F6'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isDark ? '#111111' : '#F9FAFB'}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                        <div style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            backgroundColor: isDark ? '#16131F' : '#F3E8FF',
-                            border: isDark ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(124, 58, 237, 0.3)',
-                            color: isDark ? '#FFFFFF' : '#7E22CE',
+                {/* Profile Row / Upgrade Button / Login Button */}
+                {!isUserLoggedIn ? (
+                    <button
+                        onClick={() => navigate('/login')}
+                        title="Sign in to AskUrSenior"
+                        style={{
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: 11,
+                            gap: 8,
+                            background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                            border: 'none',
+                            borderRadius: 6,
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            width: '100%',
+                            color: '#FFFFFF',
+                            fontSize: 12,
                             fontWeight: 700,
-                            flexShrink: 0,
-                            overflow: 'hidden'
-                        }}>
-                            {profilePic && !imgError ? (
-                                <img
-                                    src={getProfilePicUrl(profilePic)}
-                                    alt="Avatar"
-                                    onError={() => setImgError(true)}
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
-                            ) : (
-                                user?.name ? user.name.charAt(0).toUpperCase() : 'U'
-                            )}
-                        </div>
+                            boxShadow: isDark ? '0 2px 10px rgba(124, 58, 237, 0.35)' : '0 2px 8px rgba(124, 58, 237, 0.25)'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.filter = 'brightness(1.1)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.filter = 'none';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                    >
+                        <LogIn size={14} />
+                        <span>Login</span>
+                    </button>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+                        {!hasPlusAccess && (
+                            <button
+                                onClick={() => navigate('/pricing')}
+                                title="Upgrade for plus access"
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 7,
+                                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    padding: '7px 12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    width: '100%',
+                                    color: '#FFFFFF',
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    boxShadow: isDark ? '0 2px 10px rgba(124, 58, 237, 0.35)' : '0 2px 8px rgba(124, 58, 237, 0.25)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.filter = 'brightness(1.1)';
+                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.filter = 'none';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                            >
+                                <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                                    <Plus size={11} strokeWidth={3} className="text-white" />
+                                </span>
+                                <span>Upgrade</span>
+                            </button>
+                        )}
 
-                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            <span style={{
-                                fontSize: 11.5,
-                                fontWeight: 600,
-                                color: isDark ? '#FFFFFF' : '#111827',
-                                fontFamily: 'Outfit, sans-serif',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                            }}>
-                                {user?.name || 'Student Account'}
-                            </span>
-                            <span style={{
-                                fontSize: 9.5,
-                                color: isDark ? '#707070' : '#6B7280',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                            }}>
-                                {(typeof user?.branch === 'object' ? (user.branch?.shortName || user.branch?.name) : user?.branch) || user?.usn || user?.email || 'AskUrSenior Plus'}
-                            </span>
-                        </div>
+                        <button
+                            onClick={() => navigate('/profile')}
+                            title="View Student Profile"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                backgroundColor: isDark ? '#111111' : '#F9FAFB',
+                                border: isDark ? '1px solid #202020' : '1px solid #E5E7EB',
+                                borderRadius: 6,
+                                padding: '6px 8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                width: '100%',
+                                textAlign: 'left'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isDark ? '#1C1C1C' : '#F3F4F6'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isDark ? '#111111' : '#F9FAFB'}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                                <div style={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: '50%',
+                                    backgroundColor: isDark ? '#16131F' : '#F3E8FF',
+                                    border: isDark ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid rgba(124, 58, 237, 0.3)',
+                                    color: isDark ? '#FFFFFF' : '#7E22CE',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    flexShrink: 0,
+                                    overflow: 'hidden'
+                                }}>
+                                    {profilePic && !imgError ? (
+                                        <img
+                                            src={getProfilePicUrl(profilePic)}
+                                            alt="Avatar"
+                                            onError={() => setImgError(true)}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                        />
+                                    ) : (
+                                        user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                                    )}
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                                    <span style={{
+                                        fontSize: 11.5,
+                                        fontWeight: 600,
+                                        color: isDark ? '#FFFFFF' : '#111827',
+                                        fontFamily: 'Outfit, sans-serif',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}>
+                                        {user?.name || 'Student Account'}
+                                    </span>
+                                    <span style={{
+                                        fontSize: 9.5,
+                                        color: isDark ? '#707070' : '#6B7280',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}>
+                                        {(typeof user?.branch === 'object' ? (user.branch?.shortName || user.branch?.name) : user?.branch) || user?.usn || user?.email || 'AskUrSenior Plus'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <ChevronRight size={13} color={isDark ? "#555555" : "#9CA3AF"} />
+                        </button>
                     </div>
-
-                    <ChevronRight size={13} color={isDark ? "#555555" : "#9CA3AF"} />
-                </button>
+                )}
             </div>
         </aside>
     );

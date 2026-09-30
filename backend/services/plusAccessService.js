@@ -105,13 +105,104 @@ const resolvePlusAccess = (user) => {
         };
     }
 
-    // 3. FUTURE EXTENSION: Paid subscription / Razorpay hook will be plugged in here
-    // Example future logic:
-    // if (user.hasActiveSubscription || user.subscriptionStatus === 'ACTIVE') {
-    //     return { hasPlusAccess: true, plan: 'PLUS', source: 'SUBSCRIPTION' };
-    // }
+    // 3. MANUAL ADMIN GRANT PRIORITY: Explicit administrative overrides with start & expiry dates
+    if (user.plusGrant && user.plusGrant.isActive) {
+        const now = new Date();
+        const validFrom = user.plusGrant.validFrom ? new Date(user.plusGrant.validFrom) : null;
+        const validUntil = user.plusGrant.validUntil ? new Date(user.plusGrant.validUntil) : null;
 
-    // 4. NORMAL USER: Standard users remain Free
+        const isStarted = !validFrom || validFrom <= now;
+        const isNotExpired = !validUntil || validUntil > now;
+
+        if (isStarted && isNotExpired) {
+            return {
+                hasPlusAccess: true,
+                plan: 'PLUS',
+                source: 'MANUAL',
+                validFrom: user.plusGrant.validFrom,
+                validUntil: user.plusGrant.validUntil,
+                reason: user.plusGrant.reason || '',
+                grantedAt: user.plusGrant.grantedAt,
+                grantedByName: user.plusGrant.grantedByName || 'Administrator',
+                isExpired: false
+            };
+        }
+    }
+
+    // 4. ACTIVE SUBSCRIPTION PRIORITY: Users with an active paid semester subscription
+    if (
+        user.hasActiveSubscription === true ||
+        user.isPlus === true ||
+        user.plan === 'plus' ||
+        user.plan === 'PLUS' ||
+        user.subscription === 'plus' ||
+        user.subscription === 'askplus' ||
+        user.subscriptionStatus === 'ACTIVE'
+    ) {
+        return {
+            hasPlusAccess: true,
+            plan: 'PLUS',
+            source: 'SUBSCRIPTION'
+        };
+    }
+
+    // 5. NORMAL USER: Standard users remain Free
+    return {
+        hasPlusAccess: false,
+        plan: 'FREE',
+        source: 'NONE'
+    };
+};
+
+/**
+ * Resolves Plus access asynchronously with direct database check against StudentAccount/User collections and Subscription collection.
+ *
+ * @param {Object|string} userOrUserId
+ * @returns {Promise<{ hasPlusAccess: boolean, plan: 'PLUS' | 'FREE', source: 'ADMIN' | 'TEST_USER' | 'MANUAL' | 'SUBSCRIPTION' | 'NONE' }>}
+ */
+const resolvePlusAccessAsync = async (userOrUserId) => {
+    if (!userOrUserId) {
+        return { hasPlusAccess: false, plan: 'FREE', source: 'NONE' };
+    }
+
+    if (typeof userOrUserId === 'object') {
+        const syncResult = resolvePlusAccess(userOrUserId);
+        if (syncResult.hasPlusAccess) return syncResult;
+    }
+
+    const userId = typeof userOrUserId === 'object' ? (userOrUserId._id || userOrUserId.id) : userOrUserId;
+    if (!userId) {
+        return { hasPlusAccess: false, plan: 'FREE', source: 'NONE' };
+    }
+
+    try {
+        const StudentAccount = require('../models/StudentAccount');
+        const User = require('../models/User');
+
+        const dbUser = await StudentAccount.findById(userId) || await User.findById(userId);
+        if (dbUser) {
+            const dbSyncResult = resolvePlusAccess(dbUser);
+            if (dbSyncResult.hasPlusAccess) return dbSyncResult;
+        }
+
+        const Subscription = require('../models/Subscription');
+        const activeSub = await Subscription.findOne({
+            userId,
+            status: 'ACTIVE',
+            endDate: { $gte: new Date() }
+        });
+        if (activeSub) {
+            return {
+                hasPlusAccess: true,
+                plan: 'PLUS',
+                source: 'SUBSCRIPTION',
+                subscription: activeSub
+            };
+        }
+    } catch (err) {
+        console.error('Error in resolvePlusAccessAsync:', err);
+    }
+
     return {
         hasPlusAccess: false,
         plan: 'FREE',
@@ -133,11 +224,92 @@ const canAccessPlus = (user) => {
  * Formats the standard access payload for API responses and DTOs.
  *
  * @param {Object|null|undefined} user
- * @returns {{ plan: 'PLUS' | 'FREE', source: 'ADMIN' | 'TEST_USER' | 'SUBSCRIPTION' | 'NONE' }}
+ * @returns {{ plan: 'PLUS' | 'FREE', source: 'ADMIN' | 'TEST_USER' | 'MANUAL' | 'SUBSCRIPTION' | 'NONE' }}
  */
 const getAccessPayload = (user) => {
     const { plan, source } = resolvePlusAccess(user);
     return { plan, source };
+};
+
+/**
+ * Helper to grant manual AskUrSenior Plus access with explicit validity dates and administrative rationale.
+ * Updates both StudentAccount and legacy User collections.
+ *
+ * @param {string|import('mongoose').Types.ObjectId} userId
+ * @param {{ validFrom?: Date|string, validUntil: Date|string, reason?: string, adminId?: any, adminName?: string }} grantParams
+ * @returns {Promise<{ success: boolean, updated: boolean, user: Object|null, access: Object }>}
+ */
+const grantManualPlusAccess = async (userId, { validFrom, validUntil, reason = '', adminId = null, adminName = 'Administrator' } = {}) => {
+    const StudentAccount = require('../models/StudentAccount');
+    const User = require('../models/User');
+
+    const fromDate = validFrom ? new Date(validFrom) : new Date();
+    const untilDate = validUntil ? new Date(validUntil) : null;
+
+    const plusGrant = {
+        source: 'MANUAL',
+        validFrom: fromDate,
+        validUntil: untilDate,
+        reason: (reason || '').trim(),
+        grantedBy: adminId,
+        grantedByName: adminName,
+        grantedAt: new Date(),
+        revokedAt: null,
+        revokedBy: null,
+        isActive: true
+    };
+
+    const updatePayload = {
+        plusGrant
+    };
+
+    const [studentUpdate, userUpdate] = await Promise.all([
+        StudentAccount.findByIdAndUpdate(userId, updatePayload, { new: true }).catch(() => null),
+        User.findByIdAndUpdate(userId, updatePayload, { new: true }).catch(() => null)
+    ]);
+
+    const updatedUser = studentUpdate || userUpdate;
+    const access = resolvePlusAccess(updatedUser);
+
+    return {
+        success: true,
+        updated: !!updatedUser,
+        user: updatedUser,
+        access
+    };
+};
+
+/**
+ * Helper to revoke manual AskUrSenior Plus access for a user.
+ *
+ * @param {string|import('mongoose').Types.ObjectId} userId
+ * @param {{ adminId?: any, adminName?: string, reason?: string }} revokeParams
+ * @returns {Promise<{ success: boolean, updated: boolean, user: Object|null, access: Object }>}
+ */
+const revokeManualPlusAccess = async (userId, { adminId = null, adminName = 'Administrator', reason = '' } = {}) => {
+    const StudentAccount = require('../models/StudentAccount');
+    const User = require('../models/User');
+
+    const updatePayload = {
+        'plusGrant.isActive': false,
+        'plusGrant.revokedAt': new Date(),
+        'plusGrant.revokedBy': adminId
+    };
+
+    const [studentUpdate, userUpdate] = await Promise.all([
+        StudentAccount.findByIdAndUpdate(userId, updatePayload, { new: true }).catch(() => null),
+        User.findByIdAndUpdate(userId, updatePayload, { new: true }).catch(() => null)
+    ]);
+
+    const updatedUser = studentUpdate || userUpdate;
+    const access = resolvePlusAccess(updatedUser);
+
+    return {
+        success: true,
+        updated: !!updatedUser,
+        user: updatedUser,
+        access
+    };
 };
 
 /**
@@ -168,9 +340,12 @@ const setTestUserStatus = async (userId, isTestUser = true) => {
 
 module.exports = {
     resolvePlusAccess,
+    resolvePlusAccessAsync,
     canAccessPlus,
     getAccessPayload,
     isUserAdmin,
     isUserTestUser,
-    setTestUserStatus
+    setTestUserStatus,
+    grantManualPlusAccess,
+    revokeManualPlusAccess
 };

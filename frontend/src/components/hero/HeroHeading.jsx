@@ -2,25 +2,19 @@
  * HeroHeading.jsx
  * ─────────────────────────────────────────────────────────
  * Large, bold typography heading for AskUrSenior Hero.
- * Gradient applied exclusively to important words like "SIT Student".
+ * Purple accent applied to SIT.
  * ─────────────────────────────────────────────────────────
  */
 
 import React from 'react';
-import { motion } from 'framer-motion';
 
 const HeroHeading = () => {
     return (
-        <motion.h1
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-            className="text-4xl sm:text-5xl lg:text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.1] mb-4 font-outfit text-slate-900 dark:text-white select-none"
-        >
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.15] mb-4 text-[#111827] dark:text-[#F3F4F6] select-none">
             Everything <br />
-            Every <span className="text-purple-600 dark:text-purple-400 font-black">SIT</span> Student <br />
+            Every <span className="text-[#7C3AED] dark:text-[#A78BFA]">SIT</span> Student <br />
             Needs.
-        </motion.h1>
+        </h1>
     );
 };
 

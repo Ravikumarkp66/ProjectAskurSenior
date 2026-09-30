@@ -7,6 +7,7 @@ import {
     AlertCircle, ChevronDown, CheckCircle2, Lock, Award 
 } from 'lucide-react';
 import { StudentAcademicsProvider, useStudentAcademics } from '../../../contexts/StudentAcademicsContext';
+import { useTheme } from '../../../context/ThemeContext';
 import AcademicOverviewSection from './sections/AcademicOverviewSection';
 import SemestersSection from './sections/SemestersSection';
 import SubjectsSection from './sections/SubjectsSection';
@@ -26,6 +27,7 @@ const NAV_TABS = [
 const InnerLayout = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const { isDark = true } = useTheme?.() || { isDark: true };
     const { 
         loading, 
         error, 
@@ -53,9 +55,9 @@ const InnerLayout = () => {
                 justifyContent: 'center',
                 height: '320px',
                 gap: '12px',
-                color: 'rgba(148, 163, 184, 0.5)'
+                color: isDark ? 'rgba(148, 163, 184, 0.5)' : '#64748B'
             }}>
-                <Loader2 className="animate-spin" size={26} color="#a78bfa" />
+                <Loader2 className="animate-spin" size={26} color={isDark ? '#a78bfa' : '#6d28d9'} />
                 <span style={{ fontSize: '13px', fontWeight: 500 }}>Loading Student Academics...</span>
             </div>
         );
@@ -66,16 +68,16 @@ const InnerLayout = () => {
             <div style={{
                 padding: '24px',
                 borderRadius: '12px',
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#fca5a5',
+                background: isDark ? 'rgba(239, 68, 68, 0.1)' : '#FEF2F2',
+                border: isDark ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #FECACA',
+                color: isDark ? '#fca5a5' : '#B91C1C',
                 maxWidth: '500px',
                 margin: '40px auto',
                 textAlign: 'center'
             }}>
-                <AlertCircle size={28} color="#f87171" style={{ margin: '0 auto 10px' }} />
-                <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '0 0 6px' }}>Failed to load academic records</h3>
-                <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '0 0 14px' }}>{error}</p>
+                <AlertCircle size={28} color={isDark ? '#f87171' : '#dc2626'} style={{ margin: '0 auto 10px' }} />
+                <h3 style={{ fontSize: '14px', fontWeight: 700, color: isDark ? '#fff' : '#991B1B', margin: '0 0 6px' }}>Failed to load academic records</h3>
+                <p style={{ fontSize: '12px', color: isDark ? '#cbd5e1' : '#B91C1C', margin: '0 0 14px' }}>{error}</p>
                 <button
                     onClick={() => window.location.reload()}
                     style={{
@@ -141,8 +143,8 @@ const InnerLayout = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3 }}
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: isDark ? 'rgba(19, 18, 26, 0.45)' : '#FFFFFF',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid #E2E8F0',
                         borderRadius: '12px',
                         padding: '16px',
                         backdropFilter: 'blur(20px)',
@@ -151,7 +153,8 @@ const InnerLayout = () => {
                         flexDirection: 'column',
                         gap: '12px',
                         height: '100%',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        boxShadow: isDark ? 'none' : '0 1px 3px rgba(15, 23, 42, 0.06)'
                     }}
                 >
                     {/* Back to Home link */}
@@ -161,7 +164,7 @@ const InnerLayout = () => {
                             display: 'flex',
                             alignItems: 'center',
                             gap: '5px',
-                            color: 'rgba(148, 163, 184, 0.65)',
+                            color: isDark ? 'rgba(148, 163, 184, 0.65)' : '#64748B',
                             fontSize: '11px',
                             fontWeight: 600,
                             textDecoration: 'none',
@@ -169,23 +172,23 @@ const InnerLayout = () => {
                             cursor: 'pointer',
                             alignSelf: 'flex-start'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)'}
+                        onMouseEnter={e => e.currentTarget.style.color = isDark ? '#fff' : '#0F172A'}
+                        onMouseLeave={e => e.currentTarget.style.color = isDark ? 'rgba(148, 163, 184, 0.65)' : '#64748B'}
                     >
                         <ArrowLeft size={12} />
                         <span>Back to Home</span>
                     </Link>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
+                        <h2 style={{ fontSize: '15px', fontWeight: 700, color: isDark ? '#fff' : '#0F172A', margin: '0 0 4px 0', letterSpacing: '-0.01em' }}>
                             Student Academics
                         </h2>
-                        <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.55)', fontWeight: 500 }}>
+                        <span style={{ fontSize: '11px', color: isDark ? 'rgba(148, 163, 184, 0.55)' : '#64748B', fontWeight: 500 }}>
                             Academic management workspace
                         </span>
                     </div>
 
-                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: isDark ? 'rgba(255, 255, 255, 0.06)' : '#E2E8F0', margin: '4px 0' }} />
 
                     {/* Navigation list */}
                     <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
@@ -200,14 +203,18 @@ const InnerLayout = () => {
                                     style={{
                                         padding: '9px 12px',
                                         borderRadius: '8px',
-                                        color: isActive ? '#a78bfa' : 'rgba(148, 163, 184, 0.65)',
+                                        color: isActive 
+                                            ? (isDark ? '#a78bfa' : '#6d28d9') 
+                                            : (isDark ? 'rgba(148, 163, 184, 0.65)' : '#64748B'),
                                         background: isActive
-                                            ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
+                                            ? (isDark 
+                                                ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(99, 102, 241, 0.12))'
+                                                : '#F5F3FF')
                                             : 'transparent',
                                         border: isActive
-                                            ? '1px solid rgba(139, 92, 246, 0.25)'
+                                            ? (isDark ? '1px solid rgba(139, 92, 246, 0.25)' : '1px solid rgba(124, 58, 237, 0.25)')
                                             : '1px solid transparent',
-                                        boxShadow: isActive ? '0 4px 12px rgba(124, 58, 237, 0.08)' : 'none',
+                                        boxShadow: isActive ? (isDark ? '0 4px 12px rgba(124, 58, 237, 0.08)' : '0 1px 3px rgba(124, 58, 237, 0.08)') : 'none',
                                         fontSize: '12.5px',
                                         fontWeight: isActive ? 600 : 500,
                                         display: 'flex',
@@ -221,14 +228,14 @@ const InnerLayout = () => {
                                     }}
                                     onMouseEnter={e => {
                                         if (!isActive) {
-                                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.85)';
+                                            e.currentTarget.style.background = isDark ? 'rgba(255, 255, 255, 0.03)' : '#F8FAFC';
+                                            e.currentTarget.style.color = isDark ? 'rgba(148, 163, 184, 0.85)' : '#0F172A';
                                         }
                                     }}
                                     onMouseLeave={e => {
                                         if (!isActive) {
                                             e.currentTarget.style.background = 'transparent';
-                                            e.currentTarget.style.color = 'rgba(148, 163, 184, 0.65)';
+                                            e.currentTarget.style.color = isDark ? 'rgba(148, 163, 184, 0.65)' : '#64748B';
                                         }
                                     }}
                                 >
@@ -243,15 +250,15 @@ const InnerLayout = () => {
                     <div style={{
                         marginTop: 'auto',
                         paddingTop: '12px',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderTop: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #E2E8F0',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         fontSize: '11px',
-                        color: 'rgba(148, 163, 184, 0.6)'
+                        color: isDark ? 'rgba(148, 163, 184, 0.6)' : '#64748B'
                     }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#c4b5fd' }}>
-                            <CheckCircle2 size={11} color="#34d399" /> Structure synced
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: isDark ? '#c4b5fd' : '#6d28d9' }}>
+                            <CheckCircle2 size={11} color="#10B981" /> Structure synced
                         </span>
                         <span style={{ fontSize: '10px', fontFamily: 'monospace' }}>Sem {selectedSemester}</span>
                     </div>
@@ -263,8 +270,8 @@ const InnerLayout = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.1 }}
                     style={{
-                        background: 'rgba(19, 18, 26, 0.45)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: isDark ? 'rgba(19, 18, 26, 0.45)' : '#FFFFFF',
+                        border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid #E2E8F0',
                         borderRadius: '12px',
                         padding: '20px',
                         backdropFilter: 'blur(20px)',
@@ -273,7 +280,8 @@ const InnerLayout = () => {
                         height: '100%',
                         overflowY: 'auto',
                         overflowX: 'auto',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        boxShadow: isDark ? 'none' : '0 1px 3px rgba(15, 23, 42, 0.06)'
                     }}
                 >
                     {/* Compact Workspace Header Bar */}
@@ -283,12 +291,12 @@ const InnerLayout = () => {
                         justifyContent: 'space-between',
                         marginBottom: '16px',
                         paddingBottom: '12px',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+                        borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #E2E8F0'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'rgba(148, 163, 184, 0.6)' }}>
-                            <span style={{ color: 'rgba(255, 255, 255, 0.85)', fontWeight: 600 }}>Student Academics</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: isDark ? 'rgba(148, 163, 184, 0.6)' : '#64748B' }}>
+                            <span style={{ color: isDark ? 'rgba(255, 255, 255, 0.85)' : '#0F172A', fontWeight: 600 }}>Student Academics</span>
                             <ChevronRight size={12} />
-                            <span style={{ color: '#a78bfa', fontWeight: 600 }}>{activeTabObj.label}</span>
+                            <span style={{ color: isDark ? '#a78bfa' : '#6d28d9', fontWeight: 600 }}>{activeTabObj.label}</span>
                         </div>
 
                         {/* Semester Switcher Pill */}
@@ -299,24 +307,24 @@ const InnerLayout = () => {
                                 gap: '6px',
                                 padding: '4px 12px',
                                 borderRadius: '8px',
-                                background: 'rgba(19, 18, 26, 0.7)',
-                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                background: isDark ? 'rgba(19, 18, 26, 0.7)' : '#F8FAFC',
+                                border: isDark ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid #E2E8F0',
                                 fontSize: '12px',
                                 fontWeight: 600,
-                                color: '#e2e8f0',
+                                color: isDark ? '#e2e8f0' : '#0F172A',
                                 cursor: 'pointer'
                             }}>
                                 <span style={{
                                     width: '6px',
                                     height: '6px',
                                     borderRadius: '50%',
-                                    background: isFinalized ? '#a78bfa' : '#34d399'
+                                    background: isFinalized ? (isDark ? '#a78bfa' : '#7c3aed') : '#10B981'
                                 }} />
                                 <span>Semester {selectedSemester}</span>
-                                <span style={{ fontSize: '10px', color: 'rgba(148, 163, 184, 0.6)', fontWeight: 400 }}>
+                                <span style={{ fontSize: '10px', color: isDark ? 'rgba(148, 163, 184, 0.6)' : '#64748B', fontWeight: 400 }}>
                                     {isFinalized ? '· Finalized 🔒' : '· Active ●'}
                                 </span>
-                                <ChevronDown size={12} color="#a78bfa" />
+                                <ChevronDown size={12} color={isDark ? '#a78bfa' : '#6d28d9'} />
                                 <select
                                     value={selectedSemester}
                                     onChange={(e) => selectSemester(Number(e.target.value))}
@@ -330,7 +338,7 @@ const InnerLayout = () => {
                                     }}
                                 >
                                     {semestersData.map(s => (
-                                        <option key={s.semester} value={s.semester} style={{ background: '#0f0a1e', color: '#fff' }}>
+                                        <option key={s.semester} value={s.semester} style={{ background: isDark ? '#0f0a1e' : '#FFFFFF', color: isDark ? '#fff' : '#0F172A' }}>
                                             Semester {s.semester} {s.semester === currentSemester ? '(Current Active)' : s.status === 'completed' ? '(Finalized)' : '(Upcoming)'}
                                         </option>
                                     ))}
@@ -381,12 +389,12 @@ const InnerLayout = () => {
                                     cursor: 'pointer',
                                     whiteSpace: 'nowrap',
                                     background: isActive
-                                        ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))'
-                                        : 'rgba(19, 18, 26, 0.6)',
+                                        ? (isDark ? 'linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(99, 102, 241, 0.2))' : '#F5F3FF')
+                                        : (isDark ? 'rgba(19, 18, 26, 0.6)' : '#FFFFFF'),
                                     border: isActive
-                                        ? '1px solid rgba(139, 92, 246, 0.4)'
-                                        : '1px solid rgba(255, 255, 255, 0.06)',
-                                    color: isActive ? '#c4b5fd' : 'rgba(148, 163, 184, 0.7)'
+                                        ? (isDark ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(124, 58, 237, 0.3)')
+                                        : (isDark ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid #E2E8F0'),
+                                    color: isActive ? (isDark ? '#c4b5fd' : '#6d28d9') : (isDark ? 'rgba(148, 163, 184, 0.7)' : '#64748B')
                                 }}
                             >
                                 <Icon size={13} />
@@ -401,12 +409,13 @@ const InnerLayout = () => {
                     flex: 1,
                     minWidth: 0,
                     overflowY: 'auto',
-                    background: 'rgba(19, 18, 26, 0.45)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    background: isDark ? 'rgba(19, 18, 26, 0.45)' : '#FFFFFF',
+                    border: isDark ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid #E2E8F0',
                     borderRadius: '12px',
                     padding: '14px',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: isDark ? 'none' : '0 1px 3px rgba(15, 23, 42, 0.06)'
                 }}>
                     <AnimatePresence mode="wait">
                         <motion.div

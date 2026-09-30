@@ -87,6 +87,52 @@ const userSchema = new mongoose.Schema(
             default: false,
             index: true
         },
+        plusGrant: {
+            source: {
+                type: String,
+                enum: ['MANUAL', 'NONE'],
+                default: 'MANUAL'
+            },
+            validFrom: {
+                type: Date,
+                default: null
+            },
+            validUntil: {
+                type: Date,
+                default: null
+            },
+            reason: {
+                type: String,
+                default: '',
+                trim: true
+            },
+            grantedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                default: null
+            },
+            grantedByName: {
+                type: String,
+                default: ''
+            },
+            grantedAt: {
+                type: Date,
+                default: null
+            },
+            revokedAt: {
+                type: Date,
+                default: null
+            },
+            revokedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+                default: null
+            },
+            isActive: {
+                type: Boolean,
+                default: false
+            }
+        },
         registrationComplete: {
             type: Boolean,
             default: true

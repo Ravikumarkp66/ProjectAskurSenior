@@ -83,7 +83,7 @@ const SgpaMobileEntry = ({
                                             {sub.cieMarks} / 50
                                         </span>
                                         <button
-                                            onClick={() => navigate('/home/cie')}
+                                            onClick={() => navigate('/plus/cie')}
                                             className="text-[10px] font-semibold text-purple-300 flex items-center gap-1 mt-0.5"
                                         >
                                             <span>View CIE</span>
@@ -92,7 +92,7 @@ const SgpaMobileEntry = ({
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => navigate('/home/cie')}
+                                        onClick={() => navigate('/plus/cie')}
                                         className="text-[10px] font-bold text-amber-400 mt-1"
                                     >
                                         Complete CIE →

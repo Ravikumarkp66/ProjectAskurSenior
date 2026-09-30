@@ -1,77 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, HelpCircle, MessageSquare, ArrowRight, Mail } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ChevronDown, HelpCircle } from 'lucide-react';
 import { faqAPI } from '../../services/api';
 
 const defaultFaqCategories = {
     'Getting Started': [
-        { id: 'gs-1', question: 'What is AskUrSenior?', answer: 'AskUrSenior is an all-in-one student platform built specifically for Siddaganga Institute of Technology. It brings together study materials, previous year question papers, AI assistance, interview experiences, faculty profiles, campus tools, and student guidance in one place.' },
-        { id: 'gs-2', question: 'Who can use AskUrSenior?', answer: 'Any student studying at Siddaganga Institute of Technology can create an account and use the platform. Some premium features are available through AskUrSenior Plus.' },
-        { id: 'gs-3', question: 'Is AskUrSenior free to use?', answer: 'Yes. Many core features such as study materials, campus tools, faculty profiles, blogs, and calculators are available for free. Premium features are unlocked through AskUrSenior Plus.' }
+        { id: 'gs-1', question: 'What is AskUrSenior?', answer: 'AskUrSenior is an all-in-one student platform built specifically for Siddaganga Institute of Technology. It brings together subject study materials, solved previous year question papers (PYQs), section timetables, attendance tracking with the 85% SIT rule, CIE mark analyzer, coding playground for lab manual programs, and verified senior interview experiences in one centralized place.' },
+        { id: 'gs-2', question: 'Who can use AskUrSenior?', answer: 'Any student currently studying at Siddaganga Institute of Technology can create an account using their college or personal email. Core study materials, calculators, roadmaps, and community access are free, while advanced semester management tools are part of AskUrSenior Plus.' },
+        { id: 'gs-3', question: 'Is AskUrSenior free to use?', answer: 'Yes! Core features such as subject study materials, solved SEE question papers, SGPA/CGPA calculators, campus map, and student community discussions are completely free forever.' }
     ],
-    'Study Materials': [
-        { id: 'sm-1', question: 'What kind of study materials are available?', answer: 'High-quality module notes, lab manuals, assignment solutions, formula sheets, and toppers notes for all SIT engineering branches.' },
-        { id: 'sm-2', question: 'Are previous year question papers available?', answer: 'Yes, we provide organized Semester End Exam (SEE) and internal test question papers categorized by scheme and semester.' },
-        { id: 'sm-3', question: 'Who uploads and verifies the study materials?', answer: 'Materials are uploaded by verified toppers, senior students, and community leads, then checked for accuracy.' },
-        { id: 'sm-4', question: 'How often are new materials added?', answer: 'Study resources and exam updates are added continuously every week based on current semester syllabus changes.' },
-        { id: 'sm-5', question: 'Can I contribute notes or PYQs?', answer: 'Absolutely! You can upload notes through your student dashboard or submit them directly to community admins.' }
+    'Academic Tools': [
+        { id: 'at-1', question: 'How does the Smart Attendance Tracker work?', answer: 'It automatically synchronizes with your department and section timetable, supports lab-batch filtering (B1/B2/B3), enforces SIT’s 85% attendance policy, calculates your exact safe bunk margin ("Can Miss"), and displays your daily schedule in real-time.' },
+        { id: 'at-2', question: 'What does the CIE Analyzer do?', answer: 'The CIE Analyzer handles 50-mark normalization using Best-of-N internal test scores and IPCC theory/lab split ratios. It then calculates the exact SEE exam marks required to maintain or achieve your target semester grade (O, A+, A, B).' },
+        { id: 'at-3', question: 'What is the Branch Change Predictor?', answer: 'The Branch Change Predictor compares your 1st-year CGPA against historical SIT department cutoffs to determine transfer odds and your live CGPA gap (Δ).' },
+        { id: 'at-4', question: 'What is the Pre-Exam Eligibility Checker?', answer: 'It audits your dual compliance (minimum 85% attendance across subjects + minimum 20/50 aggregate CIE marks) to verify that you meet all SIT hall-ticket eligibility requirements.' }
+    ],
+    'Coding & Labsets': [
+        { id: 'cp-1', question: 'What is the Monaco Coding Playground?', answer: 'An in-browser code editor supporting C, C++, Java, and Python. It is tailored for SIT engineering students to practice coding without local compiler setup issues.' },
+        { id: 'cp-2', question: 'Are college lab manual problem sets included?', answer: 'Yes, official college lab manual problems are organized with automated test cases, reference implementations, and custom input/output runners.' }
+    ],
+    'Study Materials & PYQs': [
+        { id: 'sm-1', question: 'What study materials are available on AskUrSenior?', answer: 'High-quality lecture notes, module-wise question banks, lab manuals, formula sheets, and toppers’ reference notes categorized by SIT engineering branches and schemes.' },
+        { id: 'sm-2', question: 'Are solved Previous Year Question Papers (PYQs) available?', answer: 'Yes, Semester End Exam (SEE) question papers from previous years are provided with step-by-step solutions and KaTeX mathematical proofs.' },
+        { id: 'sm-3', question: 'Can students contribute notes or interview logs?', answer: 'Yes! Students can upload verified notes or share their company placement interview experiences directly through the platform.' }
     ],
     'AskUrSenior Plus': [
-        { id: 'p-1', question: 'What is AskUrSenior Plus?', answer: 'AskUrSenior Plus is our premium membership plan providing unlimited AI queries, exclusive topper notes, priority download bandwidth, and advanced career insights.' },
-        { id: 'p-2', question: 'What features are included in Plus?', answer: 'Unlimited Ask+ RAG questions, premium SEE question banks with answer keys, company cutoff predictor, and priority support.' },
-        { id: 'p-3', question: 'Will I receive future premium updates?', answer: 'Yes, all active Plus subscribers automatically get access to new tools and feature releases at no extra charge.' },
-        { id: 'p-4', question: 'Can I cancel my subscription?', answer: 'Yes, you can manage or cancel your subscription at any time directly from your account settings.' },
-        { id: 'p-5', question: 'Is Plus worth it for first-year students?', answer: 'Yes! First-year students get instant access to 1st/2nd sem subject notes, credit calculators, and branch change predictors.' }
+        { id: 'p-1', question: 'What is AskUrSenior Plus?', answer: 'AskUrSenior Plus is our premium semester toolkit that unlocks section timetable syncing, attendance deficit planners, CIE & target SEE forecasters, branch change predictors, lab coding playgrounds, and 1-credit subject quizzes.' },
+        { id: 'p-2', question: 'Is Plus a one-time semester payment or recurring subscription?', answer: 'Plus is a simple one-time payment for the entire semester. There are zero auto-renewals, zero recurring credit card deductions, and no hidden fees.' },
+        { id: 'p-3', question: 'What happens when my Plus semester pass ends?', answer: 'Your account automatically reverts to AskUrSenior Free with zero data loss. Your notes, saved resources, and free tools remain accessible forever.' }
     ],
-    'Ask+ AI Assistant': [
-        { id: 'ai-1', question: 'What is Ask+?', answer: 'Ask+ is our custom AI study assistant trained specifically on SIT syllabus data, academic rules, and course materials.' },
-        { id: 'ai-2', question: 'How is Ask+ different from ChatGPT?', answer: 'Unlike general ChatGPT, Ask+ uses Retrieval-Augmented Generation (RAG) on verified SIT notes, past papers, and university guidelines.' },
-        { id: 'ai-3', question: 'How many AI questions can I ask every day?', answer: 'Free accounts get daily query credits, while AskUrSenior Plus members enjoy unlimited AI chat access.' },
-        { id: 'ai-4', question: 'Can Ask+ answer SIT-specific academic questions?', answer: 'Yes, Ask+ is specifically fine-tuned on SIT syllabus modules, credit grading policies, and internal marks evaluation formulas.' },
-        { id: 'ai-5', question: 'What happens after my AI credits are exhausted?', answer: 'Daily credits refresh automatically every 24 hours, or you can upgrade to Plus for uninterrupted access.' }
+    'Placements & Interviews': [
+        { id: 'pi-1', question: 'What are Senior Interview Experiences?', answer: 'Detailed interview logs submitted by placed SIT seniors, containing round breakdowns, coding questions, Online Assessment (OA) topics, and technical/HR interview tips for top recruiters.' },
+        { id: 'pi-2', question: 'Are company eligibility cutoffs provided?', answer: 'Yes, historical CGPA cutoffs and eligible branches for companies visiting SIT campus placements are listed for quick reference.' }
     ],
-    'Campus Tools': [
-        { id: 'ct-1', question: 'What campus tools are available?', answer: 'CGPA/SGPA Calculator, CIE Analyzer, Eligibility Checker, Year Back Predictor, Interactive Campus Map, and Lost & Found portal.' },
-        { id: 'ct-2', question: 'Can I use the CGPA calculator for free?', answer: 'Yes, the CGPA and SGPA calculators are 100% free and calibrated to SIT choice-based credit policies.' },
-        { id: 'ct-3', question: 'How does Campus Explorer work?', answer: 'Campus Explorer provides interactive 2D/3D map layouts of SIT blocks, departments, canteens, libraries, and auditoriums.' },
-        { id: 'ct-4', question: 'What is the Lost & Found feature?', answer: 'A dedicated portal where students can post lost or found items on campus to quickly reconnect with their owners.' },
-        { id: 'ct-5', question: 'What are Faculty Profiles?', answer: 'Anonymous student feedback and insights on faculty teaching methods, lab evaluations, and elective guidance.' }
-    ],
-    'Community': [
-        { id: 'c-1', question: 'Who are the Community Contributors?', answer: 'Senior students and alumni who voluntarily share notes, guide freshers, post interview experiences, and support SIT juniors.' },
-        { id: 'c-2', question: 'How can I become a Community Contributor?', answer: 'Active students who regularly contribute verified notes, write interview logs, or help in support channels are awarded Contributor badges.' },
-        { id: 'c-3', question: 'Can I upload study materials?', answer: 'Yes! You can submit PDFs and notes through your user upload panel.' },
-        { id: 'c-4', question: 'Can I share interview experiences?', answer: 'Yes, placed seniors can share their company interview rounds, coding questions, and prep tips to help juniors prepare.' },
-        { id: 'c-5', question: 'How are contributed resources verified?', answer: 'Submissions undergo peer verification by domain leads before being published live on the platform.' }
-    ],
-    'Account & Privacy': [
-        { id: 'ap-1', question: 'Can I sign in with Google?', answer: 'Yes, fast 1-click Google OAuth sign-in is fully supported for all SIT student emails.' },
-        { id: 'ap-2', question: 'Is my personal information secure?', answer: 'Yes, we use industry-standard encryption, strict access controls, and private database configurations to protect student data.' },
-        { id: 'ap-3', question: 'Can I edit my profile later?', answer: 'Yes, you can update your branch, USN, semester, and preferences in your account settings anytime.' },
-        { id: 'ap-4', question: 'Can I delete my account?', answer: 'Yes, you can request account deletion or data purge at any time from your security settings.' },
-        { id: 'ap-5', question: 'Will other students see my personal details?', answer: 'No, your personal contact information remains strictly private. Only public profile details (like contributor badges if enabled) are displayed.' }
-    ],
-    'Payments': [
-        { id: 'pms-1', question: 'Which payment methods are supported?', answer: 'We support UPI (Google Pay, PhonePe, Paytm), Credit/Debit Cards, Net Banking, and Wallet payments via secure Razorpay checkout.' },
-        { id: 'pms-2', question: 'Is there a refund policy?', answer: 'Yes, we offer a hassle-free 3-day refund guarantee if you encounter any technical issues with your Plus activation.' },
-        { id: 'pms-3', question: 'What happens if my payment fails?', answer: 'If money was debited during a failed transaction, it is automatically refunded by your bank within 3-5 business days.' },
-        { id: 'pms-4', question: 'Can I upgrade my subscription later?', answer: 'Yes, you can upgrade your plan or renew existing passes whenever you choose.' },
-        { id: 'pms-5', question: 'Will my subscription renew automatically?', answer: 'No, we do not charge hidden auto-renewals. You decide when to manually renew your pass.' }
-    ],
-    'General': [
-        { id: 'g-1', question: 'Who built AskUrSenior?', answer: 'AskUrSenior was created by Ravikumar KP, an ISE student at SIT Tumakuru, along with student community contributors.' },
-        { id: 'g-2', question: 'Why was AskUrSenior created?', answer: 'To eliminate scattered study resources and provide a single, organized academic & campus hub for every SIT student.' },
-        { id: 'g-3', question: 'How can I report incorrect information?', answer: 'You can use the "Report Issue" button on any material page or send a message via our support widget.' },
-        { id: 'g-4', question: 'How do I contact the AskUrSenior team?', answer: 'You can email us at askursenior66@gmail.com or connect via our official WhatsApp community leads.' },
-        { id: 'g-5', question: 'Where can I submit feedback or feature requests?', answer: 'We welcome student feedback! Submit ideas via the in-app feedback modal or support widget.' }
+    'Account & Security': [
+        { id: 'as-1', question: 'Is my personal academic data private?', answer: 'Yes. Your personal contact information and internal academic grades are strictly confidential and encrypted.' },
+        { id: 'as-2', question: 'Can I update my branch, semester, and section?', answer: 'Yes, you can update your department branch, semester, section, and elective preferences at any time from your Account Settings.' }
     ]
 };
 
 const FaqSection = ({ data }) => {
     const [faqData, setFaqData] = useState(defaultFaqCategories);
     const [activeCategory, setActiveCategory] = useState('Getting Started');
-    const [openIndex, setOpenIndex] = useState(0); // Only 1 accordion open at a time
+    const [openIndex, setOpenIndex] = useState(0);
 
     useEffect(() => {
         let isMounted = true;
@@ -86,7 +57,7 @@ const FaqSection = ({ data }) => {
                 }
             })
             .catch(err => {
-                console.error('Failed to fetch FAQs from backend, using default fallback data:', err);
+                // Fallback to accurate default FAQ data
             });
 
         return () => {
@@ -104,33 +75,33 @@ const FaqSection = ({ data }) => {
     };
 
     return (
-        <section id="faqs" className="py-24 px-6 relative bg-transparent overflow-hidden">
+        <section id="faqs" className="py-20 px-6 relative bg-transparent overflow-hidden">
             <div className="max-w-6xl mx-auto relative z-10 space-y-12">
                 
                 {/* Section Header */}
                 <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: 0.4 }}
                     className="text-center max-w-3xl mx-auto space-y-3"
                 >
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FAF5FF] dark:bg-[#581C87]/20 border border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#7C3AED] dark:text-[#A78BFA] text-xs font-semibold uppercase tracking-wider mb-2">
                         <HelpCircle className="w-3.5 h-3.5" />
                         <span>Support & Clarity</span>
                     </div>
 
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 dark:text-white font-outfit tracking-tight">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#111827] dark:text-[#F3F4F6] tracking-tight">
                         Frequently Asked Questions
                     </h2>
 
-                    <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base font-normal leading-relaxed">
-                        {data?.subtitle || 'Everything you need to know about AskUrSenior, its features, subscriptions, AI assistant, and community.'}
+                    <p className="text-[#4B5563] dark:text-[#A1A1AA] text-sm sm:text-base font-normal leading-relaxed">
+                        {data?.subtitle || 'Everything you need to know about AskUrSenior, its features, tools, study resources, and Plus access.'}
                     </p>
                 </motion.div>
 
                 {/* 30% : 70% Layout on Desktop; Horizontal Chips on Mobile */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-start">
 
                     {/* Left Side (30%): Category Navigation Pills */}
                     <div 
@@ -145,17 +116,17 @@ const FaqSection = ({ data }) => {
                                     key={cat}
                                     onClick={() => {
                                         setActiveCategory(cat);
-                                        setOpenIndex(0); // Reset open item when switching category
+                                        setOpenIndex(0);
                                     }}
-                                    className={`snap-start min-h-[44px] w-full px-4 py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center justify-between gap-3 text-left shrink-0 whitespace-nowrap md:whitespace-normal touch-manipulation border ${
+                                    className={`snap-start min-h-[40px] w-full px-3.5 py-2.5 rounded-[6px] text-xs sm:text-sm font-medium transition-colors duration-150 flex items-center justify-between gap-3 text-left shrink-0 whitespace-nowrap md:whitespace-normal touch-manipulation border ${
                                         isSelected
-                                            ? 'bg-purple-600 text-white shadow-sm border-purple-600'
-                                            : 'bg-white dark:bg-[#0D111C] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-[#111624] border-slate-200 dark:border-slate-800'
+                                            ? 'bg-[#7C3AED] text-white border-[#7C3AED] shadow-none'
+                                            : 'bg-white dark:bg-[#15181D] text-[#4B5563] dark:text-[#A1A1AA] hover:text-[#111827] dark:hover:text-[#F3F4F6] hover:bg-[#F8FAFC] dark:hover:bg-[#1B1F26] border-[#E5E7EB] dark:border-[#292E37]'
                                     }`}
                                 >
                                     <span>{cat}</span>
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-400'
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                        isSelected ? 'bg-white/20 text-white' : 'bg-[#F1F5F9] dark:bg-[#1B1F26] text-[#6B7280] dark:text-[#9CA3AF]'
                                     }`}>
                                         {count}
                                     </span>
@@ -174,27 +145,27 @@ const FaqSection = ({ data }) => {
                             return (
                                 <motion.div
                                     key={item.id || item.question || index}
-                                    initial={{ opacity: 0, y: 10 }}
+                                    initial={{ opacity: 0, y: 8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.25, delay: index * 0.04 }}
-                                    className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
+                                    transition={{ duration: 0.2, delay: index * 0.03 }}
+                                    className={`rounded-lg border transition-colors duration-150 overflow-hidden shadow-none ${
                                         isOpen
-                                            ? 'bg-white dark:bg-[#0D111C] border-purple-300 dark:border-purple-500/40 shadow-sm'
-                                            : 'bg-white dark:bg-[#0D111C] border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                                            ? 'bg-white dark:bg-[#15181D] border-[#E9D5FF] dark:border-[#7C3AED]/40'
+                                            : 'bg-white dark:bg-[#15181D] border-[#E5E7EB] dark:border-[#292E37] hover:border-[#D1D5DB] dark:hover:border-[#3E4553]'
                                     }`}
                                 >
-                                    {/* Question Header - min 48px touch target */}
+                                    {/* Question Header */}
                                     <button
                                         onClick={() => toggleAccordion(index)}
-                                        className="w-full min-h-[48px] p-4 sm:p-5 flex items-center justify-between gap-4 text-left transition-colors"
+                                        className="w-full min-h-[44px] p-4 sm:p-4.5 flex items-center justify-between gap-4 text-left transition-colors cursor-pointer"
                                     >
-                                        <span className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white font-outfit leading-snug">
+                                        <span className="text-sm sm:text-base font-semibold text-[#111827] dark:text-[#F3F4F6] leading-snug">
                                             {item.question}
                                         </span>
-                                        <div className={`p-1.5 rounded-lg border shrink-0 transition-transform duration-200 ${
+                                        <div className={`p-1.5 rounded-[6px] border shrink-0 transition-transform duration-150 ${
                                             isOpen 
-                                                ? 'rotate-180 bg-purple-50 dark:bg-purple-500/20 border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400' 
-                                                : 'border-slate-200 dark:border-slate-800 text-slate-400'
+                                                ? 'rotate-180 bg-[#FAF5FF] dark:bg-[#581C87]/20 border-[#E9D5FF] dark:border-[#7C3AED]/30 text-[#7C3AED] dark:text-[#A78BFA]' 
+                                                : 'border-[#E5E7EB] dark:border-[#292E37] text-[#6B7280] dark:text-[#9CA3AF]'
                                         }`}>
                                             <ChevronDown className="w-4 h-4" />
                                         </div>
@@ -207,10 +178,10 @@ const FaqSection = ({ data }) => {
                                                 initial={{ height: 0, opacity: 0 }}
                                                 animate={{ height: 'auto', opacity: 1 }}
                                                 exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                                transition={{ duration: 0.2, ease: 'easeInOut' }}
                                                 className="overflow-hidden"
                                             >
-                                                <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-normal leading-relaxed border-t border-slate-100 dark:border-slate-800/80">
+                                                <div className="px-4.5 pb-4 pt-1 text-xs sm:text-sm text-[#4B5563] dark:text-[#A1A1AA] font-normal leading-relaxed border-t border-[#E5E7EB] dark:border-[#292E37]">
                                                     {item.answer}
                                                 </div>
                                             </motion.div>

@@ -4,9 +4,11 @@ import {
     ShieldCheck, Sparkles, AlertTriangle, Layers
 } from 'lucide-react';
 import { useStudentAcademics } from '../../../../contexts/StudentAcademicsContext';
+import { useTheme } from '../../../../context/ThemeContext';
 import toast from 'react-hot-toast';
 
 const SubjectsSection = () => {
+    const { isDark = true } = useTheme?.() || { isDark: true };
     const { 
         selectedSemester, 
         currentSemester, 
@@ -62,19 +64,27 @@ const SubjectsSection = () => {
     return (
         <div className="flex flex-col gap-4 w-full">
             {/* Header info banner */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-transparent border border-purple-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className={`p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm border ${
+                isDark 
+                    ? 'bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-transparent border-purple-500/20'
+                    : 'bg-gradient-to-r from-purple-50 via-purple-50/50 to-white border-purple-200'
+            }`}>
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
+                        isDark ? 'bg-purple-600/20 border-purple-500/30 text-purple-300' : 'bg-purple-100 border-purple-200 text-purple-700'
+                    }`}>
                         <BookOpen size={20} />
                     </div>
                     <div>
-                        <h2 className="text-base font-bold text-white flex items-center gap-2">
+                        <h2 className={`text-base font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                             Academic Curriculum
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-medium">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+                                isDark ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'bg-purple-100 text-purple-700 border-purple-200'
+                            }`}>
                                 Semester {selectedSemester}
                             </span>
                         </h2>
-                        <p className="text-xs text-slate-400">
+                        <p className={`text-xs ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                             Authoritative syllabus managed by Department Admin ({academicOverview?.branch?.code || 'CSE'}).
                         </p>
                     </div>
@@ -83,7 +93,7 @@ const SubjectsSection = () => {
                 <div className="flex items-center gap-4">
                     <div className="text-right">
                         <span className="text-[10px] text-slate-500 uppercase block font-medium">Total Registered Credits</span>
-                        <span className="text-sm font-extrabold text-emerald-400">
+                        <span className={`text-sm font-extrabold ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`}>
                             {totalRegisteredCredits} Credits
                         </span>
                     </div>
@@ -93,18 +103,24 @@ const SubjectsSection = () => {
             {/* Controls & Search */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="relative flex-1 max-w-md">
-                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search size={15} className={`absolute left-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-slate-400' : 'text-slate-400'}`} />
                     <input
                         type="text"
                         placeholder="Search subjects by name or code..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 bg-[#0b061c] border border-purple-500/20 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/60"
+                        className={`w-full pl-9 pr-3 py-2 rounded-lg text-xs focus:outline-none transition-colors border ${
+                            isDark 
+                                ? 'bg-[#0b061c] border-purple-500/20 text-white placeholder-slate-500 focus:border-purple-500/60'
+                                : 'bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-500 shadow-xs'
+                        }`}
                     />
                 </div>
 
                 {isHistorical && (
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-950/40 border border-purple-500/30 text-xs text-purple-300">
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border ${
+                        isDark ? 'bg-purple-950/40 border-purple-500/30 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-700'
+                    }`}>
                         <Lock size={12} />
                         <span>Historical Term (Read-Only)</span>
                     </div>
@@ -114,7 +130,9 @@ const SubjectsSection = () => {
             {/* Curriculum Subjects Table / Grid */}
             <div className="flex flex-col gap-2.5">
                 {filteredCurriculum.length === 0 ? (
-                    <div className="p-8 text-center rounded-xl bg-purple-950/20 border border-purple-500/20 text-slate-400">
+                    <div className={`p-8 text-center rounded-xl border ${
+                        isDark ? 'bg-purple-950/20 border-purple-500/20 text-slate-400' : 'bg-purple-50/50 border-purple-200 text-slate-600'
+                    }`}>
                         <p className="text-sm">No curriculum subjects found for Semester {selectedSemester}.</p>
                         <p className="text-xs text-slate-500 mt-1">Curriculum is maintained by the Department Admin.</p>
                     </div>
@@ -126,42 +144,44 @@ const SubjectsSection = () => {
                         return (
                             <div
                                 key={sub._id}
-                                className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md ${
+                                className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm ${
                                     isRegistered
-                                        ? 'bg-purple-950/30 border-purple-500/40 ring-1 ring-purple-500/20'
-                                        : 'bg-[#0b061c]/80 border-purple-500/15 hover:border-purple-500/30'
+                                        ? (isDark ? 'bg-purple-950/30 border-purple-500/40 ring-1 ring-purple-500/20' : 'bg-purple-50/80 border-purple-300 ring-1 ring-purple-200')
+                                        : (isDark ? 'bg-[#0b061c]/80 border-purple-500/15 hover:border-purple-500/30' : 'bg-white border-slate-200 hover:border-purple-300 shadow-xs')
                                 }`}
                             >
                                 <div className="flex items-center gap-3.5">
-                                    <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center font-bold text-xs ${
+                                    <div className={`w-10 h-10 rounded-lg shrink-0 flex items-center justify-center font-bold text-xs border ${
                                         isRegistered
-                                            ? 'bg-purple-600/25 text-purple-300 border border-purple-500/40'
-                                            : 'bg-white/[0.04] text-slate-400 border border-white/10'
+                                            ? (isDark ? 'bg-purple-600/25 text-purple-300 border-purple-500/40' : 'bg-purple-100 text-purple-700 border-purple-200')
+                                            : (isDark ? 'bg-white/[0.04] text-slate-400 border-white/10' : 'bg-slate-100 text-slate-600 border-slate-200')
                                     }`}>
                                         {sub.code ? sub.code.substring(0, 4) : 'SUB'}
                                     </div>
 
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-mono font-bold text-purple-300">
+                                            <span className={`text-xs font-mono font-bold ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
                                                 {sub.code}
                                             </span>
-                                            <span className={`text-[10px] px-2 py-0.5 rounded font-medium ${
+                                            <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
                                                 category === 'Lab' 
-                                                    ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                                                    ? (isDark ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-blue-50 text-blue-700 border-blue-200')
                                                     : category === 'Elective'
-                                                        ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
-                                                        : 'bg-slate-800 text-slate-300 border border-slate-700'
+                                                        ? (isDark ? 'bg-amber-500/15 text-amber-300 border-amber-500/30' : 'bg-amber-50 text-amber-700 border-amber-200')
+                                                        : (isDark ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-200')
                                             }`}>
                                                 {category}
                                             </span>
                                             {isRegistered && (
-                                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                                                    isDark ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                }`}>
                                                     <CheckCircle2 size={10} /> Enrolled
                                                 </span>
                                             )}
                                         </div>
-                                        <h3 className="text-sm font-semibold text-white mt-0.5">
+                                        <h3 className={`text-sm font-semibold mt-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>
                                             {sub.name}
                                         </h3>
                                     </div>
@@ -170,7 +190,7 @@ const SubjectsSection = () => {
                                 <div className="flex items-center justify-between sm:justify-end gap-4">
                                     <div className="text-right">
                                         <span className="text-[10px] text-slate-500 uppercase block font-medium">Credits</span>
-                                        <span className="text-xs font-bold text-slate-200">
+                                        <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
                                             {sub.credits || 3} Credits
                                         </span>
                                     </div>
@@ -181,7 +201,9 @@ const SubjectsSection = () => {
                                             onClick={() => handleToggleSubject(sub._id)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                                                 isRegistered
-                                                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40'
+                                                    ? (isDark 
+                                                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40'
+                                                        : 'bg-purple-100 text-purple-700 border border-purple-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200')
                                                     : 'bg-purple-600 text-white hover:bg-purple-500 shadow-sm'
                                             }`}
                                         >
@@ -196,8 +218,10 @@ const SubjectsSection = () => {
             </div>
 
             {/* Authoritative Notice */}
-            <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-center gap-2.5">
-                <ShieldCheck size={16} className="text-purple-400 shrink-0" />
+            <div className={`p-3 rounded-lg border text-xs flex items-center gap-2.5 ${
+                isDark ? 'bg-slate-900/60 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+            }`}>
+                <ShieldCheck size={16} className={`${isDark ? 'text-purple-400' : 'text-purple-600'} shrink-0`} />
                 <span>
                     Official subjects and course codes are loaded directly from the Academic Curriculum configured by department administrators.
                 </span>

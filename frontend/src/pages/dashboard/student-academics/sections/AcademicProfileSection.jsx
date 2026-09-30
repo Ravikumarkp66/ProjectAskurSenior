@@ -5,9 +5,11 @@ import {
     AlertCircle, Sparkles, Building, GraduationCap, Edit3 
 } from 'lucide-react';
 import { useStudentAcademics } from '../../../../contexts/StudentAcademicsContext';
+import { useTheme } from '../../../../context/ThemeContext';
 import toast from 'react-hot-toast';
 
 const AcademicProfileSection = () => {
+    const { isDark = true } = useTheme?.() || { isDark: true };
     const { profile, updateAcademicProfile, saving } = useStudentAcademics();
 
     const [formData, setFormData] = useState({
@@ -66,20 +68,26 @@ const AcademicProfileSection = () => {
     return (
         <div className="flex flex-col gap-4 w-full">
             {/* Header Banner */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 md:p-5 rounded-xl bg-[#090518]/80 border border-purple-500/20 shadow-lg backdrop-blur-xl">
+            <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 md:p-5 rounded-xl shadow-sm border backdrop-blur-xl ${
+                isDark 
+                    ? 'bg-[#090518]/80 border-purple-500/20' 
+                    : 'bg-gradient-to-r from-purple-50 via-purple-50/50 to-white border-purple-200'
+            }`}>
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-500/20 border border-purple-500/30 text-purple-300">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                            isDark ? 'bg-purple-500/20 border-purple-500/30 text-purple-300' : 'bg-purple-100 border-purple-200 text-purple-700'
+                        }`}>
                             Academic Identity
                         </span>
-                        <span className="flex items-center gap-1 text-[10px] text-amber-400 font-medium">
+                        <span className={`flex items-center gap-1 text-[10px] font-medium ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
                             <Lock size={10} /> Institutional records verified
                         </span>
                     </div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight font-outfit">
+                    <h1 className={`text-xl sm:text-2xl font-bold tracking-tight font-outfit ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         Academic Profile
                     </h1>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className={`text-xs mt-0.5 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                         Permanent student academic identity and university registration credentials.
                     </p>
                 </div>
@@ -97,18 +105,24 @@ const AcademicProfileSection = () => {
             </div>
 
             {/* Institutional Controlled Academic Credentials */}
-            <div className="p-4 md:p-5 rounded-xl bg-[#090518]/80 border border-purple-500/15 shadow-lg">
-                <div className="flex items-center justify-between pb-3 border-b border-purple-500/10 mb-4">
+            <div className={`p-4 md:p-5 rounded-xl shadow-sm border ${
+                isDark ? 'bg-[#090518]/80 border-purple-500/15' : 'bg-white border-slate-200'
+            }`}>
+                <div className={`flex items-center justify-between pb-3 border-b mb-4 ${
+                    isDark ? 'border-purple-500/10' : 'border-slate-100'
+                }`}>
                     <div>
-                        <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                            <ShieldCheck className="text-purple-400" size={16} />
+                        <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            <ShieldCheck className={isDark ? 'text-purple-400' : 'text-purple-600'} size={16} />
                             Institutional Credentials
                         </h2>
-                        <p className="text-[11px] text-slate-400">
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                             Authoritative academic records maintained and verified by your institution
                         </p>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 border border-purple-500/20 text-purple-300 flex items-center gap-1">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border flex items-center gap-1 ${
+                        isDark ? 'bg-purple-500/10 border-purple-500/20 text-purple-300' : 'bg-purple-50 border-purple-200 text-purple-700'
+                    }`}>
                         <Lock size={10} />
                         College controlled
                     </span>
@@ -117,105 +131,135 @@ const AcademicProfileSection = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* USN */}
                     <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>University Seat Number (USN)</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> Locked</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> Locked</span>
                         </div>
                         <input
                             type="text"
                             value={formData.usn}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-purple-200 font-mono text-xs font-semibold cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg font-mono text-xs font-semibold cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-purple-200 opacity-85' 
+                                    : 'bg-purple-50/50 border-purple-200 text-purple-800'
+                            }`}
                         />
                     </div>
 
                     {/* Student ID */}
                     <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>Student Identifier</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> System ID</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> System ID</span>
                         </div>
                         <input
                             type="text"
                             value={formData.studentId}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-300 font-mono text-xs cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg font-mono text-xs cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-slate-300 opacity-85' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                            }`}
                         />
                     </div>
 
                     {/* College */}
                     <div className="space-y-1 sm:col-span-2">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>College / University</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> Institutional</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> Institutional</span>
                         </div>
                         <input
                             type="text"
                             value={formData.collegeName}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-200 text-xs cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg text-xs cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-slate-200 opacity-85' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-800 font-medium'
+                            }`}
                         />
                     </div>
 
                     {/* Degree */}
                     <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>Degree / Program</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> Locked</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> Locked</span>
                         </div>
                         <input
                             type="text"
                             value={formData.degree}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-200 text-xs cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg text-xs cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-slate-200 opacity-85' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                            }`}
                         />
                     </div>
 
                     {/* Branch */}
                     <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>Department / Branch</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> Locked</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> Locked</span>
                         </div>
                         <input
                             type="text"
                             value={formData.branchName}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-200 text-xs cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg text-xs cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-slate-200 opacity-85' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                            }`}
                         />
                     </div>
 
                     {/* Scheme */}
                     <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>Curriculum Scheme</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> Locked</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> Locked</span>
                         </div>
                         <input
                             type="text"
                             value={formData.schemeName}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-slate-200 text-xs cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg text-xs cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-slate-200 opacity-85' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                            }`}
                         />
                     </div>
 
                     {/* Current Semester */}
                     <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                        <div className={`flex items-center justify-between text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
                             <span>Authoritative Semester</span>
-                            <span className="text-[10px] text-purple-400 flex items-center gap-0.5"><Lock size={9} /> Locked</span>
+                            <span className={`text-[10px] flex items-center gap-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}><Lock size={9} /> Locked</span>
                         </div>
                         <input
                             type="text"
                             value={`Semester ${formData.semester}`}
                             disabled
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.03] border border-white/10 text-purple-300 font-semibold text-xs cursor-not-allowed select-none opacity-85"
+                            className={`w-full px-3 py-2 rounded-lg font-semibold text-xs cursor-not-allowed select-none border ${
+                                isDark 
+                                    ? 'bg-white/[0.03] border-white/10 text-purple-300 opacity-85' 
+                                    : 'bg-purple-50/50 border-purple-200 text-purple-800'
+                            }`}
                         />
                     </div>
                 </div>
 
-                <div className="mt-3.5 p-2.5 rounded-lg bg-purple-500/5 border border-purple-500/15 flex items-center gap-2.5 text-[11px] text-slate-400">
-                    <AlertCircle className="text-purple-400 shrink-0" size={14} />
+                <div className={`mt-3.5 p-2.5 rounded-lg border flex items-center gap-2.5 text-[11px] ${
+                    isDark ? 'bg-purple-500/5 border-purple-500/15 text-slate-400' : 'bg-purple-50/60 border-purple-200 text-purple-800'
+                }`}>
+                    <AlertCircle className={`${isDark ? 'text-purple-400' : 'text-purple-600'} shrink-0`} size={14} />
                     <p>
                         Institutional credentials are locked to maintain downstream integrity with VTU curriculum structures.
                     </p>
@@ -223,18 +267,24 @@ const AcademicProfileSection = () => {
             </div>
 
             {/* Editable Student Contact & Identity */}
-            <div className="p-4 md:p-5 rounded-xl bg-[#090518]/80 border border-purple-500/15 shadow-lg">
-                <div className="flex items-center justify-between pb-3 border-b border-purple-500/10 mb-4">
+            <div className={`p-4 md:p-5 rounded-xl shadow-sm border ${
+                isDark ? 'bg-[#090518]/80 border-purple-500/15' : 'bg-white border-slate-200'
+            }`}>
+                <div className={`flex items-center justify-between pb-3 border-b mb-4 ${
+                    isDark ? 'border-purple-500/10' : 'border-slate-100'
+                }`}>
                     <div>
-                        <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                            <Edit3 className="text-purple-400" size={16} />
+                        <h2 className={`text-sm font-bold flex items-center gap-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            <Edit3 className={isDark ? 'text-purple-400' : 'text-purple-600'} size={16} />
                             Personal Details
                         </h2>
-                        <p className="text-[11px] text-slate-400">
+                        <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
                             Editable contact details and profile preferences
                         </p>
                     </div>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        isDark ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    }`}>
                         Editable ✏️
                     </span>
                 </div>
@@ -242,45 +292,59 @@ const AcademicProfileSection = () => {
                 <form onSubmit={handleSave} className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     {/* Full Name */}
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-300">Student Full Name</label>
+                        <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Student Full Name</label>
                         <input
                             type="text"
                             name="name"
                             value={formData.name}
                             onChange={handleTextChange}
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.05] border border-purple-500/30 text-white text-xs focus:outline-none focus:border-purple-500"
+                            className={`w-full px-3 py-2 rounded-lg text-xs focus:outline-none transition-colors border ${
+                                isDark 
+                                    ? 'bg-white/[0.05] border-purple-500/30 text-white focus:border-purple-500' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-purple-500'
+                            }`}
                         />
                     </div>
 
                     {/* Phone Number */}
                     <div className="space-y-1">
-                        <label className="text-xs font-semibold text-slate-300">WhatsApp / Phone Number</label>
+                        <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>WhatsApp / Phone Number</label>
                         <input
                             type="text"
                             name="phone"
                             value={formData.phone}
                             onChange={handleTextChange}
                             placeholder="+91 98765 43210"
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.05] border border-purple-500/30 text-white text-xs focus:outline-none focus:border-purple-500"
+                            className={`w-full px-3 py-2 rounded-lg text-xs focus:outline-none transition-colors border ${
+                                isDark 
+                                    ? 'bg-white/[0.05] border-purple-500/30 text-white focus:border-purple-500' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-purple-500'
+                            }`}
                         />
                     </div>
 
                     {/* Bio */}
                     <div className="space-y-1 sm:col-span-2">
-                        <label className="text-xs font-semibold text-slate-300">Academic Goals & Bio</label>
+                        <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Academic Goals & Bio</label>
                         <textarea
                             name="bio"
                             value={formData.bio}
                             onChange={handleTextChange}
                             rows={2}
                             placeholder="Engineering student passionate about software systems, distributed computing..."
-                            className="w-full px-3 py-2 rounded-lg bg-white/[0.05] border border-purple-500/30 text-white text-xs focus:outline-none focus:border-purple-500 resize-none"
+                            className={`w-full px-3 py-2 rounded-lg text-xs focus:outline-none transition-colors border resize-none ${
+                                isDark 
+                                    ? 'bg-white/[0.05] border-purple-500/30 text-white focus:border-purple-500' 
+                                    : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-purple-500'
+                            }`}
                         />
                     </div>
 
                     {/* Action Bar */}
                     {isModified && (
-                        <div className="sm:col-span-2 flex justify-end gap-2 pt-2 border-t border-purple-500/10">
+                        <div className={`sm:col-span-2 flex justify-end gap-2 pt-2 border-t ${
+                            isDark ? 'border-purple-500/10' : 'border-slate-100'
+                        }`}>
                             <button
                                 type="button"
                                 onClick={() => {
@@ -292,7 +356,11 @@ const AcademicProfileSection = () => {
                                     }));
                                     setIsModified(false);
                                 }}
-                                className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium cursor-pointer"
+                                className={`px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer border ${
+                                    isDark 
+                                        ? 'bg-white/5 hover:bg-white/10 text-slate-300 border-white/5' 
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                                }`}
                             >
                                 Reset
                             </button>

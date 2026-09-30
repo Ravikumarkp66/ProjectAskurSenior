@@ -116,7 +116,7 @@ function parseDiagnostics({ stderr, language = 'c', status = '' }) {
     // Format: File "/app/main.py", line 12\n    print("hello"\n                 ^\nSyntaxError: '(' was never closed
     // Format: File "/app/main.py", line 15, in <module>\n    x = 1 / 0\nZeroDivisionError: division by zero
     if (lang === 'python') {
-        const pyFileRegex = /File\s+"(?:[^\"]+)",\s+line\s+(\d+)(?:,\s+in\s+([^\n]+))?/gi;
+        const pyFileRegex = /File\s+"(?:[^"]+)",\s+line\s+(\d+)(?:,\s+in\s+([^\n]+))?/gi;
         const matches = [];
         let m;
         while ((m = pyFileRegex.exec(stderr)) !== null) {

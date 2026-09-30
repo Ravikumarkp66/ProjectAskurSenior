@@ -31,7 +31,7 @@ const CalculatorNavigation = () => {
 
             <button
                 type="button"
-                onClick={() => navigate('/home/cgpa-calculator')}
+                onClick={() => navigate('/plus/cgpa')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-200 ${
                     isCGPA
                         ? 'bg-purple-600/20 text-purple-300 border border-purple-500/40 shadow-lg shadow-purple-500/10'

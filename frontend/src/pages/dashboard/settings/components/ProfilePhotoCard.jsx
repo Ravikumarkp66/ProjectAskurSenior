@@ -76,91 +76,39 @@ const ProfilePhotoCard = ({ user, onUpdateUser }) => {
     };
 
     return (
-        <div style={{
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '12px',
-            padding: '18px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            boxSizing: 'border-box'
-        }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0 }}>
+        <div className="rounded-xl border p-4 sm:p-5 bg-slate-50/50 dark:bg-white/[0.02] border-slate-200/80 dark:border-white/[0.08] flex flex-col gap-3 box-border">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white m-0">
                 Profile Photo
             </h3>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div className="flex items-center gap-4 sm:gap-5">
                 {/* Circular Avatar Container */}
-                <div style={{
-                    width: '72px',
-                    height: '72px',
-                    borderRadius: '50%',
-                    border: '2px solid rgba(139,92,246,0.35)',
-                    background: 'linear-gradient(135deg, rgba(124,58,237,0.15), rgba(99,102,241,0.12))',
-                    color: '#c4b5fd',
-                    fontSize: '22px',
-                    fontWeight: 700,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    flexShrink: 0
-                }}>
+                <div className="w-[72px] h-[72px] rounded-full border-2 border-purple-500/30 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 text-xl font-bold flex items-center justify-center overflow-hidden relative shrink-0">
                     {user?.profilePicture ? (
                         <img 
                             src={getProfilePicUrl(user.profilePicture)} 
                             alt="" 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                            className="w-full h-full object-cover" 
                         />
                     ) : (
                         initials
                     )}
 
                     {loading && (
-                        <div style={{
-                            position: 'absolute',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.5)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                        }}>
-                            <Loader2 size={18} className="animate-spin" style={{ color: '#a78bfa' }} />
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <Loader2 size={18} className="animate-spin text-purple-400" />
                         </div>
                     )}
                 </div>
 
                 {/* Upload & Actions Buttons */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="flex flex-col gap-2 flex-1">
+                    <div className="flex flex-wrap gap-2">
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={loading}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(139,92,246,0.25)',
-                                background: 'rgba(124,58,237,0.12)',
-                                color: '#a78bfa',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                transition: 'all 0.15s'
-                            }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.background = 'rgba(124,58,237,0.18)';
-                                e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)';
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.background = 'rgba(124,58,237,0.12)';
-                                e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)';
-                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-500/30 bg-purple-50 dark:bg-purple-500/15 text-purple-700 dark:text-purple-300 text-xs font-semibold hover:bg-purple-100 dark:hover:bg-purple-500/25 transition-colors cursor-pointer disabled:opacity-50"
                         >
                             <Camera size={13} />
                             Upload Photo
@@ -171,35 +119,14 @@ const ProfilePhotoCard = ({ user, onUpdateUser }) => {
                                 type="button"
                                 onClick={handleRemovePhoto}
                                 disabled={loading}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    padding: '6px 12px',
-                                    borderRadius: '6px',
-                                    border: '1px solid rgba(239,68,68,0.25)',
-                                    background: 'rgba(239,68,68,0.1)',
-                                    color: '#f87171',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s'
-                                }}
-                                onMouseEnter={e => {
-                                    e.currentTarget.style.background = 'rgba(239,68,68,0.15)';
-                                    e.currentTarget.style.borderColor = 'rgba(239,68,68,0.35)';
-                                }}
-                                onMouseLeave={e => {
-                                    e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
-                                    e.currentTarget.style.borderColor = 'rgba(239,68,68,0.25)';
-                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-500/25 transition-colors cursor-pointer disabled:opacity-50"
                             >
                                 <Trash2 size={13} />
                                 Remove
                             </button>
                         )}
                     </div>
-                    <span style={{ fontSize: '11px', color: 'rgba(148, 163, 184, 0.5)' }}>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
                         JPG, PNG or WEBP. Max size 2MB.
                     </span>
                 </div>
@@ -214,7 +141,7 @@ const ProfilePhotoCard = ({ user, onUpdateUser }) => {
             />
 
             {error && (
-                <div style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', fontWeight: 500 }}>
+                <div className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-semibold">
                     {error}
                 </div>
             )}

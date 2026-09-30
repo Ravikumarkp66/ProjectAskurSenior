@@ -82,7 +82,7 @@ const academicSubjectSchema = new mongoose.Schema({
     },
     evaluationType: {
         type: String,
-        enum: ['IPCC', 'THEORY_ONLY', 'LAB_ONLY', 'LOW_THEORY'],
+        enum: ['IPCC', 'THEORY_ONLY', 'LAB_ONLY', 'LOW_THEORY', null],
         default: null
     },
     createdBy: {

@@ -7,7 +7,7 @@ import SemesterResultSheet from '../../../components/SemesterResultSheet';
  * Old manual entry and calculator simulations have been replaced by real-time institutional evaluation.
  */
 const SgpaSettings = () => {
-    return <SemesterResultSheet initialSemester={1} />;
+    return <SemesterResultSheet initialTab="overview" />;
 };
 
 export default SgpaSettings;
